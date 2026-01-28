@@ -1,0 +1,6 @@
+{% capture url %}
+https://api.stripe.com//v1/accounts/{{ account_id }}
+{% endcapture %}
+{% liquid
+  return nil | hash_merge: payload: null, request_type: 'DELETE', to: url
+%}

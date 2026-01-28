@@ -1,0 +1,6 @@
+{% liquid
+  function status = 'modules/payments/commands/transactions/map_status', payment_status: object.payment_status
+
+  assign data = null | hash_merge: id: transaction.id, c__status: status, gateway_transaction_id: object.gateway_transaction_id
+  return data
+%}

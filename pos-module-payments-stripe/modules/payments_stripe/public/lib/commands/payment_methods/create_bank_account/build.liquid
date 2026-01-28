@@ -1,0 +1,15 @@
+{%- parse_json object -%}
+  {
+    "payment_method_id": {{ object.payment_method_id | json }},
+    "customer_id": {{ customer.customer_id | default: object.customer_id | json }},
+    "reference_id": {{ customer.reference_id | default: object.reference_id | json }},
+    "type": {{ object.type | json }},
+    "last4": {{ object.last4 | json }},
+    "bank_name": {{ object.bank_name | json }},
+    "stripe_account_name": {{ object.stripe_account_name | json }},
+    "routing_number": {{ object.routing_number | json }}
+  }
+{%- endparse_json -%}
+{% liquid
+  return object
+%}

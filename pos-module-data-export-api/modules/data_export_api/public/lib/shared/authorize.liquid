@@ -1,0 +1,28 @@
+{%- liquid
+  function api_key = 'modules/core/queries/variable/find', name: '_data_export_api_key', type: 'string'
+  function whitelisted_ips = 'modules/core/queries/variable/find', name: '_data_export_whitelisted_ips', type: 'array'
+  assign errors = '[]' | parse_json
+
+  if api_key != context.headers.HTTP_API_KEY
+    assign errors = errors | array_add: "API_KEY header invalid"
+  endif
+
+  if whitelisted_ips != blank
+    assign ip = context.headers.HTTP_X_FORWARDED_FOR | split: ',' | first
+
+    if whitelisted_ips contains ip
+    else
+      assign message = "IP address not allowed"
+      assign errors = errors | array_add: message
+    endif
+  endif
+-%}
+{%- if errors != blank -%}
+  {%- response_status 401 -%}
+  {
+    "errors": {
+      "401": {{ errors }}
+    }
+  }
+  {%- break -%}
+{%- endif -%}

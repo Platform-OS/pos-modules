@@ -1,0 +1,15 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/connected_accounts/update/build', object: object, params: params
+  function object = 'modules/payments_stripe/commands/connected_accounts/update/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/connected_accounts/update', object: object
+
+    assign event_payload = null | hash_merge: connected_account_id: object.id, reference_id: object.reference_id, account_state: object.state
+    function _ = 'modules/core/commands/events/publish', type: 'payments_stripe_connected_account_updated', object: event_payload
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/connected_accounts/update"
+  endif
+
+  return object
+%}

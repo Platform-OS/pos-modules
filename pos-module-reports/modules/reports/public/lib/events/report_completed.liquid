@@ -1,0 +1,18 @@
+---
+metadata:
+  event:
+    user_id
+    creator_id
+    document_id
+    app_host
+---
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'creator_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'user_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'object_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'document_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'app_host'
+  return c
+%}

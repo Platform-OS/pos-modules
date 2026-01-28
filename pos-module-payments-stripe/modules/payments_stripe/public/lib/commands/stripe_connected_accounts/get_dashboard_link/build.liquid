@@ -1,0 +1,7 @@
+{% capture url %}
+https://api.stripe.com//v1/accounts/{{ account_id }}/login_links
+{% endcapture %}
+{% assign payload = null | hash_merge: stripe_account_name: stripe_account_name %}
+{% liquid
+  return nil | hash_merge: payload: payload, request_type: 'POST', to: url
+%}

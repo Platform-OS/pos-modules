@@ -1,0 +1,18 @@
+{% liquid
+  function customer = 'modules/payments_stripe/queries/customers/find_by_customer_id', customer_id: object.customer_id
+  if customer
+    hash_assign customer['valid'] = true
+    return customer
+  endif
+
+  function object = 'modules/payments_stripe/commands/customers/create/build', object: object
+  function object = 'modules/payments_stripe/commands/customers/create/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/customers/create', object: object
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/customers/create"
+  endif
+
+  return object
+%}

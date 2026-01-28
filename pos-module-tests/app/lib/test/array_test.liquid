@@ -1,0 +1,10 @@
+{% liquid
+  # Test array-related assertions
+
+  # Test array size using equal
+  assign items = '["a", "b", "c"]' | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: items.size, expected: 3, field_name: 'array has 3 items'
+
+  # Test first element
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: items.first, expected: 'a', field_name: 'first item is a'
+%}

@@ -1,0 +1,8 @@
+{% liquid
+  if event.reference_schema == 'modules/payments/transaction'
+    function update = 'modules/payments/commands/transactions/set_status_cache', id: event.reference_id, status: event.name
+    unless update.valid
+      log update, type: "ERROR could not update the transaction's status cache"
+    endunless
+  endif
+%}

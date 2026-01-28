@@ -1,0 +1,8 @@
+name: example_table
+properties:
+  - name: field1
+    type: string
+  - name: field2
+    type: boolean
+  - name: field3
+    type: integer

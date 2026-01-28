@@ -1,0 +1,45 @@
+---
+method: post
+layout: null
+---
+{% liquid
+  function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: '/payments/stripe/checkout_session_completed_webhook', context: context
+  if valid_webhook
+    unless context.params.data.object.success_url contains context.location.host
+      echo "Transaction from different host"
+      response_status 202
+    endunless
+
+    assign requester_id = context.current_user.id | default: 'stripe_webhook_request'
+    function object = 'modules/payments_stripe/commands/stripe_checkout/complete', object: context.post_params, requester_id: requester_id, request_url: context.location.url
+
+    if object.valid
+      echo object
+    else
+      # Stripe will ping all endpoints so maybe we get another instance's ID
+      # and that's why the command will not valid.
+      # We should not send 500 status response in this case, because the request was valid
+      # but it was not relevant in the current instance.
+
+      assign log_level = 'WARNING'
+      if object.errors.transaction_id contains 'not exist'
+        response_status 202
+      else
+        assign log_level = 'ERROR'
+        response_status 500
+      endif
+
+      if log_level != 'WARNING' or object.data.object.success_url contains context.location.host
+        # Log the problem only if payment is from this host.
+        assign log_type = log_level | append: ': payments_stripe/checkout_session_completed_webhook object'
+        log object, type: log_type
+      endif
+
+      echo object
+    endif
+  else
+    log context, type: 'ERROR: payments_stripe/checkout_session_completed_webhook invalid webhook'
+    response_status 403
+    break
+  endif
+%}

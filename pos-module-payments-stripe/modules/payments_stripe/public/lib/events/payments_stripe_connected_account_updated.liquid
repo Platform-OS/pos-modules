@@ -1,0 +1,16 @@
+---
+metadata:
+  event:
+    connected_account_id
+    reference_id
+    account_state
+---
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'connected_account_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'reference_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'account_state'
+
+  return c
+%}

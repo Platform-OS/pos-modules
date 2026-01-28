@@ -1,0 +1,9 @@
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  assign object = object | hash_merge: c
+
+  return object
+%}
+
+

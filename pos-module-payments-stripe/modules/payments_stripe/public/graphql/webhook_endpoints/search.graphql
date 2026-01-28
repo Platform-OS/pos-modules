@@ -1,0 +1,18 @@
+query webhook_endpoints($url: String!, $stripe_account_name: String) {
+  webhook_endpoints: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/payments_stripe/webhook_endpoint" }
+      properties: [
+        { name: "url", value: $url }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+    sort: { created_at: { order: DESC } }
+  ) {
+    results {
+      id
+      properties
+    }
+  }
+}

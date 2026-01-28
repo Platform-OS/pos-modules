@@ -1,0 +1,17 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_checkout/handle_webhook/build', object: params.data.object, transaction: transaction
+  function object = 'modules/payments_stripe/commands/stripe_checkout/handle_webhook/check', object: object
+
+  function _gateway_request = 'modules/payments/commands/gateway_requests/receive', object: params.data.object, name: params.type, external_id: transaction.id, request_url: request_url
+  if object.valid
+    if object.customer
+      function _customer = 'modules/payments_stripe/commands/customers/create', object: object.customer
+    endif
+    assign input = null | hash_merge: payment_status: object.status
+    function object = 'modules/payments/commands/transactions/update_status', object: input, transaction: object.transaction, requester_id: requester_id
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/stripe_checkout/handle_webhook invalid"
+  endif
+
+  return object
+%}

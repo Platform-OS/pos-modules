@@ -1,0 +1,9 @@
+{% liquid
+  assign data = null | hash_merge: id: object.id, gateway_transaction_id: object.gateway_transaction_id
+
+  if object.c__status
+    hash_assign data['c__status'] = object.c__status
+  endif
+
+  return data
+%}

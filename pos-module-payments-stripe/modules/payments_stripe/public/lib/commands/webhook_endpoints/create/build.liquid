@@ -1,0 +1,29 @@
+{% liquid
+  assign body = response.body | parse_json
+%}
+{% parse_json webhook %}
+  {%- if response.status == 200 -%}
+    {
+      {%- if body.error -%}
+        "errors": [
+          {"message": "{{ body.error.message }}"}
+        ],
+      {%- endif -%}
+      "gateway_id": "{{ body.id }}",
+      "url": "{{ body.url }}",
+      "secret": "{{ body.secret }}",
+      "livemode": "{{ body.livemode }}",
+      "enabled_events": {{ events | json }},
+      "stripe_account_name": {{ stripe_account_name | json }},
+      "valid": true
+    }
+  {%- else -%}
+    {
+      "errors": {{ body.error.message | json }},
+      "valid": false
+    }
+  {%- endif -%}
+{% endparse_json %}
+{% liquid
+  return webhook
+%}

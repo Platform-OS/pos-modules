@@ -1,0 +1,7 @@
+{
+  "modules": {
+    "core": "2.0.6",
+    "user": "5.0.4",
+    "common-styling": "1.11.0"
+  }
+}

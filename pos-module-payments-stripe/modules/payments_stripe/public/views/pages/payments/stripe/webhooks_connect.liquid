@@ -1,0 +1,23 @@
+---
+path: /payments/stripe/webhooks_connect(/:stripe_account_name)
+method: post
+layout: null
+---
+{% liquid
+  function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: context.location.pathname, context: context, stripe_account_name: context.params.stripe_account_name
+  if valid_webhook
+    case context.params.type
+    when 'payout.paid'
+      function response = 'modules/payments_stripe/commands/webhooks/payout', params: context.params, request_url: context.location.url, stripe_account_name: context.params.stripe_account_name
+    when 'account.updated'
+      function response = 'modules/payments_stripe/commands/webhooks/connected_account', params: context.params, stripe_account_name: context.params.stripe_account_name
+    endcase
+
+    response_status response.status
+    echo response.body
+  else
+    log context, type: 'ERROR: payments_stripe/checkout_session_completed_webhook invalid webhook'
+    response_status 403
+    break
+  endif
+%}

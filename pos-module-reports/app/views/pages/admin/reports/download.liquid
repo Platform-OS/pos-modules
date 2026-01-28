@@ -1,0 +1,17 @@
+---
+layout: ''
+slug: admin/reports/download/:report_id
+method: post
+---
+
+{% liquid
+  assign report_id = params.report_id
+  graphql report = 'modules/reports/reports/search', id: report_id, include_documents: true
+  assign document_url = report.reports.results.first.documents.first.file.url
+%}
+
+{% if document_url %}
+  {% redirect_to document_url %}
+{% else %}
+  {% redirect_to '/404' %}
+{% endif %}

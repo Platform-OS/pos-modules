@@ -1,0 +1,13 @@
+{% liquid
+  function object = 'modules/chat/lib/commands/conversations/mark_read/build', conversation: conversation, participant_id: participant_id
+  function object = 'modules/chat/lib/commands/conversations/mark_read/check', object: object
+  if object.valid
+    if object.participant_read_ids contains object.participant_id
+      return object
+    else
+      function object = 'modules/core/commands/execute', mutation_name: 'modules/chat/conversations/mark_read' object: object, selection: 'record_update'
+    endif
+  endif
+
+  return object
+%}

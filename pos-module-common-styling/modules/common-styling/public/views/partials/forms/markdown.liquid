@@ -1,0 +1,32 @@
+{% comment %}
+
+  Rich text editor
+
+  Arguments:
+    - id                    (string) unique id for the module
+    - name                  (string, required) name for the <textarea> with the content
+    - presigned_upload      (object, required) presigned upload data (upload url and payload) returned from a `property_upload_presigned_url` query
+    - value                 (string) pre-filled content for the textarea
+  
+{% endcomment %}
+
+
+{% liquid
+  assign id = id | default: 'pos-rte'
+  assign value = value | default: ''
+%}
+
+<div class="pos-markdown" id="{{ id }}">
+
+  <textarea
+    class="pos-forms-text"
+    rows="2"
+    name="{{ name }}"
+
+    data-upload-url="{{ presigned_upload.upload_url }}"
+    {% for field in presigned_upload.upload_url_payload %}
+        data-request-{{ field[0] }}="{{ field[1] }}"
+    {% endfor %}
+  >{{ value }}</textarea>
+
+</div>

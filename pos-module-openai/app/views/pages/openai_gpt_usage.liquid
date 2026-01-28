@@ -1,0 +1,56 @@
+{% comment %} CAPTCHA verification {% endcomment %}
+{%- liquid
+    assign c = '{ "errors": {}, "valid": true }' | parse_json
+    function c = 'modules/core/validations/hcaptcha', c: c, hcaptcha_params: context.params
+-%}
+
+{% comment %}
+ - Forced format of response that we want to get from OpenAI API.
+{% endcomment %}
+{%- parse_json response_format_schema_json -%}
+{
+  "tags": {
+    "type": "array",
+    "items": {
+      "type": "string"
+    }
+  }
+}
+{%- endparse_json -%}
+
+
+{%- capture user_message -%}
+Based on post content and attached images (if available) create hashtags for this post. I'll give you some example hashtags that You can use if some of them fits. Pick only tags that fits content directly. If there's no hashtags that fits, propose new. Always add hash sign (#) to tag, even for example tags. Please use no more than 3-4 hashtags.
+
+Example hashtags: #javascript #coding #ui.
+
+Post content: 🍎 Apple Unveils “Liquid Glass” UI: A New Era of Interface Design
+At WWDC, Apple introduced Liquid Glass — a stunning new UI paradigm that blends fluid motion, depth, and responsiveness like never before.
+This isn’t just a visual refresh — it’s a shift toward interfaces that feel alive. With dynamic translucency, smooth curvature, and motion that responds to context, Liquid Glass is designed to blur the line between digital and physical.
+It’s a bold move that could reshape how users interact with devices — more intuitive, more immersive, more human.
+Exciting times ahead for designers and developers.
+{%- endcapture -%}
+
+{%- liquid
+  # from app/partials/img_base64.liquid
+  function img = 'img_base64'
+-%}
+
+{%- parse_json request_object -%}
+{
+  "system_message": "You are helpful professional copywriter. You help tagging content of posts.",
+  "user_message": "{{user_message}}",
+  "user_images": ["{{ img }}", "{{ 'images/image_example.png' | asset_url  }}"],
+  "response_format_schema_json": {{ response_format_schema_json }},
+  "model": "gpt-4o-mini"
+}
+{%- endparse_json -%}
+
+{%- liquid
+  if c.valid
+    function response_object = 'modules/openai/commands/openai/responses/create', object: request_object
+    # function response_object = 'modules/openai/commands/openai/chat/completions', object: request_object
+  endif
+-%}
+
+{% render 'gpt_usage_view' request_object: request_object, response_object: response_object, c: c %}

@@ -1,0 +1,16 @@
+{%- liquid
+  assign page = page | default: null
+  assign limit = limit | default: null
+  assign id = id | default: null
+  assign payment_method_id = payment_method_id | default: null
+  assign customer_id = customer_id | default: null
+  assign reference_id = reference_id | default: null
+  assign stripe_account_name = stripe_account_name | default: null
+
+  graphql g = "modules/payments_stripe/payment_methods/search", id: id, page: page, limit: limit, payment_method_id: payment_method_id, customer_id: customer_id, reference_id: reference_id, stripe_account_name: stripe_account_name
+  if g.records == blank
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records
+-%}

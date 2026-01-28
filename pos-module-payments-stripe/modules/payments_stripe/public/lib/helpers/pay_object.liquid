@@ -1,0 +1,41 @@
+
+{% comment %}
+Possible payment_mode:
+  - charge - https://docs.stripe.com/api/charges/create Charges given payment method right away.
+    Used for payment methods added without Stripe Checkout flow
+  - payment_intent - https://docs.stripe.com/api/payment_intents/create Charges given payment method right away.
+    Used for payment methods added with Stripe Checkout flow
+  - checkout - https://docs.stripe.com/payments/checkout/how-checkout-works uses Stripe Checkout flow to charge user.
+{% endcomment %}
+
+{% liquid
+  case payment_mode
+  when 'charge'
+    function object = 'modules/payments_stripe/commands/stripe_charge/create', object: gateway_params, transaction: transaction
+    assign gateway_transaction_id = object.id | default: object.errors.charge
+    if object.errors
+      function transaction_status = 'modules/payments/commands/transactions/map_status', payment_status: 'failed'
+    endif
+  when 'payment_intent'
+    function object = 'modules/payments_stripe/commands/stripe_payment_intent/create', object: gateway_params, transaction: transaction
+    assign gateway_transaction_id = object.id | default: object.errors.payment_intent.id
+    if object.errors
+      function transaction_status = 'modules/payments/commands/transactions/map_status', payment_status: 'failed'
+    endif
+  when 'checkout'
+    function object = 'modules/payments_stripe/commands/stripe_checkout/create', object: gateway_params, transaction: transaction
+    assign gateway_transaction_id = object.payment_intent | default: object.setup_intent
+  # backwards compatibility
+  when null
+    function object = 'modules/payments_stripe/commands/stripe_checkout/create', object: gateway_params, transaction: transaction
+    assign gateway_transaction_id = object.payment_intent | default: object.setup_intent
+  endcase
+  assign transaction_object = null | hash_merge: id: transaction.id, gateway_transaction_id: gateway_transaction_id, c__status: transaction_status
+
+  function transaction = 'modules/payments/commands/transactions/update_gateway_transaction_id', object: transaction_object
+  unless transaction.valid
+    log object, type: 'ERROR: modules/payments_stripe pay_object'
+  endunless
+
+  return object
+%}

@@ -1,0 +1,8 @@
+{% liquid
+  assign data = '{}' | parse_json
+  hash_assign data['conversation_id'] = object.conversation_id
+  hash_assign data['autor_id'] = object.autor_id
+  hash_assign data['message'] = object.message
+
+  return data
+%}

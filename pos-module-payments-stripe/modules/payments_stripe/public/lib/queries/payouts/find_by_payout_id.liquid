@@ -1,0 +1,14 @@
+{%- liquid
+  if payout_id == blank
+    log "connected_account_id is null", type: "QUERY ERROR"
+    return null
+  endif
+
+  graphql g  = 'modules/payments_stripe/payouts/search', payout_id: payout_id, limit: 1
+  if g.records == blank
+    log payout_id, type: "QUERY ERROR - PARAMS"
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records.results[0]
+-%}

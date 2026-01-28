@@ -1,0 +1,8 @@
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+  if current_profile.user
+   function profiles = 'modules/user/queries/profiles/search', limit: 50, not_ids: null, uuid: null, id: null, ids: null, first_name: null, last_name: null, user_id: null, query: null, emails: null, sort: null
+  endif
+
+  render 'index', current_profile: current_profile, profiles: profiles
+%}

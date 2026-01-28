@@ -1,0 +1,105 @@
+{%- comment -%}
+Creates an OpenAI API request data with customizable parameters.
+object: JSON Object
+  This object contains the parameters for the OpenAI API request.
+  It can include model, temperature, system_message, user_message, user_images,
+  response_format_schema_json, and response_format_required_fields.
+
+object fields:
+  model: (optional) String
+    - The OpenAI model to use. Defaults to "gpt-4o-mini" if not provided.
+
+  temperature: (optional) Number
+    - Controls the randomness of the output. Defaults to 1 if not provided.
+
+  system_message: (optional) String
+    - The system message that sets the behavior of the AI.
+
+  user_message: (mandatory) String
+    - The main text prompt/message from the user.
+
+  user_images: (optional) Array of Strings
+    - Array of image URLs or Base64 to include in the prompt.
+    - Each URL will be added as an input_image type message.
+
+  response_format_schema_json: (optional) Object
+    - JSON schema that defines the structure of the expected response.
+    - Used to format the AI's response in a specific JSON structure.
+    - It's strongly recommended to provide this schema for structured outputs for predictive results.
+
+  response_format_required_fields: (optional) Array of Strings
+    - Specifies which fields in the response schema are required.
+    - If not provided, all fields in the schema will be considered required.
+
+Returns:
+  JSON Object: A formatted data ready for OpenAI API request
+
+See also: https://platform.openai.com/docs/api-reference/chat
+          https://platform.openai.com/docs/guides/structured-outputs
+
+{%- endcomment -%}
+{%- parse_json data_frame -%}
+{
+  "model": "gpt-4o-mini",
+  "temperature": 1,
+  "messages": [
+      {
+          "role": "system",
+          "content": ""
+      },
+      {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": ""
+            }
+          ]
+      }
+  ],
+  "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "prompt_response_schema",
+        "schema": {
+          "type": "object",
+          "properties": {
+          },
+        "additionalProperties": false
+      }
+    }
+  }
+}
+{%- endparse_json -%}
+
+
+{%- liquid
+  hash_assign data_frame['model'] = object['model'] | default: "gpt-4o-mini"
+  hash_assign data_frame['temperature'] = object['temperature'] | default: 1
+  hash_assign data_frame['messages'][0]['content'] = object['system_message'] | default: ""
+  hash_assign data_frame['messages'][1]['content'][0]['text'] = object['user_message'] | default: ""
+
+  assign user_images = object['user_images'] | default: '[]' | parse_json
+
+  if user_images.size > 0
+    assign user_content = data_frame['messages'][1]['content']
+
+    for item in user_images
+      assign img_object = null | hash_merge: type: "image_url" | hash_merge: image_url: null
+      hash_assign img_object['image_url'] = null | hash_merge: url: item
+      assign user_content = user_content | array_add: img_object
+    endfor
+
+    hash_assign data_frame['messages'][1]['content'] = user_content
+  endif
+
+  assign response_format_schema_json = object['response_format_schema_json'] | default: null
+
+  if response_format_schema_json != blank
+    hash_assign data_frame['response_format']['json_schema']['schema']['properties'] = response_format_schema_json
+  else
+    hash_assign data_frame['response_format'] = null
+  endif
+
+  return data_frame
+-%}

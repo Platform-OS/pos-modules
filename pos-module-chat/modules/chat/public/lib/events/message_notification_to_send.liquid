@@ -1,0 +1,14 @@
+---
+metadata:
+  event:
+    message_id
+    app_host
+---
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'message_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'app_host'
+
+  return c
+%}

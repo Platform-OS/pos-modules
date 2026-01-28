@@ -1,0 +1,6 @@
+{
+  "name": "pos-module-oauth-google",
+  "machine_name": "oauth_google",
+  "type": "module",
+  "version": "0.0.3"
+}

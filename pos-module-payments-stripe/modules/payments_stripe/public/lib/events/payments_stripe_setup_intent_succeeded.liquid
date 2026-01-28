@@ -1,0 +1,14 @@
+---
+metadata:
+  event:
+    setup_intent_id
+    payment_method_id
+---
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'setup_intent_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'payment_method_id'
+
+  return c
+%}

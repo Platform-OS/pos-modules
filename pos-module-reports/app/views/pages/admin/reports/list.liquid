@@ -1,0 +1,15 @@
+---
+layout: default
+slug: admin/reports/list
+---
+
+{% if context.params.type == blank %}
+  {% redirect_to '/admin/reports/list?type=profile' %}
+{% endif %}
+
+{% assign page = context.params.page | default: 1 | plus: 0 %}
+{% assign operation_models = '[]' | parse_json %}
+{% assign operation_models = operation_models | add_to_array: params.type %}
+{% graphql operations = 'modules/reports/reports/search', limit: 10, page: page, operation_models: operation_models %}
+
+{% render 'admin/reports/list', operations: operations, page: page, type: context.params.type %}

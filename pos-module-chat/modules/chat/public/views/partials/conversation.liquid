@@ -1,0 +1,20 @@
+{% if current == false %}
+	<a href="/inbox?conversation_id={{ id }}">
+{% endif %}
+    <div class="pos-chat-conversationCard {% if current %} active {% endif %}" data-tc="chat-room">
+      {% render 'modules/common-styling/user/avatar', size: 'l', name: name, imageSrc: imageSrc %}
+        <span class="pos-chat-conversationCard-name">
+          {{ name }}
+        </span>
+        <div class="pos-chat-conversationCard-lastMessage">
+          {% if last_message %}
+            <small>{{ last_message }}</small>
+            <time datetime="{{ last_message.created_at }}">
+              {{ last_message.created_at | strftime: "%b %d", timezone }}
+            </time>
+          {% endif %}
+        </div>
+    </div>
+{% if current == false %}
+	</a>
+{% endif %}

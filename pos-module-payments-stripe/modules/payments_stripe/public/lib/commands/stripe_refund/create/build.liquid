@@ -1,0 +1,26 @@
+{%- liquid
+  assign payable_ids = transaction.payable_ids | join: ','
+  hash_assign object['metadata'] = object.metadata | hash_merge: transaction_id: transaction.id, payable_ids: payable_ids, payer_id: transaction.payer_id
+-%}
+
+{%- parse_json data -%}
+  {
+    "amount": {{ object.amount | json }},
+    {% if transaction.gateway_transaction_id contains 'ch_' or transaction.gateway_transaction_id contains 'py_' %}
+      "charge": {{ transaction.gateway_transaction_id | json }},
+    {% else %}
+      "payment_intent": {{ transaction.gateway_transaction_id | json }},
+    {% endif %}
+    "metadata": {{ object.metadata }},
+    {% if object.reason %}
+      "reason": {{ object.reason | json }},
+    {% endif %}
+    "refund_application_fee": {{ object.refund_application_fee | json }},
+    "reverse_transfer": {{ object.reverse_transfer | json }}
+  }
+{%- endparse_json -%}
+{% liquid
+  assign data = null | hash_merge: payload: data, request_type: 'POST', to: 'https://api.stripe.com/v1/refunds'
+
+  return data
+%}

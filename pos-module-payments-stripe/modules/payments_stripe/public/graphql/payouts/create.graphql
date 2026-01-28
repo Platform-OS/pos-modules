@@ -1,0 +1,51 @@
+mutation create(
+  $payout_id: String!
+  $reference_id: String
+  $amount_cents: Int!
+  $currency: String
+  $connected_account_id: String
+  $gateway_connected_account_id: String
+  $created_at: String
+  $paid_at: String
+  $failed_at: String
+  $state: String
+  $stripe_account_name: String
+) {
+  record: record_create(
+    record: {
+      table: "modules/payments_stripe/payout"
+      properties: [
+        { name: "payout_id", value: $payout_id }
+        { name: "reference_id", value: $reference_id }
+        { name: "amount_cents", value_int: $amount_cents }
+        { name: "currency", value: $currency }
+        { name: "connected_account_id", value: $connected_account_id }
+        {
+          name: "gateway_connected_account_id"
+          value: $gateway_connected_account_id
+        }
+        { name: "created_at", value: $created_at }
+        { name: "paid_at", value: $paid_at }
+        { name: "failed_at", value: $failed_at }
+        { name: "state", value: $state }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+  ) {
+    table
+    updated_at
+
+    id
+    reference_id: property(name: "reference_id")
+    payout_id: property(name: "payout_id")
+    amount_cents: property_int(name: "amount_cents")
+    currency: property(name: "currency")
+    connected_account_id: property(name: "connected_account_id")
+    gateway_connected_account_id: property(name: "gateway_connected_account_id")
+    created_at: property(name: "created_at")
+    paid_at: property(name: "paid_at")
+    failed_at: property(name: "failed_at")
+    state: property(name: "state")
+    stripe_account_name: property(name: "stripe_account_name")
+  }
+}

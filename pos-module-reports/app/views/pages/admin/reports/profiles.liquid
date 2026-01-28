@@ -1,0 +1,22 @@
+---
+layout: default
+slug: admin/reports/profiles
+method: post
+---
+{% function admin_user = 'modules/user/queries/user/find', email: 'alex.admin@example.com' %}
+{% function admin_user_profile = 'modules/profile/queries/profiles/find', user_id: admin_user.id %}
+
+{% liquid
+  assign operation_uuid = '' | uuid
+  assign object = '{}' | parse_json | hash_merge: uuid: operation_uuid, creator_id: admin_user_profile.id, user_id: admin_user_profile.user_id, operation_type: 'export_profiles', operation_model: 'profile', options: '{}', retrieve_all_command: 'commands/profiles/export_all'
+  function object = 'modules/reports/commands/reports/create', object: object
+
+  if object.valid
+    function res = 'modules/core/commands/statuses/create', name: 'modules/reports/statuses.report.pending', reference_id: object.id, requester_id: 'report'
+
+    assign object_payload = '{}' | parse_json | hash_merge: actor_id: admin_user_profile.id, object_id: object.id, app_host: context.location.host
+    function _ = 'modules/core/commands/events/publish', type: 'report_requested', object: object_payload
+  endif
+%}
+
+{% redirect_to '/admin/reports/list?type=profile' %}

@@ -1,0 +1,20 @@
+{% liquid
+  assign data = '{}' | parse_json
+  if object.response_body
+    assign response = object.response_body | parse_json
+    if response.error
+      hash_assign data['errors'] = response.error
+      hash_assign data['valid'] = false
+    else
+      assign data = response
+      hash_assign data['valid'] = true
+      hash_assign data['customer_id'] = response.id
+      hash_assign data['reference_id'] = payer_id
+      hash_assign data['stripe_account_name'] = stripe_account_name
+    endif
+  else
+    hash_assign data['valid'] = false
+  endif
+
+  return data
+%}

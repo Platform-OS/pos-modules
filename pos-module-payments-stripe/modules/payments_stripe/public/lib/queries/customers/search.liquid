@@ -1,0 +1,18 @@
+{%- liquid
+  assign page = page | to_positive_integer: 1
+  assign limit = limit | to_positive_integer: 20
+  assign email = email | default: null
+  assign name = name | default: null
+  assign id = id | default: null
+  assign customer_id = customer_id | default: params.customer_id | default: null
+  assign reference_id = reference_id | default: params.reference_id | default: null
+  assign stripe_account_name = stripe_account_name | default: params.stripe_account_name | default: null
+
+  graphql g = "modules/payments_stripe/customers/search", id: id, page: page, limit: limit, email: email, name: name, customer_id: customer_id, reference_id: reference_id, stripe_account_name: stripe_account_name
+  if g.records == blank
+    log params, type: "QUERY ERROR - PARAMS"
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records
+-%}

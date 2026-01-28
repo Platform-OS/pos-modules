@@ -1,0 +1,30 @@
+query (
+  $id: ID
+  $not_ids: [ID!]
+  $email: String
+  $limit: Int = 20
+  $page: Int = 1
+  $sort: UsersSortInput = { id: { order: DESC } }
+  $role: String
+  $roles: [String!]
+) {
+  users(
+    per_page: $limit
+    page: $page
+    filter: {
+      id: { value: $id, not_value_in: $not_ids }
+      email: { value: $email }
+      properties: [{
+        name: "role", value: $role, value_in: $roles
+      }]
+    }
+    sort: [$sort]
+  ) {
+    results {
+      id
+      email
+      roles: property_array(name: "roles")
+      created_at
+    }
+  }
+}

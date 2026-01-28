@@ -1,0 +1,38 @@
+{% liquid
+  assign name = first_name | append: ' ' | append: last_name
+%}
+
+
+<div class="pos-card pos-card-user">
+
+  <a href="{{ url }}" class="pos-card-user-person">
+    {% render 'modules/common-styling/user/avatar', size: 'xxl', name: name, imageSrc: imageSrc %}
+    {{ name }}
+  </a>
+
+  <div class="pos-card-user-job pos-supplementary">
+    {% if job_title != blank %}
+      {{ job_title }}
+    {% endif %}
+    {% if employer != blank %}
+      {{ 'modules/community/app.at' | t }} {{ employer }}{% if location != blank %}, {{ location }} {% endif %}
+    {% endif %}
+  </div>
+
+  <nav class="pos-card-user-actions">
+    <ul>
+      {% if my_profile %}
+        <li><a href="{{ url }}" class="pos-button pos-button-small">{{ 'modules/community/profiles.see_profile' | t }}</a></li>
+      {% endif %}
+
+      {% if allow_to_follow %}
+        <li>
+          {% liquid
+            theme_render_rc 'modules/community/components/molecules/profile-follow-button', profile_id: profile_id, size: 'small'
+          %}
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+
+</div>

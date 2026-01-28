@@ -1,0 +1,13 @@
+en:
+  message: Message
+  blank_title: You have not started any conversation yet
+  blank_message: >-
+    To start one, find a person profile and use the ‘Send
+    message’ button
+  pick_conversation: >-
+    Please select conversation from the list
+  loading_previous: Loading previous messages…
+  message_input_placeholder: Write a message...
+  send: Send
+  back: Back
+  error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.

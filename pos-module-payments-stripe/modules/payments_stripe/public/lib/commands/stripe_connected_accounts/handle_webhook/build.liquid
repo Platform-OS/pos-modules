@@ -1,0 +1,10 @@
+{% liquid
+  assign account_data = object.data.object
+  hash_assign account_data['state'] = 'pending'
+
+  if account_data.payouts_enabled == true and account_data.charges_enabled == true
+    hash_assign account_data['state'] = 'verified'
+  endif
+
+  return account_data
+%}

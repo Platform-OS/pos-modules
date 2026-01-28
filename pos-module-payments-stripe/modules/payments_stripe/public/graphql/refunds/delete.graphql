@@ -1,0 +1,6 @@
+mutation delete($id: ID!) {
+  record: record_delete(
+    table: "modules/payments_stripe/refund"
+    id: $id
+  ){ id }
+}

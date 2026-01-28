@@ -1,0 +1,14 @@
+{%- liquid
+  case payment_status
+  when 'new'
+    return 'app.statuses.transactions.new'
+  when 'pending'
+    return 'app.statuses.transactions.pending'
+  when 'succeeded'
+    return 'app.statuses.transactions.succeeded'
+  when 'expired'
+    return 'app.statuses.transactions.expired'
+  else
+    return 'app.statuses.transactions.failed'
+  endcase
+-%}

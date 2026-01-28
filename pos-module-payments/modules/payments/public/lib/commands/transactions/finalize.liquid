@@ -1,0 +1,12 @@
+{% liquid
+  assign gateway_is_configured_function = 'modules/payments_' | append: transaction.gateway | append: '/helpers/is_configured'
+  function gateway_configured = gateway_is_configured_function
+  if gateway_configured
+    assign gateway_check_function = 'modules/payments_' | append: transaction.gateway | append: '/commands/transaction_finalize'
+    function object = gateway_check_function, transaction: transaction, requester_id: requester_id
+  else
+    log transaction, type: 'ERROR: modules/payments/check_and_update_status gateway not supported'
+  endif
+
+  return object
+%}

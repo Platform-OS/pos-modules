@@ -1,0 +1,49 @@
+mutation create(
+  $payment_method_id: String!
+  $customer_id: String!
+  $reference_id: String!
+  $type: String!
+  $brand: String
+  $last4: String
+  $exp_year: Int
+  $exp_month: Int
+  $bank_name: String
+  $routing_number: String
+  $stripe_account_name: String
+) {
+  record: record_create(
+    record: {
+      table: "modules/payments_stripe/payment_method"
+      properties: [
+        { name: "payment_method_id", value: $payment_method_id }
+        { name: "customer_id", value: $customer_id }
+        { name: "reference_id", value: $reference_id }
+        { name: "type", value: $type }
+        { name: "brand", value: $brand }
+        { name: "last4", value: $last4 }
+        { name: "exp_year", value_int: $exp_year }
+        { name: "exp_month", value_int: $exp_month }
+        { name: "bank_name", value: $bank_name }
+        { name: "routing_number", value: $routing_number }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+  ) {
+    table
+    created_at
+    updated_at
+
+    id
+    payment_method_id: property(name: "payment_method_id")
+    customer_id: property(name: "customer_id")
+    reference_id: property(name: "reference_id")
+    type: property(name: "type")
+    brand: property(name: "brand")
+    last4: property(name: "last4")
+    exp_year: property_int(name: "exp_year")
+    exp_month: property_int(name: "exp_month")
+    bank_name: property(name: "bank_name")
+    routing_number: property(name: "routing_number")
+    stripe_account_name: property(name: "stripe_account_name")
+  }
+}

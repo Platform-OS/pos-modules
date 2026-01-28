@@ -1,0 +1,20 @@
+{% liquid
+  # Example test demonstrating various assertions
+
+  # Test equal assertion
+  assign expected_value = 'hello'
+  assign actual_value = 'hello'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: actual_value, expected: expected_value, field_name: 'equal_strings'
+
+  # Test presence assertion
+  assign user = '{ "id": "123", "name": "John" }' | parse_json
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: user, field_name: 'id'
+
+  # Test blank assertion
+  assign result = '{ "error": null }' | parse_json
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: result, field_name: 'error'
+
+  # Test true assertion
+  assign flags = '{ "active": true }' | parse_json
+  function contract = 'modules/tests/assertions/true', contract: contract, object: flags, field_name: 'active'
+%}

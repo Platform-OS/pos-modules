@@ -1,0 +1,6 @@
+{% liquid
+  assign request_data = object | json
+  assign data = null | hash_merge: external_id: external_id, name: name, request_data: request_data, request_url: request_url, gateway_object_id: object.id, stripe_account_name: stripe_account_name
+
+  return data
+%}

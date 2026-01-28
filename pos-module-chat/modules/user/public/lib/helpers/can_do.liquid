@@ -1,0 +1,42 @@
+{% comment %}
+  Checks if the requester can do domething on the given entiry.
+
+  Params:
+    - requester Object
+      The requester must have a string array field called 'roles'
+    - entity Object
+    - do String
+    - access_callback String
+      The callback function that checks the request. By default searches that the `requester`
+      has `do` permission or not.
+{% endcomment %}
+{% liquid
+  assign roles_type = requester.roles | type_of
+  unless roles_type == 'Array'
+    log requester, type: 'ERROR the requester does not have "roles" array in modules/user/helpers/can_do'
+    return false
+  endunless
+
+  if access_callback
+    function can = access_callback, requester: requester, entity: entity, do: do
+    return can
+  endif
+
+  function permissions = 'modules/user/queries/role_permissions/permissions'
+  assign found_permission = false
+  for role in requester.roles
+    if permissions[role] == null
+      assign msg = 'WARNING: the following role is not defined in modules/user/queries/role_permissions/permissions: ' | append: role
+      log requester, type: msg
+    endif
+    if role == 'superadmin'
+      assign found_permission = true
+      break
+    elsif permissions[role] contains do
+      assign found_permission = true
+      break
+    endif
+  endfor
+
+  return found_permission
+  %}

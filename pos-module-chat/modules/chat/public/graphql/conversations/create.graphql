@@ -1,0 +1,14 @@
+mutation create_conversation($participant_ids: [String!]!, $participant_read_ids: [String!]!) {
+  record_create(
+    record: {
+      table: "modules/chat/conversation"
+      properties: [
+        { name: "participant_ids", value_array: $participant_ids }
+        { name: "participant_read_ids", value_array: $participant_read_ids }
+      ]
+    }
+  ) {
+    id
+    participant_ids: property_array(name: "participant_ids")
+  }
+}

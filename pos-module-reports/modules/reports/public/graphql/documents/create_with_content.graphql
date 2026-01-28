@@ -1,0 +1,34 @@
+mutation create_with_content(
+  $creator_id: String!
+  $content: String!
+  $object_uuid: String!
+  $document_type: String!
+  $content_type: String
+  $cache_control: String
+  $content_disposition: String
+) {
+  record: record_create(
+    record: {
+      table: "modules/reports/document"
+      properties: [
+        { name: "creator_id" value: $creator_id }
+        {
+          name: "document"
+          value_upload: {
+            acl: private
+            content: $content
+            type: plain
+            content_type: $content_type
+            content_disposition: $content_disposition
+            cache_control: $cache_control
+          }
+        }
+        { name: "object_uuid" value: $object_uuid }
+        { name: "document_type" value: $document_type }
+      ]
+    }) {
+    id
+    file: property_upload(name: "file", expires_in: 5) { url }
+  }
+}
+

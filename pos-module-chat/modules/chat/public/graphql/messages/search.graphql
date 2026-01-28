@@ -1,0 +1,43 @@
+query search(
+  $conversation_id: [String!]
+  $participant_id: [String!]
+  $limit: Int = 20
+  $page: Int = 1
+  $id: ID
+) {
+  messages: records(
+    per_page: $limit
+    page: $page
+    sort: { created_at: { order: DESC } }
+    filter: {
+      id: { value: $id }
+      table: { exact: "modules/chat/message" },
+      properties: [
+        { name: "conversation_id", value_in: $conversation_id }
+      ]
+
+      related_records: {
+        join: { join_on_property: "conversation_id", foreign_property: "id" }
+        filter: {
+          table: { value: "modules/chat/conversation" }
+          properties: [
+            { name: "participant_ids", array_contains: $participant_id }
+          ]
+        }
+      }
+    }
+  ) {
+    total_pages
+    total_entries
+    has_next_page
+    has_previous_page
+    results {
+      id
+      created_at
+
+      message: property(name: "message")
+      autor_id: property(name: "autor_id")
+      conversation_id: property(name: "conversation_id")
+    }
+  }
+}

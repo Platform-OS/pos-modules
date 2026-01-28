@@ -1,0 +1,25 @@
+mutation create(
+  $gateway_id: String!
+  $url: String!
+  $secret: String!
+  $livemode: String!
+  $stripe_account_name: String
+  $enabled_events: [String!]
+) {
+  record: record_create(
+    record: {
+      table: "modules/payments_stripe/webhook_endpoint"
+      properties: [
+        { name: "gateway_id", value: $gateway_id }
+        { name: "url", value: $url }
+        { name: "secret", value: $secret }
+        { name: "livemode", value: $livemode }
+        { name: "stripe_account_name", value: $stripe_account_name }
+        { name: "enabled_events", value_array: $enabled_events }
+      ]
+    }
+  ) {
+    id
+    gateway_id: property(name: "gateway_id")
+  }
+}

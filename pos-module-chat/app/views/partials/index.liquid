@@ -1,0 +1,47 @@
+{% if current_profile.id %}
+
+  {% if profiles.results.size > 1 %}
+    <section class="pos-chat-people">
+      <ul>
+        {% for profile in profiles.results %}
+          {% if profile.id == current_profile.id %}{% continue %}{% endif %}
+
+          {% assign chat_url = '/inbox/?to_uuid=' | append: profile.uuid %}
+          <li><a href="{{ chat_url }}">{{ profile.name }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% else %}
+    <section class="pos-chat-info">
+      <h2 class="pos-heading-2">No one to talk to?</h2>
+      Please register another profile to be able to start a conversation.
+    </section>
+  {% endif %}
+
+
+{% else %}
+
+
+  <main class="app-chat-intro">
+
+    <section class="app-chat-intro-content">
+      <h2 class="pos-heading-2">
+        <img src="{{ 'images/pos-sign.svg' | asset_url }}" width="28" height="25" loading="eager" alt="">
+        Example platformOS chat application
+      </h2>
+      <nav>
+        <ul class="app-chat-intro-nav">
+          <li><a href="/sessions/new">Log in</a></li>
+          <li><a href="/users/new">Register</a></li>
+        </ul>
+      </nav>
+    </section>
+
+    <footer class="app-chat-intro-footer">
+      Powered by <a href="https://platformos.com">platformOS</a>
+    </footer>
+
+  </main>
+
+
+{% endif %}

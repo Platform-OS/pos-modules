@@ -1,0 +1,23 @@
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: object.payload, field_name: 'amount'
+  function c = 'modules/core/validations/not_null', c: c, object: object.payload, field_name: 'refund_application_fee'
+  function c = 'modules/core/validations/not_null', c: c, object: object.payload, field_name: 'reverse_transfer'
+  function c = 'modules/core/validations/number', c: c, object: object.payload, field_name: 'amount', gt: 0
+
+  if object.payload.charge == blank
+    function c = 'modules/core/validations/presence', c: c, object: object.payload, field_name: 'payment_intent'
+  else
+    function c = 'modules/core/validations/presence', c: c, object: object.payload, field_name: 'charge'
+  endif
+
+  if object.reason
+    assign reasons = "duplicate,fraudulent,requested_by_customer" | split: ","
+    function c = 'modules/core/validations/included', c: c, object: object.payload, field_name: 'reason', array: reasons
+  endif
+
+  assign object = object | hash_merge: c
+
+  return object
+%}

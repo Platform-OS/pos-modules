@@ -1,0 +1,5 @@
+theme_search_paths:
+  - ''
+  - modules/chat
+  - modules/user
+  - modules/components

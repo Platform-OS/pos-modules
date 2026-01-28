@@ -1,0 +1,10 @@
+{%  liquid
+  function object = 'modules/payments/commands/transactions/set_status_cache/build', id: id, status: status
+  function object = 'modules/payments/commands/transactions/set_status_cache/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments/transactions/update' object: object
+  endif
+
+  return object
+%}

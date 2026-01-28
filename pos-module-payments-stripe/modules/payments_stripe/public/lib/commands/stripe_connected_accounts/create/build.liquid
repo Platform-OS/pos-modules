@@ -1,0 +1,19 @@
+{%- parse_json payload -%}
+  {
+    "stripe_account_name": {{ metadata.stripe_account_name | json }},
+    "country": "US",
+    "type": "express",
+    "capabilities": {
+      "card_payments": {
+        "requested": true
+      },
+      "transfers": {
+        "requested": true
+      }
+    },
+    "metadata": {{ metadata }}
+  }
+{%- endparse_json -%}
+{% liquid
+  return nil | hash_merge: payload: payload, request_type: 'POST', to: "https://api.stripe.com/v1/accounts"
+%}

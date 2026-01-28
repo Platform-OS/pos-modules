@@ -1,0 +1,4 @@
+{% liquid
+  assign object = null | hash_merge: id: object.id, account_id: object.account_id, reference_id: object.reference_id
+  return object
+%}

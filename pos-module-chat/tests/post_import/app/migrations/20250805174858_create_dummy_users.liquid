@@ -1,0 +1,29 @@
+{% liquid
+  comment
+  create 40 'dummy users' with profile id in range from 8 - 47
+  endcomment
+  assign password = "password"
+  assign last_name = "User"
+
+  for i in (1..40)
+    assign first_name = "Dummy" | append: i
+    assign name = first_name | append: " " | append: last_name
+    assign email = "dummy" | append: i | append: "@example.com"
+
+    assign object = null
+    assign object = object | hash_merge: email: email
+    assign object = object | hash_merge: password: password
+    assign object = object | hash_merge: first_name: first_name
+    assign object = object | hash_merge: last_name: last_name
+    assign object = object | hash_merge: name: name
+
+    function user = 'modules/core/commands/execute', mutation_name: 'modules/user/user/create', object: object, selection: 'user'
+    hash_assign object['user_id'] = user.id
+
+    function profile = 'modules/user/commands/profiles/create', object: object    
+
+    assign event_payload = null | hash_merge: user_id: user.id
+    function _ = 'modules/core/commands/events/publish', type: 'user_created', object: event_payload, delay: null, max_attempts: null
+  endfor
+%}
+{% log r, type: 'migrations/create_users' %}

@@ -1,0 +1,18 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_setup_intent/handle_webhook/build', object: params.data.object, setup_intent: setup_intent
+  function object = 'modules/payments_stripe/commands/stripe_setup_intent/handle_webhook/check', object: object
+
+  function _gateway_request = 'modules/payments/commands/gateway_requests/receive', object: params.data.object, name: params.type, external_id: setup_intent.id, request_url: request_url, stripe_account_name: setup_intent.stripe_account_name
+  if object.valid
+    function customer = 'modules/payments_stripe/commands/customers/create', object: object.customer
+    if customer.valid
+      function payment_method = 'modules/payments_stripe/commands/payment_methods/create', object: object.payment_method, customer: customer
+    endif
+
+    function object = 'modules/payments_stripe/commands/setup_intents/update_status', status: object.status, setup_intent: object.setup_intent, requester_id: requester_id, payment_method_id: payment_method.id
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/stripe_setup_intent/handle_webhook invalid"
+  endif
+
+  return object
+%}

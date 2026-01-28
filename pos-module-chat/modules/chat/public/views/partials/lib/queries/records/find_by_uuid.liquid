@@ -1,0 +1,10 @@
+{% liquid
+  if uuid == blank
+    log 'Something went wrong. uuid is null', type: 'ERROR'
+    return null
+  endif
+
+  graphql r = 'modules/chat/records/search', uuid: uuid
+
+  return r.records.results.first
+%}

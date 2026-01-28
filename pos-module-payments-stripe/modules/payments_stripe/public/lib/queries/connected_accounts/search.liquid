@@ -1,0 +1,16 @@
+{%- liquid
+  assign page = page | to_positive_integer: 1
+  assign limit = limit | to_positive_integer: 20
+  assign id = id | default: null
+  assign account_id = account_id | default: null
+  assign state = state | default: null
+  assign reference_id = reference_id | default: null
+  assign stripe_account_name = stripe_account_name | default: null
+
+  graphql g = "modules/payments_stripe/connected_accounts/search", page: page, limit: limit, id: id, account_id: account_id, reference_id: reference_id, state: state, stripe_account_name: stripe_account_name
+  if g.records == blank
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records
+-%}

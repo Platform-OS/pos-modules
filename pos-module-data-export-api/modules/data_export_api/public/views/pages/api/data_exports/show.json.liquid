@@ -1,0 +1,10 @@
+---
+slug: _api/data-exports/:id
+---
+{% liquid
+  include 'modules/data_export_api/shared/authorize'
+
+  function object = 'modules/data_export_api/queries/data_exports/find', id: context.params.id
+
+  echo object
+%}

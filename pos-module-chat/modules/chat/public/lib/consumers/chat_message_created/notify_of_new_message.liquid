@@ -1,0 +1,17 @@
+{% background delay: 10, message_id: event.message_id, max_attempts: 0, app_host: event.app_host %}
+  {% liquid
+    graphql g = 'modules/chat/messages/search', id: message_id
+    assign message = g.messages.results.first
+
+    graphql g = 'modules/chat/messages/search', conversation_id: message.conversation_id
+    assign last_message = g.messages.results.first
+
+    if last_message.id == message.id
+      assign event_object = null | hash_merge: message_id: message.id, app_host: app_host
+      
+      function _ = 'modules/core/commands/events/publish', type: 'message_notification_to_send', object: event_object
+    endif
+  %}
+{% endbackground %}
+
+{% return 'scheduled' %}

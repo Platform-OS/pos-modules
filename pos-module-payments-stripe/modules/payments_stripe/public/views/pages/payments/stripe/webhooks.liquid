@@ -1,0 +1,29 @@
+---
+path: /payments/stripe/webhooks(/:stripe_account_name)
+method: post
+layout: null
+---
+{% liquid
+  function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: context.location.pathname, context: context, stripe_account_name: context.params.stripe_account_name
+  if valid_webhook
+    case context.params.type
+    when 'charge.succeeded'
+      function response = 'modules/payments_stripe/commands/webhooks/charge', params: context.params, host: context.location.host, request_url: context.location.url, stripe_account_name: context.params.stripe_account_name
+    when 'charge.pending'
+      function response = 'modules/payments_stripe/commands/webhooks/charge', params: context.params, host: context.location.host, request_url: context.location.url, stripe_account_name: context.params.stripe_account_name
+    when 'charge.failed'
+      function response = 'modules/payments_stripe/commands/webhooks/charge', params: context.params, host: context.location.host, request_url: context.location.url, stripe_account_name: context.params.stripe_account_name
+    when 'checkout.session.expired'
+      function response = 'modules/payments_stripe/commands/webhooks/session_expired', params: context.params, host: context.location.host, request_url: context.location.url, stripe_account_name: context.params.stripe_account_name
+    when 'setup_intent.succeeded'
+      function response = 'modules/payments_stripe/commands/webhooks/setup_intent', params: context.params, request_url: context.location.url, host: context.location.host, stripe_account_name: context.params.stripe_account_name
+    endcase
+
+    response_status response.status
+    echo response.body
+  else
+    log context, type: 'ERROR: payments_stripe/checkout_session_completed_webhook invalid webhook'
+    response_status 403
+    break
+  endif
+%}

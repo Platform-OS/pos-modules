@@ -1,0 +1,19 @@
+{%  liquid
+  function object = 'modules/payments/commands/gateway_requests/send/build', object: object, external_id: external_id, template: template, name: name
+  function object = 'modules/payments/commands/gateway_requests/send/check', object: object
+  if object.valid
+    function gateway_request = 'modules/payments/commands/execute', mutation_name: 'modules/payments/gateway_requests/create', object: object.gateway_request
+    if gateway_request.valid
+      function object = 'modules/payments/commands/execute', mutation_name: 'modules/payments/api_call', object: object.api_call, selection: 'api_call'
+      if object.valid
+        function object = 'modules/payments/commands/gateway_requests/update', object: object, gateway_request: gateway_request
+      else
+        log object, type: 'ERROR: gateway_request#send'
+      endif
+    else
+      return gateway_request
+    endif
+  endif
+
+  return object
+%}

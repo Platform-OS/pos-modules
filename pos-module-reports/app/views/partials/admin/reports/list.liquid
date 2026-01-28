@@ -1,0 +1,108 @@
+<div class="container">
+  <h2 class="pb-8 font-extrabold text-3xl">Admin actions</h2>
+
+  <div class="p-6 rounded-surface shadow-card mb-6 bg-panel">
+    <form action="/admin/reports/profiles" method="post">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}" />
+      <button type="submit" class="h-11 px-4 py-2.5 leading-tight px-2 inline-flex items-center justify-center gap-3 rounded-button whitespace-nowrap transition-all disabled:opacity-30 disabled:pointer-events-none uppercase tracking-wide text-sm font-medium border border-important hover:border-important-hover bg-important hover:bg-important-hover text-button-primary-foreground hover:text-button-primary-hover-foreground">Export Profiles as CSV</button>
+    </form>
+
+    <div class="mt-6 mb-6">
+      <h1 class="text-2xl font-bold">Displaying exports for: {{ type }}</h1>
+    </div>
+
+    {% if operations.reports.results.size > 0 %}
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              ID
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Type
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Model
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Created At
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Updated At
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Document
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for operation in operations.reports.results %}
+            <tr class="hover:bg-gray-100">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ operation.id }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ operation.operation_type }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ operation.operation_model }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ operation.status | prepend: 'modules/reports/statuses.report.' | t }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ operation.created_at }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ operation.updated_at }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                {% if operation.files.first != blank %}
+                  <a
+                    href="{{ operation.files.first.file.url }}"
+                    class="text-blue-600 hover:text-blue-800"
+                  >
+                    Download
+                  </a>
+                {% elsif operation.status == 'done' %}
+                  <form
+                    action="/admin/reports/download/{{ operation.id }}"
+                    method="post"
+                    class="inline"
+                  >
+                    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}" />
+                    <button
+                      type="submit"
+                      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded"
+                    >
+                      Download
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>      
+
+      {% assign current_page = operations.reports.current_page | plus: 0 %}
+
+      {% if operations.reports.has_previous_page %}
+        {% assign previous_page = current_page | minus: 1 %}
+        <a href="/admin/reports/list?page={{ previous_page }}&type={{ type }}">&laquo; Previous Page</a>
+      {% endif %}
+
+      {% if operations.reports.has_next_page %}
+        {% assign next_page = current_page | plus: 1 %}
+        <a href="/admin/reports/list?page={{ next_page }}&type={{ type }}">Next Page &raquo;</a>
+      {% endif %}
+    {% else %}
+      <div class="p-6 rounded-surface mb-6 bg-panel mt-6">
+        <p>No operations found. You may need to export a CSV first.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>

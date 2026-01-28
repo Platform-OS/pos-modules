@@ -1,0 +1,17 @@
+{% liquid
+  assign valid_for = valid_for | default: 5
+  function user = 'modules/user/queries/user/find', email: email, with_token: true
+%}
+
+{% parse_json object %}
+{
+  "email": "{{ email }}",
+  "id":    "{{ user.id }}",
+  "token": "{{ user.token }}",
+  "host":  "{{ host }}"
+}
+{% endparse_json %}
+
+{% liquid
+  return object
+%}

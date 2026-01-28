@@ -1,0 +1,16 @@
+{% liquid
+  function payment_method = 'modules/payments_stripe/queries/payment_methods/find_by_payment_method_id', payment_method_id: object.payment_method_id
+  if payment_method
+    return payment_method
+  endif
+
+  if object.type == 'card'
+    function object = 'modules/payments_stripe/commands/payment_methods/create_card', object: object, customer: customer
+  elsif object.type == 'us_bank_account'
+    function object = 'modules/payments_stripe/commands/payment_methods/create_bank_account', object: object, customer: customer
+  else
+    log object, type: "ERROR unknown type modules/payments_stripe/public/lib/commands/payment_methods/create"
+  endif
+
+  return object
+%}

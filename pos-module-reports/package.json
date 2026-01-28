@@ -1,0 +1,46 @@
+{
+  "scripts": {
+    "build": "npx cross-env NODE_ENV=production webpack-cli",
+    "build:dev": "npx cross-env NODE_ENV=development webpack-cli",
+    "deploy": "npm run build && pos-cli deploy",
+    "deploy:dev": "npm run build:dev && pos-cli deploy dev",
+    "predeploy": "npm run clean:assets"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.3.3",
+    "@tailwindcss/typography": "^0.4.1",
+    "autoprefixer": "^10.4.2",
+    "concurrently": "^7.0.0",
+    "css-loader": "^6.3.0",
+    "esbuild-loader": "^2.18.0",
+    "eslint": "^8.9.0",
+    "mini-css-extract-plugin": "^2.5.3",
+    "postcss": "^8.4.6",
+    "postcss-import": "^14.0.2",
+    "postcss-loader": "^6.2.1",
+    "rimraf": "^3.0.2",
+    "tailwindcss": "^2.2.16",
+    "tailwindcss-rtl": "^0.7.3",
+    "testcafe": "^3.5.0",
+    "testcafe-blink-diff": "^0.5.5",
+    "testcafe-reporter-html": "^1.4.6",
+    "testcafe-reporter-spec-time": "^4.0.0",
+    "webpack": "^5.69.1",
+    "webpack-cli": "^4.9.2",
+    "webpack-require-from": "^1.8.6"
+  },
+  "optionalDependencies": {
+    "fsevents": "^2.3.3"
+  },
+  "browserslist": "> 1% or last 2 years",
+  "name": "marketplace-reports-poc",
+  "version": "1.0.0",
+  "description": "reports",
+  "author": "platformOS",
+  "license": "ISC",
+  "repository": "",
+  "dependencies": {
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  }
+}

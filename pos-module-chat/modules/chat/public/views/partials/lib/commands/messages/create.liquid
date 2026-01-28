@@ -1,0 +1,13 @@
+{% liquid
+  function object = 'modules/chat/lib/commands/messages/create/build', object: object
+  function object = 'modules/chat/lib/commands/messages/create/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/chat/messages/create' object: object, selection: 'record_create'
+
+    assign event_object = null | hash_merge: message_id: object.id, app_host: context.location.host
+    function _ = 'modules/core/commands/events/publish', type: 'chat_message_created', object: event_object, delay: null, max_attempts: null
+  endif
+
+  return object
+%}

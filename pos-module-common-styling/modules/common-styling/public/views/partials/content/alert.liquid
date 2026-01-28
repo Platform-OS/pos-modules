@@ -1,0 +1,33 @@
+{% comment %} 
+
+  alert box
+
+  type - (string) one of 'success', 'error', 'warning', 'info' (default: 'info')
+  content - (string) card description
+
+{% endcomment %}
+
+
+{% liquid
+
+  assign type = type | default: 'info'
+
+%}
+
+
+<div class="pos-card-alert pos-card-alert-{{ type }} pos-card">
+  {% case type %}
+    {% when 'info' %}
+      {% render 'modules/common-styling/icon', icon: 'info' %}
+    {% when 'warning' %}
+      {% render 'modules/common-styling/icon', icon: 'warning' %}
+    {% when 'error' %}
+      {% render 'modules/common-styling/icon', icon: 'delete' %}
+    {% when 'success' %}
+      {% render 'modules/common-styling/icon', icon: 'checkBadge' %}
+  {% endcase %}
+  
+  <span>
+    {{ content | html_safe }}
+  </span>
+</div>

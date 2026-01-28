@@ -1,0 +1,11 @@
+mutation delete_many($id: ID, $gateway_id: String) {
+  records_delete_all(
+    table: "modules/payments_stripe/webhook_endpoint"
+    filter: {
+      id: { value: $id }
+      properties: { name: "gateway_id", value: $gateway_id }
+    }
+  ) {
+    count
+  }
+}

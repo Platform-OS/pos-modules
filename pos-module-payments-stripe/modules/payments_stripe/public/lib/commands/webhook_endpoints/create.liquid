@@ -1,0 +1,13 @@
+{% liquid
+  function response = 'modules/payments_stripe/commands/stripe_webhook/create', events: stripe_events, path: path, host: host, connect: connect, stripe_account_name: stripe_account_name
+  function object = 'modules/payments_stripe/commands/webhook_endpoints/create/build', response: response, events: stripe_events, stripe_account_name: stripe_account_name
+  if object.valid
+    graphql r = 'modules/payments_stripe/webhook_endpoints/create', args: object
+    assign object = r['record']
+    hash_assign object['valid'] = true
+  else
+    log object, type: 'ERROR: modules/payments_stripe webhook_endpoints/create'
+  endif
+
+  return object
+%}

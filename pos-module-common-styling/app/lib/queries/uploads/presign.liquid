@@ -1,0 +1,5 @@
+{% liquid
+  graphql presign = 'uploads/presign', table: table, property: property
+
+  return presign.property_upload_presigned_url
+%}

@@ -1,0 +1,14 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_charge/handle_webhook/build', object: params.data.object, transaction: transaction
+  function object = 'modules/payments_stripe/commands/stripe_charge/handle_webhook/check', object: object
+
+  function _gateway_request = 'modules/payments/commands/gateway_requests/receive', object: params.data.object, name: params.type, external_id: transaction.id, request_url: request_url, stripe_account_name: transaction.stripe_account_name
+  if object.valid
+    assign input = null | hash_merge: payment_status: object.status, gateway_transaction_id: object.id
+    function object = 'modules/payments/commands/transactions/update_status', object: input, transaction: object.transaction, requester_id: requester_id
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/stripe_charge/handle_webhook invalid"
+  endif
+
+  return object
+%}

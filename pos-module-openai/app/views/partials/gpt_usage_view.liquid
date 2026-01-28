@@ -1,0 +1,89 @@
+<html>
+  <head>
+    <title>OpenAI GPT Examples</title>
+    <style>
+      html, body {
+        font-family: Arial, sans-serif;
+        padding: 0;
+        margin: 0;
+        line-height: 1.6;
+      }
+      main {
+        max-width: 1024px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      div {
+        margin-bottom: 20px;
+        width: 100%;
+      }
+      pre {
+        background-color: #f4f4f4;
+        padding: 10px;
+        border-radius: 5px;
+
+        overflow-x: auto;
+        color: #333;
+      }
+      .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+      }
+      .btn:hover {
+        background-color: #0056b3;
+      }
+      .form-button {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      {% if context.constants['modules/openai/OPENAI_SECRET_TOKEN'] == blank %}
+        OpenAI is not configured in this environment.
+      {% else %}
+        <h1>OpenAI GPT Example</h1>
+        <p>This page demonstrates how to use the OpenAI API to create a response with structured output.</p>
+        <p>In this example, we send a request to OpenAI with a system message and user message, including an image, and receive a response with suggested hashtags.</p>
+        <p><strong>Note: This example uses hCaptcha for bot protection.</strong></p>
+        <form>
+          <fieldset>
+            <script src="https://hcaptcha.com/1/api.js" async defer></script>
+            <div class='h-captcha' data-sitekey="{{ context.hcaptcha_site_key }}"></div>
+          </fieldset>
+          <div class="form-button">
+            <button class="btn btn-primary">
+              Create
+            </button>
+          </div>
+        </form>
+
+        {% if c.valid %}
+          <h2>OpenAI Request</h2>
+          <div>
+            <pre id="openai-request"></pre>
+          </div>
+
+          <h2>OpenAI Response</h2>
+          <pre id="openai-response"></pre>
+        {% endif %}
+      {% endif %}
+    </main>
+  </body>
+  {% if c.valid %}
+    <script>
+      document.getElementById("openai-request").textContent = JSON.stringify({{ request_object }}, null, 2);
+      document.getElementById("openai-response").textContent = JSON.stringify({{ response_object }}, null, 2);
+    </script>
+  {% endif %}
+</html>

@@ -1,0 +1,22 @@
+{%- liquid
+  function object = 'modules/openai/commands/openai/chat/build', object: object;
+  function checked_object = 'modules/openai/commands/openai/chat/check', object: object;
+
+  if checked_object.valid
+    graphql response = 'modules/core/api_calls/send', data: object, template: 'modules/openai/chat' | dig: 'api_call'
+
+    assign response_code = response.response.status
+
+    if response_code != 200
+      assign error_message = "ERROR: OpenAI API chat call failed with status code #" | append: response_code
+      log response.response.body, type: error_message
+      return null
+    else
+      assign response_body = response.response.body | parse_json
+      return response_body.choices[0].message.content | parse_json
+    endif
+  else
+    log checked_object, type: "ERROR: Request object is invalid"
+    return null
+  endif
+-%}

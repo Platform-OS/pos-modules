@@ -1,0 +1,23 @@
+{%- liquid
+  assign requester_id = 'stripe_webhook_request'
+  assign response = null | hash_merge: status: 200
+
+  assign gateway_transaction_ids = params.data.object.id | split: '!!' | array_add: params.data.object.payment_intent
+
+  function transactions = 'modules/payments/queries/transactions/search', gateway_transaction_ids: gateway_transaction_ids, limit: 1
+  assign transaction = transactions.results[0]
+
+  if transaction == blank and params.data.object.success_url contains host
+    hash_assign response['status'] = 500
+    hash_assign response['body'] = "Transaction not found"
+    log params, type: 'ERROR: modules/payments_stripe/commands/webhooks/session_expired object'
+  elsif transaction == blank
+    hash_assign response['status'] = 202
+    hash_assign response['body'] = "Transaction is from a different host"
+  else
+    function object = 'modules/payments_stripe/commands/stripe_checkout/handle_webhook', params: params, transaction: transaction, requester_id: requester_id, request_url: request_url
+    hash_assign response['body'] = object
+  endif
+
+  return response
+-%}

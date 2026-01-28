@@ -1,0 +1,6 @@
+---
+name: message
+properties:
+  - name: conversation_id
+  - name: message
+  - name: autor_id

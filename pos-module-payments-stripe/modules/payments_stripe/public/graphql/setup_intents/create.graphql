@@ -1,0 +1,28 @@
+mutation create(
+  $reference_id: String!
+  $gateway_id: String
+  $c__status: String
+  $stripe_account_name: String
+) {
+  record: record_create(
+    record: {
+      table: "modules/payments_stripe/setup_intent"
+      properties: [
+        { name: "reference_id", value: $reference_id }
+        { name: "gateway_id", value: $gateway_id }
+        { name: "c__status", value: $c__status }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+  ) {
+    table
+    created_at
+    updated_at
+
+    id
+    reference_id: property(name: "reference_id")
+    gateway_id: property(name: "gateway_id")
+    c__status: property(name: "c__status")
+    stripe_account_name: property(name: "stripe_account_name")
+  }
+}

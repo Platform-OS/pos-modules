@@ -1,0 +1,17 @@
+mutation mark_read(
+  $id: ID!
+  $participant_id: String
+) {
+  record_update(
+    id: $id
+    record: {
+      properties: [
+        { name: "participant_read_ids", array_append: $participant_id }
+      ]
+    }
+  ) {
+    id
+    participant_ids: property_array(name: "participant_ids")
+    participant_read_ids: property_array(name: "participant_read_ids")
+  }
+}

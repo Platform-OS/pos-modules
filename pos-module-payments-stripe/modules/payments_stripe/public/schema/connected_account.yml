@@ -1,0 +1,15 @@
+---
+name: connected_account
+properties:
+- name: account_id
+  type: string
+- name: reference_id
+  type: string
+- name: state
+  type: string
+- name: last_errors
+  type: string
+- name: data
+  type: string
+- name: stripe_account_name
+  type: string

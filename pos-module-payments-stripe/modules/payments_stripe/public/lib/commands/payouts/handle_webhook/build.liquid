@@ -1,0 +1,11 @@
+{% liquid
+  assign payout_data = object.data.object
+  assign stripe_payout_date = payout_data.arrival_date | strftime: '%FT%T%z'
+  assign created_at = payout_data.created | strftime: '%FT%T%z'
+  assign data = null | hash_merge: payout_id: payout_data.id, amount_cents: payout_data.amount
+  assign data = data | hash_merge: currency: payout_data.currency, gateway_connected_account_id: object.account, connected_account_id: connected_account.id, paid_at: stripe_payout_date, created_at: created_at, state: payout_data.status
+  assign data = data | hash_merge: reference_id: connected_account.reference_id
+  assign data = data | hash_merge: stripe_account_name: connected_account.stripe_account_name
+
+  return data
+%}

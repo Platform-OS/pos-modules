@@ -1,0 +1,8 @@
+{% liquid
+  assign participants = '[]' | parse_json | add_to_array: current_profile.id | add_to_array: object['to_id'] | uniq | compact | sort
+  assign data = '{}' | parse_json
+  hash_assign data['participant_ids'] = participants
+  hash_assign data['conversation_id'] = object.conversation_id
+
+  return data
+%}

@@ -1,0 +1,55 @@
+query search_by_message(
+  $id: ID
+  $participant_ids: [String!]
+  $participant_id: [String!]
+  $limit: Int = 20
+  $page: Int = 1
+  $message: String
+  $include_messages: Boolean = false
+) {
+  conversations: records(
+    per_page: $limit
+    page: $page
+    filter: {
+      table: { exact: "modules/chat/conversation" },
+      id: { value: $id }
+      properties: [
+        { name: "participant_ids", value_in: $participant_ids }
+        { name: "participant_ids", array_contains: $participant_id }
+      ]
+      related_records: {
+        join: { join_on_property: "id", foreign_property: "conversation_id" }
+        filter: {
+          table: { value: "modules/chat/message" }
+          properties: { name: "message", contains: $message }
+        }
+      }
+    }
+    sort: { created_at: { order: DESC } }
+  ) {
+    total_entries
+    total_pages
+    has_previous_page
+    has_next_page
+    results {
+      id
+      created_at
+      participant_ids: property_array(name: "participant_ids")
+      participant_read_ids: property_array(name: "participant_read_ids")
+      messages: related_records(
+        table: "modules/chat/message"
+        join_on_property: "id"
+        foreign_property: "conversation_id"
+        limit: 20
+        sort: { created_at: { order: DESC } }
+      ) @include(if: $include_messages) {
+        created_at
+        message: property(name: "message")
+        autor_id: property(name: "autor_id")
+      }
+      last_message: related_record(table: "modules/chat/message" join_on_property: "id" foreign_property: "conversation_id" sort: {created_at: {order: ASC}}){
+        created_at
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+mutation update(
+  $id: ID!
+  $state: String
+  $last_errors: String
+  $data: JSONPayload
+) {
+  record: record_update(
+    id: $id
+    record: {
+      table: "modules/payments_stripe/connected_account"
+      properties: [
+        { name: "state", value: $state }
+        { name: "last_errors", value: $last_errors }
+        { name: "data", value_json: $data }
+      ]
+    }
+  ) {
+    table
+    created_at
+    updated_at
+
+    id
+    account_id: property(name: "account_id")
+    reference_id: property(name: "reference_id")
+    state: property(name: "state")
+    last_errors: property(name: "last_errors")
+    stripe_account_name: property(name: "stripe_account_name")
+    data: property_json(name: "data")
+  }
+}

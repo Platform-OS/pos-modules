@@ -1,0 +1,9 @@
+{% liquid
+  assign starting_after = starting_after | default: null
+
+  function object = 'modules/payments_stripe/commands/stripe_balance_history/retrieve/build', payout: payout, starting_after: starting_after
+  function object = 'modules/payments/commands/gateway_requests/send', object: object, name: 'payments_stripe_balance_history_retrieve', external_id: payout.id, template: 'modules/payments_stripe/generic'
+  function object = 'modules/payments_stripe/commands/stripe_balance_history/retrieve/map_response', object: object
+
+  return object
+%}

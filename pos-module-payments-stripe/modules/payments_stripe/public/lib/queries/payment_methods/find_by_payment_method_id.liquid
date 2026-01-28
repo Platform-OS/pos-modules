@@ -1,0 +1,14 @@
+{%- liquid
+  if payment_method_id == blank
+    log "payment_method_id is null", type: "QUERY ERROR"
+    return null
+  endif
+
+  graphql g  = 'modules/payments_stripe/payment_methods/search', payment_method_id: payment_method_id, limit: 1
+  if g.records == blank
+    log payment_method_id, type: "QUERY ERROR - PARAMS"
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records.results[0]
+-%}

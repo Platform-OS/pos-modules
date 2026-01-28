@@ -1,0 +1,32 @@
+{% comment %} Create default tags {% endcomment %}
+
+{% capture users_data %}
+  [
+    {
+      "name": "Alex Admin",
+      "first_name": "Alex",
+      "last_name": "Admin",
+      "email": "alex.admin@example.com",
+      "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+      "profile": {
+        "uuid": {{ "" | uuid | to_json }},
+        "name": "Alex Admin",
+        "first_name": "Alex",
+        "last_name": "Admin",
+        "slug": "alex-admin",
+        "email": "alex.admin@example.com"
+      }
+    }
+  ]
+{% endcapture %}
+
+{% liquid
+assign users = users_data | parse_json
+
+for user in users
+  function object = 'modules/user/commands/user/create', email: user.email, password: user.password
+  assign profile_object = null | hash_merge: uuid: user.profile.uuid, name: user.profile.name, first_name: user.profile.first_name, last_name: user.profile.last_name, email: user.profile.email,  user_id: object.id
+  function profile = 'modules/profile/commands/profiles/create', object: profile_object
+endfor
+%}
+{% log 'migrations/create_admin_user' %}

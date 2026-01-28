@@ -1,0 +1,16 @@
+{%  liquid
+  assign request_payload = request_payload | default: null
+  function object = 'modules/payments_stripe/commands/setup_intents/update_status/build', setup_intent: setup_intent, status: status
+  function object = 'modules/payments_stripe/commands/setup_intents/update_status/check', object: object
+
+  if object.valid and object.c__status != setup_intent.c__status
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/setup_intents/update' object: object
+
+    assign event_payload = null | hash_merge: setup_intent_id: object.id, payment_method_id: payment_method_id
+    assign type = object.c__status | remove: 'app.statuses.setup_intents.' | prepend: 'payments_stripe_setup_intent_' | replace: '.', '_'
+    function _ = 'modules/core/commands/events/publish', type: type, object: event_payload
+    function _ = 'modules/core/commands/statuses/create', name: object.c__status, reference_id: object.id, requester_id: requester_id, reference_schema: 'modules/payments_stripe/setup_intent', payload: request_payload
+  endif
+
+  return object
+%}

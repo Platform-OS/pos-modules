@@ -1,0 +1,13 @@
+{% liquid
+  assign url = 'https://api.stripe.com/v1/checkout/sessions'
+  assign url = url | append: '/' | append: transaction.gateway_transaction_id
+
+  assign payload = '{}' | parse_json
+  if with_payment_intent
+    assign expand = '[]' | parse_json | array_add: 'payment_intent'
+    assign payload = payload | hash_merge: expand: expand
+  endif
+  assign data = null | hash_merge: payload: payload, request_type: 'GET', to: url
+
+  return data
+%}

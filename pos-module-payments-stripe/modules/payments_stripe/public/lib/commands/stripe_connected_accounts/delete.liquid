@@ -1,0 +1,7 @@
+{% liquid
+  function updated_object = 'modules/payments_stripe/commands/stripe_connected_accounts/delete/build', account_id: object.account_id
+  function updated_object = 'modules/payments/commands/gateway_requests/send', object: updated_object, name: 'payments_stripe_connected_account_delete', external_id: object.reference_id, template: 'modules/payments_stripe/generic'
+  function updated_object = 'modules/payments_stripe/commands/stripe_connected_accounts/delete/map_response', object: updated_object
+
+  return updated_object
+%}

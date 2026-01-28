@@ -1,0 +1,12 @@
+{% liquid
+  comment
+    Define logic which controls what type of communication is allowed
+
+    assign types = object.participants | map: 'type' | uniq
+    if types.size == 1 and types.first == 'profile'
+      hash_assign object['valid'] = false
+    endif
+  endcomment
+
+  return object
+%}

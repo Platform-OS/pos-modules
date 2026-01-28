@@ -1,0 +1,20 @@
+{% comment %}
+  Removes a webhook endpoint from Stripe and from the database.
+
+  Params:
+    - gateway_id String
+      The enpoint's ID in Stripe.
+{% endcomment %}
+{% liquid
+  function response = 'modules/payments_stripe/commands/stripe_webhook/delete', gateway_id: gateway_id
+  if response.valid
+    function object = 'modules/payments_stripe/commands/webhook_endpoints/delete_many/map_response', response: response
+    if object.valid
+      function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/webhook_endpoints/delete_many' object: object, selection: 'records_delete_all'
+    else
+      log object, type: 'ERROR: modules/payments_stripe webhook_endpoints/delete'
+    endif
+  endif
+
+  return object
+%}

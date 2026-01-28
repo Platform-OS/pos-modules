@@ -1,0 +1,26 @@
+{
+  "name": "pos-module-data-export-api",
+  "version": "0.0.1",
+  "description": "API endpoints to trigger the data export and retrieve URL to the data",
+  "scripts": {
+    "version": "(cd ../../ && pos-cli modules version pos-module-data-export-api -p) && git add template-values.json && auto-changelog -p && git add CHANGELOG.md"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Platform-OS/pos-module-data-export-api.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Platform-OS/pos-module-data-export-api/issues"
+  },
+  "homepage": "https://github.com/Platform-OS/pos-module-data-export-api#readme",
+  "devDependencies": {
+    "auto-changelog": "^2.4.0"
+  },
+  "auto-changelog": {
+    "template": "changelog-template.hbs",
+    "unreleased": true,
+    "commitLimit": false
+  }
+}

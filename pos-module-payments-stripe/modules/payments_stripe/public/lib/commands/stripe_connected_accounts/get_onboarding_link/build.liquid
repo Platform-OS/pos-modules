@@ -1,0 +1,12 @@
+{%- parse_json payload -%}
+  {
+    "account": {{ account_id | json }},
+    "refresh_url": {{ refresh_url | default: return_url | json }},
+    "return_url": {{ return_url | json }},
+    "stripe_account_name": {{ stripe_account_name | json }},
+    "type": "account_onboarding"
+  }
+{%- endparse_json -%}
+{% liquid
+  return nil | hash_merge: payload: payload, request_type: 'POST', to: "https://api.stripe.com/v1/account_links"
+%}

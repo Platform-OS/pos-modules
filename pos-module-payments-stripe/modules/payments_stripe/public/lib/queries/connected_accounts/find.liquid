@@ -1,0 +1,14 @@
+{%- liquid
+  if id == blank
+    log "id is null", type: "QUERY ERROR"
+    return null
+  endif
+
+  graphql g  = 'modules/payments_stripe/connected_accounts/search', id: id, limit: 1
+  if g.records == blank
+    log id, type: "QUERY ERROR - PARAMS"
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records.results[0]
+-%}

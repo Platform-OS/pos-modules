@@ -1,0 +1,13 @@
+{% liquid
+
+  function object = 'modules/payments_stripe/commands/refunds/create/build', object: object, transaction: transaction
+  function object = 'modules/payments_stripe/commands/refunds/create/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/refunds/create', object: object
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/refunds/create"
+  endif
+
+  return object
+%}

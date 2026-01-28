@@ -1,0 +1,18 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_refund/create/build', object: object, transaction: transaction
+  function object = 'modules/payments_stripe/commands/stripe_refund/create/check', object: object
+  if object.valid
+    function refund = 'modules/payments_stripe/commands/refunds/create', object: object.payload, transaction: transaction
+    function object = 'modules/payments/commands/gateway_requests/send', object: object, name: 'payments_stripe_refund_create', external_id: refund.id, template: 'modules/payments_stripe/generic'
+    function object = 'modules/payments_stripe/commands/stripe_refund/create/map_response', object: object
+    function refund = 'modules/payments_stripe/commands/refunds/update', object: refund, params: object
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/stripe_refund/create"
+    return object
+  endif
+
+  return refund
+%}
+
+
+

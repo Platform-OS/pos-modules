@@ -1,0 +1,15 @@
+query count(
+  $order_ids: [String!]!
+) {
+  transactions: records(
+    per_page: 1
+    filter: {
+      table: { value: "transaction" }
+      properties: [
+        { name: "order_ids" array_overlaps: $order_ids }
+      ]
+    }
+  ){
+    total_entries
+  }
+}

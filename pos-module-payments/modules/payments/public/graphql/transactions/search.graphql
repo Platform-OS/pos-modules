@@ -1,0 +1,110 @@
+query search(
+  $id: ID
+  $ids: [ID!]
+  $limit: Int = 20
+  $page: Int = 1
+  $payable_ids: [String!]
+  $amount_cents: String
+  $currency: String
+  $payer_id: String
+  $gateway_transaction_id: String
+  $gateway_transaction_ids: [String!]
+  $gateway: String
+  $c__status: String
+  $stripe_account_name: String
+  $with_gateway_requests: Boolean = false
+  $with_statuses: Boolean = false
+) {
+  transactions: records(
+    per_page: $limit
+    page: $page
+    filter: {
+      id: { value: $id, value_in: $ids }
+      table: { value: "modules/payments/transaction" }
+      properties: [
+        { name: "payable_ids", array_contains: $payable_ids }
+        { name: "amount_cents", value: $amount_cents }
+        { name: "currency", value: $currency }
+        { name: "payer_id", value: $payer_id }
+        {
+          name: "gateway_transaction_id"
+          value: $gateway_transaction_id
+          value_in: $gateway_transaction_ids
+        }
+        { name: "gateway", value: $gateway }
+        { name: "c__status", value: $c__status }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    has_next_page
+    has_previous_page
+    current_page
+
+    results {
+      id
+      created_at
+      type: table
+
+      payable_ids: property_array(name: "payable_ids")
+      amount_cents: property_int(name: "amount_cents")
+      payer_id: property(name: "payer_id")
+      currency: property(name: "currency")
+      gateway: property(name: "gateway")
+      c__status: property(name: "c__status")
+      origin_domain: property(name: "origin_domain")
+      gateway_transaction_id: property(name: "gateway_transaction_id")
+      stripe_account_name: property(name: "stripe_account_name")
+
+      gateway_requests: related_records(
+        join_on_property: "id"
+        foreign_property: "external_id"
+        table: "modules/payments/gateway_request"
+        sort: { created_at: { order: DESC } }
+      ) @include(if: $with_gateway_requests) {
+        id
+        type: table
+        created_at
+
+        external_id: property(name: "external_id")
+        request_url: property(name: "request_url")
+        request_data: property(name: "request_data")
+        name: property(name: "name")
+        api_call_template: property(name: "api_call_template")
+      }
+
+      status: related_record(
+        join_on_property: "id"
+        foreign_property: "reference_id"
+        table: "modules/core/status"
+        sort: { created_at: { order: ASC } }
+      ) {
+        ...status
+      }
+
+      statuses: related_records(
+        join_on_property: "id"
+        foreign_property: "reference_id"
+        table: "modules/core/status"
+        sort: { created_at: { order: ASC } }
+      ) @include(if: $with_statuses) {
+        ...status
+      }
+    }
+  }
+}
+
+fragment status on Record {
+  id
+  type: table
+  created_at
+
+  name: property(name: "name")
+  timestamp: property(name: "timestamp")
+  reference_id: property(name: "reference_id")
+  reference_schema: property(name: "reference_schema")
+  payload: property(name: "payload")
+  requester_id: property(name: "requester_id")
+}

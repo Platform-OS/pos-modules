@@ -1,0 +1,4 @@
+name: uploads
+properties:
+  - name: upload
+    type: upload

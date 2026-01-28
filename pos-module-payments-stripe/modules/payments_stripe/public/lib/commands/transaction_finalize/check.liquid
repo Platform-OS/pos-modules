@@ -1,0 +1,11 @@
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  assign new_statuses = 'new' | split: ','
+  assign transaction_status_short = object.transaction_status | split: '.' | last
+  function c = 'modules/core/validations/included', c: c, field_name: 'transaction_status', array: new_statuses, value: transaction_status_short
+
+  assign object = object | hash_merge: c
+
+  return object
+%}

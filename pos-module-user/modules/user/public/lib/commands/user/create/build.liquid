@@ -1,0 +1,13 @@
+{% parse_json object %}
+  {
+    "first_name": {{ first_name | json }},
+    "last_name": {{ last_name | json }},
+    "email": {{ email | json }},
+    "password": {{ password | json }},
+    "hook_params": {{ hook_params | json }}
+  }
+{% endparse_json %}
+
+{% hash_assign object['roles'] = roles %}
+
+{% return object %}

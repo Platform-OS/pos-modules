@@ -1,0 +1,16 @@
+---
+method: post
+---
+{% liquid
+  if context.params.payment_status == 'success_delayed'
+    assign object = context.params | hash_merge: payment_status: 'success', valid: true
+    background _ = 'modules/payments_example_gateway/commands/update_transaction_status', object: object, delay: 0.25
+  else
+    function object = 'modules/payments_example_gateway/commands/update_transaction_status', object: context.params
+  endif
+  if object.valid and object.payment_status == 'succeeded'
+    redirect_to context.params.success_url
+  else
+    redirect_to context.params.failed_url
+  endif
+%}

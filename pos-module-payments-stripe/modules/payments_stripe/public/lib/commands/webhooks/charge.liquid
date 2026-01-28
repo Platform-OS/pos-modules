@@ -1,0 +1,29 @@
+{%- liquid
+  assign requester_id = 'stripe_webhook_request'
+  assign response = null | hash_merge: status: 200
+  assign gateway_transaction_ids = params.data.object.id | split: '!!' | array_add: params.data.object.payment_intent | array_compact
+  if params.data.object.metadata.transaction_id
+    function transaction = 'modules/payments/queries/transactions/find', id: params.data.object.metadata.transaction_id
+  elsif gateway_transaction_ids.size > 0
+    function transactions = 'modules/payments/queries/transactions/search', gateway_transaction_ids: gateway_transaction_ids
+    assign transaction = transactions.results[0]
+  endif
+  function payment_status = 'modules/payments/commands/transactions/map_status', payment_status: params.data.object.status
+
+  if transaction == blank and params.data.object.metadata.host contains host
+    hash_assign response['status'] = 500
+    hash_assign response['body'] = "Transaction not found"
+    log params, type: 'ERROR: modules/payments_stripe/commands/webhooks/charge object'
+  elsif transaction == blank
+    hash_assign response['status'] = 202
+    hash_assign response['body'] = "Transaction is from a different host"
+  elsif transaction and transaction.c__status == payment_status
+    hash_assign response['status'] = 202
+    hash_assign response['body'] = "Transaction already completed"
+  elsif transaction and params.data.object.metadata.host contains host or params.data.object.metadata.host == blank
+    function object = 'modules/payments_stripe/commands/stripe_charge/handle_webhook', params: params, requester_id: requester_id, request_url: request_url, transaction: transaction
+    hash_assign response['body'] = object
+  endif
+
+  return response
+-%}

@@ -1,0 +1,13 @@
+---
+slug: _api/data-exports/:id
+method: delete
+---
+{% liquid
+  include 'modules/data_export_api/shared/authorize'
+
+  function object = 'modules/data_export_api/queries/data_exports/find', id: context.params.id
+
+  function delete_result = 'modules/data_export_api/commands/data_exports/delete', object: object
+
+  print delete_result
+%}

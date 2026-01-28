@@ -1,0 +1,12 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/payment_methods/create_card/build', object: object, customer: customer
+  function object = 'modules/payments_stripe/commands/payment_methods/create_card/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/payment_methods/create', object: object
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/payment_methods/create_card"
+  endif
+
+  return object
+%}

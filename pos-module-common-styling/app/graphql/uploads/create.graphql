@@ -1,0 +1,16 @@
+mutation upload {
+  record_create(
+    record: {
+        table: "uploads", properties: { name: "upload", value: "t" }
+    }
+  ) {
+    id,
+    metadata: property_json(name: "metadata")
+    file: property_upload(name: "upload"){
+      file_name
+      extension
+      url
+      versions
+    }
+  }
+}

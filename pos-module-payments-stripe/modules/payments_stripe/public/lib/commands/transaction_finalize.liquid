@@ -1,0 +1,47 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/transaction_finalize/build', object: transaction
+  function object = 'modules/payments_stripe/commands/transaction_finalize/check', object: object
+
+  if object.valid
+    function stripe_session = 'modules/payments_stripe/commands/stripe_checkout/retrieve', transaction: object.transaction, with_payment_intent: true
+    if stripe_session.valid
+      assign ach_method_types = '["us_bank_account"]' | parse_json
+      if stripe_session.payment_intent.payment_method_types != ach_method_types
+        assign ach_payment = true
+      endif
+
+      case stripe_session.status
+      when 'complete'
+        case stripe_session.payment_status
+        when 'paid'
+          assign payment_status = 'succeeded'
+        when 'unpaid'
+          if ach_payment
+            assign payment_status = 'pending'
+          else
+            # TODO: is it possible for card payment?
+            # assign payment_status = 'failed'
+          endif
+        endcase
+      when 'expired'
+        assign payment_status = 'expired'
+      when 'open'
+        function _expire_object = 'modules/payments_stripe/commands/stripe_checkout/expire', transaction: object.transaction
+        assign payment_status = 'expired'
+      endcase
+
+      if payment_status
+        if payment_status != transaction.status.name
+          assign input = null | hash_merge: payment_status: payment_status
+          function object = 'modules/payments/commands/transactions/update_status', object: input, transaction: object.transaction, requester_id: requester_id
+        endif
+      else
+        function object = 'modules/core/helpers/register_error', contract: object, field_name: 'payment_status', message: 'unknown status'
+      endif
+    else
+      log object, type: "ERROR: modules/payments_stripe/commands/stripe_checkout/check_and_update_status invalid"
+    endif
+  endif
+
+  return object
+%}

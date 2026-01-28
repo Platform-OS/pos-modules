@@ -1,0 +1,37 @@
+mutation create_report(
+  $operation_type: String!
+  $operation_model: String!
+  $uuid: String!
+  $creator_id: String!
+  $options: JSONPayload
+  $user_id: String!
+  $retrieve_all_command: String!
+) {
+  record: record_create(
+    record: {
+      table: "modules/reports/report"
+      properties: [
+        { name: "operation_type" value: $operation_type }
+        { name: "retrieve_all_command" value: $retrieve_all_command }
+        { name: "operation_model" value: $operation_model }
+        { name: "uuid" value: $uuid }
+        { name: "user_id" value: $user_id }
+        { name: "options", value_json: $options}
+        { name: "creator_id", value: $creator_id }
+        { name: "c__status", value: "created" }
+      ]
+    }
+  ){
+    id
+    created_at
+    deleted_at
+    type: table
+
+    operation_type: property(name: "operation_type")
+    operation_model: property(name: "operation_model")
+    uuid: property(name: "uuid")
+    creator_id: property(name: "creator_id")
+    options: property_object(name: "options")
+    user_id: property(name: "user_id")
+  }
+}

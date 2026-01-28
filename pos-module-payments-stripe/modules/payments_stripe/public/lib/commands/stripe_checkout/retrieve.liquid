@@ -1,0 +1,9 @@
+{% liquid
+  assign with_payment_intent = with_payment_intent | default: false
+
+  function object = 'modules/payments_stripe/commands/stripe_checkout/retrieve/build', transaction: transaction, with_payment_intent: with_payment_intent
+  function object = 'modules/payments/commands/gateway_requests/send', object: object, name: 'payments_stripe_checkout_retrieve', external_id: transaction.id, template: 'modules/payments_stripe/generic'
+  function object = 'modules/payments_stripe/commands/stripe_checkout/retrieve/map_response', object: object
+
+  return object
+%}

@@ -1,0 +1,16 @@
+{%  liquid
+  assign request_payload = request_payload | default: null
+  function object = 'modules/payments/commands/transactions/update_status/build', object: object, transaction: transaction
+  function object = 'modules/payments/commands/transactions/update_status/check', object: object
+
+  if object.valid and object.c__status != transaction.c__status
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments/transactions/update' object: object
+
+    assign event_payload = null | hash_merge: transaction_id: object.id
+    assign type = object.c__status | remove: 'app.statuses.transactions.' | prepend: 'payments_transaction_' | replace: '.', '_'
+    function _ = 'modules/core/commands/events/publish', type: type, object: event_payload
+    function _ = 'modules/core/commands/statuses/create', name: object.c__status, reference_id: object.id, requester_id: requester_id, reference_schema: 'modules/payments/transaction', payload: request_payload
+  endif
+
+  return object
+%}

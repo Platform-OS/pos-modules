@@ -1,0 +1,14 @@
+{% liquid
+  assign data = null | hash_merge: setup_intent: setup_intent, id: object.id
+  if object.customer
+    function customer = 'modules/payments_stripe/commands/stripe_customer/retrieve', customer_id: object.customer, payer_id: setup_intent.reference_id, stripe_account_name: setup_intent.stripe_account_name
+    hash_assign data['customer'] = customer
+    if object.payment_method
+      function payment_method = 'modules/payments_stripe/commands/stripe_payment_method/retrieve', payment_method_id: object.payment_method, customer_id: customer.customer_id, stripe_account_name: setup_intent.stripe_account_name
+      hash_assign data['payment_method'] = payment_method
+    endif
+  endif
+  hash_assign data['status'] = object.status
+
+  return data
+%}

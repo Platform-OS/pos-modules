@@ -1,0 +1,45 @@
+<header class="pos-chat-header">
+
+  <nav class="pos-chat-header-nav-primary">
+
+    <div class="pos-chat-header-nav-primary-content">
+      <ul>
+        <li {% if context.page.slug == '/' %} class="active" {% endif %}><a href="/">People</a></li>
+        <li {% if context.page.slug == 'inbox' %} class="active" {% endif %}><a href="/inbox">Inbox</a></li>
+      </ul>
+      <div id="pos-chat-header-activeIndicator"></div>
+    </div>
+
+    <label for="pos-chat-header-secondaryNavigationToggle" id="pos-chat-header-nav-primary-profile">
+      {{ current_profile.first_name }}
+    </label>
+
+  </nav>
+
+  <input tabindex="-1" type="checkbox" id="pos-chat-header-secondaryNavigationToggle" class="app-chat-popupToggle">
+  <nav class="pos-chat-header-nav-secondary">
+
+    <div class="pos-chat-header-nav-secondary-content">
+
+      <ul class="pos-chat-header-user">
+        <li>
+          {{ current_profile.first_name }} (<strong>{{ context.current_user.email }}</strong>)
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <form action="/sessions" method="post">
+            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+            <input type="hidden" name="_method" value="delete">
+            <button type="submit">Log Out</button>
+          </form>
+        </li>
+      </ul>
+
+    </div>
+
+  </nav>
+
+
+</header>

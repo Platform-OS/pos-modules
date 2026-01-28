@@ -1,0 +1,7 @@
+name: document
+properties:
+  - name: object_uuid
+  - name: document_type
+  - name: document
+    type: upload
+  - name: creator_id

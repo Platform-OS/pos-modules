@@ -1,0 +1,7 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_checkout/expire/build', transaction: transaction
+  function object = 'modules/payments/commands/gateway_requests/send', object: object, name: 'payments_stripe_checkout_expire', external_id: transaction.id, template: 'modules/payments_stripe/generic'
+  function object = 'modules/payments_stripe/commands/stripe_checkout/expire/map_response', object: object
+
+  return object
+%}

@@ -1,0 +1,7 @@
+{% liquid
+  assign page = page | to_positive_integer: 1
+  assign limit = limit | to_positive_integer: 20
+
+  graphql r = 'modules/payments/gateway_requests/search', limit: limit, gateway_object_id: gateway_object_id, gateway_object_ids: gateway_object_ids, id: id, page: page, gateway: gateway, external_id: external_id, response_status: response_status, api_call_name: api_call_name, name: name, stripe_account_name: stripe_account_name
+  return r.gateway_requests
+%}

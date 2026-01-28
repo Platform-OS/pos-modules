@@ -1,0 +1,16 @@
+{% liquid
+  function payout = 'modules/payments_stripe/queries/payouts/find_by_payout_id', payout_id: object.payout_id
+  if payout
+    return payout
+  endif
+
+  function object = 'modules/payments_stripe/commands/payouts/create/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/payouts/create', object: object
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/payouts/create"
+  endif
+
+  return object
+%}

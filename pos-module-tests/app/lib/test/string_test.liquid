@@ -1,0 +1,11 @@
+{% liquid
+  # Test string-related assertions
+
+  # Test not_true assertion
+  assign flag = false
+  function contract = 'modules/tests/assertions/not_true', contract: contract, value: flag, field_name: 'boolean false'
+
+  # Test equal with strings
+  assign greeting = 'Hello World'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: greeting, expected: 'Hello World', field_name: 'greeting matches'
+%}

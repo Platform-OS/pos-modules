@@ -1,0 +1,21 @@
+name: transaction
+properties:
+  - name: payable_ids
+    type: array
+  - name: payer_id
+    type: string
+  - name: amount_cents
+    type: integer
+  - name: currency
+  - name: gateway
+  - name: c__status
+    # - app.statuses.transactions.new - payment started
+    # - app.statuses.transactions.pending - payment is on way
+    # - app.statuses.transactions.succeeded - money received
+    # - app.statuses.transactions.expired - payment session expired no money received
+    # - app.statuses.transactions.failed - payment failed no money received
+  - name: origin_domain
+
+  # id used by gateway provided api
+  - name: gateway_transaction_id
+  - name: stripe_account_name

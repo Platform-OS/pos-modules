@@ -1,0 +1,10 @@
+{% liquid
+  assign transaction_object = null | hash_merge: gateway: 'example', payable_ids: "1", currency: "USD", amount_cents: 12000
+  function transaction = 'modules/payments/commands/transactions/create', object: transaction_object
+  assign object = null | hash_merge: id: transaction.id, gateway_transaction_id: '12345'
+
+  function object = 'modules/payments/commands/transactions/update_gateway_transaction_id', object: object
+
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: object, field_name: 'base'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: object.gateway_transaction_id, field_name: 'gateway_transaction_id', expected: '12345'
+%}

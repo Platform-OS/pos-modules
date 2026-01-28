@@ -1,0 +1,15 @@
+/*
+  custom styling for the inbox
+
+  converstations list
+*/
+
+
+
+/* conversations list
+============================================================================ */
+.pos-chat-conversationCard-name {
+  letter-spacing: -.05em;
+  font-family: var(--pos-font-navigation);
+  font-weight: 600;
+}

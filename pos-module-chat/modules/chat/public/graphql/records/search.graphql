@@ -1,0 +1,17 @@
+query records_count(
+  $uuid: String!
+) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/user/profile" }
+      properties: [
+        { name: "uuid", value: $uuid }
+      ]
+    }
+  ) {
+    results{
+      id
+    }
+  }
+}

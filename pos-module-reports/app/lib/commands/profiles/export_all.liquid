@@ -1,0 +1,32 @@
+{% assign rows = '[]' | parse_json %}
+
+{% assign header_row = "id,created_at,updated_at,user_id,avatar,uuid,name,first_name,last_name,slug,email" | split: ',' %}
+
+{%- assign rows = rows | add_to_array: header_row -%}
+
+{%- graphql profiles = 'modules/profile/profiles/search', page: 1, limit: 100 -%}
+{%- assign total_pages = profiles.records.total_pages -%}
+{%- for i in (1..total_pages) -%}
+  {%- if i > 1 -%}
+    {%- graphql profiles = 'modules/profile/profiles/search', page: i, limit: 100 -%}
+  {%- endif -%}
+  {%- for profile in profiles.records.results -%}
+    {%- assign row = '[]' | parse_json -%}
+    {%- assign row = row | add_to_array: profile.id -%}
+    {%- assign row = row | add_to_array: profile.created_at -%}
+    {%- assign row = row | add_to_array: profile.updated_at -%}
+    {%- assign row = row | add_to_array: profile.properties.user_id -%}
+    {%- assign row = row | add_to_array: profile.avatar.photo.versions -%}
+    {%- assign row = row | add_to_array: profile.properties.uuid -%}
+    {%- assign row = row | add_to_array: profile.properties.name -%}
+    {%- assign row = row | add_to_array: profile.properties.first_name -%}
+    {%- assign row = row | add_to_array: profile.properties.last_name -%}
+    {%- assign row = row | add_to_array: profile.properties.slug -%}
+    {%- assign row = row | add_to_array: profile.properties.email -%}
+    {%- assign rows = rows | add_to_array: row -%}
+  {%- endfor -%}
+{%- endfor -%}
+
+{% assign csv_export = rows | to_csv %}
+
+{%- return csv_export -%}

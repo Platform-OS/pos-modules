@@ -1,0 +1,43 @@
+query (
+  $id: ID
+  $account_id: String
+  $reference_id: String
+  $state: String
+  $page: Int = 1
+  $limit: Int = 20
+  $stripe_account_name: String
+) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      table: { value: "modules/payments_stripe/connected_account" }
+      id: { value: $id }
+      properties: [
+        { name: "account_id", value: $account_id }
+        { name: "reference_id", value: $reference_id }
+        { name: "state", value: $state }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+    sort: { created_at: { order: DESC } }
+  ) {
+    total_entries
+    total_pages
+    has_previous_page
+    has_next_page
+    results {
+      table
+      created_at
+      updated_at
+
+      id
+      account_id: property(name: "account_id")
+      reference_id: property(name: "reference_id")
+      state: property(name: "state")
+      last_errors: property(name: "last_errors")
+      stripe_account_name: property(name: "stripe_account_name")
+      data: property_json(name: "data")
+    }
+  }
+}

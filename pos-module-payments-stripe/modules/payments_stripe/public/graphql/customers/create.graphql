@@ -1,0 +1,31 @@
+mutation create(
+  $customer_id: String!
+  $reference_id: String!
+  $email: String
+  $name: String
+  $stripe_account_name: String
+) {
+  record: record_create(
+    record: {
+      table: "modules/payments_stripe/customer"
+      properties: [
+        { name: "customer_id", value: $customer_id }
+        { name: "reference_id", value: $reference_id }
+        { name: "email", value: $email }
+        { name: "name", value: $name }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+  ) {
+    table
+    created_at
+    updated_at
+
+    id
+    customer_id: property(name: "customer_id")
+    reference_id: property(name: "reference_id")
+    email: property(name: "email")
+    name: property(name: "name")
+    stripe_account_name: property(name: "stripe_account_name")
+  }
+}

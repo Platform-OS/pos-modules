@@ -1,0 +1,65 @@
+query search(
+  $id: ID
+  $limit: Int = 20
+  $page: Int = 1
+  $operation_types: [String!]
+  $operation_models: [String!]
+  $uuid: String
+  $user_id: String
+  $include_documents: Boolean = false
+) {
+  reports: records(
+    per_page: $limit
+    page: $page
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/reports/report" }
+      properties: [
+        { name: "operation_type" value_in: $operation_types }
+        { name: "operation_model" value_in: $operation_models }
+        { name: "uuid" value: $uuid }
+        { name: "user_id" value: $user_id }
+      ]
+    }
+    sort: [
+      { created_at: { order: DESC }}
+    ]
+  ){
+    total_entries
+    total_pages
+    has_previous_page
+    has_next_page
+    current_page
+    results {
+      id
+      created_at
+      updated_at
+      type: table
+
+      operation_type: property(name: "operation_type")
+      operation_model: property(name: "operation_model")
+      uuid: property(name: "uuid")
+      creator_id: property(name: "creator_id")
+      user_id: property(name: "user_id")
+      options: property_object(name: "options")
+      retrieve_all_command: property(name: "retrieve_all_command")
+
+      status: property(name: "c__status")
+
+      documents: related_records(
+        table: "modules/reports/document" join_on_property: "uuid" foreign_property: "object_uuid"
+        filter: { properties: { name: "document_type", value_in: ["report", "file"] } }
+      ) @include(if: $include_documents) {
+        id
+        type: table
+
+        document_type: property(name: "document_type")
+        file: property_upload(name: "document" expires_in: 300) {
+          url
+          file_name
+          extension
+        }
+      }
+    }
+  }
+}

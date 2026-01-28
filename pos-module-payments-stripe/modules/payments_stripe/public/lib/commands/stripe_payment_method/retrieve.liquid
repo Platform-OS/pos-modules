@@ -1,0 +1,7 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_payment_method/retrieve/build', customer_id: customer_id, payment_method_id: payment_method_id, stripe_account_name: stripe_account_name
+  function object = 'modules/payments/commands/gateway_requests/send', object: object, name: 'payments_stripe_payment_method_retrieve', external_id: customer_id, template: 'modules/payments_stripe/generic'
+  function object = 'modules/payments_stripe/commands/stripe_payment_method/retrieve/map_response', object: object, stripe_account_name: stripe_account_name
+
+  return object
+%}

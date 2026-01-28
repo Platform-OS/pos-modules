@@ -1,0 +1,19 @@
+name: refund
+properties:
+- name: amount
+  type: integer
+- name: transaction_id
+  belongs_to: modules/payments/transaction
+- name: refund_id
+  type: string
+- name: charge
+- name: payment_intent
+- name: refund_application_fee
+  type: boolean
+- name: reverse_transfer
+  type: boolean
+- name: reason
+  type: string
+- name: status
+- name: stripe_account_name
+  type: string

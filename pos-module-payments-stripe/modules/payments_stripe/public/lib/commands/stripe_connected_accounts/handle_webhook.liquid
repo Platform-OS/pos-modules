@@ -1,0 +1,12 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_connected_accounts/handle_webhook/build', object: params
+  function object = 'modules/payments_stripe/commands/stripe_connected_accounts/handle_webhook/check', object: object
+
+  if object.valid
+    function object = 'modules/payments_stripe/commands/connected_accounts/update', object: connected_account, params: object
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/stripe_connected_accounts/handle_webhook invalid"
+  endif
+
+  return object
+%}

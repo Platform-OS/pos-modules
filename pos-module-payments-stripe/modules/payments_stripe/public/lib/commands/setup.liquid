@@ -1,0 +1,29 @@
+{% liquid
+  if stripe_account_name != blank
+    assign stripe_key_name = 'stripe_sk_key' | append: '_' | append: stripe_account_name
+    assign webhooks_path = '/payments/stripe/webhooks/' | append: stripe_account_name
+    assign connect_webhooks_path = '/payments/stripe/webhooks_connect/' | append: stripe_account_name
+  else
+    assign stripe_key_name = 'stripe_sk_key'
+    assign webhooks_path = '/payments/stripe/webhooks'
+    assign connect_webhooks_path = '/payments/stripe/webhooks_connect'
+  endif
+  function stripe_sk_key = 'modules/core/lib/queries/variable/find', name: stripe_key_name
+
+  if stripe_sk_key
+    assign stripe_events = 'checkout.session.expired,charge.succeeded,charge.pending,setup_intent.succeeded' | split: ','
+    function res = 'modules/payments_stripe/commands/webhook_endpoints/create', stripe_events: stripe_events, path: webhooks_path, connect: false, host: context.location.host, stripe_account_name: stripe_account_name
+    if res.valid != true
+      log res, type: 'ERROR: modules/payments_stripe failed to setup webhook'
+    endif
+    if with_connect
+      assign stripe_events = 'account.updated,payout.paid' | split: ','
+
+      function res = 'modules/payments_stripe/commands/webhook_endpoints/create', stripe_events: stripe_events, path: connect_webhooks_path, connect: true, host: context.location.host, stripe_account_name: stripe_account_name
+    endif
+    return res.valid
+  else
+    log null, type: 'ERROR: modules/payments_stripe you have to set `stripe_sk_key` variable'
+    return false
+  endif
+%}

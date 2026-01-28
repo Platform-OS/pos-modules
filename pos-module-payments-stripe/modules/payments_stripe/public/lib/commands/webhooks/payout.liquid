@@ -1,0 +1,15 @@
+{%- liquid
+  assign response = null | hash_merge: status: 200
+
+  function connected_account = 'modules/payments_stripe/queries/connected_accounts/find_by_account_id', account_id: params.account
+
+  if connected_account == blank
+    hash_assign response['status'] = 202
+    hash_assign response['body'] = "Payout is from a different host"
+  else
+    function object = 'modules/payments_stripe/commands/payouts/handle_webhook', params: params, request_url: request_url, connected_account: connected_account
+    hash_assign response['body'] = object
+  endif
+
+  return response
+-%}

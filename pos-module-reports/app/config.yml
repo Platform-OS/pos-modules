@@ -1,0 +1,4 @@
+---
+maintenance:
+  enabled: false
+  password_constant: 'maintenance_password'

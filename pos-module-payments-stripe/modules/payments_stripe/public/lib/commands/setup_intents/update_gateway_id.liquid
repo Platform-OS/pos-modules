@@ -1,0 +1,12 @@
+{%  liquid
+  function object = 'modules/payments_stripe/commands/setup_intents/update_gateway_id/build', object: object, gateway_id: gateway_id
+  function object = 'modules/payments_stripe/commands/setup_intents/update_gateway_id/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/setup_intents/update' object: object
+  else
+    log object, type: "ERROR modules/payments_stripe/commands/setup_intents/update_gateway_id"
+  endif
+
+  return object
+%}

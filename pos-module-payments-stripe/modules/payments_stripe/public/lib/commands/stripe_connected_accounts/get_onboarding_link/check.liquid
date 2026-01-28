@@ -1,0 +1,13 @@
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: object.payload, field_name: 'account'
+  function c = 'modules/core/validations/presence', c: c, object: object.payload, field_name: 'return_url'
+  function c = 'modules/core/validations/presence', c: c, object: object.payload, field_name: 'type'
+
+  assign object = object | hash_merge: c
+
+  return object
+%}
+
+

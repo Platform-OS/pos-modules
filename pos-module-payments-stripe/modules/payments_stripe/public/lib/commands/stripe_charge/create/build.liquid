@@ -1,0 +1,6 @@
+{% liquid
+  assign idempotency_key = object | hash_delete_key: 'idempotency_key'
+  assign data = null | hash_merge: payload: object, request_type: 'POST', to: 'https://api.stripe.com/v1/charges', idempotency_key: idempotency_key
+
+  return data
+%}

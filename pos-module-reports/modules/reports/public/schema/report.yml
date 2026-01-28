@@ -1,0 +1,16 @@
+name: report
+properties:
+  # import
+  # export
+  - name: operation_type
+  - name: retrieve_all_command
+  - name: file_name
+
+  # user
+  - name: operation_model
+  - name: uuid
+  - name: creator_id
+  - name: user_id
+  - name: options
+
+  - name: c__status

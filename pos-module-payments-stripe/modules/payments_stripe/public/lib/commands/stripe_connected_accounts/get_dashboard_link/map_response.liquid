@@ -1,0 +1,17 @@
+{% liquid
+  assign data = '{}' | parse_json
+  if object.response_body
+    assign response = object.response_body | parse_json
+    if response.error
+      hash_assign data['errors'] = response.error
+      hash_assign data['valid'] = false
+    else
+      assign data = response
+      hash_assign data['valid'] = true
+    endif
+  else
+    hash_assign data['valid'] = false
+  endif
+
+  return data
+%}

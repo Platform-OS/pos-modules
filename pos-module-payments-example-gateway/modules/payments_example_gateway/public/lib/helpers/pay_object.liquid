@@ -1,0 +1,9 @@
+{% liquid
+  assign template = '/payments/example_gateway{?transaction_id,success_url,failed_url}'
+  assign failed_url = gateway_params.failed_url | default: gateway_params.cancel_url
+  assign url = template | expand_url_template: transaction_id: transaction.id, success_url: gateway_params.success_url, failed_url: failed_url
+
+  assign object = null | hash_merge: valid: true, url: url
+
+  return object
+%}

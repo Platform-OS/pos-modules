@@ -1,0 +1,8 @@
+{% if messages.results.size > 0 %}
+  {{ messages | json }}
+{% else %}
+  {
+    "code": 200,
+    "message": "No messages in given conversation"
+  }
+{% endif %}

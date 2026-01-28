@@ -1,0 +1,19 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_checkout/complete/build', object: object
+  function object = 'modules/payments_stripe/commands/stripe_checkout/complete/check', object: object
+  unless object.valid
+    return object
+  endunless
+
+  function object = 'modules/payments/commands/gateway_requests/receive', object: object.data.object, name: object.type, external_id: object.data.object.client_reference_id, request_url: request_url
+  if object.valid
+    function object = 'modules/payments_stripe/commands/stripe_checkout/complete/map_request', object: object
+    function _customer = 'modules/payments_stripe/commands/customers/create', object: object.customer
+    assign input = null | hash_merge: payment_status: object.status
+    function object = 'modules/payments/commands/transactions/update_status', object: input, transaction: object.transaction, requester_id: requester_id
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/stripe_checkout/complete invalid"
+  endif
+
+  return object
+%}

@@ -1,0 +1,12 @@
+{%  liquid
+  function object = 'modules/data_export_api/commands/data_exports/delete/build', object: object
+  function object = 'modules/data_export_api/commands/data_exports/delete/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/data_export_api/data_exports/mutations/delete' object: object, selection: 'data_export_delete'
+  else
+    log object, type: "ERROR: modules/data_export_api/lib/commands/data_exports/delete"
+  endif
+
+  return object
+%}

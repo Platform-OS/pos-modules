@@ -1,0 +1,26 @@
+---
+name: payout
+properties:
+- name: reference_id
+  type: string
+- name: payout_id
+  type: string
+- name: amount_cents
+  type: integer
+- name: currency
+  type: string
+- name: connected_account_id
+  type: string
+  belongs_to: modules/payments_stripe/connected_account
+- name: gateway_connected_account_id
+  type: string
+- name: created_at
+  type: datetime
+- name: paid_at
+  type: datetime
+- name: failed_at
+  type: datetime
+- name: state
+  type: string
+- name: stripe_account_name
+  type: string

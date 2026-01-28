@@ -1,0 +1,5 @@
+{% liquid
+  assign data = null | hash_merge: id: object.id, gateway_id: gateway_id
+
+  return data
+%}

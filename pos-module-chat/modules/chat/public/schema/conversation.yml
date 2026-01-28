@@ -1,0 +1,7 @@
+name: conversation
+properties:
+  # profile or organization
+  - name: participant_ids
+    type: array
+  - name: participant_read_ids
+    type: array

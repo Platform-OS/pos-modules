@@ -1,0 +1,21 @@
+{% liquid
+  function connected_account = 'modules/payments_stripe/queries/connected_accounts/find_by_reference_id', reference_id: object.reference_id, stripe_account_name: object.stripe_account_name
+  if connected_account
+    return connected_account
+  endif
+
+  if object.account_id == blank
+    function account = 'modules/payments_stripe/commands/stripe_connected_accounts/create', reference_id: object.reference_id, metadata: object
+    hash_assign object['account_id'] = account.id
+  endif
+  function object = 'modules/payments_stripe/commands/connected_accounts/create/build', object: object
+  function object = 'modules/payments_stripe/commands/connected_accounts/create/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/connected_accounts/create', object: object
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/connected_accounts/create"
+  endif
+
+  return object
+%}

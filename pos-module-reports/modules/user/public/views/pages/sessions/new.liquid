@@ -1,0 +1,8 @@
+{% liquid
+  function current_user = 'modules/user/queries/user/current'
+  # platformos-check-disable UnreachableCode
+  include 'modules/user/helpers/can_do_or_redirect', requester: current_user, do: 'sessions.create', return_url: '/'
+  # platformos-check-enable UnreachableCode
+
+  theme_render_rc 'sessions/new', context: context
+%}

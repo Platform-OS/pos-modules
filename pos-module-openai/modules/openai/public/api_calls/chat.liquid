@@ -1,0 +1,11 @@
+---
+to: >
+  https://api.openai.com/{{ context.constants['modules/openai/OPENAI_VERSION'] | default: "v1" }}/chat/completions
+request_type: POST
+headers: >
+  {
+    "Authorization": "Bearer {{ context.constants['modules/openai/OPENAI_SECRET_TOKEN'] }}",
+    "Content-Type": "application/json"
+  }
+---
+{{ data }}

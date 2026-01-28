@@ -1,0 +1,12 @@
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  assign room_id = context.params.room_id
+  function conversation = 'modules/chat/lib/queries/conversations/find_by_participant', id: room_id, participant_id: current_profile.id, include_messages: null
+
+  if conversation
+    echo 'true'
+  else
+    echo 'false'
+  endif
+%}

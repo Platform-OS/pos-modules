@@ -1,0 +1,10 @@
+{%  liquid
+  function object = 'modules/payments/commands/gateway_requests/receive/build', object: object, external_id: external_id, name: name, request_url: request_url, stripe_account_name: stripe_account_name
+  function object = 'modules/payments/commands/gateway_requests/receive/check', object: object
+
+  if object.valid
+    function gateway_request  = 'modules/payments/commands/execute', mutation_name: 'modules/payments/gateway_requests/create', object: object
+  endif
+
+  return object
+%}

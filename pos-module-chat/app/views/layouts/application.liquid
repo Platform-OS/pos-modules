@@ -1,0 +1,65 @@
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+%}
+
+<!DOCTYPE html>
+<html class="pos-app">
+  <head>
+
+      <meta charset="utf-8">
+      {% comment %} default platformOS provided styles {% endcomment %}
+      {% render 'modules/common-styling/init', reset: true %}
+      <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
+      <link rel="stylesheet" href="{{ 'modules/chat/style/pos-chat-inbox.css' | asset_url }}">
+      {% comment %} custom styles specific for this app, some overwrite the defaults {% endcomment %}
+      <link rel="stylesheet" href="{{ 'style/app-config.css' | asset_url }}">
+      <link rel="stylesheet" href="{{ 'style/app-button.css' | asset_url }}">
+      <link rel="stylesheet" href="{{ 'style/app-typography.css' | asset_url }}">
+      <link rel="stylesheet" href="{{ 'style/app-inbox.css' | asset_url }}">
+      <link rel="stylesheet" href="{{ 'style/app.css' | asset_url }}">
+      {% comment %} custom js specific for this app {% endcomment %}
+      <script defer src="{{ 'js/app.js' | asset_url }}"></script>
+      <script defer src="{{ 'js/popup.js' | asset_url }}"></script>
+
+      <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=yes">
+
+      <style>
+
+        {% comment %} fonts specific to the application {% endcomment %}
+        @font-face {
+          font-family: 'Source Code Pro';
+          font-style: normal;
+          font-weight: 200 900;
+          font-display: swap;
+          src: url('{{ 'font/SourceCodePro-VariableFont_wght.ttf' | asset_url }}') format('truetype');
+        }
+
+        @font-face {
+          font-family: 'Source Code Pro';
+          font-style: italic;
+          font-weight: 200 900;
+          font-display: swap;
+          src: url('{{ 'font/SourceCodePro-Italic-VariableFont_wght.woff2' | asset_url }}') format('woff2');
+        }
+
+      </style>
+
+  </head>
+  <body>
+
+      {% if current_profile.id %}
+          {% render 'header', current_profile: current_profile %}
+      {% endif %}
+
+      {{ content_for_layout }}
+
+      {% liquid
+        function flash = 'modules/core/commands/session/get', key: 'sflash', clear: null
+        if context.location.pathname != flash.from or flash.force_clear
+          function _ = 'modules/core/commands/session/clear', key: 'sflash'
+        endif
+        render 'modules/common-styling/toasts', params: flash
+      %}
+
+  </body>
+</html>

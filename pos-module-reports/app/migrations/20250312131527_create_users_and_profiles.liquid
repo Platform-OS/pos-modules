@@ -1,0 +1,317 @@
+{% comment %} Create default tags {% endcomment %}
+
+{% capture users_data %}
+    [
+      {
+        "name": "Alex Carter",
+        "first_name": "Alex",
+        "last_name": "Carter",
+        "email": "alex@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Alex Carter",
+          "first_name": "Alex",
+          "last_name": "Carter",
+          "slug": "alex-carter",
+          "email": "alex@example.com"
+        }
+      },
+      {
+        "name": "Sophia Bennett",
+        "first_name": "Sophia",
+        "last_name": "Bennett",
+        "email": "sophia@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Sophia Bennett",
+          "first_name": "Sophia",
+          "last_name": "Bennett",
+          "email": "sophia@example.com",
+          "slug": "sophia-bennett"
+        }
+      },
+      {
+        "name": "Lucas Turner",
+        "first_name": "Lucas",
+        "last_name": "Turner",
+        "email": "lucas@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Lucas Turner",
+          "first_name": "Lucas",
+          "last_name": "Turner",
+          "email": "lucas@example.com",
+          "slug": "lucas-turner"
+        }
+      },
+      {
+        "name": "Olivia Morgan",
+        "first_name": "Olivia",
+        "last_name": "Morgan",
+        "email": "olivia@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Olivia Morgan",
+          "first_name": "Olivia",
+          "last_name": "Morgan",
+          "email": "olivia@example.com",
+          "slug": "olivia-morgan"
+        }
+      },
+      {
+        "name": "Ethan Brooks",
+        "first_name": "Ethan",
+        "last_name": "Brooks",
+        "email": "ethan@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Ethan Brooks",
+          "first_name": "Ethan",
+          "last_name": "Brooks",
+          "email": "ethan@example.com",
+          "slug": "ethan-brooks"
+        }
+      },
+      {
+        "name": "Maya Simmons",
+        "first_name": "Maya",
+        "last_name": "Simmons",
+        "email": "maya@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Maya Simmons",
+          "first_name": "Maya",
+          "last_name": "Simmons",
+          "email": "maya@example.com",
+          "slug": "maya-simmons"
+        }
+      },
+      {
+        "name": "Liam Foster",
+        "first_name": "Liam",
+        "last_name": "Foster",
+        "email": "liam@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Liam Foster",
+          "first_name": "Liam",
+          "last_name": "Foster",
+          "email": "liam@example.com",
+          "slug": "liam-foster"
+        }
+      },
+      {
+        "name": "Zoe Mitchell",
+        "first_name": "Zoe",
+        "last_name": "Mitchell",
+        "email": "zoe@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Zoe Mitchell",
+          "first_name": "Zoe",
+          "last_name": "Mitchell",
+          "email": "zoe@example.com",
+          "slug": "zoe-mitchell"
+        }
+      },
+      {
+        "name": "Noah Hart",
+        "first_name": "Noah",
+        "last_name": "Hart",
+        "email": "noah@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Noah Hart",
+          "first_name": "Noah",
+          "last_name": "Hart",
+          "email": "noah@example.com",
+          "slug": "noah-hart"
+        }
+      },
+      {
+        "name": "Ava Delgado",
+        "first_name": "Ava",
+        "last_name": "Delgado",
+        "email": "ava@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Ava Delgado",
+          "first_name": "Ava",
+          "last_name": "Delgado",
+          "email": "ava@example.com",
+          "slug": "ava-delgado"
+        }
+      },
+      {
+        "name": "Caleb Reynolds",
+        "first_name": "Caleb",
+        "last_name": "Reynolds",
+        "email": "caleb@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Caleb Reynolds",
+          "first_name": "Caleb",
+          "last_name": "Reynolds",
+          "email": "caleb@example.com",
+          "slug": "caleb-reynolds"
+        }
+      },
+      {
+        "name": "Emma Patterson",
+        "first_name": "Emma",
+        "last_name": "Patterson",
+        "email": "emma@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Emma Patterson",
+          "first_name": "Emma",
+          "last_name": "Patterson",
+          "email": "emma@example.com",
+          "slug": "emma-patterson"
+        }
+      },
+      {
+        "name": "Dylan Hughes",
+        "first_name": "Dylan",
+        "last_name": "Hughes",
+        "email": "dylan@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Dylan Hughes",
+          "first_name": "Dylan",
+          "last_name": "Hughes",
+          "email": "dylan@example.com",
+          "slug": "dylan-hughes"
+        }
+      },
+      {
+        "name": "Clara Nelson",
+        "first_name": "Clara",
+        "last_name": "Nelson",
+        "email": "clara@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Clara Nelson",
+          "first_name": "Clara",
+          "last_name": "Nelson",
+          "email": "clara@example.com",
+          "slug": "clara-nelson"
+        }
+      },
+      {
+        "name": "Gabriel Shaw",
+        "first_name": "Gabriel",
+        "last_name": "Shaw",
+        "email": "gabriel@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Gabriel Shaw",
+          "first_name": "Gabriel",
+          "last_name": "Shaw",
+          "email": "gabriel@example.com",
+          "slug": "gabriel-shaw"
+        }
+      },
+      {
+        "name": "Stella Bryant",
+        "first_name": "Stella",
+        "last_name": "Bryant",
+        "email": "stella@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Stella Bryant",
+          "first_name": "Stella",
+          "last_name": "Bryant",
+          "email": "stella@example.com",
+          "slug": "stella-bryant"
+        }
+      },
+      {
+        "name": "Isaac Chambers",
+        "first_name": "Isaac",
+        "last_name": "Chambers",
+        "email": "isaac@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Isaac Chambers",
+          "first_name": "Isaac",
+          "last_name": "Chambers",
+          "email": "isaac@example.com",
+          "slug": "isaac-chambers"
+        }
+      },
+      {
+        "name": "Leah Armstrong",
+        "first_name": "Leah",
+        "last_name": "Armstrong",
+        "email": "leah@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Leah Armstrong",
+          "first_name": "Leah",
+          "last_name": "Armstrong",
+          "email": "leah@example.com",
+          "slug": "leah-armstrong"
+        }
+      },
+      {
+        "name": "Owen Murphy",
+        "first_name": "Owen",
+        "last_name": "Murphy",
+        "email": "owen@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Owen Murphy",
+          "first_name": "Owen",
+          "last_name": "Murphy",
+          "email": "owen@example.com",
+          "slug": "owen-murphy"
+        }
+      },
+      {
+        "name": "Ruby Lawson",
+        "first_name": "Ruby",
+        "last_name": "Lawson",
+        "email": "ruby@example.com",
+        "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+        "profile": {
+          "uuid": {{ "" | uuid | to_json }},
+          "name": "Ruby Lawson",
+          "first_name": "Ruby",
+          "last_name": "Lawson",
+          "email": "ruby@example.com",
+          "slug": "ruby-lawson"
+        }
+      }
+    ]
+{% endcapture %}
+
+{% liquid
+  assign users = users_data | parse_json
+
+  for user in users
+    function object = 'modules/user/commands/user/create', email: user.email, password: user.password
+    assign profile_object = null | hash_merge: uuid: user.profile.uuid, name: user.profile.name, first_name: user.profile.first_name, last_name: user.profile.last_name, email: user.profile.email,  user_id: object.id
+    function profile = 'modules/profile/commands/profiles/create', object: profile_object
+  endfor
+%}
+{% log 'migrations/create_users_and_profiles' %}

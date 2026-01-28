@@ -1,0 +1,15 @@
+mutation create($conversation_id: String!, $message: String!, $autor_id: String!) {
+  record_create(
+    record: {
+    table: "modules/chat/message"
+    properties: [
+      { name: "conversation_id", value: $conversation_id }
+      { name: "message", value: $message }
+      { name: "autor_id", value: $autor_id }
+    ]
+    }
+  ) {
+    id
+    properties
+  }
+}

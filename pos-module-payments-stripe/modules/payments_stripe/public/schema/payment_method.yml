@@ -1,0 +1,25 @@
+properties:
+- name: payment_method_id
+  type: string
+- name: customer_id
+  type: string
+- name: reference_id
+  type: string
+- name: type
+  type: string
+  # card
+  # us_bank_account
+- name: brand
+  type: string
+- name: last4
+  type: string
+- name: exp_year
+  type: integer
+- name: exp_month
+  type: integer
+- name: bank_name
+  type: string
+- name: routing_number
+  type: string
+- name: stripe_account_name
+  type: string

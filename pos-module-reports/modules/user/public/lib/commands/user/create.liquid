@@ -1,0 +1,21 @@
+{% comment %}
+  Creates a user.
+  Params:
+    - email: string
+      user's email address
+    - password: string
+      user's password
+    - roles: Array[string]
+      user's initial roles
+{% endcomment %}
+{% liquid
+  function object = 'modules/user/commands/user/create/build', email: email, password: password, hook_params: hook_params, roles: roles
+  function object = 'modules/user/commands/user/create/check', object: object
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/user/user/create', object: object, selection: 'user'
+    assign event_payload = null | hash_merge: user_id: object.id
+    function _ = 'modules/core/commands/events/publish', type: 'user_created', object: event_payload, delay: null, max_attempts: null
+  endif
+
+  return object
+%}

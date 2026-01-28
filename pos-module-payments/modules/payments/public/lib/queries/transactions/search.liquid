@@ -1,0 +1,39 @@
+{% comment %}
+  Searches for transctions.
+
+  Params:
+    - limit Int
+      default: 20
+    - page: Int
+      default: 1
+    - payable_ids: [String!]
+    - id: String
+    - amount_cents: String
+    - payer_id: String
+    - currency: String
+    - gateway: String
+    - c__status: String
+    - gateway_transaction_id: String
+    - gateway_transaction_ids: String
+    - with_gateway_requests: Boolean = false
+    - with_statuses: Boolean = false
+{% endcomment %}
+{% liquid
+  assign page = page | to_positive_integer: 1
+  assign limit = limit | to_positive_integer: 20
+  assign stripe_account_name = stripe_account_name | default: null
+  assign payable_ids = payable_ids | default: null
+  assign amount_cents = amount_cents | default: null
+  assign currency = currency | default: null
+  assign gateway = gateway | default: null
+  assign with_gateway_requests = with_gateway_requests | default: false
+  assign with_statuses = with_statuses | default: false
+  assign payer_id = payer_id | default: null
+  assign id = id | default: null
+  assign gateway_transaction_id = gateway_transaction_id | default: null
+  assign gateway_transaction_ids = gateway_transaction_ids | default: null
+  assign c__status = c__status | default: null
+
+  graphql r = 'modules/payments/transactions/search', limit: limit, page: page, payable_ids: payable_ids, amount_cents: amount_cents, currency: currency, gateway: gateway, with_gateway_requests: with_gateway_requests, with_statuses: with_statuses, payer_id: payer_id, id: id, gateway_transaction_id: gateway_transaction_id, gateway_transaction_ids: gateway_transaction_ids, c__status: c__status, stripe_account_name: stripe_account_name
+  return r.transactions
+%}

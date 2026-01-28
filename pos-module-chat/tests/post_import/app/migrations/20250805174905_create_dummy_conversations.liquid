@@ -1,0 +1,40 @@
+{% liquid
+  comment
+  creates chat rooms between users
+  endcomment
+
+  assign seeded_participant_email = "test6@example.com"
+  graphql g = 'modules/user/profiles/search', email: seeded_participant_email
+  assign seeded_participant_id = g.records.results.first.id
+  assign dummyUsersAmount = 40
+
+  for i in (1..dummyUsersAmount)
+    assign migrated_participant_email = "" | append: "dummy" | append: i | append: '@example.com'
+    graphql g = 'modules/user/profiles/search', email: migrated_participant_email
+    assign migrated_participant_id = g.records.results.first.id
+
+    assign participant_ids = "" | append: seeded_participant_id | append: "," | append: migrated_participant_id | split: ","
+    assign participant_read_ids = "" | append: seeded_participant_id
+
+    assign object = null
+    assign object = object | hash_merge: participant_ids: participant_ids
+    assign object = object | hash_merge: participant_read_ids: participant_read_ids 
+    function conversation = 'modules/core/commands/execute', mutation_name: 'modules/chat/conversations/create' object: object, selection: 'record_create'
+
+    comment
+    create messages between users
+    endcomment
+    assign messageText = "" | append: "This is migrated message from " | append: seeded_participant_email | append: " to " | append: migrated_participant_email
+
+    assign object = null
+    assign object = object | hash_merge: autor_id: seeded_participant_id
+    assign object = object | hash_merge: conversation_id: conversation.id
+    assign object = object | hash_merge: message: messageText
+
+    function message = 'modules/core/commands/execute', mutation_name: 'modules/chat/messages/create' object: object, selection: 'record_create'
+
+    assign event_object = null | hash_merge: message_id: object.id, app_host: context.location.host
+    function _ = 'modules/core/commands/events/publish', type: 'chat_message_created', object: event_object, delay: null, max_attempts: null
+  endfor
+%}
+{% log r, type: 'migrations/create_chat_rooms' %}

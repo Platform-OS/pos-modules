@@ -1,0 +1,11 @@
+{% liquid
+  assign data = null | hash_merge: transaction: transaction, id: object.id, payment_intent_id: object.payment_intent
+
+  if object.customer
+    assign customer = nil | hash_merge: customer_id: object.customer, email: object.customer_details.email, name: object.customer_details.name, reference_id: transaction.payer_id
+    hash_assign data['customer'] = customer
+  endif
+  hash_assign data['status'] = object.status
+
+  return data
+%}

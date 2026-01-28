@@ -1,0 +1,43 @@
+---
+slug: inbox
+---
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', return_url: '/', redirect_anonymous_to_login: true
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  if context.params.to_uuid != blank
+    function record = 'modules/chat/lib/queries/records/find_by_uuid', uuid: context.params['to_uuid']
+  endif
+  assign object = null | hash_merge: to_id: record.id, conversation_id: context.params['conversation_id']
+  if record or context.params.conversation_id
+    function current_conversation = 'modules/chat/lib/commands/conversations/find_or_create', object: object, current_profile: current_profile
+  endif
+  if current_conversation.valid == false
+    assign current_conversation = null
+  endif
+  if current_conversation
+    function _res = 'modules/chat/lib/commands/conversations/mark_read', conversation: current_conversation, participant_id: current_profile.id
+    if current_conversation.created
+      for participant_id in current_conversation.participant_ids
+        # platformos-check-disable GraphqlInForLoop
+        function _res = 'modules/chat/lib/commands/conversations/mark_read', conversation: current_conversation, participant_id: participant_id
+        # platformos-check-enable GraphqlInForLoop
+      endfor
+    endif
+  endif
+  function conversations = 'modules/chat/lib/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 20, page: 1
+
+  if conversations.total_entries > 0
+    if current_conversation and current_conversation.participants == blank
+      graphql participants = 'modules/user/profiles/search', ids: current_conversation.participant_ids
+      hash_assign current_conversation['participants'] = participants.records.results
+    endif
+
+    render 'modules/chat/inbox', current_conversation: current_conversation, conversations: conversations, current_profile: current_profile
+  else
+    render 'modules/chat/blank'
+  endif
+%}

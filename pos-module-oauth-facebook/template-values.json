@@ -1,0 +1,6 @@
+{
+  "name": "pos-module-oauth-facebook",
+  "machine_name": "oauth_facebook",
+  "type": "module",
+  "version": "0.0.2"
+}

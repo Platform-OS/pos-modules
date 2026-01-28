@@ -1,0 +1,12 @@
+{%  liquid
+  function object = 'modules/payments/commands/transactions/update_gateway_transaction_id/build', object: object
+  function object = 'modules/payments/commands/transactions/update_gateway_transaction_id/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments/transactions/update' object: object
+  else
+    log object, type: "ERROR modules/payments/commands/transactions/update_gateway_transaction_id"
+  endif
+
+  return object
+%}

@@ -1,0 +1,17 @@
+{% liquid
+  case status
+  when 'new'
+    assign status = 'app.statuses.setup_intents.new'
+  when 'pending'
+    assign status = 'app.statuses.setup_intents.pending'
+  when 'succeeded'
+    assign status = 'app.statuses.setup_intents.succeeded'
+  when 'expired'
+    assign status = 'app.statuses.setup_intents.expired'
+  else
+    assign status = 'app.statuses.setup_intents.failed'
+  endcase
+
+  assign data = null | hash_merge: id: setup_intent.id, c__status: status
+  return data
+%}

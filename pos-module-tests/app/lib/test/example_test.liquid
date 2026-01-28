@@ -1,0 +1,25 @@
+{% liquid
+  # Example test demonstrating basic assertions
+
+  # Test equal assertion
+  assign expected_value = 'hello'
+  assign actual_value = 'hello'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: actual_value, expected: expected_value, field_name: 'string equality'
+
+  # Test numeric equality
+  assign num = 42
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: num, expected: 42, field_name: 'numeric equality'
+
+  # Test blank assertion
+  assign empty_string = ''
+  function contract = 'modules/tests/assertions/blank', contract: contract, given: empty_string, field_name: 'empty string is blank'
+
+  # Test presence assertion - expects object with field_name key
+  assign obj_with_value = '{}' | parse_json
+  hash_assign obj_with_value['my_field'] = 'some value'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: obj_with_value, field_name: 'my_field'
+
+  # Test true assertion - expects value parameter
+  assign flag = true
+  function contract = 'modules/tests/assertions/true', contract: contract, value: flag, field_name: 'boolean true'
+%}

@@ -1,0 +1,39 @@
+{
+  "scripts": {
+    "build": "rollup --config"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.2",
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@types/node": "^24.0.10",
+    "glob": "^13.0.0",
+    "playwright": "^1.53.2",
+    "rollup": "^4.53.3",
+    "rollup-plugin-styler": "^2.0.0"
+  },
+  "name": "pos-module-common-styling",
+  "type": "module",
+  "description": "WIP",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@stackoverflow/stacks-editor": "^0.15.3",
+    "@uppy/aws-s3": "^5.1.0",
+    "@uppy/core": "^5.2.0",
+    "@uppy/dashboard": "^5.1.0",
+    "@uppy/drag-drop": "^5.1.0",
+    "@uppy/image-editor": "^4.1.0",
+    "@uppy/webcam": "^5.1.0",
+    "easymde": "^2.20.0",
+    "highlight.js": "^11.11.1",
+    "playwright-core": "^1.53.2",
+    "postcss": "^8.5.6",
+    "rollup-plugin-postcss": "^4.0.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

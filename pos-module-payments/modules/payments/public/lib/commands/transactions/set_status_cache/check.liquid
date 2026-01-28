@@ -1,0 +1,14 @@
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'id'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'c__status'
+
+  assign valid_statuses = 'app.statuses.transactions.new,app.statuses.transactions.pending,app.statuses.transactions.succeeded,app.statuses.transactions.expired,app.statuses.transactions.failed' | split: ','
+  function c = 'modules/core/validations/included', c: c, object: object, field_name: 'c__status', array: valid_statuses
+
+  hash_assign object['valid'] = c.valid
+  hash_assign object['errors'] = c.errors
+
+  return object
+%}

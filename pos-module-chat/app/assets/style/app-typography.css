@@ -1,0 +1,7 @@
+.pos-heading-2 {
+  letter-spacing: -.02em;
+  font-size: 1.5rem;
+  font-weight: 600;
+
+  color: var(--pos-color-content-text-supplementary);
+}

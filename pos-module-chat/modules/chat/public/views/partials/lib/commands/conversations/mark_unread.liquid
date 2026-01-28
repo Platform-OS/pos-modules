@@ -1,0 +1,9 @@
+{% liquid
+  function object = 'modules/chat/lib/commands/conversations/mark_unread/build', conversation: conversation, current_profile: current_profile
+  function object = 'modules/chat/lib/commands/conversations/mark_unread/check', object: object
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/chat/conversations/mark_unread' object: object, selection: 'record_update'
+  endif
+
+  return object
+%}

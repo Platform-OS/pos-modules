@@ -1,0 +1,7 @@
+en:
+  statuses:
+    report:
+      pending: Pending
+      started: Started
+      done: Done
+      error: Error

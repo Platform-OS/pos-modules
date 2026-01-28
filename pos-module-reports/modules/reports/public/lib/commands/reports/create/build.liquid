@@ -1,0 +1,5 @@
+{% liquid
+  assign created_at = 'now' | to_time: 'UTC' | strftime: "%Y-%m-%dT%H:%M:%S%Z"
+  assign data = null | hash_merge: uuid: object.uuid, creator_id: object.creator_id, user_id: object.user_id, operation_type: object.operation_type, operation_model: object.operation_model, options: object.options, created_at: created_at, retrieve_all_command: object.retrieve_all_command
+  return data
+%}

@@ -1,0 +1,29 @@
+{% liquid
+  if participant_id == blank
+    log 'Something went wrong. participant_id cannot be blank.', type: 'ERROR'
+    return null
+  endif
+
+  assign page = page | to_positive_integer: 1
+
+  graphql r = 'modules/chat/conversations/search', limit: limit, page: page, participant_id: participant_id
+
+  assign result = r.conversations
+  assign conversations = '[]' | parse_json
+
+  for conversation in result.results
+    assign participants = '[]' | parse_json
+
+    for participant_id in conversation.participant_ids
+      function profile = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+      assign participants = participants | add_to_array: profile
+    endfor
+
+    hash_assign conversation['participants'] = participants
+    assign conversations = conversations | add_to_array: conversation
+  endfor
+
+  hash_assign result['results'] = conversations
+
+  return result
+%}

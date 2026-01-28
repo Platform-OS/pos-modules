@@ -1,0 +1,4 @@
+{% liquid
+  assign object = null | hash_merge: gateway_id: object.gateway_id, reference_id: object.reference_id, c__status: object.c__status, stripe_account_name: object.stripe_account_name
+  return object
+%}

@@ -1,0 +1,14 @@
+ignore:
+  - node_modules/*
+  - modules/common-styling/*
+  - modules/core/*
+  - modules/user/*
+
+UnusedPartial:
+  ignore:
+    - modules/chat/public/views/partials/channels/*
+    - modules/chat/public/lib/events/*
+    - modules/chat/public/lib/consumers/*
+    - modules/chat/public/views/partials/lib/queries/*
+    - app/modules/*
+    - modules/chat/public/views/partials/theme/simple/message_button.liquid

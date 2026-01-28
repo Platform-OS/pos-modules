@@ -1,0 +1,7 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_connected_accounts/create/build', metadata: metadata
+  function object = 'modules/payments/commands/gateway_requests/send', object: object, name: 'payments_stripe_connected_account_create', external_id: reference_id, template: 'modules/payments_stripe/generic'
+  function object = 'modules/payments_stripe/commands/stripe_connected_accounts/create/map_response', object: object, stripe_account_name: metadata.stripe_account_name
+
+  return object
+%}

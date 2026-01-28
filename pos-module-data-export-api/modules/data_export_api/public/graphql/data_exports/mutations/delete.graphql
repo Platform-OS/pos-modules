@@ -1,0 +1,11 @@
+mutation delete_data_export(
+  $id: ID!
+) {
+  data_export_delete(
+    id: $id
+  ) {
+    id
+    created_at
+  }
+}
+

@@ -1,0 +1,12 @@
+name: customer
+properties:
+- name: customer_id
+  type: string
+- name: reference_id
+  type: string
+- name: email
+  type: string
+- name: name
+  type: string
+- name: stripe_account_name
+  type: string

@@ -1,0 +1,11 @@
+---
+slug: _api/data-exports
+method: post
+---
+{% liquid
+  include 'modules/data_export_api/shared/authorize'
+
+  function object = 'modules/data_export_api/commands/data_exports/create', object: context.params.data_export
+
+  print object
+%}

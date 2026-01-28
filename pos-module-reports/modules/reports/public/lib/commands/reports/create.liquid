@@ -1,0 +1,10 @@
+{%  liquid
+  function object = 'modules/reports/commands/reports/create/build', object: object
+  function object = 'modules/reports/commands/reports/create/check', object: object
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/reports/reports/create', object: object
+  endif
+
+  return object
+%}

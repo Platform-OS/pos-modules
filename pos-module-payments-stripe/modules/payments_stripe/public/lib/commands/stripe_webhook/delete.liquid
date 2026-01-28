@@ -1,0 +1,19 @@
+{% comment %}
+  Removes a webhook from Stripe.
+
+  Params:
+    - gateway_id String
+      The webhook's ID in Stripe.
+{% endcomment %}
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_webhook/delete/build', gateway_id: gateway_id
+  function object = 'modules/payments_stripe/commands/stripe_webhook/delete/check', object: object
+
+  if object.valid
+    graphql response = 'modules/payments_stripe/api_call', template: 'modules/payments_stripe/generic', data: object
+    assign response = response | dig: 'api_call', 'response'
+    assign object = object | hash_merge: response
+  endif
+
+  return object
+%}

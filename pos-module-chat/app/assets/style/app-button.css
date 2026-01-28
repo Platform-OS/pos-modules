@@ -1,0 +1,15 @@
+/*
+  app styling/overwrite for the button component
+
+  basic
+*/
+
+
+
+/* basic
+============================================================================ */
+.pos-button {
+  letter-spacing: .5pt;
+  
+  text-transform: uppercase;
+}

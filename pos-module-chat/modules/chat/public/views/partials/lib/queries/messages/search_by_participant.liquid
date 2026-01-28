@@ -1,0 +1,10 @@
+{% liquid
+  if participant_id == blank
+    log 'Something went wrong. participant_id cannot be blank.', type: 'ERROR'
+    return null
+  endif
+
+  graphql r = 'modules/chat/messages/search', limit: limit, page: page, participant_id: participant_id, conversation_id: conversation_id
+
+  return r.messages
+%}

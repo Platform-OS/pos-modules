@@ -1,0 +1,9 @@
+{
+  "name": "pos-module-data-export-api",
+  "machine_name": "data_export_api",
+  "type": "module",
+  "version": "0.1.1",
+  "dependencies": {
+    "core": "^1.5.0"
+  }
+}

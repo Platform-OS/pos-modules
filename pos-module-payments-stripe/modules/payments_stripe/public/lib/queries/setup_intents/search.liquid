@@ -1,0 +1,16 @@
+{%- liquid
+  assign page = page | to_positive_integer: 1
+  assign limit = limit | to_positive_integer: 20
+  assign id = id | default: null
+  assign reference_id = reference_id | default: null
+  assign gateway_id = gateway_id | default: null
+  assign c__status = c__status | default: null
+  assign stripe_account_name = stripe_account_name | default: null
+
+  graphql g = "modules/payments_stripe/setup_intents/search", page: page, limit: limit, id: id, reference_id: reference_id, gateway_id: gateway_id, c__status: c__status, stripe_account_name: stripe_account_name
+  if g.records == blank
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records
+-%}

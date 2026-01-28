@@ -1,0 +1,58 @@
+query (
+  $id: ID
+  $payout_id: String
+  $reference_id: String
+  $currency: String
+  $connected_account_id: String
+  $gateway_connected_account_id: String
+  $state: String
+  $stripe_account_name: String
+  $page: Int = 1
+  $limit: Int = 20
+) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/payments_stripe/payout" }
+      properties: [
+        { name: "reference_id", value: $reference_id }
+        { name: "payout_id", value: $payout_id }
+        { name: "currency", value: $currency }
+        { name: "connected_account_id", value: $connected_account_id }
+        {
+          name: "gateway_connected_account_id"
+          value: $gateway_connected_account_id
+        }
+        { name: "state", value: $state }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+    sort: { created_at: { order: DESC } }
+  ) {
+    total_entries
+    total_pages
+    has_previous_page
+    has_next_page
+    results {
+      table
+      updated_at
+
+      id
+      reference_id: property(name: "reference_id")
+      payout_id: property(name: "payout_id")
+      amount_cents: property_int(name: "amount_cents")
+      currency: property(name: "currency")
+      connected_account_id: property(name: "connected_account_id")
+      gateway_connected_account_id: property(
+        name: "gateway_connected_account_id"
+      )
+      created_at: property(name: "created_at")
+      paid_at: property(name: "paid_at")
+      failed_at: property(name: "failed_at")
+      state: property(name: "state")
+      stripe_account_name: property(name: "stripe_account_name")
+    }
+  }
+}

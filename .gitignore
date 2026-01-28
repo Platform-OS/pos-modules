@@ -1,0 +1,35 @@
+# platformOS CLI
+.pos
+**/.pos
+.marketplace-kit
+**/.marketplace-kit
+
+# Claude Code
+.claude
+**/.claude
+
+# Temporary files
+tmp
+
+# Dependencies
+node_modules
+**/node_modules
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+
+# Test artifacts
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+test-report.html
+test-report.json
+tests/screenshots
+tests/.auth/
+test/screenshots
+test/pictures/
+test/reports/video/

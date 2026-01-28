@@ -1,0 +1,10 @@
+{% liquid
+  function updated_object = 'modules/payments_stripe/commands/stripe_connected_accounts/get_dashboard_link/build', account_id: object.account_id, stripe_account_name: object.stripe_account_name
+  function updated_object = 'modules/payments_stripe/commands/stripe_connected_accounts/get_dashboard_link/check', object: updated_object
+  if updated_object.valid
+    function updated_object = 'modules/payments/commands/gateway_requests/send', object: updated_object, name: 'payments_stripe_connected_account_get_dashboard_link', external_id: object.reference_id, template: 'modules/payments_stripe/generic'
+    function updated_object = 'modules/payments_stripe/commands/stripe_connected_accounts/get_dashboard_link/map_response', object: updated_object
+  endif
+
+  return updated_object
+%}

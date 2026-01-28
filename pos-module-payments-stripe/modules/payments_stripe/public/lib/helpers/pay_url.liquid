@@ -1,0 +1,9 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/stripe_checkout/create', object: gateway_params, transaction: transaction
+  if object.valid
+    return object.url
+  else
+    log object, type: 'ERROR: payments_stripe pay_url'
+    return null
+  endif
+%}

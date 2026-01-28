@@ -1,0 +1,120 @@
+name: Playwright E2E tests
+on:
+  push:
+    branches:
+      - 'master'
+      - 'main'
+    paths-ignore:
+      - ".github/**"
+  pull_request:
+    branches:
+      - 'main'
+    paths-ignore:
+      - ".github/**"
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  pre_job:
+    # continue-on-error: true # Uncomment once integration is finished
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          github_token: ${{ github.token }}
+          paths_ignore: '["**/README.md"]'
+          do_not_skip: '["push"]'
+
+  reserve-ci-instance:
+    needs: pre_job
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    container: alpine:3.20
+    outputs:
+      mpkit-url: ${{ steps.reserve.outputs.mpkit-url }}
+      report-path: ${{ steps.reserve.outputs.report-path }}
+    steps:
+      - name: Get ci-instance-url
+        id: reserve
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.0.9
+        with:
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          method: reserve
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+  deploy:
+    needs: ["reserve-ci-instance"]
+    runs-on: ubuntu-latest
+    container: platformos/playwright:5.1.5-1.47.2
+    strategy:
+      matrix:
+        node-version: [20.x]
+    timeout-minutes: 5
+    env:
+      CI: true
+      MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
+      MPKIT_URL: ${{ needs.reserve-ci-instance.outputs.mpkit-url }}
+    steps:
+      - name: Get MPKIT token
+        id: get-token
+        uses: Platform-OS/ci-repository-reserve-instance-url@mask-token
+        with:
+          method: get-token
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+          
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Deploy
+        timeout-minutes: 6
+        shell: sh
+        env:
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        run: |
+          set -eu
+          rm app/pos-modules.*
+          sh ./tests/data/seed/seed.sh
+
+  test:
+    needs: ["reserve-ci-instance", "deploy"]
+    runs-on: ubuntu-latest
+    container: platformos/playwright:5.1.5-1.47.2
+    timeout-minutes: 35
+    env:
+      CI: true
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
+      MPKIT_URL: ${{ needs.reserve-ci-instance.outputs.mpkit-url }}
+      HTML_ATTACHMENTS_BASE_URL: ${{ vars.HTML_ATTACHMENTS_BASE_URL }}
+      TEST_REPORT_MPKIT_URL: ${{ vars.TEST_REPORT_MPKIT_URL }}
+      TEST_REPORT_MPKIT_TOKEN: ${{ secrets.TEST_REPORT_MPKIT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Playwright tests
+        if: success() || failure()
+        run: |
+          npm run pw-tests
+        env:
+          HOME: /root
+  
+  cleanup:
+    if: ${{ always() }}
+    needs: ["reserve-ci-instance", "deploy", "test"]
+    runs-on: ubuntu-latest
+    container: alpine:3.20
+    steps:
+      - name: release ci-instance-url
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.0.9
+        with:
+          method: release
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}

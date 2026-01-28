@@ -1,0 +1,313 @@
+/*
+  styling for the inbox
+
+  layout
+  converstations list
+  conversation
+*/
+
+
+
+/* layout
+============================================================================ */
+#pos-chat-inbox {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  overflow: hidden;
+  flex-grow: 1;
+}
+
+  /* when conversation is opened just show the conversation on mobile */
+  @media (max-width: 768px) {
+    #pos-chat-inbox {
+      grid-template-columns: auto;
+    }
+  }
+
+
+
+/* conversations list
+============================================================================ */
+.pos-chat-conversations {
+  min-width: 350px;
+  padding: var(--pos-padding-page);
+  position: relative;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+
+  border-inline-end: 1px solid var(--pos-color-frame);
+}
+
+  /* when conversation is opened just show the conversation on mobile */
+  @media (max-width: 768px) {
+    .pos-chat-conversations {
+      min-width: 0;
+      border-inline-end: 0;
+    }
+
+    .pos-chat-inbox-conversation-active .pos-chat-conversations {
+      display: none;
+    }
+  }
+
+  .pos-chat-conversations li {
+    z-index: 1;
+  }
+
+  .pos-chat-conversations li:not(:last-child) {
+    padding-block-end: calc(var(--pos-gap-button-button) / 4);
+  }
+
+  .pos-chat-conversations a:hover {
+    color: inherit;
+  }
+
+
+/* conversation card */
+.pos-chat-conversationCard {
+  padding: var(--pos-padding-page);
+  display: grid;
+  grid-template-columns: 48px auto;
+  grid-template-areas:
+    'avatar name'
+    'avatar message';
+  column-gap: var(--pos-padding-cell);
+
+  border-radius: var(--pos-radius-panel);
+
+  transition: background-color .1s linear;
+}
+
+  .pos-chat-conversations a {
+    color: inherit;
+  }
+
+  .pos-chat-conversations a:focus-visible .pos-chat-conversationCard {
+    background-color: color-mix(in srgb, var(--pos-color-highlight-background) 50%, transparent 50%);
+
+    color: var(--pos-color-interactive-hover);
+  }
+
+  /* fallback for browsers that don't support anchor-name */
+  .pos-chat-conversationCard:hover {
+    background-color: color-mix(in srgb, var(--pos-color-highlight-background) 50%, transparent 50%);
+  }
+  /* end fallback */
+
+  /* list hover effect */
+  @supports (anchor-name: --pos-chat-conversation-active) {
+    /* disable fallback */
+    .pos-chat-conversationCard:hover {
+      background-color: transparent;
+    }
+
+    #pos-chat-conversations:before {
+      width: anchor-size(width);
+      height: anchor-size(height);
+      position: absolute;
+      position-anchor: --pos-chat-conversation-active;
+      inset-block-start: anchor(start);
+  
+      border-radius: var(--pos-radius-panel);
+      background-color: color-mix(in srgb, var(--pos-color-highlight-background) 50%, transparent 50%);
+
+      content: '';
+  
+      transition: all .2s ease-in-out;
+    }
+
+    .pos-chat-conversations:not(:has(.pos-chat-conversationCard:hover)) .pos-chat-conversationCard.active {
+      anchor-name: --pos-chat-conversation-active;
+    }
+
+    .pos-chat-conversations li:hover .pos-chat-conversationCard {
+      anchor-name: --pos-chat-conversation-active;
+    }
+  }
+  /* end list hover effect */
+
+  .pos-chat-conversationCard.active {
+    border-radius: var(--pos-radius-panel);
+    background-color: var(--pos-color-highlight-background);
+  }
+
+.pos-chat-conversationCard .pos-avatar {
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: center;
+}
+
+.pos-chat-conversationCard-name {
+  max-width: 230px;
+  overflow: hidden;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.pos-chat-conversationCard-lastMessage {
+  display: flex;
+  gap: var(--pos-gap-navigation);
+  justify-content: space-between;
+
+  font-size: .9em;
+  color: var(--pos-color-content-text-supplementary);
+}
+
+  .pos-chat-conversationCard-lastMessage small {
+    max-width: 150px;
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+    font-size: inherit;
+    white-space: nowrap;
+  }
+
+
+/* conversation
+============================================================================ */
+.pos-chat-inbox-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pos-chat-loadingIndicator {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: var(--pos-padding-page);
+  display: flex;
+  justify-content: center;
+
+  opacity: 0;
+
+  translate: 0 -4rem;
+  transition: all .2s ease-in-out;
+}
+
+  .pos-chat-loadingIndicator.active {
+    opacity: 1;
+
+    translate: 0 0;
+  }
+
+  .pos-chat-loadingIndicator span {
+    padding: .5em 1em;
+
+    border: 1px solid var(--pos-color-frame);
+    border-radius: var(--pos-radius-button);
+    background-color: var(--pos-color-content-background);
+
+    color: var(--pos-color-content-text-supplementary);
+  }
+
+.pos-chat-conversation {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: auto;
+}
+
+  /* hide current conversation on mobile */
+  @media (max-width: 768px) {
+    #pos-chat-inbox:not(.pos-chat-inbox-conversation-active) .pos-chat-conversation,
+    #pos-chat-inbox:not(.pos-chat-inbox-conversation-active) .pos-chat-inbox-empty {
+      display: none;
+    }
+  }
+
+.pos-chat-conversation-header {
+  padding: var(--pos-padding-page);
+  display: flex;
+  gap: calc(var(--pos-gap-card-elements) / 2);
+
+  border-block-end: 1px solid var(--pos-color-frame);
+
+  font-weight: 500;
+}
+
+  @media (min-width: 769px) {
+    .pos-chat-conversation-header-back {
+      display: none;
+    }
+  }
+
+  .pos-chat-conversation-header-back {
+    padding: 0 .2em 0 var(--pos-padding-page);
+  }
+
+  .pos-chat-conversation-header-back .label {
+    position: absolute;
+    inset-inline-start: -100vw;
+  }
+
+.pos-chat-conversation-messagesContainer {
+  position: relative;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.pos-chat-messages {
+  padding: var(--pos-padding-page);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pos-gap-button-button-small);
+}
+
+.pos-chat-message {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: .2em;
+}
+
+.pos-chat-message-authored {
+  align-items: end;
+}
+
+.pos-chat-message time {
+  font-size: .9rem;
+  color: var(--pos-color-content-text-supplementary);
+}
+
+.pos-chat-message-content {
+  max-width: 100%;
+  padding: calc(var(--pos-padding-cell) / 2) calc(var(--pos-padding-cell) / 1.5);
+
+  background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 30%, transparent 70%);
+  border-radius: var(--pos-radius-panel);
+
+  word-wrap: break-word;
+}
+
+  .pos-chat-message-authored .pos-chat-message-content {
+    background-color: var(--pos-color-highlight-background);
+
+    color: var(--pos-color-highlight-text);
+  }
+
+
+/* new message panel
+============================================================================ */
+.pos-chat-conversation-new {
+  padding: var(--pos-padding-cell) var(--pos-padding-cell) var(--pos-padding-cell);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--pos-gap-button-button);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.pos-chat-conversation-input {
+  padding: calc(var(--pos-padding-input) / 2) calc(var(--pos-padding-input) / 1.5);
+
+  border-radius: var(--pos-radius-input);
+  background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 20%, transparent 80%);
+
+  transition: background-color .1s linear
+}
+
+.pos-chat-conversation-input:focus {
+  background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 10%, transparent 90%);
+}

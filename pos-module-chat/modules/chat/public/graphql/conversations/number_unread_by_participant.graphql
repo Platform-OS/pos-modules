@@ -1,0 +1,16 @@
+query search(
+  $participant_id: [String!]
+) {
+  conversations: records(
+    per_page: 1
+    filter: {
+      table: { exact: "modules/chat/conversation" },
+      properties: [
+        { name: "participant_ids", array_contains: $participant_id }
+        { name: "participant_read_ids", not_array_contains: $participant_id }
+      ]
+    }
+  ) {
+    total_entries
+  }
+}

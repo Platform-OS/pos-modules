@@ -1,0 +1,11 @@
+{% liquid
+  assign request_data = object | json
+  assign url = object.to
+
+  assign gateway_request = null | hash_merge: external_id: external_id, name: name, request_url: url, request_data: request_data, api_call_template: template, stripe_account_name: object.payload.stripe_account_name
+  assign api_call = null | hash_merge: template: template, data: object
+
+  assign data = null | hash_merge: api_call: api_call, gateway_request: gateway_request
+
+  return data
+%}

@@ -1,0 +1,19 @@
+query get_data_export(
+  $id: ID!
+) {
+  records: data_exports(
+    per_page: 1
+    page: 1
+    filter: {
+      id: { value: $id }
+    }
+  ) {
+    results{
+      created_at
+      updated_at
+      id
+      status
+      url
+    }
+  }
+}

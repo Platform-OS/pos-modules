@@ -1,0 +1,5 @@
+{% liquid
+  assign data = null | hash_merge: payload: object, request_type: 'POST', to: 'https://api.stripe.com/v1/checkout/sessions'
+
+  return data
+%}

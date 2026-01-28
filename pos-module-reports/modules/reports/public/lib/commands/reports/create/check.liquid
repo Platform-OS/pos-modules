@@ -1,0 +1,23 @@
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'uuid'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'operation_type'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'operation_model'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'user_id'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'creator_id'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'created_at'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'retrieve_all_command'
+
+  if object.options
+    try
+      hash_assign object['options'] = object.options | parse_json | json
+    catch err
+      hash_assign object['options'] = null
+    endtry
+  endif
+
+  assign object = object | hash_merge: c
+
+  return object
+%}

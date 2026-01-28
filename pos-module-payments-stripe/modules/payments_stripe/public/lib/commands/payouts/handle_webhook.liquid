@@ -1,0 +1,17 @@
+{% liquid
+  function object = 'modules/payments_stripe/commands/payouts/handle_webhook/build', object: params, connected_account: connected_account
+  function object = 'modules/payments_stripe/commands/payouts/handle_webhook/check', object: object
+
+  if object.valid
+    function payout = 'modules/payments_stripe/commands/payouts/create', object: object
+    function _gateway_request = 'modules/payments/commands/gateway_requests/receive', object: params.data.object, name: params.type, external_id: payout.id, request_url: request_url, stripe_account_name: payout.stripe_account_name
+
+    assign event_payload = null | hash_merge: payout_id: payout.id, connected_account_id: connected_account.id, connected_account_gateway_id: connected_account.account_id, reference_id: connected_account.reference_id
+    assign type = 'payments_stripe_payout_' | append: object.state
+    function _ = 'modules/core/commands/events/publish', type: type, object: event_payload
+  else
+    log object, type: "ERROR: modules/payments_stripe/commands/payouts/handle_webhook invalid"
+  endif
+
+  return object
+%}

@@ -1,0 +1,18 @@
+{% liquid
+  assign data = '{}' | parse_json
+  if object.response_body
+    assign response = object.response_body | parse_json
+    if response.error
+      hash_assign data['errors'] = response.error
+      hash_assign data['valid'] = false
+    else
+      assign payment_method = response[response.type] | hash_merge: payment_method_id: response.id, type: response.type, stripe_account_name: stripe_account_name
+      assign data = payment_method
+      hash_assign data['valid'] = true
+    endif
+  else
+    hash_assign data['valid'] = false
+  endif
+
+  return data
+%}

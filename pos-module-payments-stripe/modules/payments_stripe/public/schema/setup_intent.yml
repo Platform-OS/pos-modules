@@ -1,0 +1,12 @@
+name: setup_intent
+properties:
+- name: reference_id
+- name: gateway_id
+- name: c__status
+# app.statuses.setup_intents.new
+# app.statuses.setup_intents.pending
+# app.statuses.setup_intents.succeeded
+# app.statuses.setup_intents.expired
+# app.statuses.setup_intents.failed
+- name: stripe_account_name
+  type: string

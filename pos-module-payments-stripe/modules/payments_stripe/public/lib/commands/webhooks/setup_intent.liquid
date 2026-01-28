@@ -1,0 +1,21 @@
+{%- liquid
+  assign requester_id = 'stripe_webhook_request'
+  assign response = null | hash_merge: status: 200
+
+  function setup_intents = 'modules/payments_stripe/queries/setup_intents/search', gateway_id: params.data.object.id, limit: 1
+  assign setup_intent = setup_intents.results[0]
+
+  if setup_intent == blank and params.data.object.metadata.host contains host
+    hash_assign response['status'] = 500
+    hash_assign response['body'] = "Setup Intent not found"
+    log params, type: 'ERROR: modules/payments_stripe/commands/webhooks/setup_intent object'
+  elsif setup_intent == blank
+    hash_assign response['status'] = 202
+    hash_assign response['body'] = "Setup Intent is from a different host"
+  else
+    function object = 'modules/payments_stripe/commands/stripe_setup_intent/handle_webhook', params: params, requester_id: requester_id, request_url: request_url, setup_intent: setup_intent
+    hash_assign response['body'] = object
+  endif
+
+  return response
+-%}
