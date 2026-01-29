@@ -2,7 +2,7 @@
 
 This module serves as a starting point for adding real time chat to your application. Before using the module for the first time, we recommend reading the official platformOS documentation on [WebSockets](https://documentation.platformos.com/use-cases/using-websockets) and on [Example Application](#example-application).
 
-This module follows the [platformOS DevKit best practices](https://documentation.staging.oregon.platform-os.com/developer-guide/modules/platformos-modules) and includes the [core module](https://github.com/Platform-OS/pos-module-core) as a dependency, enabling you to implement patterns such as [Commands](https://github.com/Platform-OS/pos-module-core?tab=readme-ov-file#commands--business-logic) and [Events](https://github.com/Platform-OS/pos-module-core?tab=readme-ov-file#events). It also includes the [user module](https://github.com/Platform-OS/pos-module-user) and [profile module](https://github.com/Platform-OS/pos-module-profile) as a dependency.
+This module follows the [platformOS DevKit best practices](https://documentation.staging.oregon.platform-os.com/developer-guide/modules/platformos-modules) and includes the [core module](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-core) as a dependency, enabling you to implement patterns such as [Commands](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#commands--business-logic) and [Events](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#events). It also includes the [user module](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-user) and [profile module](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-profile) as a dependency.
 
 For more information, 
 - read the documentation about the [built-in User table](https://documentation.platformos.com/developer-guide/users/user),
@@ -29,13 +29,13 @@ The platformOS Chat Module is fully compatible with [platformOS Check](https://g
    pos-cli modules install chat
 ```
 
-This command installs the Chat Module along with its dependencies (such as [pos-module-core](https://github.com/Platform-OS/pos-module-core)) and updates or creates the `app/pos-modules.json` file in your project directory to track module configurations.
+This command installs the Chat Module along with its dependencies (such as [pos-module-core](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-core)) and updates or creates the `app/pos-modules.json` file in your project directory to track module configurations.
 
 ### Setup
 
 1.  **Install the module** using the [pos-cli](https://github.com/Platform-OS/pos-cli).
 
-2.  If you haven't done it already, follow the instructions to setup [pos-module-user-](https://github.com/Platform-OS/pos-module-user?tab=readme-ov-file#setup). During this process, you will create an overwrite of the permissions file `app/modules/user/public/lib/queries/role_permissions/permissions.liquid`
+2.  If you haven't done it already, follow the instructions to setup [pos-module-user-](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-user/README.md#setup). During this process, you will create an overwrite of the permissions file `app/modules/user/public/lib/queries/role_permissions/permissions.liquid`
  
 3. Overwrite default views that you would like to customize by following the guide on [overwriting a module file](https://documentation.platformos.com/developer-guide/modules/modules#overwritting-a-module-file). This allows you to add functionality based on your project requirements. At a minimum, you should overwrite the [permissions file](modules/user/public/lib/queries/role_permissions/permissions.liquid), where you will configure [RBAC authorization](#rbac-authorization) roles and permissions for your application - add `chat.inbox` permission to the role(s) that you would like to have access to the chat available at `/inbox`. In our example, the `inbox.chat` permission was added to `authenticated` role, meaning all signed in users have access to the chat. Snippet to create an overwrite to copy-paste into your terminal:
 

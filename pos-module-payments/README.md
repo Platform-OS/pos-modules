@@ -54,7 +54,7 @@ Defined events to which your application can listen:
 - payments_transaction_pending
 - payments_transaction_expired
 
-Here are instructions how to write consumer https://github.com/Platform-OS/pos-module-core#handling-events
+Here are instructions how to write consumer https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#handling-events
 
 ## Versioning
 

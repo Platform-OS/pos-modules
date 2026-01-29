@@ -2,7 +2,7 @@
 
 This module serves as a starting point for adding authentication and RBAC (Role-Based Access Control) to your application. Before using the module for the first time, we recommend reading the official platformOS documentation on [User Authentication Basics](https://documentation.platformos.com/get-started/build-your-first-app/user-authentication) and on [Example Application](#example-application).
 
-This module follows the [platformOS DevKit best practices](https://documentation.platformos.com/developer-guide/modules/platformos-modules) and includes the [core module](https://github.com/Platform-OS/pos-module-core) as a dependency, enabling you to implement patterns such as [Commands](https://github.com/Platform-OS/pos-module-core?tab=readme-ov-file#commands--business-logic) and [Events](https://github.com/Platform-OS/pos-module-core?tab=readme-ov-file#events).
+This module follows the [platformOS DevKit best practices](https://documentation.platformos.com/developer-guide/modules/platformos-modules) and includes the [core module](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-core) as a dependency, enabling you to implement patterns such as [Commands](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#commands--business-logic) and [Events](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#events).
 
 For more information, 
 - read the documentation about the [built-in User table](https://documentation.platformos.com/developer-guide/users/user),
@@ -30,20 +30,20 @@ The platformOS User Module is fully compatible with [platformOS Check](https://g
    pos-cli modules download user
 ```
 
-This command installs the User Module along with its dependencies (such as [pos-module-core](https://github.com/Platform-OS/pos-module-core) and [pos-module-common-styling](https://github.com/Platform-OS/pos-module-common-styling) and updates or creates the `app/pos-modules.json` file in your project directory to track module configurations.
+This command installs the User Module along with its dependencies (such as [pos-module-core](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-core) and [pos-module-common-styling](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-common-styling) and updates or creates the `app/pos-modules.json` file in your project directory to track module configurations.
 
 ### Setup
 
 1.  **Install the module** using the [pos-cli](https://github.com/Platform-OS/pos-cli).
 
-2. Configure the [common-styling](https://github.com/Platform-OS/pos-module-common-styling) to include default styles. It is recommended that you familiarize with the common-styling module by reading its README file. At ensures that your [Layout](https://documentation.platformos.com/developer-guide/pages/layouts) includes:
+2. Configure the [common-styling](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-common-styling) to include default styles. It is recommended that you familiarize with the common-styling module by reading its README file. At ensures that your [Layout](https://documentation.platformos.com/developer-guide/pages/layouts) includes:
 
 a) `pos-app` class in the root `html` tag
 b) css files from the common-styling module in the head section
 c) js code to create a global `pos` namespace in the head section
 d) liquid code which displays built-in notifications after `{{ content_for_layout }}` in the body section
 
-Navigate to [app/views/layouts/application.liquid](https://github.com/Platform-OS/pos-module-user/blob/master/app/views/layouts/application.liquid) to see a complete example of a layout file with the common-styling and user module stylesheets and js code included. 
+Navigate to [app/views/layouts/application.liquid](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-user/app/views/layouts/application.liquid) to see a complete example of a layout file with the common-styling and user module stylesheets and js code included. 
 
 3. (Optional) Create a [migration](https://documentation.platformos.com/developer-guide/platformos-workflow/directory-structure#migrations) to set up the `USER_DEFAULT_ROLE` [constant](https://documentation.platformos.com/api-reference/liquid/platformos-objects#context-constants).
 
@@ -234,7 +234,7 @@ This command is implemented in `modules/user/public/lib/helpers/current_profile.
 
 ##### Current profile in Layouts
 
-In most applications, you will have a layout with a navigation bar, where you might want to display different links depending on the user's state - for example, a “Log in” link for unauthenticated users, or a list of user-specific links for logged-in users. To avoid invoking `modules/user/helpers/current_profile` twice — once in a Page and once in a Layout — the helper uses the [export Liquid tag](https://documentation.platformos.com/api-reference/liquid/platformos-tags#export). This tag makes the current profile easily accessible via context.exports.current_profile ([see implementation](https://github.com/Platform-OS/pos-module-user/blob/master/modules/user/public/lib/helpers/current_profile.liquid#L15)).
+In most applications, you will have a layout with a navigation bar, where you might want to display different links depending on the user's state - for example, a "Log in" link for unauthenticated users, or a list of user-specific links for logged-in users. To avoid invoking `modules/user/helpers/current_profile` twice — once in a Page and once in a Layout — the helper uses the [export Liquid tag](https://documentation.platformos.com/api-reference/liquid/platformos-tags#export). This tag makes the current profile easily accessible via context.exports.current_profile ([see implementation](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-user/modules/user/public/lib/helpers/current_profile.liquid#L15)).
 
 As a result, you can include logic like the following in your `app/views/layouts/application.liquid` file: 
 
@@ -536,9 +536,9 @@ If you receive a **500 error** after modifying the `permissions.liquid` file, ch
 ### OAuth2
 
 This feature allows users to authenticate using external identity providers. Each integration can be encapsulated in its own module. As of today, we have created three modules as examples, which you can also use in production. Those are:
-- [OAuth Google](https://github.com/Platform-OS/pos-module-oauth-google)
-- [OAuth Facebook](https://github.com/Platform-OS/pos-module-oauth-facebook)
-- [OAuth GitHub](https://github.com/Platform-OS/pos-module-oauth-github)
+- [OAuth Google](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-oauth-google)
+- [OAuth Facebook](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-oauth-facebook)
+- [OAuth GitHub](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-oauth-github)
 
 Please follow the instructions provided by each installed module to configure it.
 

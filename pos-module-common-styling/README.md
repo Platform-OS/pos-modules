@@ -66,7 +66,7 @@ After installation, visit `/style-guide` on your instance. (Make sure you deploy
 {% render 'modules/common-styling/init' %}
 ```
 
-👉 If you do not have a layout, check the [style-guide's layout](https://github.com/Platform-OS/pos-module-common-styling/blob/master/modules/common-styling/public/views/layouts/style-guide.liquid) for an example of a minimal layout.
+👉 If you do not have a layout, check the [style-guide's layout](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-common-styling/modules/common-styling/public/views/layouts/style-guide.liquid) for an example of a minimal layout.
 
 3. **Scope the styling with `pos-app`:**
 - To apply common-styling globally, add `class="pos-app"` to your application’s `<html>` tag:
@@ -89,7 +89,7 @@ escape_output_instead_of_sanitize: true
 ---
 ```
 
-5. **Optionally enable the [CSS reset](https://github.com/Platform-OS/pos-module-common-styling/blob/master/modules/common-styling/public/assets/style/pos-reset.css)**. It resets default browser styling and fixes some browser-specific issues
+5. **Optionally enable the [CSS reset](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-common-styling/modules/common-styling/public/assets/style/pos-reset.css)**. It resets default browser styling and fixes some browser-specific issues
 - It’s safe to use in a fresh app.
 - In an existing app, enabling it might cause unexpected changes.
 

@@ -1,6 +1,6 @@
 # platformOS OpenAI Module
 
-The platformOS OpenAI Module integrates the [OpenAI Embeddings API](https://platform.openai.com/docs/guides/embeddings) to enable CRUD operations on platformOS Embeddings, providing [Commands](https://github.com/Platform-OS/pos-module-core?tab=readme-ov-file#commands--business-logic) and [Queries](https://github.com/Platform-OS/pos-module-core?tab=readme-ov-file#queries--accessing-data) to manage the data lifecycle within [platformOS Embeddings backend](https://documentation.platformos.com/developer-guide/embeddings/embeddings).
+The platformOS OpenAI Module integrates the [OpenAI Embeddings API](https://platform.openai.com/docs/guides/embeddings) to enable CRUD operations on platformOS Embeddings, providing [Commands](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#commands--business-logic) and [Queries](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#queries--accessing-data) to manage the data lifecycle within [platformOS Embeddings backend](https://documentation.platformos.com/developer-guide/embeddings/embeddings).
 
 ## Installation
 
@@ -21,7 +21,7 @@ The platformOS OpenAI Module is fully compatible with [platformOS Check](https:/
 ```bash
    pos-cli modules install openai
 ```
-This command installs the OpenAI Module along with its dependencies, such as [pos-module-core](https://github.com/Platform-OS/pos-module-core), and updates or creates the `app/pos-modules.json` file in your project directory to track module configurations.
+This command installs the OpenAI Module along with its dependencies, such as [pos-module-core](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-core), and updates or creates the `app/pos-modules.json` file in your project directory to track module configurations.
 
 ### Setup
 
@@ -134,7 +134,7 @@ To leverage embeddings, you will need to perform a search operation through `mod
   function response = 'modules/openai/openai/chat/completions', ...
 ```
 
-This module function triggers an API call to [https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions) through the [modules/openai/public/lib/commands/openai/chat/completions.liquid](https://github.com/Platform-OS/pos-module-openai/blob/master/modules/openai/public/lib/commands/openai/chat/completions.liquid). It automatically generates an authorization header using the `modules/openai/OPENAI_SECRET_TOKEN` constant.
+This module function triggers an API call to [https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions) through the [modules/openai/public/lib/commands/openai/chat/completions.liquid](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-openai/modules/openai/public/lib/commands/openai/chat/completions.liquid). It automatically generates an authorization header using the `modules/openai/OPENAI_SECRET_TOKEN` constant.
 
 The command takes an object as input, which is an object with options:
 ```
@@ -173,7 +173,7 @@ Check also:
   function response = 'modules/openai/openai/responses/create', ...
 ```
 
-This module function triggers an API call to new [https://api.openai.com/v1/responses through the modules/openai/openai/responses/create](https://api.openai.com/v1/responses) through the [modules/openai/public/lib/commands/openai/responses/create.liquid](https://github.com/Platform-OS/pos-module-openai/blob/master/modules/openai/public/lib/commands/openai/responses/create.liquid). It automatically generates an authorization header using the `modules/openai/OPENAI_SECRET_TOKEN` constant.
+This module function triggers an API call to new [https://api.openai.com/v1/responses through the modules/openai/openai/responses/create](https://api.openai.com/v1/responses) through the [modules/openai/public/lib/commands/openai/responses/create.liquid](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-openai/modules/openai/public/lib/commands/openai/responses/create.liquid). It automatically generates an authorization header using the `modules/openai/OPENAI_SECRET_TOKEN` constant.
 
 The command takes an object as an input, which is an object with options similar to those for **[API Call to OpenAI Chat Completions](#api-call-to-openai-chat-completions)** with additional:
 
@@ -228,7 +228,7 @@ The example search page includes additional checks to ensure the module [setup](
 
 #### Further Considerations
 
-**Maintaining Updated Embeddings**:  An important aspect not covered in the application is ensuring that your embeddings remain up-to-date. You can achieve this by regularly invoking [the script](#a-script-to-transform-existing-data-into-embeddings) designed to refresh embeddings. Alternatively, and preferably, you can leverage [Events](https://github.com/Platform-OS/pos-module-core?tab=readme-ov-file#events) to create consumers that automatically update embeddings whenever an entity you wish to track is created, updated, or deleted.
+**Maintaining Updated Embeddings**:  An important aspect not covered in the application is ensuring that your embeddings remain up-to-date. You can achieve this by regularly invoking [the script](#a-script-to-transform-existing-data-into-embeddings) designed to refresh embeddings. Alternatively, and preferably, you can leverage [Events](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/README.md#events) to create consumers that automatically update embeddings whenever an entity you wish to track is created, updated, or deleted.
 
 #### Generate hashtags based on post content and images
 In this example, we demonstrate using OpenAI GPT endpoints to generate hashtags. The process involves:

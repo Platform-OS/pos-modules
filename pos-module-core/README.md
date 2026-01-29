@@ -201,7 +201,7 @@ Here’s an example from `app/lib/commands/dummy/execute.liquid` showing how a c
 
 In this script, the GraphQL mutation `dummy/create` is called with the validated object as its argument. If successful, it updates the object's state to valid and returns it.
 
-**Note**: Execution typically involves invoking a GraphQL mutation. If this aligns with your requirements, you can use a generic execution function from the core module found at [`modules/core/public/lib/commands/execute.liquid`](https://github.com/Platform-OS/pos-module-core/blob/master/modules/core/public/lib/commands/execute.liquid). This function standardizes how mutations are handled, improving code reusability and maintainability.
+**Note**: Execution typically involves invoking a GraphQL mutation. If this aligns with your requirements, you can use a generic execution function from the core module found at [`modules/core/public/lib/commands/execute.liquid`](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-core/modules/core/public/lib/commands/execute.liquid). This function standardizes how mutations are handled, improving code reusability and maintainability.
 
 Here is how you can invoke a GraphQL mutation defined in `app/graphql/dummy/create.graphql` using the core module's execution function:
 
@@ -499,7 +499,7 @@ The core module provides some basic helpers for data validation.
 
 These validators can check if all required fields are provided, check uniqueness, data types (like numbers consisting only of digits and not, for example, letters), etc. Validators always return a hash with two keys - valid being either true or false, and if false - errors with details of why the validation has failed.
 
-You can find the core validators at [modules/core/public/lib/validations](https://github.com/Platform-OS/pos-module-core/tree/master/modules/core/public/lib/validations).
+You can find the core validators at [modules/core/public/lib/validations](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-core/modules/core/public/lib/validations).
 
 ## Generators
 
