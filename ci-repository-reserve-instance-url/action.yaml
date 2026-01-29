@@ -1,0 +1,28 @@
+# action.yml
+name: 'Get POS CI Instance URL'
+description: 'populate env with ci-instance-url and report-url variables'
+inputs:
+  method:  # id of input
+    description: 'method to execute. either reserve or release'
+    required: true
+    default: 'reserve'
+  repository-url:  # id of input
+    description: 'url of the instance repository'
+    required: true
+  pos-ci-repo-token:  # id of input
+    description: 'pos cli ci repo access token'
+    required: true
+outputs:
+  mpkit-token:
+    description: 'mpkit token'
+  mpkit-url: # id of output
+    description: 'reserved instance url'
+  report-path:
+    description: 'report-path'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.method }}
+    - ${{ inputs.repository-url }}
+    - ${{ inputs.pos-ci-repo-token }}
