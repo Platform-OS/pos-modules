@@ -132,6 +132,16 @@ Stripe payment gateway implementation with Stripe Checkout integration and webho
 
 ---
 
+### [pos-module-payments-example-gateway](./pos-module-payments-example-gateway) ![v0.1.1](https://img.shields.io/badge/version-0.1.1-blue)
+
+Fake payment gateway for testing purposes. Does not process real payments - used to simulate successful or failed payment transactions during development.
+
+**Dependencies**: core, payments
+
+**Links**: [README](./pos-module-payments-example-gateway/README.md)
+
+---
+
 ### [pos-module-reports](./pos-module-reports) ![v1.0.4](https://img.shields.io/badge/version-1.0.4-blue)
 
 Background report generation system with CSV export functionality and document management.
@@ -187,6 +197,24 @@ Facebook OAuth2 provider implementation.
 **Dependencies**: core, user
 
 **Links**: [README](./pos-module-oauth-facebook/README.md)
+
+---
+
+## Development Tools
+
+### [ci-repository-reserve-instance-url](./ci-repository-reserve-instance-url)
+
+GitHub Action for reserving CI instances, managing authorization tokens, and releasing instances for platformOS CI/CD workflows. This tool prevents conflicts when running multiple tests simultaneously by managing a pool of shared instances (ci.1-ci.6).
+
+**Features:**
+- Reserve/release CI instances from shared pool
+- Get authorization tokens for GitHub Actions
+- Prevent test conflicts across parallel workflows
+- Persistent log access with timestamped report paths
+
+**Type**: GitHub Action (not a platformOS module)
+
+**Links**: [README](./ci-repository-reserve-instance-url/README.md) | [GitHub Action](https://github.com/Platform-OS/ci-repository-reserve-instance-url)
 
 ---
 
@@ -306,7 +334,8 @@ core (foundation - no dependencies)
 │   ├── oauth-google
 │   └── oauth-facebook
 ├── payments
-│   └── payments-stripe
+│   ├── payments-stripe
+│   └── payments-example-gateway
 ├── openai
 └── data-export-api
 
