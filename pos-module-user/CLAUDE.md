@@ -304,7 +304,7 @@ Multi-step process using temporary tokens:
 
 **Temporary token authentication**:
 ```liquid
-function user = 'modules/user/helpers/user_from_temporary_token', token: params.token
+function user = 'modules/user/helpers/user_from_temporary_token', token: context.params.token
 if user.id
   # Token valid, proceed with password reset
 endif

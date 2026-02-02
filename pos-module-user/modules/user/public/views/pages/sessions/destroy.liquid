@@ -9,6 +9,6 @@ method: delete
   
   function res = 'modules/user/commands/session/destroy'
 
-  assign redirect_path = res.hook_results.redirect_to | default: params.redirect_to | default: '/'
+  assign redirect_path = res.hook_results.redirect_to | default: context.params.redirect_to | default: '/'
   redirect_to redirect_path
 %}
