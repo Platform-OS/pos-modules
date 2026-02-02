@@ -198,7 +198,6 @@ The hook system searches for all files matching `hook_<hook-name>.liquid` patter
 
 ### Common Hooks
 
-- `hook_module_info`: Register module with registry (name, version, dependencies)
 - `hook_permission`: Contribute permissions for RBAC (user module)
 - `hook_headscripts`: Inject CSS/JS into layout head
 - `hook_user_create`: React to user creation events

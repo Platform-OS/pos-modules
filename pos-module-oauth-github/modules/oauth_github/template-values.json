@@ -2,5 +2,8 @@
   "name": "pos-module-oauth-github",
   "machine_name": "oauth_github",
   "type": "module",
-  "version": "0.0.10"
+  "version": "0.0.10",
+  "dependencies": {
+    "core": "^2.0.0"
+  }
 }

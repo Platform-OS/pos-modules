@@ -2,5 +2,8 @@
   "name": "pos-module-oauth-facebook",
   "machine_name": "oauth_facebook",
   "type": "module",
-  "version": "0.0.2"
+  "version": "0.0.2",
+  "dependencies": {
+    "core": "^2.0.0"
+  }
 }
