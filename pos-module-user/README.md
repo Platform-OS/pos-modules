@@ -124,7 +124,7 @@ This feature enables **Sign In** and **Sign Out** forms, providing session-based
 - [x] **[RBAC Authorization](#rbac-authorization)**:
 Implements Role-Based Access Control (RBAC), allowing fine-grained authorization management based on user roles. This lets you define who can access specific parts of your platform based on assigned roles.
 - [x] **[Impersonation - logging as another user](#impersonation)**:
-This feature allows logging in as another user, providing access to all of their functionalities. It comes with a dedicated logout process which logs user back to their original profile. It includes security consideration that only superadmin can impersonate another superadmin user.
+This feature allows logging in as another user, providing access to all of their functionalities. It comes with a dedicated logout process that logs the user back to their original profile. It includes security considerations that only superadmin can impersonate another superadmin user.
 - [x] **[OAuth Module Integration](#oauth2)**:  
 This feature allows users to authenticate using external identity providers (such as Google, Facebook, or GitHub).
 - [x] **[2FA Authentication](#2fa)**:  
@@ -178,7 +178,7 @@ function user = 'modules/user/queries/user/load', id: '1'
 ```
 
 > [!NOTE] 
-> Usually, you will want to load the currently authenticated user to perform [authorization](#rbac-authorization). You will want to leverage  `function profile = 'modules/user/helpers/current_profile' helper for that and fetch profile, not the user. However, if for some reason you would like to load currently authenticated user, you can achieve this by providing [context.current_user.id](https://documentation.platformos.com/api-reference/liquid/platformos-objects#context-current_user) as the ID `{% function user = 'modules/user/queries/user/load', id: context.current_user.id %}`
+> Usually, you will want to load the currently authenticated user to perform [authorization](#rbac-authorization). You will want to leverage  `function profile = 'modules/user/helpers/current_profile'` helper for that and fetch profile, not the user. However, if for some reason you would like to load the currently authenticated user, you can achieve this by providing [context.current_user.id](https://documentation.platformos.com/api-reference/liquid/platformos-objects#context-current_user) as the ID `{% function user = 'modules/user/queries/user/load', id: context.current_user.id %}`
 
 update:
 
@@ -287,7 +287,7 @@ You can use the `can_do` helper to check if the currently logged-in user has per
 
 #### Log out
 
-If you want to add a button to your web site to log out the logged in user, you can create a form that sends a `DELETE` request to the `/sessions` endpoint provided by the module. Here is an example of how to implement this:
+If you want to add a button to your website to log out the logged-in user, you can create a form that sends a `DELETE` request to the `/sessions` endpoint provided by the module. Here is an example of how to implement this:
 
 
 ```liquid
@@ -300,7 +300,7 @@ If you want to add a button to your web site to log out the logged in user, you 
 {% endif %}
 ```
 
-If you want to log out the user in your own endppint, run the following command provided by the module:
+If you want to log out the user on your own endpoint, run the following command provided by the module:
 
 ```liquid
 function res = 'modules/user/commands/session/destroy'
@@ -355,7 +355,7 @@ There are three built-in roles that are provided out of the box by the module:
 
 ##### Anonymous Role
 
-This role is artificially granted in `modules/user/public/lib/queries/user/current.liquid`. It represents an anonymous user, for which you might want to still want to check some permission. For example, only anonymous users should be able to sign in or register into the system. This is why you will see built-in permissions in `modules/user/public/lib/queries/role_permissions/permissions.liquid` for `users.register` and `sessions.create`, which are checked in [Endpoints for Sign-In](#endpoints-for-sign-in-sign-out) and [Endpoints for the registration](#endpoints-for-the-registration).
+This role is artificially granted in `modules/user/public/lib/queries/user/current.liquid`. It represents an anonymous user, for whom you might still want to check some permissions. For example, only anonymous users should be able to sign in or register for the system. This is why you will see built-in permissions in `modules/user/public/lib/queries/role_permissions/permissions.liquid` for `users.register` and `sessions.create`, which are checked in [Endpoints for Sign-In](#endpoints-for-sign-in-sign-out) and [Endpoints for the registration](#endpoints-for-the-registration).
 
 A typical use case for the anonymous user role is on an eCommerce website, where anonymous users can purchase items without registering.
 
