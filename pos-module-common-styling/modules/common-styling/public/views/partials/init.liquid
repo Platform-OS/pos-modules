@@ -48,7 +48,6 @@
 </script>
 
 <script src="{{ 'modules/common-styling/js/pos-debug.js' | asset_url }}" defer></script>
-<script src="{{ 'modules/common-styling/js/pos-common-styling-dependencies-bundle.js' | asset_url }}" defer></script>
 
 <script>
   /* selectively load modules */
@@ -113,14 +112,12 @@
     //            triggerType (string) - `click` or `hover` to trigger the loading process
     // ------------------------------------------------------------------------
     import('{{ 'modules/common-styling/js/pos-load.js' | asset_url }}').then(module => {
-      window.pos.modules.load = module.load;
-
       const loads = document.querySelectorAll('[data-load-content]');
-      loads.forEach(async load => {
-        await pos.modules.load({
+      loads.forEach(load => {
+        pos.modules.active['load-' + load.getAttribute('data-load-target')] = new pos.modules.load({
           endpoint: load.getAttribute('data-load-content'),
           target: load.getAttribute('data-load-target'),
-          method: load.getAttribute('data-load-method'),
+          where: load.getAttribute('data-load-where'),
           trigger: load,
           triggerType: load.getAttribute('data-load-trigger-type') || 'click'
         });
