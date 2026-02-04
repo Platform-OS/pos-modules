@@ -2,7 +2,7 @@
   automatically loads content from endpoint
   and places in in the container when the trigger is clicked
 
-  usage: new load({
+  usage: new pos.modules.load({
     trigger: [dom node],
     endpoint: [string].
     target: [string]
@@ -11,7 +11,7 @@
 
 
 
-export function load(userSettings = {}){
+window.pos.modules.load = function(settings = {}){
 
   // cache 'this' value not to be overwritten later
   const module = this;
@@ -20,45 +20,60 @@ export function load(userSettings = {}){
   // ------------------------------------------------------------------------
   module.settings = {};
   // module id (string)
-  module.settings.id = userSettings?.id || `load-${userSettings.target}`;
+  module.settings.id = settings?.id || `load-${settings.target}`;
   // element that triggers the loading (dom node)
-  module.settings.trigger = userSettings?.trigger || null;
+  module.settings.trigger = settings?.trigger || null;
   // url of the page to load (string)
-  module.settings.endpoint = userSettings.endpoint;
+  module.settings.endpoint = settings.endpoint;
   // selector for the container to load the content into (string)
-  module.settings.target = userSettings.target;
+  module.settings.target = settings.target;
   // do you want to replace or append the content (string)
-  module.settings.method = userSettings.method || 'replace';
-  // trigger to run the loading process (string)
-  module.settings.triggerType = userSettings.triggerType || 'click';
+  module.settings.where = settings.where || 'replace';
+  // trigger to run the loading process (string or array of strings)
+  module.settings.triggerType = settings.triggerType || 'click';
+  // method used for request
+  module.settings.method = settings.method || 'get';
+  // form data that will be send with the request (FormData)
+  module.settings.formData = settings.formData || null;
   // if you want to enable debug mode that logs to console (bool)
-  module.settings.debug = userSettings.debug || false;
+  module.settings.debug = settings.debug || false;
 
 
   // purpose:		initializes the module
   // ------------------------------------------------------------------------
-  module.init = async function(){
-    module.settings.trigger.addEventListener(module.settings.triggerType, module.load);
-    module.settings.trigger.addEventListener('focus', module.load);
+  module.init = function(){
+    if(typeof module.settings.trigger === 'array'){
+      module.settings.trigger.forEach(trigger => {
+        module.settings.trigger.addEventListener(trigger, module.load);
+      });
+    } else {
+      module.settings.trigger.addEventListener(module.settings.triggerType, module.load);
+    }
   };
 
 
   // purpose:		fetch the data and load it into the container
   // output:    updates the container content
   // ------------------------------------------------------------------------
-  module.load = async function(){
+  module.load = async function(event){
     pos.modules.debug(module.settings.debug, module.settings.id, 'Loading frame', module.settings);
 
+    event.preventDefault();
+
     fetch(module.settings.endpoint, {
-      method: 'GET'
+      method: module.settings.method,
+      body: module.settings.formData
     })
       .then(response => response.text())
       .then(html => {
         pos.modules.debug(module.settings.debug, module.settings.id, 'Frame loaded successfully', module.settings);
 
-        if(module.settings.method === 'replace'){
+        if(module.settings.where === 'replace'){
           document.querySelector(module.settings.target).innerHTML = html;
           pos.modules.debug(module.settings.debug, module.settings.id, 'Replaced the container content with fetched data', module.settings);
+        }
+        else if(module.settings.where === 'last') {
+          document.querySelector(module.settings.target).append(html, )
         }
 
         document.dispatchEvent(new CustomEvent('pos-frame-loaded', { bubbles: true, detail: { target: module.settings.target, content: html } }));
@@ -70,8 +85,14 @@ export function load(userSettings = {}){
   // purpose:		removed event listeners and cleans up the module
   // ------------------------------------------------------------------------
   module.destroy = function(){
-    module.settings.trigger.removeEventListener('click', module.load);
-    module.settings.trigger.removeEventListener('focus', module.load);
+    if(typeof module.settings.trigger === 'array'){
+      module.settings.trigger.forEach(trigger => {
+        module.settings.trigger.removeEventListener(trigger, module.load);
+      });
+    } else {
+      module.settings.trigger.removeEventListener(module.settings.triggerType, module.load);
+    }
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'Destroyed module', module.settings);
     module.settings = {};
   };
