@@ -175,6 +175,14 @@ window.pos.modules.markdown = function(settings){
   };
 
 
+  // purpose:   when EasyMDE/CodeMirror instance is created on a hidden element,
+  //            it needs to be refreshed after showing up
+  // ------------------------------------------------------------------------
+  module.refresh = () => {
+    module.settings.easyMde.codemirror.refresh();
+  };
+
+
   module.init();
 
 };
