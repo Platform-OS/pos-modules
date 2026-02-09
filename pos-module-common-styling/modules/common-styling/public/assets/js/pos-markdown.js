@@ -88,10 +88,10 @@ window.pos.modules.markdown = function(settings){
     }).then(async response => {
       const xmlData = await response.text();
 
-      if(response.status === 201){
+      if(response.status === 201 || response.status === 200){
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlData, 'text/xml');
-        const fileUrl = xmlDoc.getElementsByTagName('Location')[0].textContent;
+        const fileUrl = xmlDoc.getElementsByTagName('Location')[0].textContent.indexOf('directory-uploads.uploads') ? xmlDoc.getElementsByTagName('Location')[0].textContent.replace('directory-uploads.uploads', 'files') : xmlDoc.getElementsByTagName('Location')[0].textContent; // fix for PS returning wrong file URL
 
         pos.modules.debug(module.settings.debug, module.settings.id, 'Image uploaded', fileUrl);
         // dispatch custom event
