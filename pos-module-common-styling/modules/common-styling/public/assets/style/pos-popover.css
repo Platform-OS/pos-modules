@@ -48,7 +48,7 @@
     z-index: 10;
   }
 
-  .pos-popover:has(:popover-open) [popovertarget]:after {
+  .pos-popover:has(:popover-open) > [popovertarget]:after {
     width: 16px;
     height: 11px;
     position: absolute;
