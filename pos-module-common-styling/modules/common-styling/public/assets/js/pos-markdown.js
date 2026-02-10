@@ -23,9 +23,9 @@ window.pos.modules.markdown = function(settings){
   // unique id for the module (string)
   module.settings.id = module.settings.container.id || 'pos-markdown';
   // minimum number of characters allowed in the textarea (int)
-  module.settings.minlength = parseInt(settings.minlength) || 0;
+  module.settings.minlength = parseInt(settings.minlength) || parseInt(module.settings.container.dataset.minlength) || 0;
   // maximum number of characters allowed in the textarea (int)
-  module.settings.maxlength = parseInt(settings.maxlength) || 10000;
+  module.settings.maxlength = parseInt(settings.maxlength) || parseInt(module.settings.container.dataset.maxlength) || 10000;
   // errors container (dom node)
   module.settings.errorsContainer = module.settings.container.querySelector('.pos-form-errors');
   // class name that hides error on the list (string)
@@ -205,23 +205,26 @@ window.pos.modules.markdown = function(settings){
   module.validate = event => {
     let errors = 0;
 
-    if(module.value().length < module.settings.minlength){
+    if((module.value()).length < module.settings.minlength){
       errors++;
 
       module.settings.container.querySelector(`[data-pos-markdown-error-minlength]`).classList.remove(module.settings.errorDisabledClass);
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Validating minimum length failed', { length: (module.value()).length, minlength: module.settings.minlength });
     }
 
-    if(module.value().length > module.settings.maxlength){
+    if((module.value()).length > module.settings.maxlength){
       errors++;
 
       module.settings.container.querySelector(`[data-pos-markdown-error-maxlength]`).classList.remove(module.settings.errorDisabledClass);
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Validating maximum length failed', { length: (module.value()).length, maxlength: module.settings.maxlength });
     }
 
     if(errors){
       // dispatch custom event
       module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-validation-failed', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, value: module.settings.textarea.value, errors: module.settings.errorsContainer } }));
       pos.modules.debug(module.settings.debug, 'event', 'pos-markdown-validation-failed', { target: module.settings.container, id: module.settings.id, value: module.settings.textarea.value, errors: module.settings.errorsContainer });
-
     } else {
       // dispatch custom event
       module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-validation-passed', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, value: module.settings.textarea.value } }));
