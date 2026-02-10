@@ -2,14 +2,15 @@
   rich text editor using ProseMirror
 
   container
-  text window
+  validation
 */
 
 
-/* container
-============================================================================ */
+
 @layer common-styling {
 
+  /* container
+  ============================================================================ */
   .pos-markdown {
       width: 100%;
   }
@@ -48,6 +49,13 @@
   /* tailwind interferes with the .table button */
   .EasyMDEContainer .editor-toolbar button {
     width: auto;
+  }
+
+
+  /* validation
+  ============================================================================ */
+  .pos-markdown-error-disabled {
+    display: none;
   }
 
 }

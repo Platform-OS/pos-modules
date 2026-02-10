@@ -22,6 +22,14 @@ window.pos.modules.markdown = function(settings){
   module.settings.textarea = settings.textarea || module.settings.container.querySelector('textarea');
   // unique id for the module (string)
   module.settings.id = module.settings.container.id || 'pos-markdown';
+  // minimum number of characters allowed in the textarea (int)
+  module.settings.minlength = parseInt(settings.minlength) || 0;
+  // maximum number of characters allowed in the textarea (int)
+  module.settings.maxlength = parseInt(settings.maxlength) || 10000;
+  // errors container (dom node)
+  module.settings.errorsContainer = module.settings.container.querySelector('.pos-form-errors');
+  // class name that hides error on the list (string)
+  module.settings.errorDisabledClass = 'pos-markdown-error-disabled';
   // debug mode enabled (bool)
   module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : false;
 
@@ -37,6 +45,11 @@ window.pos.modules.markdown = function(settings){
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing rich text editor', module.settings.container);
 
     module.startEasyMde();
+
+    // attach validation
+    module.settings.textarea.form.addEventListener('submit', event => {
+      module.validate(event);
+    });
 
   };
 
@@ -135,6 +148,9 @@ window.pos.modules.markdown = function(settings){
       module.settings.easyMde.toggleSideBySide();
     }
 
+    // clean errors
+    module.settings.errorsContainer.querySelectorAll('li').forEach(li => li.classList.add(module.settings.errorDisabledClass));
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'Cleaned the content of markdown editor', module.settings.container);
     // dispatch custom event
     module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-reset', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id } }));
@@ -180,6 +196,42 @@ window.pos.modules.markdown = function(settings){
   // ------------------------------------------------------------------------
   module.refresh = () => {
     module.settings.easyMde.codemirror.refresh();
+  };
+
+
+
+  // purpose:   validates the value
+  // ------------------------------------------------------------------------
+  module.validate = event => {
+    let errors = 0;
+
+    if(module.value().length < module.settings.minlength){
+      errors++;
+
+      module.settings.container.querySelector(`[data-pos-markdown-error-minlength]`).classList.remove(module.settings.errorDisabledClass);
+    }
+
+    if(module.value().length > module.settings.maxlength){
+      errors++;
+
+      module.settings.container.querySelector(`[data-pos-markdown-error-maxlength]`).classList.remove(module.settings.errorDisabledClass);
+    }
+
+    if(errors){
+      // dispatch custom event
+      module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-validation-failed', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, value: module.settings.textarea.value, errors: module.settings.errorsContainer } }));
+      pos.modules.debug(module.settings.debug, 'event', 'pos-markdown-validation-failed', { target: module.settings.container, id: module.settings.id, value: module.settings.textarea.value, errors: module.settings.errorsContainer });
+
+    } else {
+      // dispatch custom event
+      module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-validation-passed', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, value: module.settings.textarea.value } }));
+      pos.modules.debug(module.settings.debug, 'event', 'pos-markdown-validation-passed', { target: module.settings.container, id: module.settings.id, value: module.settings.textarea.value });
+    }
+
+    if(errors){
+      event.preventDefault();
+      return false
+    }
   };
 
 

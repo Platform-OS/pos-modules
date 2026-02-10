@@ -7,6 +7,8 @@
     - name                  (string, required) name for the <textarea> with the content
     - presigned_upload      (object, required) presigned upload data (upload url and payload) returned from a `property_upload_presigned_url` query
     - value                 (string) pre-filled content for the textarea
+    - minlength             (number) minimum number of characters allowed in the textarea
+    - maxlength             (number) maximum number of characters allowed in the textarea
   
 {% endcomment %}
 
@@ -14,9 +16,12 @@
 {% liquid
   assign id = id | default: 'pos-rte'
   assign value = value | default: ''
+
+  assign minlength = minlength | default: 0
+  assign maxlength = maxlength | default: 10000
 %}
 
-<div class="pos-markdown" id="{{ id }}">
+<div class="pos-markdown" id="{{ id }}" data-minlength="{{ minlength }}" data-maxlength="{{ maxlength }}">
 
   <textarea
     class="pos-forms-text"
@@ -28,5 +33,12 @@
         data-request-{{ field[0] }}="{{ field[1] }}"
     {% endfor %}
   >{{ value }}</textarea>
+
+
+  <ul class="pos-form-errors">
+    <li class="pos-form-error pos-markdown-error-disabled" data-pos-markdown-error-minlength>{{ 'modules/common-styling/form.minimum_length_validation' | t: count: minlength }}</li>
+    <li class="pos-form-error pos-markdown-error-disabled" data-pos-markdown-error-maxlength>{{ 'modules/common-styling/form.maximum_length_validation' | t: count: maxlength }}</li>
+  </ul>
+
 
 </div>

@@ -13,3 +13,5 @@ en:
     clear_selection: Clear selection
     deselect: Deselect
     at_least_one_option: At least one option must be choosen
+    minimum_length_validation: Please enter at least %{count} characters
+    maximum_length_validation: Please enter no more than %{count} characters

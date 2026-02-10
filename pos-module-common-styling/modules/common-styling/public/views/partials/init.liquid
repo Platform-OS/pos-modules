@@ -152,7 +152,9 @@
           window.pos.modules.active[element.id || `pos-markdown-${index}`] = new pos.modules.markdown({
             container: element,
             id: element.id || `pos-markdown-${index}`,
-            content: element.value
+            content: element.value,
+            minlength: element.dataset.minlength,
+            maxlength: element.dataset.maxlength
           });
         });
       });
