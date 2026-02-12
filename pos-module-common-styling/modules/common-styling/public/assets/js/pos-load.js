@@ -32,7 +32,7 @@ window.pos.modules.load = function(settings = {}){
   // trigger to run the loading process (string or array of strings)
   module.settings.triggerType = settings.triggerType || 'click';
   // method used for request
-  module.settings.method = settings.method || 'get';
+  module.settings.method = settings.method?.toLowerCase() || 'get';
   // form data that will be send with the request (FormData)
   module.settings.formData = settings.formData || null;
   // if you want to enable debug mode that logs to console (bool)
@@ -60,24 +60,33 @@ window.pos.modules.load = function(settings = {}){
 
     event.preventDefault();
 
-    fetch(module.settings.endpoint, {
+    let queryString = '';
+    if(module.settings.method === 'get' && module.settings.formData){
+      queryString = '?' + (new URLSearchParams(module.settings.formData).toString());
+    }
+
+    fetch(module.settings.endpoint + queryString, {
       method: module.settings.method,
-      body: module.settings.formData
+      body: module.settings.method === 'post' ? module.settings.formData : null
     })
       .then(response => response.text())
       .then(html => {
         pos.modules.debug(module.settings.debug, module.settings.id, 'Frame loaded successfully', module.settings);
 
+        let output = (document.createRange()).createContextualFragment(html);
+        const nodes = [...output.childNodes];
+
         if(module.settings.where === 'replace'){
-          document.querySelector(module.settings.target).innerHTML = html;
-          pos.modules.debug(module.settings.debug, module.settings.id, 'Replaced the container content with fetched data', module.settings);
+          document.querySelector(module.settings.target).replaceChildren(output);
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Replaced the container content with fetched data', nodes);
         }
-        else if(module.settings.where === 'last') {
-          document.querySelector(module.settings.target).append(html, )
+        else if(module.settings.where === 'last'){
+          document.querySelector(module.settings.target).append(output);
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Appended fetched data to the container', nodes);
         }
 
-        document.dispatchEvent(new CustomEvent('pos-frame-loaded', { bubbles: true, detail: { target: module.settings.target, content: html } }));
-        pos.modules.debug(module.settings.debug, 'event', `pos-frame-loaded`, { target: module.settings.target, content: html });
+        module.settings.trigger.dispatchEvent(new CustomEvent('pos-frame-loaded', { bubbles: true, detail: { ...module.settings, html: html, nodes: nodes } }));
+        pos.modules.debug(module.settings.debug, 'event', `pos-frame-loaded`, { ...module.settings, html: html, nodes: nodes });
       });
   };
 

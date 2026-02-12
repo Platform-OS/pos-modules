@@ -107,19 +107,22 @@
     // purpose:		loads HTML from an endpoint and puts it in the container
     // arguments: endpoint (string) - URL to load the content from
     //            target (string) - selector of the element where the content should be loaded
-    //            method (string) -  `replace` or `append` to the container
+    //            where (string) -  'replace', 'last' or 'first' to the container
     //            trigger (dom node) - element that triggers the loading of the content
-    //            triggerType (string) - `click` or `hover` to trigger the loading process
+    //            triggerType (string) - 'click' or 'hover' to trigger the loading process
+    //            paginated (bool) - if true, it will add page=2, page=3... to each request URL on each trigger activation
     // ------------------------------------------------------------------------
     import('{{ 'modules/common-styling/js/pos-load.js' | asset_url }}').then(module => {
       const loads = document.querySelectorAll('[data-load-content]');
-      loads.forEach(load => {
-        pos.modules.active['load-' + load.getAttribute('data-load-target')] = new pos.modules.load({
+      loads.forEach((load, i) => {
+        pos.modules.active[load.id ? load.id : 'load-' + load.getAttribute('data-load-target') + '-' + i] = new pos.modules.load({
+          id: load.id ? load.id : 'load-' + load.getAttribute('data-load-target') + '-' + i,
           endpoint: load.getAttribute('data-load-content'),
           target: load.getAttribute('data-load-target'),
           where: load.getAttribute('data-load-where'),
           trigger: load,
-          triggerType: load.getAttribute('data-load-trigger-type') || 'click'
+          triggerType: load.getAttribute('data-load-trigger-type') || 'click',
+          paginated: load.getAttribute('data-load-paginated') === 'true'
         });
       });
     });
