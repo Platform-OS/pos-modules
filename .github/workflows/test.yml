@@ -132,7 +132,8 @@ jobs:
           MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
         working-directory: ${{ matrix.path }}
         run: |
-          pos-cli deploy
+          rm app/pos-modules.* || true
+          sh ./tests/data/seed/seed.sh
 
       - name: Run platformOS tests
         if: steps.changed.outputs.skip != 'true'
