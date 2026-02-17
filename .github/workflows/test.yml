@@ -79,16 +79,12 @@ jobs:
 
   test-platformos:
     needs: detect-changes
-    if: |
-      needs.detect-changes.outputs.payments == 'true' ||
-      needs.detect-changes.outputs.user == 'true'
+    if: needs.detect-changes.outputs.user == 'true'
     runs-on: ubuntu-latest
     container: platformos/pos-cli:latest
     strategy:
       matrix:
         include:
-          - module: payments
-            path: pos-module-payments
           - module: user
             path: pos-module-user
       fail-fast: false
