@@ -1,0 +1,314 @@
+name: Module tests
+on:
+  pull_request:
+    branches: [ master ]
+    paths-ignore:
+      - "**/README.md"
+  push:
+    paths-ignore:
+      - "**/README.md"
+  workflow_dispatch:
+
+jobs:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          github_token: ${{ github.token }}
+          paths_ignore: '["**/README.md"]'
+          do_not_skip: '["push"]'
+
+  detect-changes:
+    needs: pre_job
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      payments: ${{ steps.filter.outputs.payments }}
+      user: ${{ steps.filter.outputs.user }}
+      chat: ${{ steps.filter.outputs.chat }}
+      common-styling: ${{ steps.filter.outputs.common-styling }}
+      tests: ${{ steps.filter.outputs.tests }}
+      core: ${{ steps.filter.outputs.core }}
+      oauth-facebook: ${{ steps.filter.outputs.oauth-facebook }}
+      oauth-github: ${{ steps.filter.outputs.oauth-github }}
+      oauth-google: ${{ steps.filter.outputs.oauth-google }}
+      openai: ${{ steps.filter.outputs.openai }}
+      reports: ${{ steps.filter.outputs.reports }}
+      data-export-api: ${{ steps.filter.outputs.data-export-api }}
+      payments-stripe: ${{ steps.filter.outputs.payments-stripe }}
+      payments-example-gateway: ${{ steps.filter.outputs.payments-example-gateway }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            payments:
+              - 'pos-module-payments/**'
+            user:
+              - 'pos-module-user/**'
+            chat:
+              - 'pos-module-chat/**'
+            common-styling:
+              - 'pos-module-common-styling/**'
+            tests:
+              - 'pos-module-tests/**'
+            core:
+              - 'pos-module-core/**'
+            oauth-facebook:
+              - 'pos-module-oauth-facebook/**'
+            oauth-github:
+              - 'pos-module-oauth-github/**'
+            oauth-google:
+              - 'pos-module-oauth-google/**'
+            openai:
+              - 'pos-module-openai/**'
+            reports:
+              - 'pos-module-reports/**'
+            data-export-api:
+              - 'pos-module-data-export-api/**'
+            payments-stripe:
+              - 'pos-module-payments-stripe/**'
+            payments-example-gateway:
+              - 'pos-module-payments-example-gateway/**'
+
+  test-platformos:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.payments == 'true' ||
+      needs.detect-changes.outputs.user == 'true'
+    runs-on: ubuntu-latest
+    container: platformos/pos-cli:latest
+    strategy:
+      matrix:
+        include:
+          - module: payments
+            path: pos-module-payments
+          - module: user
+            path: pos-module-user
+      fail-fast: false
+    timeout-minutes: 20
+    env:
+      CI: true
+      MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
+    steps:
+      - name: Check if this module changed
+        id: changed
+        run: |
+          MODULE_CHANGED="${{ needs.detect-changes.outputs[matrix.module] }}"
+          if [ "$MODULE_CHANGED" != "true" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Reserve CI instance
+        if: steps.changed.outputs.skip != 'true'
+        id: reserve
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.0.9
+        with:
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          method: reserve
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+      - name: Get MPKIT token
+        if: steps.changed.outputs.skip != 'true'
+        id: get-token
+        uses: Platform-OS/ci-repository-reserve-instance-url@mask-token
+        with:
+          method: get-token
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+      - uses: actions/checkout@v4
+        if: steps.changed.outputs.skip != 'true'
+
+      - name: Deploy module
+        if: steps.changed.outputs.skip != 'true'
+        timeout-minutes: 10
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        working-directory: ${{ matrix.path }}
+        run: |
+          pos-cli deploy
+
+      - name: Run platformOS tests
+        if: steps.changed.outputs.skip != 'true'
+        timeout-minutes: 10
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        working-directory: ${{ matrix.path }}
+        run: |
+          pos-cli test run
+
+      - name: Release CI instance
+        if: always() && steps.changed.outputs.skip != 'true'
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.0.9
+        with:
+          method: release
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+  test-playwright:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.user == 'true' ||
+      needs.detect-changes.outputs.chat == 'true' ||
+      needs.detect-changes.outputs.common-styling == 'true'
+    runs-on: ubuntu-latest
+    container: platformos/playwright:5.4.0-1.52
+    strategy:
+      matrix:
+        include:
+          - module: user
+            path: pos-module-user
+            deploy-script: |
+              rm app/pos-modules.* || true
+              sh ./tests/data/seed/seed.sh
+            test-commands: |
+              npm run admin-panel-pw-tests
+              npm run pw-tests
+          - module: chat
+            path: pos-module-chat
+            deploy-script: |
+              rm app/pos-modules.* || true
+              sh ./tests/data/seed/seed.sh
+            test-commands: npm run pw-tests
+          - module: common-styling
+            path: pos-module-common-styling
+            deploy-script: |
+              pos-cli data clean --include-schema --auto-confirm
+              pos-cli deploy
+            test-commands: npm run pw-tests
+      fail-fast: false
+    timeout-minutes: 35
+    env:
+      CI: true
+      MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      HTML_ATTACHMENTS_BASE_URL: ${{ vars.HTML_ATTACHMENTS_BASE_URL }}
+      TEST_REPORT_MPKIT_URL: ${{ vars.TEST_REPORT_MPKIT_URL }}
+      TEST_REPORT_MPKIT_TOKEN: ${{ secrets.TEST_REPORT_MPKIT_TOKEN }}
+      HOME: /root
+    steps:
+      - name: Check if this module changed
+        id: changed
+        run: |
+          MODULE_CHANGED="${{ needs.detect-changes.outputs[matrix.module] }}"
+          if [ "$MODULE_CHANGED" != "true" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Reserve CI instance
+        if: steps.changed.outputs.skip != 'true'
+        id: reserve
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.0.9
+        with:
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          method: reserve
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+      - name: Get MPKIT token
+        if: steps.changed.outputs.skip != 'true'
+        id: get-token
+        uses: Platform-OS/ci-repository-reserve-instance-url@mask-token
+        with:
+          method: get-token
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+      - uses: actions/checkout@v4
+        if: steps.changed.outputs.skip != 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.changed.outputs.skip != 'true'
+        with:
+          node-version: 20.x
+
+      - name: Deploy module
+        if: steps.changed.outputs.skip != 'true'
+        timeout-minutes: 10
+        shell: sh
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        working-directory: ${{ matrix.path }}
+        run: |
+          set -eu
+          ${{ matrix.deploy-script }}
+
+      - name: Install test dependencies
+        if: steps.changed.outputs.skip != 'true'
+        shell: sh
+        working-directory: ${{ matrix.path }}
+        run: |
+          set -eu
+          npm install
+
+      - name: Run Playwright tests
+        if: steps.changed.outputs.skip != 'true'
+        shell: sh
+        working-directory: ${{ matrix.path }}
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+        run: |
+          set -eu
+          ${{ matrix.test-commands }}
+
+      - name: Release CI instance
+        if: always() && steps.changed.outputs.skip != 'true'
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.0.9
+        with:
+          method: release
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+  lint-platformos-check:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module:
+          - payments
+          - user
+          - chat
+          - common-styling
+          - tests
+          - core
+          - oauth-facebook
+          - oauth-github
+          - oauth-google
+          - openai
+          - reports
+          - data-export-api
+          - payments-stripe
+          - payments-example-gateway
+      fail-fast: false
+    steps:
+      - name: Check if this module changed
+        id: changed
+        run: |
+          MODULE_CHANGED="${{ needs.detect-changes.outputs[matrix.module] }}"
+          if [ "$MODULE_CHANGED" != "true" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.changed.outputs.skip != 'true'
+
+      - name: Run platformOS-check
+        if: steps.changed.outputs.skip != 'true'
+        uses: Platform-OS/platformos-check-action@v1
+        with:
+          path: pos-module-${{ matrix.module }}
