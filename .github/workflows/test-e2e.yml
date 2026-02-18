@@ -84,7 +84,7 @@ jobs:
       needs.detect-changes.outputs.chat == 'true' ||
       needs.detect-changes.outputs.common-styling == 'true'
     runs-on: ubuntu-latest
-    container: platformos/playwright:5.4.0-1.52
+    container: ${{ vars.PW_CONTAINER }}
     strategy:
       matrix:
         include:
@@ -166,14 +166,6 @@ jobs:
         run: |
           set -eu
           ${{ matrix.deploy-script }}
-
-      - name: Install test dependencies
-        if: steps.changed.outputs.skip != 'true'
-        shell: sh
-        working-directory: ${{ matrix.path }}
-        run: |
-          set -eu
-          npm install
 
       - name: Run Playwright tests
         if: steps.changed.outputs.skip != 'true'
