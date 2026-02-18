@@ -87,6 +87,9 @@ jobs:
         include:
           - module: user
             path: pos-module-user
+            deploy-script: |
+              rm app/pos-modules.* || true
+              sh ./tests/data/seed/seed.sh
       fail-fast: false
     timeout-minutes: 20
     env:
@@ -132,8 +135,8 @@ jobs:
           MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
         working-directory: ${{ matrix.path }}
         run: |
-          rm app/pos-modules.* || true
-          sh ./tests/data/seed/seed.sh
+          set -eu
+          ${{ matrix.deploy-script }}
 
       - name: Run platformOS tests
         if: steps.changed.outputs.skip != 'true'
