@@ -45,19 +45,34 @@ jobs:
       - name: Set matrix for changed modules
         id: set-matrix
         run: |
-          modules='[]'
+          # Define module configurations
+          cat > /tmp/module-config.json << 'EOF'
+          {
+            "user": {
+              "module": "user",
+              "path": "pos-module-user",
+              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "test-commands": "npm run admin-panel-pw-tests\nnpm run pw-tests"
+            },
+            "chat": {
+              "module": "chat",
+              "path": "pos-module-chat",
+              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
+            },
+            "common-styling": {
+              "module": "common-styling",
+              "path": "pos-module-common-styling",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli deploy",
+              "test-commands": "npm run pw-tests"
+            }
+          }
+          EOF
 
-          if [ "${{ steps.filter.outputs.user }}" == "true" ]; then
-            modules=$(echo "$modules" | jq -c '. += [{"module":"user","path":"pos-module-user","deploy-script":"rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh","test-commands":"npm run admin-panel-pw-tests\nnpm run pw-tests"}]')
-          fi
-
-          if [ "${{ steps.filter.outputs.chat }}" == "true" ]; then
-            modules=$(echo "$modules" | jq -c '. += [{"module":"chat","path":"pos-module-chat","deploy-script":"rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh","test-commands":"npm run pw-tests"}]')
-          fi
-
-          if [ "${{ steps.filter.outputs.common-styling }}" == "true" ]; then
-            modules=$(echo "$modules" | jq -c '. += [{"module":"common-styling","path":"pos-module-common-styling","deploy-script":"pos-cli data clean --include-schema --auto-confirm\npos-cli deploy","test-commands":"npm run pw-tests"}]')
-          fi
+          # Extract changed modules and map to their configurations
+          modules=$(echo '${{ toJSON(steps.filter.outputs) }}' | \
+            jq -c --slurpfile config /tmp/module-config.json \
+            '[to_entries[] | select(.value == "true") | .key as $m | $config[0][$m] | select(. != null)]')
 
           echo "matrix=$modules" >> $GITHUB_OUTPUT
           echo "Changed modules matrix: $modules"
