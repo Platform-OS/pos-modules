@@ -85,6 +85,7 @@ jobs:
     strategy:
       matrix:
         include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
+      max-parallel: 1
       fail-fast: false
     timeout-minutes: 15
     env:
@@ -137,6 +138,7 @@ jobs:
     strategy:
       matrix:
         include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
+      max-parallel: 1
       fail-fast: false
     timeout-minutes: 35
     env:
@@ -166,6 +168,7 @@ jobs:
     strategy:
       matrix:
         include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
+      max-parallel: 1
       fail-fast: false
     steps:
       - name: Release CI instance
