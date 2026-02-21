@@ -109,6 +109,8 @@ jobs:
       CI: true
       MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
       NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+    outputs:
+      mpkit-url: ${{ steps.reserve.outputs.mpkit-url }}
     steps:
       - name: Check if this module changed
         id: changed
@@ -185,8 +187,9 @@ jobs:
       CI: true
       E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
       MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
-      HTML_ATTACHMENTS_BASE_URL: ${{ vars.HTML_ATTACHMENTS_BASE_URL }}
+      MPKIT_URL: ${{ needs.reserve-and-deploy.outputs.mpkit-url }}
       NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+      HTML_ATTACHMENTS_BASE_URL: ${{ vars.HTML_ATTACHMENTS_BASE_URL }}
       TEST_REPORT_MPKIT_URL: ${{ vars.TEST_REPORT_MPKIT_URL }}
       TEST_REPORT_MPKIT_TOKEN: ${{ secrets.TEST_REPORT_MPKIT_TOKEN }}
     steps:
@@ -200,15 +203,6 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get reserved instance URL
-        if: steps.changed.outputs.skip != 'true'
-        id: get-url
-        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
-        with:
-          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
-          method: get-url
-          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
-
       - uses: actions/checkout@v4
         if: steps.changed.outputs.skip != 'true'
 
@@ -216,8 +210,6 @@ jobs:
         if: steps.changed.outputs.skip != 'true'
         shell: sh
         working-directory: ${{ matrix.path }}
-        env:
-          MPKIT_URL: ${{ steps.get-url.outputs.mpkit-url }}
         run: |
           set -eu
           ${{ matrix.test-commands }}
