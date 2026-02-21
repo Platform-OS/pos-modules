@@ -145,9 +145,20 @@ jobs:
             echo "## Issues Found" >> $GITHUB_STEP_SUMMARY
             echo "| File | Line | Column | Severity | Check | Message |" >> $GITHUB_STEP_SUMMARY
             echo "|------|------|--------|----------|-------|---------|" >> $GITHUB_STEP_SUMMARY
-            jq -r '.[] | .path as $file | .offenses[] | "| \($file) | \(.start_row) | \(.start_column) | \(.severity) | \(.check) | \(.message) |"' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "| N/A | N/A | N/A | N/A | N/A | Failed to parse JSON output |" >> $GITHUB_STEP_SUMMARY
+
+            # Try to parse and add issues
+            if jq -r '.[] | .path as $file | .offenses[] | "| \($file) | \(.start_row) | \(.start_column) | \(.severity) | \(.check) | \(.message) |"' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY 2>&1; then
+              echo "Issues table generated successfully"
+            else
+              echo "| N/A | N/A | N/A | N/A | N/A | Failed to parse JSON - see logs for details |" >> $GITHUB_STEP_SUMMARY
+              echo "JSON parse error. File contents:" >> $GITHUB_STEP_SUMMARY
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "## No output file found" >> $GITHUB_STEP_SUMMARY
+            echo "Expected location: ${{ env.LOGS_DIR }}/platformos-check.json" >> $GITHUB_STEP_SUMMARY
           fi
         env:
           RESULT_ICON: ${{ steps.run_check.outcome == 'success' && ':white_check_mark:' || ':x:' }}
