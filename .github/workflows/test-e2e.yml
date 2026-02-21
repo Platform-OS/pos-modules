@@ -108,7 +108,7 @@ jobs:
     env:
       CI: true
       MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
-      HOME: /root
+      NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
     steps:
       - name: Check if this module changed
         id: changed
@@ -189,7 +189,6 @@ jobs:
       NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
       TEST_REPORT_MPKIT_URL: ${{ vars.TEST_REPORT_MPKIT_URL }}
       TEST_REPORT_MPKIT_TOKEN: ${{ secrets.TEST_REPORT_MPKIT_TOKEN }}
-      HOME: /root
     steps:
       - name: Check if this module changed
         id: changed
