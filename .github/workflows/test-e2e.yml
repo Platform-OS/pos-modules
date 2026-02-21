@@ -77,7 +77,7 @@ jobs:
             payments-example-gateway:
               - 'pos-module-payments-example-gateway/**'
 
-  deploy:
+  reserve-and-deploy:
     needs: detect-changes
     if: |
       needs.detect-changes.outputs.user == 'true' ||
