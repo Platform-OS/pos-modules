@@ -27,20 +27,7 @@ jobs:
     if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
     outputs:
-      payments: ${{ steps.filter.outputs.payments }}
-      user: ${{ steps.filter.outputs.user }}
-      chat: ${{ steps.filter.outputs.chat }}
-      common-styling: ${{ steps.filter.outputs.common-styling }}
-      tests: ${{ steps.filter.outputs.tests }}
-      core: ${{ steps.filter.outputs.core }}
-      oauth-facebook: ${{ steps.filter.outputs.oauth-facebook }}
-      oauth-github: ${{ steps.filter.outputs.oauth-github }}
-      oauth-google: ${{ steps.filter.outputs.oauth-google }}
-      openai: ${{ steps.filter.outputs.openai }}
-      reports: ${{ steps.filter.outputs.reports }}
-      data-export-api: ${{ steps.filter.outputs.data-export-api }}
-      payments-stripe: ${{ steps.filter.outputs.payments-stripe }}
-      payments-example-gateway: ${{ steps.filter.outputs.payments-example-gateway }}
+      changed-modules: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
 
@@ -48,61 +35,41 @@ jobs:
         id: filter
         with:
           filters: |
-            payments:
-              - 'pos-module-payments/**'
             user:
               - 'pos-module-user/**'
             chat:
               - 'pos-module-chat/**'
             common-styling:
               - 'pos-module-common-styling/**'
-            tests:
-              - 'pos-module-tests/**'
-            core:
-              - 'pos-module-core/**'
-            oauth-facebook:
-              - 'pos-module-oauth-facebook/**'
-            oauth-github:
-              - 'pos-module-oauth-github/**'
-            oauth-google:
-              - 'pos-module-oauth-google/**'
-            openai:
-              - 'pos-module-openai/**'
-            reports:
-              - 'pos-module-reports/**'
-            data-export-api:
-              - 'pos-module-data-export-api/**'
-            payments-stripe:
-              - 'pos-module-payments-stripe/**'
-            payments-example-gateway:
-              - 'pos-module-payments-example-gateway/**'
+
+      - name: Set matrix for changed modules
+        id: set-matrix
+        run: |
+          modules='[]'
+
+          if [ "${{ steps.filter.outputs.user }}" == "true" ]; then
+            modules=$(echo "$modules" | jq -c '. += [{"module":"user","path":"pos-module-user","deploy-script":"rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh","test-commands":"npm run admin-panel-pw-tests\nnpm run pw-tests"}]')
+          fi
+
+          if [ "${{ steps.filter.outputs.chat }}" == "true" ]; then
+            modules=$(echo "$modules" | jq -c '. += [{"module":"chat","path":"pos-module-chat","deploy-script":"rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh","test-commands":"npm run pw-tests"}]')
+          fi
+
+          if [ "${{ steps.filter.outputs.common-styling }}" == "true" ]; then
+            modules=$(echo "$modules" | jq -c '. += [{"module":"common-styling","path":"pos-module-common-styling","deploy-script":"pos-cli data clean --include-schema --auto-confirm\npos-cli deploy","test-commands":"npm run pw-tests"}]')
+          fi
+
+          echo "matrix=$modules" >> $GITHUB_OUTPUT
+          echo "Changed modules matrix: $modules"
 
   reserve-and-deploy:
     needs: detect-changes
-    if: |
-      needs.detect-changes.outputs.user == 'true' ||
-      needs.detect-changes.outputs.chat == 'true' ||
-      needs.detect-changes.outputs.common-styling == 'true'
+    if: needs.detect-changes.outputs.changed-modules != '[]'
     runs-on: ubuntu-latest
     container: ${{ vars.PW_CONTAINER }}
     strategy:
       matrix:
-        include:
-          - module: user
-            path: pos-module-user
-            deploy-script: |
-              rm app/pos-modules.* || true
-              sh ./tests/data/seed/seed.sh
-          - module: chat
-            path: pos-module-chat
-            deploy-script: |
-              rm app/pos-modules.* || true
-              sh ./tests/data/seed/seed.sh
-          - module: common-styling
-            path: pos-module-common-styling
-            deploy-script: |
-              pos-cli data clean --include-schema --auto-confirm
-              pos-cli deploy
+        include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
       fail-fast: false
     timeout-minutes: 15
     env:
@@ -112,18 +79,7 @@ jobs:
     outputs:
       mpkit-url: ${{ steps.reserve.outputs.mpkit-url }}
     steps:
-      - name: Check if this module changed
-        id: changed
-        run: |
-          MODULE_CHANGED="${{ needs.detect-changes.outputs[matrix.module] }}"
-          if [ "$MODULE_CHANGED" != "true" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Reserve CI instance
-        if: steps.changed.outputs.skip != 'true'
         id: reserve
         uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
         with:
@@ -132,7 +88,6 @@ jobs:
           pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
 
       - name: Get MPKIT token
-        if: steps.changed.outputs.skip != 'true'
         id: get-token
         uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
         with:
@@ -141,17 +96,14 @@ jobs:
           pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
 
       - uses: actions/checkout@v4
-        if: steps.changed.outputs.skip != 'true'
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: actions/setup-node@v4
-        if: steps.changed.outputs.skip != 'true'
         with:
           node-version: 20.x
 
       - name: Deploy module
-        if: steps.changed.outputs.skip != 'true'
         timeout-minutes: 10
         shell: sh
         env:
@@ -164,23 +116,12 @@ jobs:
 
   test:
     needs: ["detect-changes", "reserve-and-deploy"]
-    if: ${{ success() && (needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.common-styling == 'true') }}
+    if: ${{ success() && needs.detect-changes.outputs.changed-modules != '[]' }}
     runs-on: ubuntu-latest
     container: ${{ vars.PW_CONTAINER }}
     strategy:
       matrix:
-        include:
-          - module: user
-            path: pos-module-user
-            test-commands: |
-              npm run admin-panel-pw-tests
-              npm run pw-tests
-          - module: chat
-            path: pos-module-chat
-            test-commands: npm run pw-tests
-          - module: common-styling
-            path: pos-module-common-styling
-            test-commands: npm run pw-tests
+        include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
       fail-fast: false
     timeout-minutes: 35
     env:
@@ -193,21 +134,9 @@ jobs:
       TEST_REPORT_MPKIT_URL: ${{ vars.TEST_REPORT_MPKIT_URL }}
       TEST_REPORT_MPKIT_TOKEN: ${{ secrets.TEST_REPORT_MPKIT_TOKEN }}
     steps:
-      - name: Check if this module changed
-        id: changed
-        run: |
-          MODULE_CHANGED="${{ needs.detect-changes.outputs[matrix.module] }}"
-          if [ "$MODULE_CHANGED" != "true" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
       - uses: actions/checkout@v4
-        if: steps.changed.outputs.skip != 'true'
 
       - name: Run Playwright tests
-        if: steps.changed.outputs.skip != 'true'
         shell: sh
         working-directory: ${{ matrix.path }}
         run: |
@@ -215,30 +144,16 @@ jobs:
           ${{ matrix.test-commands }}
 
   cleanup:
-    if: ${{ always() }}
+    if: ${{ always() && needs.detect-changes.outputs.changed-modules != '[]' }}
     needs: ["detect-changes", "reserve-and-deploy", "test"]
     runs-on: ubuntu-latest
     container: alpine:3.20
     strategy:
       matrix:
-        include:
-          - module: user
-          - module: chat
-          - module: common-styling
+        include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
       fail-fast: false
     steps:
-      - name: Check if this module changed
-        id: changed
-        run: |
-          MODULE_CHANGED="${{ needs.detect-changes.outputs[matrix.module] }}"
-          if [ "$MODULE_CHANGED" != "true" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Release CI instance
-        if: steps.changed.outputs.skip != 'true'
         uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
         with:
           method: release
