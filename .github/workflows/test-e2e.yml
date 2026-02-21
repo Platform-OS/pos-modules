@@ -163,7 +163,7 @@ jobs:
           ${{ matrix.deploy-script }}
 
   test:
-    needs: ["detect-changes", "deploy"]
+    needs: ["detect-changes", "reserve-and-deploy"]
     if: ${{ success() && (needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.common-styling == 'true') }}
     runs-on: ubuntu-latest
     container: ${{ vars.PW_CONTAINER }}
@@ -216,7 +216,7 @@ jobs:
 
   cleanup:
     if: ${{ always() }}
-    needs: ["detect-changes", "deploy", "test"]
+    needs: ["detect-changes", "reserve-and-deploy", "test"]
     runs-on: ubuntu-latest
     container: alpine:3.20
     strategy:
