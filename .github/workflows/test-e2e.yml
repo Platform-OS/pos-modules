@@ -104,7 +104,7 @@ jobs:
               pos-cli data clean --include-schema --auto-confirm
               pos-cli deploy
       fail-fast: false
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       CI: true
       MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
@@ -132,7 +132,7 @@ jobs:
       - name: Get MPKIT token
         if: steps.changed.outputs.skip != 'true'
         id: get-token
-        uses: Platform-OS/ci-repository-reserve-instance-url@mask-token
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
         with:
           method: get-token
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
@@ -140,6 +140,8 @@ jobs:
 
       - uses: actions/checkout@v4
         if: steps.changed.outputs.skip != 'true'
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - uses: actions/setup-node@v4
         if: steps.changed.outputs.skip != 'true'
