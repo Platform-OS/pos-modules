@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "pw-tests": "npx playwright test tests --project=test --reporter=list",
+    "pw-tests": "playwright test tests --project=test --reporter=list",
     "test": "playwright test",
     "install: playwright": "npx playwright install"
   },
