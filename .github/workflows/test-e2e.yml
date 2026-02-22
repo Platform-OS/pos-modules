@@ -1,0 +1,150 @@
+name: E2E tests
+on:
+  pull_request:
+    branches: [ master ]
+    paths-ignore:
+      - "**/README.md"
+  push:
+    paths-ignore:
+      - "**/README.md"
+  workflow_dispatch:
+
+jobs:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          github_token: ${{ github.token }}
+          paths_ignore: '["**/README.md"]'
+          do_not_skip: '["push"]'
+
+  detect-changes:
+    needs: pre_job
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      changed-modules: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            user:
+              - 'pos-module-user/**'
+            chat:
+              - 'pos-module-chat/**'
+            common-styling:
+              - 'pos-module-common-styling/**'
+
+      - name: Set matrix for changed modules
+        id: set-matrix
+        run: |
+          # Define module configurations
+          cat > /tmp/module-config.json << 'EOF'
+          {
+            "user": {
+              "module": "user",
+              "path": "pos-module-user",
+              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "test-commands": "npm run admin-panel-pw-tests\nnpm run pw-tests"
+            },
+            "chat": {
+              "module": "chat",
+              "path": "pos-module-chat",
+              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
+            },
+            "common-styling": {
+              "module": "common-styling",
+              "path": "pos-module-common-styling",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli deploy",
+              "test-commands": "npm run pw-tests"
+            }
+          }
+          EOF
+
+          # Extract changed modules and map to their configurations
+          modules=$(echo '${{ toJSON(steps.filter.outputs) }}' | \
+            jq -c --slurpfile config /tmp/module-config.json \
+            '[to_entries[] | select(.value == "true") | .key as $m | $config[0][$m] | select(. != null)]')
+
+          echo "matrix=$modules" >> $GITHUB_OUTPUT
+          echo "Changed modules matrix: $modules"
+
+  test-e2e:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed-modules != '[]'
+    runs-on: ubuntu-latest
+    container: ${{ vars.PW_CONTAINER }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
+      max-parallel: 1
+      fail-fast: false
+    timeout-minutes: 60
+    env:
+      CI: true
+      MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
+      NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      HTML_ATTACHMENTS_BASE_URL: ${{ vars.HTML_ATTACHMENTS_BASE_URL }}
+      TEST_REPORT_MPKIT_URL: ${{ vars.TEST_REPORT_MPKIT_URL }}
+      TEST_REPORT_MPKIT_TOKEN: ${{ secrets.TEST_REPORT_MPKIT_TOKEN }}
+    steps:
+      - name: Reserve CI instance
+        id: reserve
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
+        with:
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          method: reserve
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+      - name: Get MPKIT token
+        id: get-token
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
+        with:
+          method: get-token
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Deploy module
+        timeout-minutes: 10
+        shell: sh
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        working-directory: ${{ matrix.path }}
+        run: |
+          set -eu
+          ${{ matrix.deploy-script }}
+
+      - name: Run Playwright tests
+        shell: sh
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+        working-directory: ${{ matrix.path }}
+        run: |
+          set -eu
+          ${{ matrix.test-commands }}
+
+      - name: Release CI instance
+        if: always()
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
+        with:
+          method: release
+          repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
+          pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
