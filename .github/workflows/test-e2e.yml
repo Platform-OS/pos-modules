@@ -99,7 +99,7 @@ jobs:
     steps:
       - name: Reserve CI instance
         id: reserve
-        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
+        uses: Platform-OS/ci-repository-reserve-instance-url@${{ vars.RESERVE_INSTANCE_ACTION_VERSION }}
         with:
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
           method: reserve
@@ -107,7 +107,7 @@ jobs:
 
       - name: Get MPKIT token
         id: get-token
-        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
+        uses: Platform-OS/ci-repository-reserve-instance-url@${{ vars.RESERVE_INSTANCE_ACTION_VERSION }}
         with:
           method: get-token
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
@@ -143,7 +143,7 @@ jobs:
 
       - name: Release CI instance
         if: always()
-        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
+        uses: Platform-OS/ci-repository-reserve-instance-url@${{ vars.RESERVE_INSTANCE_ACTION_VERSION }}
         with:
           method: release
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
