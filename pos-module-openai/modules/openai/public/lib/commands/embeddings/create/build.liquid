@@ -1,10 +1,5 @@
 {% liquid
-  assign embedding = '{}' | parse_json
-
-  hash_assign embedding['embedding'] = object.embedding
-  hash_assign embedding['content'] = object.content
-  hash_assign embedding['metadata'] = object.metadata
-  hash_assign embedding['token_count'] = object.token_count
+  assign embedding = { "embedding": object.embedding, "content": object.content, "metadata": object.metadata, "token_count": object.token_count }
 
   return embedding
-%}
+ %}

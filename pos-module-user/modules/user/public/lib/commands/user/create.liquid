@@ -17,7 +17,7 @@
   function object = 'modules/user/commands/user/create/check', object: object
   if object.valid
     function user = 'modules/core/commands/execute', mutation_name: 'modules/user/user/create', object: object, selection: 'user'
-    hash_assign object['user_id'] = user.id
+    assign object.user_id = user.id
     
     function profile = 'modules/user/commands/profiles/create', object: object
     if profile.valid != true

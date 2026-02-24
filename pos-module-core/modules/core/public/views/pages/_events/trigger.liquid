@@ -12,7 +12,7 @@ slug: _events/:uuid/trigger
     else
       assign name = 'consumers/' | append: event.type | append: '/'
       graphql consumers = 'modules/core/events/consumers', name: name | fetch: "admin_liquid_partials" | fetch: "results"
-      hash_assign event['consumers'] = consumers
+      assign event.consumers = consumers
     endif
 
     render 'modules/core/events/show', event: event

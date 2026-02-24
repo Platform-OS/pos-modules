@@ -1139,9 +1139,9 @@ layout: 'modules/common-styling/style-guide'
               for i in (i..10)
                 assign value = 'value' | append: i
                 assign label = 'Label for value ' | append: i
-                assign example_item = '{}' | parse_json | hash_merge: value: value, label: label
+                assign example_item = { "value": value, "label": label }
                 assign example_list = example_list | add_to_array: example_item
-                assign selected = '["value0", "value5", "value6"]' | parse_json
+                assign selected = ["value0", "value5", "value6"]
               endfor
             %}
             {% render 'modules/common-styling/forms/multiselect', name: 'styleguide-form-multiselect-test-1', id: 'styleguide-form-multiselect-test-1', list: example_list, showFilter: true, combine_selected: true %}

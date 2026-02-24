@@ -8,7 +8,7 @@
 
   case type
     when 'module'
-      assign modules = '[]' | parse_json
+      assign modules = []
       for module in registry
         if module.type == 'module'
           assign modules = modules | add_to_array: module
@@ -16,7 +16,7 @@
       endfor
       return modules
     when 'theme'
-      assign themes = '[]' | parse_json
+      assign themes = []
       for module in registry
         if module.type == 'theme'
           assign themes = themes | add_to_array: module

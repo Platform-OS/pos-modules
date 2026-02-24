@@ -21,14 +21,14 @@
     assign arr = object
     assign obj_type = object | type_of
     if obj_type != 'Array'
-      assign arr = '[]' | parse_json | add_to_array: object
+      assign arr = [object]
     endif
     assign arr = arr
-    hash_assign request_object['data']['payload']['input'] = arr | compact
+    assign request_object.data.payload.input = arr | compact
   else
     log "modules/openai/fetch_embeddings - object is null, should be an array of strings that will be transformed to embeddings", type: 'ERROR'
   endif
 
 
   return request_object
-%}
+ %}

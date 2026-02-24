@@ -6,7 +6,7 @@ layout: ''
     assign per_page = 100
     graphql total_pages = 'modules/tests/test_files/count', per_page: per_page, path: context.params.name | dig: "admin_liquid_partials" | dig: "total_pages"
 
-    assign result = '[]' | parse_json
+    assign result = []
 
     for page in (1..total_pages)
       graphql tests = 'modules/tests/test_files/search', path: context.params.name, page: page, per_page: per_page | dig: "admin_liquid_partials" | dig: "results"
@@ -14,10 +14,8 @@ layout: ''
       for test in tests
         assign test_name = test.path | remove_first: 'lib/test/' | remove_first: '_test'
         assign test_url = '/_tests/run.js?test_name=' | append: test_name
-        assign test_object = '{}' | parse_json
-        hash_assign test_object['name'] = test_name
-        hash_assign test_object['url'] = test_url
-        assign result = result | add_to_array: test_object
+        assign test_object = { "name": test_name, "url": test_url }
+        assign result << test_object
       endfor
     endfor
 
@@ -25,4 +23,4 @@ layout: ''
   else
     echo '{"error":"Tests can only be accessed in staging or development environment"}'
   endif
-%}
+ %}

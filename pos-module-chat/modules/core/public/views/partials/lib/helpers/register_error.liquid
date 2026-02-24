@@ -17,7 +17,7 @@
 
   assign errors = contract.errors
 
-  assign field_errors = errors[field_name] | default: '[]' | parse_json
+  assign field_errors = errors[field_name] | default: []
   assign field_errors = field_errors | add_to_array: msg
 
   hash_assign errors[field_name] = field_errors

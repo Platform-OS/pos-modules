@@ -6,7 +6,7 @@
 
   if object.account_id == blank
     function account = 'modules/payments_stripe/commands/stripe_connected_accounts/create', reference_id: object.reference_id, metadata: object
-    hash_assign object['account_id'] = account.id
+    assign object.account_id = account.id
   endif
   function object = 'modules/payments_stripe/commands/connected_accounts/create/build', object: object
   function object = 'modules/payments_stripe/commands/connected_accounts/create/check', object: object

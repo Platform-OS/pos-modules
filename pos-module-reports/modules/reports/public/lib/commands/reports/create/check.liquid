@@ -1,5 +1,5 @@
 {% liquid
-  assign c = '{ "errors": {}, "valid": true }' | parse_json
+  assign c = { "errors": {}, "valid": true }
 
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'uuid'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'operation_type'
@@ -11,13 +11,13 @@
 
   if object.options
     try
-      hash_assign object['options'] = object.options | parse_json | json
+      assign object.options = object.options | parse_json | json
     catch err
-      hash_assign object['options'] = null
+      assign object.options = null
     endtry
   endif
 
   assign object = object | hash_merge: c
 
   return object
-%}
+ %}

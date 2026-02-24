@@ -2,11 +2,11 @@
   "name": "Pos Module Chat",
   "machine_name": "chat",
   "type": "module",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "dependencies": {
-    "core": "^2.0.6",
+    "core": "^2.1.0",
     "profile": "^1.1.1",
-    "user": "^5.0.4",
+    "user": "^5.2.0",
     "common-styling": "1.11.0"
   }
 }

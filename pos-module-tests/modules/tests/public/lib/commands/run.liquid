@@ -31,10 +31,7 @@
   assign __stop = "now" | to_time
   assign total_duration = __start | time_diff: __stop, 'ms' | round
 
-  assign data = '{}' | parse_json
-  hash_assign data['contracts'] = contracts
-  hash_assign data['total_errors'] = total_errors
-  hash_assign data['total_duration'] = total_duration
+  assign data = { "contracts": contracts, "total_errors": total_errors, "total_duration": total_duration }
 
   assign test_formatter = format | default: 'html' | prepend: 'modules/tests/tests/show_'
   # platformos-check-disable ConvertIncludeToRender

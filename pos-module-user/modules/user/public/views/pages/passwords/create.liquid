@@ -5,7 +5,7 @@ method: post
 {% liquid
   assign input = context.params.password
   assign redirect_url = context.params.redirect_to | default: '/'
-  hash_assign input['user_id'] = context.session.reset_password_session_user_id
+  assign input.user_id = context.session.reset_password_session_user_id
 
   function object = 'modules/user/commands/passwords/create', object: input
   if object.valid

@@ -6,7 +6,7 @@ layout: ''
   {% background source_name: "liquid_tests", test_name: test_name %}
     {% include 'modules/tests/commands/run', format: 'log_js', test_name: test_name %}
   {% endbackground %}
-  {% assign result = '{}' | parse_json | hash_merge: test_name: test_name %}
+  {% assign result = { "test_name": test_name } %}
   {{ result }}
 {% else %}
   {"success":false,"error":"Tests can only be run in staging or development environment"}

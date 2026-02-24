@@ -8,9 +8,9 @@
 {% endcomment %}
 {% liquid
   if merge_to_object
-    assign results = '{}' | parse_json
+    assign results = {}
   else
-    assign results = '[]' | parse_json
+    assign results = []
   endif
 
   assign hook = '/hook_' | append: hook

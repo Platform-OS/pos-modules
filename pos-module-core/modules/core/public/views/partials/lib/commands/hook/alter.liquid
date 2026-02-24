@@ -17,6 +17,6 @@
     function _ = implementation.path, params_to_modify: params_to_modify, params: params
   endfor
 
-  assign result = '{}' | parse_json | hash_merge: original_params: original_params
+  assign result = { "original_params": original_params }
   return result
 %}

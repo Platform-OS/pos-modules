@@ -41,7 +41,7 @@
 <script type="module" defer src="{{ 'modules/chat/js/pos-chat.js' | asset_url }}"></script>
 
 <!-- message templates -->
-{% assign dummy_message = '{ "message": "", "created_at": null }' | parse_json %}
+{% assign dummy_message = { "message": "", "created_at": null } %}
 <template id="pos-chat-template-message-received">
   {% render 'modules/chat/message', message: dummy_message, authored: false, timezone: null %}
 </template>

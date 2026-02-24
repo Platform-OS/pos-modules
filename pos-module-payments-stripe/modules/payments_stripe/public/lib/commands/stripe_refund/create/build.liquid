@@ -1,6 +1,6 @@
 {%- liquid
   assign payable_ids = transaction.payable_ids | join: ','
-  hash_assign object['metadata'] = object.metadata | hash_merge: transaction_id: transaction.id, payable_ids: payable_ids, payer_id: transaction.payer_id
+  assign object.metadata = object.metadata | hash_merge: transaction_id: transaction.id, payable_ids: payable_ids, payer_id: transaction.payer_id
 -%}
 
 {%- parse_json data -%}

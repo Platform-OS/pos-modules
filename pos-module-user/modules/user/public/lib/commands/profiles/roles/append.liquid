@@ -1,5 +1,5 @@
 {% liquid
-  assign object = '{}' | parse_json | hash_merge: valid: true, id: id, role: role
+  assign object = { "valid": true, "id": id, "role": role }
   function object = 'modules/core/commands/execute', object: object, mutation_name: 'modules/user/profiles/roles/append'
 
   if object.errors == blank
