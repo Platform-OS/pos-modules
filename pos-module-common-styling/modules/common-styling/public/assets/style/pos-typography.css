@@ -340,6 +340,16 @@
     display: inline-block;
   }
 
+  .pos-prose ol li:has(h3:first-child):before {
+    font-family: var(--pos-font-heading);
+    font-size: 1.5rem;
+    font-weight: 400;
+  }
+
+  .pos-prose ol li h3:first-child {
+    display: inline-block;
+  }
+
 
 
   /* images */
