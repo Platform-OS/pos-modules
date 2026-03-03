@@ -1,8 +1,8 @@
-{% assign rows = '[]' | parse_json %}
+{% assign rows = [] %}
 
 {% assign header_row = "id,created_at,updated_at,user_id,avatar,uuid,name,first_name,last_name,slug,email" | split: ',' %}
 
-{%- assign rows = rows | add_to_array: header_row -%}
+{%- assign rows = rows << header_row -%}
 
 {%- graphql profiles = 'modules/profile/profiles/search', page: 1, limit: 100 -%}
 {%- assign total_pages = profiles.records.total_pages -%}
@@ -11,19 +11,19 @@
     {%- graphql profiles = 'modules/profile/profiles/search', page: i, limit: 100 -%}
   {%- endif -%}
   {%- for profile in profiles.records.results -%}
-    {%- assign row = '[]' | parse_json -%}
-    {%- assign row = row | add_to_array: profile.id -%}
-    {%- assign row = row | add_to_array: profile.created_at -%}
-    {%- assign row = row | add_to_array: profile.updated_at -%}
-    {%- assign row = row | add_to_array: profile.properties.user_id -%}
-    {%- assign row = row | add_to_array: profile.avatar.photo.versions -%}
-    {%- assign row = row | add_to_array: profile.properties.uuid -%}
-    {%- assign row = row | add_to_array: profile.properties.name -%}
-    {%- assign row = row | add_to_array: profile.properties.first_name -%}
-    {%- assign row = row | add_to_array: profile.properties.last_name -%}
-    {%- assign row = row | add_to_array: profile.properties.slug -%}
-    {%- assign row = row | add_to_array: profile.properties.email -%}
-    {%- assign rows = rows | add_to_array: row -%}
+    {%- assign row = [] -%}
+    {%- assign row = row <<profile.id -%}
+    {%- assign row = row <<profile.created_at -%}
+    {%- assign row = row <<profile.updated_at -%}
+    {%- assign row = row <<profile.properties.user_id -%}
+    {%- assign row = row <<profile.avatar.photo.versions -%}
+    {%- assign row = row <<profile.properties.uuid -%}
+    {%- assign row = row <<profile.properties.name -%}
+    {%- assign row = row <<profile.properties.first_name -%}
+    {%- assign row = row <<profile.properties.last_name -%}
+    {%- assign row = row <<profile.properties.slug -%}
+    {%- assign row = row <<profile.properties.email -%}
+    {%- assign rows = rows << row -%}
   {%- endfor -%}
 {%- endfor -%}
 

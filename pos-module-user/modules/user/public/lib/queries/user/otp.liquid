@@ -4,7 +4,7 @@
     return null
   endif
 
-  assign issuer = 'app.title' | t
+  assign issuer = 'app.title' | t: default: 'App'
   graphql r = 'modules/user/user/otp', email: email, issuer: issuer
 
   if r.errors

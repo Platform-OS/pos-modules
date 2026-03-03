@@ -6,7 +6,7 @@ metadata:
     app_host
 ---
 {% liquid
-  assign c = '{ "errors": {}, "valid": true }' | parse_json
+  assign c = { "errors": {}, "valid": true }
 
   function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'actor_id'
   function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'object_id'

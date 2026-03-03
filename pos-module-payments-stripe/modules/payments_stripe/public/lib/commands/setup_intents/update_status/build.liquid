@@ -12,6 +12,6 @@
     assign status = 'app.statuses.setup_intents.failed'
   endcase
 
-  assign data = null | hash_merge: id: setup_intent.id, c__status: status
+  assign data = {"id": setup_intent.id, "c__status": status}
   return data
 %}

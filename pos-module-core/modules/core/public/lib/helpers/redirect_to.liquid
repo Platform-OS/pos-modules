@@ -23,13 +23,12 @@
   # platformos-check-enable ConvertIncludeToRender
 
   if format == 'json'
-    assign response_json = null | hash_merge: type: 'redirect', url: url
+    assign response_json = {"type": 'redirect', "url": url}
     if object.valid
       echo response_json
     else
       response_status 422
-      assign res = { "errors": {} }
-      assign res.errors = response_json.errors
+      assign res = { "errors": response_json.errors }
 
       echo res
     endif

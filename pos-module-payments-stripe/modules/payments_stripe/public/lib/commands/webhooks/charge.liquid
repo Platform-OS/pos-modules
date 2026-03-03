@@ -1,6 +1,6 @@
 {%- liquid
   assign requester_id = 'stripe_webhook_request'
-  assign response = null | hash_merge: status: 200
+  assign response = {"status": 200}
   assign gateway_transaction_ids = params.data.object.id | split: '!!' | push: params.data.object.payment_intent | compact
   if params.data.object.metadata.transaction_id
     function transaction = 'modules/payments/queries/transactions/find', id: params.data.object.metadata.transaction_id

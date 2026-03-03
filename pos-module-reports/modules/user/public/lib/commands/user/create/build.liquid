@@ -1,8 +1,8 @@
 {% liquid
   if roles == null
-    assign roles = '[]' | parse_json
+    assign roles = []
     if context.constants.USER_DEFAULT_ROLE != blank
-      assign roles = roles | array_add: context.constants.USER_DEFAULT_ROLE
+      assign roles = roles << context.constants.USER_DEFAULT_ROLE
     endif
   else
     assign roles_type = roles | type_of
@@ -25,6 +25,6 @@
   }
 {% endparse_json %}
 
-{% hash_assign object['roles'] = roles %}
+{% assign object.roles = roles %}
 
 {% return object %}

@@ -1,4 +1,6 @@
 {% liquid
-  assign object = object | hash_merge: data: params, last_errors: params.requirements.disabled_reason, state: params.state
+  assign object.data = params
+  assign object.last_errors = params.requirements.disabled_reason
+  assign object.state = params.state
   return object
 %}

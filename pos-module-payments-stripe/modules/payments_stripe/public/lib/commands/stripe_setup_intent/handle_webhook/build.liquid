@@ -1,5 +1,5 @@
 {% liquid
-  assign data = null | hash_merge: setup_intent: setup_intent, id: object.id
+  assign data = {"setup_intent": setup_intent, "id": object.id}
   if object.customer
     function customer = 'modules/payments_stripe/commands/stripe_customer/retrieve', customer_id: object.customer, payer_id: setup_intent.reference_id, stripe_account_name: setup_intent.stripe_account_name
     assign data.customer = customer

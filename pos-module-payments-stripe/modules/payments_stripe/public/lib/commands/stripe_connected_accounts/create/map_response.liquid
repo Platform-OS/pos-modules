@@ -7,7 +7,7 @@
       assign data.errors = response.error
       assign data.valid = false
     else
-      assign data = data | hash_merge: id: response.id
+      assign data.id = response.id
       assign data.valid = true
     endif
   else

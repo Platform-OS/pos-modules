@@ -8,7 +8,7 @@
   assign name = 'consumers/' | append: object.type | append: '/'
   graphql consumers = 'modules/core/events/consumers', name: name | fetch: "admin_liquid_partials" | fetch: "results"
 
-  hash_assign object['consumers'] = consumers
+  assign object.consumers = consumers
   for consumer in consumers
     assign priority = 'default'
     if priorities contains consumer.metadata.priority

@@ -62,10 +62,20 @@ metadata:
 
   {% if type == 'textarea' %}
   <textarea
+    name="{{name}}"
+    class="{{ classes }}"
+    id="{{id}}"
+    {% if required %}required{% endif %}
+    {% if placeholder != blank %}placeholder="{{placeholder}}"{% endif %}
+    {% if disabled %}disabled{% endif %}
+    {% if variant == 'error' %}aria-invalid="true"{% endif %}
+    {% for attribute in attributes %}
+      {{ attribute[0] }}="{{ attribute[1] }}"
+    {% endfor %}
+  >{{ value | strip }}</textarea>
   {% else %}
   <input
     type="{{type}}"
-  {% endif %}
     name="{{name}}"
     class="{{ classes }}"
     id="{{id}}"
@@ -77,7 +87,7 @@ metadata:
     {% for attribute in attributes %}
       {{ attribute[0] }}="{{ attribute[1] }}"
     {% endfor %}
-  >{%- if type == 'textarea' -%}{{ value | strip }}</textarea>
+  >
   {% endif %}
 {% endif %}
 

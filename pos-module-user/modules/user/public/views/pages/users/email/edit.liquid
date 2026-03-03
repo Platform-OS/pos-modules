@@ -4,5 +4,5 @@
     include 'modules/core/helpers/redirect_to'
   endif
 
-  render 'modules/user/users/email/edit', otp_enabled: current_profile.otp_configured
+  render 'modules/user/users/email/edit', context: context, otp_enabled: current_profile.otp_configured, errors: null
 %}

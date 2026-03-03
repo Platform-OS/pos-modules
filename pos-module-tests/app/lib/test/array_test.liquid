@@ -2,7 +2,7 @@
   # Test array-related assertions
 
   # Test array size using equal
-  assign items = '["a", "b", "c"]' | parse_json
+  assign items = ["a", "b", "c"]
   function contract = 'modules/tests/assertions/equal', contract: contract, given: items.size, expected: 3, field_name: 'array has 3 items'
 
   # Test first element

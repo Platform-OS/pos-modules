@@ -15,8 +15,7 @@
   function contract = 'modules/tests/assertions/blank', contract: contract, given: empty_string, field_name: 'empty string is blank'
 
   # Test presence assertion - expects object with field_name key
-  assign obj_with_value = '{}' | parse_json
-  hash_assign obj_with_value['my_field'] = 'some value'
+  assign obj_with_value = { "my_field": 'some value' }
   function contract = 'modules/tests/assertions/presence', contract: contract, object: obj_with_value, field_name: 'my_field'
 
   # Test true assertion - expects value parameter

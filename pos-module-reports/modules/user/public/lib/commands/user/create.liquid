@@ -13,7 +13,7 @@
   function object = 'modules/user/commands/user/create/check', object: object
   if object.valid
     function object = 'modules/core/commands/execute', mutation_name: 'modules/user/user/create', object: object, selection: 'user'
-    assign event_payload = null | hash_merge: user_id: object.id
+    assign event_payload = {"user_id": object.id}
     function _ = 'modules/core/commands/events/publish', type: 'user_created', object: event_payload, delay: null, max_attempts: null
   endif
 

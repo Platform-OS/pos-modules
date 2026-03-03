@@ -59,16 +59,16 @@ metadata:
   assign classes = classes | default: params.classes
   assign validation = validation | default: params.validation
   assign input_params = input_params | default: params.input_params
-  assign attributes = '{}' | parse_json
+  assign attributes = {}
   assign input_attributes = input_params.attributes | default: attributes
 
   assign id = input_attributes.id | default: input_params.name
 
-  hash_assign input_attributes['aria-describedby'] = '' | append: input_params.name | append: '-desc'
+  assign input_attributes["aria-describedby"] = '' | append: input_params.name | append: '-desc'
 
-  assign input_params = input_params | hash_merge: attributes: input_attributes
+  assign input_params.attributes = input_attributes
   if validation.passed == false
-    hash_assign input_params['variant'] = 'error'
+    assign input_params.variant = 'error'
   endif
 
   assign description_params = description_params | default: params.description_params
@@ -97,14 +97,14 @@ metadata:
     <div id="{{ input_params.name }}-desc" class="flex gap-2">
 
         {% if validation.passed == true %}
-          {% assign icon_params = '{}' | parse_json | hash_merge: name: 'checkBadge' %}
+          {% assign icon_params = {"name": 'checkBadge'} %}
           <span class="text-confirmation">
             {% theme_render_rc 'components/atoms/icon', params: icon_params %}
           </span>
         {% endif %}
 
         {% if validation.passed == false %}
-          {% assign icon_params = '{}' | parse_json | hash_merge: name: 'warningCloud' %}
+          {% assign icon_params = {"name": 'warningCloud'} %}
           <span class="text-important">
             {% theme_render_rc 'components/atoms/icon', params: icon_params %}
           </span>
@@ -122,7 +122,7 @@ metadata:
             <ul>
               {% for message in validation.messages %}
                 <li class="flex items-center">
-                  {% assign description_params = '{}' | parse_json | hash_merge: content: message, classes: '!text-important' %}
+                  {% assign description_params = {"content": message, "classes": '!text-important'} %}
                   {% theme_render_rc 'components/atoms/sidenote', params: description_params %}
                 </li>
               {% endfor %}

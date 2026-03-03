@@ -1,5 +1,5 @@
 {% liquid
-  assign object = null | hash_merge: id: current_user.id, email: object.email, password: object.password
+  assign object = {"id": current_user.id, "email": object.email, "password": object.password}
 
   return object
 %}

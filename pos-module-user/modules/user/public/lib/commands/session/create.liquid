@@ -46,7 +46,7 @@
       endif
       assign object.user = user
 
-      assign event_payload = null | hash_merge: user_id: object.id
+      assign event_payload = {"user_id": object.id}
       function _ = 'modules/core/commands/events/publish', type: 'user_signed_in', object: event_payload, delay: null, max_attempts: null
     endif
   endif

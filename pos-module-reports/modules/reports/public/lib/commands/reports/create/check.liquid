@@ -17,7 +17,9 @@
     endtry
   endif
 
-  assign object = object | hash_merge: c
+  assign object.valid = c.valid
+
+  assign object.errors = c.errors
 
   return object
  %}

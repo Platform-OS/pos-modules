@@ -11,7 +11,7 @@ slug: inbox
   if context.params.to_uuid != blank
     function record = 'modules/chat/lib/queries/records/find_by_uuid', uuid: context.params['to_uuid']
   endif
-  assign object = null | hash_merge: to_id: record.id, conversation_id: context.params['conversation_id']
+  assign object = {"to_id": record.id, "conversation_id": context.params['conversation_id']}
   if record or context.params.conversation_id
     function current_conversation = 'modules/chat/lib/commands/conversations/find_or_create', object: object, current_profile: current_profile
   endif

@@ -8,7 +8,7 @@
     assign data.external_id = response.client_reference_id
     function transaction = 'modules/payments/queries/transactions/find', id: data.external_id
     assign data.transaction = transaction
-    assign customer = nil | hash_merge: customer_id: response.customer, email: response.customer_details.email, name: response.customer_details.name, reference_id: transaction.payer_id
+    assign customer = {"customer_id": response.customer, "email": response.customer_details.email, "name": response.customer_details.name, "reference_id": transaction.payer_id}
     assign data.customer = customer
 
     case object.name

@@ -4,11 +4,11 @@
   assign uuid = object.uuid | default: uuid_new
   assign name = object.first_name | append: ' ' | append: object.last_name
 
-  assign data = null | hash_merge: first_name: object.first_name, last_name: object.last_name, user_id: object.user_id, email: object.email, uuid: uuid, name: name, c__names: tokenized_names
+  assign data = {"first_name": object.first_name, "last_name": object.last_name, "user_id": object.user_id, "email": object.email, "uuid": uuid, "name": name, "c__names": tokenized_names}
   if object.roles == null
     assign roles = []
     if context.constants.USER_DEFAULT_ROLE != blank
-      assign roles << context.constants.USER_DEFAULT_ROLE
+      assign roles = roles << context.constants.USER_DEFAULT_ROLE
     endif
   else
     assign roles_type = object.roles | type_of
@@ -21,7 +21,7 @@
       assign roles = []
 
       if context.constants.USER_DEFAULT_ROLE != blank
-        assign roles << context.constants.USER_DEFAULT_ROLE
+        assign roles = roles << context.constants.USER_DEFAULT_ROLE
       endif
     endif
   endif

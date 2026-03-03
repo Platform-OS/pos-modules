@@ -9,11 +9,11 @@ metadata:
   {% liquid
     if context.params.query != blank and context.params.query.size < 1000
 
-      assign c = '{ "errors": {}, "valid": true }' | parse_json
+      assign c = { "errors": {}, "valid": true }
       function c = 'modules/core/validations/hcaptcha', c: c, hcaptcha_params: context.params
 
       if c.valid
-        assign user_input = '[]' | parse_json | add_to_array: context.params.query
+        assign user_input = [context.params.query]
         function response = 'modules/openai/commands/openai/fetch_embeddings', object: user_input
 
         if response.data.size > 0

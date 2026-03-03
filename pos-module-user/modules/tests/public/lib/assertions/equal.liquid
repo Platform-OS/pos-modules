@@ -1,5 +1,5 @@
 {% liquid
-  hash_assign contract['total'] = contract['total'] | plus: 1
+  assign contract.total = contract['total'] | plus: 1
 
   if given != expected
     assign msg = 'modules/tests/should.equal' | t: given: given, expected: expected

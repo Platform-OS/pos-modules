@@ -14,11 +14,10 @@ slug: users
     function _ = 'modules/user/commands/session/create', user_id: object.id, validate_password: false, email: null, password: null, hook_params: null
     include 'modules/core/helpers/redirect_to'
   else
-    assign values = object | default: null | hash_merge: password: ''
-
     function registration_fields = 'modules/user/queries/registration_fields/load'
 
-    assign values = params | hash_merge: password: ''
+    assign values = params
+    assign values.password = ''
     theme_render_rc 'users/new', context: context, registration_fields: registration_fields, errors: object.errors, values: values
   endif
 %}

@@ -5,9 +5,9 @@
   assign payload = {}
   if with_payment_intent
     assign expand = ["payment_intent"]
-    assign payload = payload | hash_merge: expand: expand
+    assign payload.expand = expand
   endif
-  assign data = null | hash_merge: payload: payload, request_type: 'GET', to: url
+  assign data = {"payload": payload, "request_type": 'GET', "to": url}
 
   return data
  %}

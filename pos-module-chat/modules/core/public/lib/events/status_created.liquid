@@ -8,7 +8,7 @@ metadata:
     payload
 ---
 {% liquid
-  assign c = '{ "errors": {}, "valid": true }' | parse_json
+  assign c = { "errors": {}, "valid": true }
 
   function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'name'
   function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'reference_id'

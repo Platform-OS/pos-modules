@@ -1,10 +1,10 @@
 {%- liquid
   assign result = {}
   if object.records_filter
-    assign result.records_filter = null | hash_merge: filter: object.records_filter
+    assign result.records_filter = {"filter": object.records_filter}
   endif
   if object.users_filter
-    assign result.users_filter = null | hash_merge: filter: object.users_filter
+    assign result.users_filter = {"filter": object.users_filter}
   endif
   if object.encryption
     assign result.encryption = object.encryption

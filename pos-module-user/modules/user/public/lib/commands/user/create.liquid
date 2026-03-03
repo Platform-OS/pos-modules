@@ -24,7 +24,7 @@
       return profile
     endif
 
-    assign event_payload = null | hash_merge: user_id: user.id
+    assign event_payload = {"user_id": user.id}
     function _ = 'modules/core/commands/events/publish', type: 'user_created', object: event_payload, delay: null, max_attempts: null
 
     return user

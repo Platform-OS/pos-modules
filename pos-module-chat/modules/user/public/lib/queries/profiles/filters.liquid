@@ -4,10 +4,10 @@
     "first_name_asc": { "properties": { "name": "first_name", "order": "ASC" }}
   }
   assign filters = {}
-  hash_assign filters['page'] = params.page | to_positive_integer: 1
-  hash_assign filters['keyword'] = params.keyword | default: ''
-  hash_assign filters['sort_by'] = params.sort_by | default: 'first_name_desc'
-  hash_assign filters['sort'] = sort_options[filters.sort_by]
+  assign filters.page = params.page | to_positive_integer: 1
+  assign filters.keyword = params.keyword | default: ''
+  assign filters.sort_by = params.sort_by | default: 'first_name_desc'
+  assign filters.sort = sort_options[filters.sort_by]
 
   return filters
  %}

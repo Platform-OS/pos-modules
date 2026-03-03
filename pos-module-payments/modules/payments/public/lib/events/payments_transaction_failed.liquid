@@ -4,7 +4,7 @@ metadata:
     transaction_id
 ---
 {% liquid
-  assign c = '{ "errors": {}, "valid": true }' | parse_json
+  assign c = { "errors": {}, "valid": true }
 
   function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'transaction_id'
 

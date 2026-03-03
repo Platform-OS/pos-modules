@@ -34,16 +34,18 @@ metadata:
   {% for field in registration_fields %}
     {% liquid
       assign default_value = values[field.name] | raw_escape_string
-      assign error_messages = '[]' | parse_json
+      assign error_messages = []
       assign has_error = errors[field.name]
-      assign validation = null | hash_merge: messages: error_messages
+      assign validation = {"messages": error_messages}
       if has_error
-        hash_assign validation['passed'] = false
-        hash_assign validation['messages'] = errors[field.name]
+        assign validation.passed = false
+        assign validation.messages = errors[field.name]
       endif
-      assign input_params = field | hash_merge: value: default_value, classes: 'w-full'
-      assign label_params = null | hash_merge: content: field.label
-      assign field_params = null | hash_merge: validation: validation, input_params: input_params, label_params: label_params, classes: 'mb-6'
+      assign input_params = field
+      assign input_params.value = default_value
+      assign input_params.classes = 'w-full'
+      assign label_params = {"content": field.label}
+      assign field_params = {"validation": validation, "input_params": input_params, "label_params": label_params, "classes": 'mb-6'}
 
       theme_render_rc 'components/molecules/formfield', params: field_params
     %}

@@ -4,9 +4,9 @@
 {% liquid
   if context.current_user
     function user = 'modules/user/queries/user/load', id: context.current_user.id
-    hash_assign user['roles'] = user['roles'] | array_add: 'authenticated'
+    assign user.roles = user.roles << 'authenticated'
   else
-    assign user = '{ "roles": ["anonymous"] }' | parse_json
+    assign user = { "roles": ["anonymous"] }
   endif
   return user
 %}

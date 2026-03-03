@@ -2,15 +2,15 @@
   # Test object validation assertions
 
   # Create a valid object
-  assign valid_obj = '{"valid": true, "name": "test"}' | parse_json
+  assign valid_obj = {"valid": true, "name": "test"}
   function contract = 'modules/tests/assertions/valid_object', contract: contract, object: valid_obj, field_name: 'object is valid'
 
   # Create an invalid object
-  assign invalid_obj = '{"valid": false, "errors": {"name": "is required"}}' | parse_json
+  assign invalid_obj = {"valid": false, "errors": {"name": "is required"}}
   function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: invalid_obj, field_name: 'object is invalid'
 
   # Test object contains object
-  assign container = '{"foo": "bar", "nested": {"a": 1, "b": 2}}' | parse_json
-  assign subset = '{"foo": "bar"}' | parse_json
+  assign container = {"foo": "bar", "nested": {"a": 1, "b": 2}}
+  assign subset = {"foo": "bar"}
   function contract = 'modules/tests/assertions/object_contains_object', contract: contract, object: container, subset: subset, field_name: 'container has subset'
 %}

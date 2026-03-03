@@ -3,7 +3,9 @@ method: post
 ---
 {% liquid
   if context.params.payment_status == 'success_delayed'
-    assign object = context.params | hash_merge: payment_status: 'success', valid: true
+    assign object = context.params
+    assign object.payment_status = 'success'
+    assign object.valid = true
     background _ = 'modules/payments_example_gateway/commands/update_transaction_status', object: object, delay: 0.25
   else
     function object = 'modules/payments_example_gateway/commands/update_transaction_status', object: context.params

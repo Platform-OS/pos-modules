@@ -6,7 +6,10 @@
       assign data.errors = response.error
       assign data.valid = false
     else
-      assign payment_method = response[response.type] | hash_merge: payment_method_id: response.id, type: response.type, stripe_account_name: stripe_account_name
+      assign payment_method = response[response.type]
+      assign payment_method.payment_method_id = response.id
+      assign payment_method.type = response.type
+      assign payment_method.stripe_account_name = stripe_account_name
       assign data = payment_method
       assign data.valid = true
     endif

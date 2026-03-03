@@ -1,5 +1,5 @@
 {% liquid
-  hash_assign contract['total'] = contract['total'] | plus: 1
+  assign contract.total = contract['total'] | plus: 1
 
   assign value = value | default: object[field_name]
   unless value

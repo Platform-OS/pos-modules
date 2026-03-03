@@ -25,6 +25,8 @@
     function c = 'modules/core/helpers/register_error', contract: c, field_name: type, message: message
   endif
 
-  assign object = object | hash_merge: c
+  assign object.valid = c.valid
+
+  assign object.errors = c.errors
   return object
  %}
