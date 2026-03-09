@@ -133,12 +133,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -f "${{ env.LOGS_DIR }}/platformos-check.json" ]; then
+            # Extract and display summary statistics
+            echo "## Summary" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            jq -r '"| Total Offenses | \(.offenseCount) |", "| Files with Issues | \(.fileCount) |", "| Errors | \(.errorCount) |", "| Warnings | \(.warningCount) |", "| Info | \(.infoCount) |"' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
             echo "## Issues Found" >> $GITHUB_STEP_SUMMARY
             echo "| File | Line | Column | Severity | Check | Message |" >> $GITHUB_STEP_SUMMARY
             echo "|------|------|--------|----------|-------|---------|" >> $GITHUB_STEP_SUMMARY
 
             # Try to parse and add issues
-            if jq -r '.[] | .path as $file | .offenses[] | "| \($file) | \(.start_row) | \(.start_column) | \(.severity) | \(.check) | \(.message) |"' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY 2>&1; then
+            if jq -r '.files[] | .path as $file | .offenses[] | "| \($file) | \(.start_row) | \(.start_column) | \(.severity) | \(.check) | \(.message) |"' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY 2>&1; then
               echo "Issues table generated successfully"
             else
               echo "| N/A | N/A | N/A | N/A | N/A | Failed to parse JSON - see logs for details |" >> $GITHUB_STEP_SUMMARY
