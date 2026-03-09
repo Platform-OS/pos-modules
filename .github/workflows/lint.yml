@@ -81,7 +81,7 @@ jobs:
     strategy:
       matrix:
         # module: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
-        module: common-styling
+        module: [common-styling]
       fail-fast: false
     env:
       CI: true
