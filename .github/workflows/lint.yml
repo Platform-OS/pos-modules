@@ -96,9 +96,10 @@ jobs:
           echo "Changed modules for linting: $modules"
 
   run-linter:
-    needs: [detect-changes]
+    needs: [pre_job, detect-changes]
     if: |
       always() &&
+      needs.pre_job.outputs.should_skip != 'true' &&
       (github.event_name == 'workflow_dispatch' ||
        needs.detect-changes.outputs.changed-modules != '[]')
     runs-on: ubuntu-latest
