@@ -9,6 +9,26 @@ on:
     paths-ignore:
       - "**/README.md"
   workflow_dispatch:
+    inputs:
+      module:
+        description: 'Module to lint (e.g., common-styling, user, chat)'
+        required: true
+        type: choice
+        options:
+          - chat
+          - common-styling
+          - core
+          - data-export-api
+          - oauth-facebook
+          - oauth-github
+          - oauth-google
+          - openai
+          - payments
+          - payments-example-gateway
+          - payments-stripe
+          - reports
+          - tests
+          - user
 
 jobs:
   pre_job:
@@ -25,7 +45,7 @@ jobs:
 
   detect-changes:
     needs: pre_job
-    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    if: ${{ github.event_name != 'workflow_dispatch' && needs.pre_job.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
     outputs:
       changed-modules: ${{ steps.set-matrix.outputs.matrix }}
@@ -75,12 +95,15 @@ jobs:
           echo "Changed modules for linting: $modules"
 
   run-linter:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.changed-modules != '[]'
+    needs: [detect-changes]
+    if: |
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+       needs.detect-changes.outputs.changed-modules != '[]')
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        module: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
+        module: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.module)) || fromJSON(needs.detect-changes.outputs.changed-modules) }}
       fail-fast: false
     env:
       CI: true
