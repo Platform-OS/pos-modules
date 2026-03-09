@@ -74,7 +74,7 @@ jobs:
           echo "matrix=$modules" >> $GITHUB_OUTPUT
           echo "Changed modules for linting: $modules"
 
-  lint-platformos-check:
+  run-linter:
     needs: detect-changes
     if: needs.detect-changes.outputs.changed-modules != '[]'
     runs-on: ubuntu-latest
@@ -84,40 +84,31 @@ jobs:
       fail-fast: false
     env:
       CI: true
-      PLATFORMOS_CHECK_DEBUG: true
-      DOCKER_WORKSPACE: ${{ github.workspace }}/pos-module-${{ matrix.module }}
       LOGS_DIR: ${{ github.workspace }}/pos-module-${{ matrix.module }}/logs
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Install pos-cli
+        id: install_pos_cli
+        run: npm install -g @platformos/pos-cli@latest
 
       - name: Set up logs directory
         run: |
           mkdir -p ${{ env.LOGS_DIR }}
           chmod -R 777 ${{ env.LOGS_DIR }}
 
-      - name: Start PlatformOS LSP
-        id: start_lsp
-        run: |
-          docker run -i \
-            -v ${{ env.DOCKER_WORKSPACE }}:${{ env.DOCKER_WORKSPACE }} \
-            -w ${{ env.DOCKER_WORKSPACE }} \
-            -e PLATFORMOS_CHECK_DEBUG=${{ env.PLATFORMOS_CHECK_DEBUG }} \
-            -e PLATFORMOS_CHECK_DEBUG_LOG_FILE=${{ env.LOGS_DIR }}/platformos-lsp.log \
-            platformos/platformos-lsp:latest
-
-      - name: Run platformos-check
-        if: steps.start_lsp.outcome == 'success'
+      - name: Run pos-cli check
+        if: steps.install_pos_cli.outcome == 'success'
         id: run_check
         run: |
           set +e  # Disable exit on error
-          docker run -i \
-            -v ${{ env.DOCKER_WORKSPACE }}:${{ env.DOCKER_WORKSPACE }} \
-            -w ${{ env.DOCKER_WORKSPACE }} \
-            -e PLATFORMOS_CHECK_DEBUG=${{ env.PLATFORMOS_CHECK_DEBUG }} \
-            -e PLATFORMOS_CHECK_DEBUG_LOG_FILE=${{ env.LOGS_DIR }}/platformos-check.log \
-            platformos/platformos-check:latest -o json > ${{ env.LOGS_DIR }}/platformos-check-raw.json
-          docker_exit_code=$?
+          pos-cli check run ${{ matrix.module }} -f json > ${{ env.LOGS_DIR }}/platformos-check-raw.json
           set -e  # Re-enable exit on error
 
           jq . ${{ env.LOGS_DIR }}/platformos-check-raw.json | tee ${{ env.LOGS_DIR }}/platformos-check.json
@@ -130,7 +121,6 @@ jobs:
         with:
           name: platformos_check_logs_${{ matrix.module }}_${{ github.run_id }}
           path: |
-            ${{ env.LOGS_DIR }}/platformos-lsp.log
             ${{ env.LOGS_DIR }}/platformos-check.json
             ${{ env.LOGS_DIR }}/platformos-check-raw.json
 
