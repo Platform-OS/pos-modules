@@ -42,7 +42,7 @@ jobs:
         with:
           github_token: ${{ github.token }}
           paths_ignore: '["**/README.md"]'
-          do_not_skip: '["workflow_dispatch"]'
+          do_not_skip: '["push"]'
 
   detect-changes:
     needs: pre_job
