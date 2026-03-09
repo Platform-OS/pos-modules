@@ -1,5 +1,5 @@
 name: Lint modules
-run-name: ${{ github.event_name == 'workflow_dispatch' && format('Lint: {0}', inputs.module) || github.event_name == 'pull_request' && format('Lint PR #{0}', github.event.pull_request.number) || format('Lint: {0}', github.ref_name) }}
+run-name: ${{ (github.event_name == 'workflow_dispatch' && format('Lint: {0}', inputs.module)) || (github.event_name == 'pull_request' && format('Lint PR #{0}', github.event.pull_request.number)) || format('Lint: {0}', github.ref_name) }}
 
 on:
   pull_request:
