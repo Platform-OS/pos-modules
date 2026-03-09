@@ -110,11 +110,12 @@ jobs:
         run: |
           set +e  # Disable exit on error
           pos-cli check run pos-module-${{ matrix.module }} -f json > ${{ env.LOGS_DIR }}/platformos-check-raw.json
+          check_exit_code=$?  # Capture the exit code
           set -e  # Re-enable exit on error
 
           jq . ${{ env.LOGS_DIR }}/platformos-check-raw.json | tee ${{ env.LOGS_DIR }}/platformos-check.json
 
-          exit $docker_exit_code
+          exit $check_exit_code
 
       - name: Upload logs
         if: always() && steps.run_check.outcome != 'skipped'
