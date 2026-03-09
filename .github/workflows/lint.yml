@@ -109,7 +109,7 @@ jobs:
         id: run_check
         run: |
           set +e  # Disable exit on error
-          pos-cli check run ${{ matrix.module }} -f json > ${{ env.LOGS_DIR }}/platformos-check-raw.json
+          pos-cli check run pos-module-${{ matrix.module }} -f json > ${{ env.LOGS_DIR }}/platformos-check-raw.json
           set -e  # Re-enable exit on error
 
           jq . ${{ env.LOGS_DIR }}/platformos-check-raw.json | tee ${{ env.LOGS_DIR }}/platformos-check.json
