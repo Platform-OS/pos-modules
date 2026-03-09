@@ -1,5 +1,5 @@
 name: Lint modules
-run-name: Lint ${{ inputs.module || github.ref_name }}
+run-name: ${{ inputs.module && format('Lint {0}', inputs.module) || github.event.head_commit.message || github.event.pull_request.title || 'Lint modules' }}
 
 on:
   pull_request:
