@@ -661,6 +661,8 @@
   --pos-font-default: system-ui, sans-serif;
   /* headings */
   --pos-font-heading: 'Source Code Pro', 'Consolas', monospace;
+  /* code */
+  --pos-font-code: monospace;
 }
 
 

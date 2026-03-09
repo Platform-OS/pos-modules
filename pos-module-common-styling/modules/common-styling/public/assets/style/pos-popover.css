@@ -12,9 +12,18 @@
 
   /* popover position
   ============================================================================ */
-  .pos-popover [popovertarget] {
+  .pos-popover > [popovertarget] {
     position: relative;
+    cursor: pointer;
   }
+
+    .pos-popover > [popovertarget]:hover {
+      color: var(--pos-color-interactive-hover);
+    }
+
+    .pos-popover > [popovertarget]:active {
+      color: var(--pos-color-interactive-active);
+    }
 
   .pos-popover [popover] {
     min-width: 100px;
@@ -46,6 +55,10 @@
   ============================================================================ */
   .pos-popover:has(:popover-open) {
     z-index: 10;
+  }
+
+  .pos-popover:has(:popover-open) > [popovertarget] {
+    color: var(--pos-color-interactive-active);
   }
 
   .pos-popover:has(:popover-open) > [popovertarget]:after {
