@@ -1,13 +1,13 @@
 name: Lint modules
 
 on:
-  # pull_request:
-  #   branches: [ master ]
-  #   paths-ignore:
-  #     - "**/README.md"
-  # push:
-  #   paths-ignore:
-  #     - "**/README.md"
+  pull_request:
+    branches: [ master ]
+    paths-ignore:
+      - "**/README.md"
+  push:
+    paths-ignore:
+      - "**/README.md"
   workflow_dispatch:
 
 jobs:
@@ -23,65 +23,64 @@ jobs:
           paths_ignore: '["**/README.md"]'
           do_not_skip: '["push"]'
 
-  # detect-changes:
-  #   needs: pre_job
-  #   if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-  #   runs-on: ubuntu-latest
-  #   outputs:
-  #     changed-modules: ${{ steps.set-matrix.outputs.matrix }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - uses: dorny/paths-filter@v3
-  #       id: filter
-  #       with:
-  #         filters: |
-  #           payments:
-  #             - 'pos-module-payments/**'
-  #           user:
-  #             - 'pos-module-user/**'
-  #           chat:
-  #             - 'pos-module-chat/**'
-  #           common-styling:
-  #             - 'pos-module-common-styling/**'
-  #           tests:
-  #             - 'pos-module-tests/**'
-  #           core:
-  #             - 'pos-module-core/**'
-  #           oauth-facebook:
-  #             - 'pos-module-oauth-facebook/**'
-  #           oauth-github:
-  #             - 'pos-module-oauth-github/**'
-  #           oauth-google:
-  #             - 'pos-module-oauth-google/**'
-  #           openai:
-  #             - 'pos-module-openai/**'
-  #           reports:
-  #             - 'pos-module-reports/**'
-  #           data-export-api:
-  #             - 'pos-module-data-export-api/**'
-  #           payments-stripe:
-  #             - 'pos-module-payments-stripe/**'
-  #           payments-example-gateway:
-  #             - 'pos-module-payments-example-gateway/**'
-  #
-  #     - name: Set matrix for changed modules
-  #       id: set-matrix
-  #       run: |
-  #         # Extract module names where filter output is "true"
-  #         modules=$(echo '${{ toJSON(steps.filter.outputs) }}' | jq -c '[to_entries[] | select(.value == "true") | .key]')
-  #
-  #         echo "matrix=$modules" >> $GITHUB_OUTPUT
-  #         echo "Changed modules for linting: $modules"
+  detect-changes:
+    needs: pre_job
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      changed-modules: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            payments:
+              - 'pos-module-payments/**'
+            user:
+              - 'pos-module-user/**'
+            chat:
+              - 'pos-module-chat/**'
+            common-styling:
+              - 'pos-module-common-styling/**'
+            tests:
+              - 'pos-module-tests/**'
+            core:
+              - 'pos-module-core/**'
+            oauth-facebook:
+              - 'pos-module-oauth-facebook/**'
+            oauth-github:
+              - 'pos-module-oauth-github/**'
+            oauth-google:
+              - 'pos-module-oauth-google/**'
+            openai:
+              - 'pos-module-openai/**'
+            reports:
+              - 'pos-module-reports/**'
+            data-export-api:
+              - 'pos-module-data-export-api/**'
+            payments-stripe:
+              - 'pos-module-payments-stripe/**'
+            payments-example-gateway:
+              - 'pos-module-payments-example-gateway/**'
+
+      - name: Set matrix for changed modules
+        id: set-matrix
+        run: |
+          # Extract module names where filter output is "true"
+          modules=$(echo '${{ toJSON(steps.filter.outputs) }}' | jq -c '[to_entries[] | select(.value == "true") | .key]')
+
+          echo "matrix=$modules" >> $GITHUB_OUTPUT
+          echo "Changed modules for linting: $modules"
 
   run-linter:
-    # needs: detect-changes
-    # if: needs.detect-changes.outputs.changed-modules != '[]'
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed-modules != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # module: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
-        module: [common-styling]
+        module: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
       fail-fast: false
     env:
       CI: true
