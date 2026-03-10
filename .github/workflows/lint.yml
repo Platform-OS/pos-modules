@@ -124,9 +124,16 @@ jobs:
         run: npm install -g @platformos/pos-cli@latest
 
       - name: Set up logs directory
+        if: steps.install_pos_cli.outcome == 'success'
         run: |
           mkdir -p ${{ env.LOGS_DIR }}
           chmod -R 777 ${{ env.LOGS_DIR }}
+
+      - name: Install modules
+        if: steps.install_pos_cli.outcome == 'success'
+        run: |
+          cd pos-module-${{ matrix.module }}
+          pos-cli modules install
 
       - name: Run pos-cli check
         if: steps.install_pos_cli.outcome == 'success'
