@@ -133,6 +133,7 @@ jobs:
         if: steps.install_pos_cli.outcome == 'success'
         run: |
           cd pos-module-${{ matrix.module }}
+          mkdir -p app
           pos-cli modules install
 
       - name: Run pos-cli check
