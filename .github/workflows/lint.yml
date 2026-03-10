@@ -166,33 +166,87 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -f "${{ env.LOGS_DIR }}/platformos-check.json" ]; then
-            # Extract and display summary statistics
+            JSON="${{ env.LOGS_DIR }}/platformos-check.json"
+
+            # Summary statistics
             echo "## Summary" >> $GITHUB_STEP_SUMMARY
             echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-            jq -r '"| Total Offenses | \(.offenseCount) |", "| Files with Issues | \(.fileCount) |", "| Errors | \(.errorCount) |", "| Warnings | \(.warningCount) |", "| Info | \(.infoCount) |"' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY
+            jq -r '"| Total Offenses | \(.offenseCount) |", "| Files with Issues | \(.fileCount) |", "| Errors | \(.errorCount) |", "| Warnings | \(.warningCount) |", "| Info | \(.infoCount) |"' "$JSON" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
 
-            echo "## Issues by File" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-
-            # Sort files: errors first, then by error count descending
+            # Offenses by check type
+            echo "## Offenses by Check Type" >> $GITHUB_STEP_SUMMARY
+            echo "| Check | Total | Errors | Warnings |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------|-------|--------|----------|" >> $GITHUB_STEP_SUMMARY
             jq -r '
-              .files
-              | sort_by(-.errorCount, -.warningCount)
+              [.files[].offenses[]] | group_by(.check)
+              | map({
+                  check: .[0].check,
+                  total: length,
+                  errors: map(select(.severity == "error")) | length,
+                  warnings: map(select(.severity == "warning")) | length
+                })
+              | sort_by(-.total)
               | .[]
-              | "### 📄 `\(.path)`",
-                "",
-                "**Errors:** \(.errorCount) | **Warnings:** \(.warningCount) | **Info:** \(.infoCount)",
-                "",
-                "| Line | Col | Severity | Check | Message |",
-                "|------|-----|----------|-------|---------|",
-                (.offenses | sort_by(
-                  (if .severity == "error" then 0 elif .severity == "warning" then 1 else 2 end),
-                  .start_row
-                ) | .[] | "| \(.start_row) | \(.start_column) | \(.severity) | `\(.check)` | \(.message) |"),
-                ""
-            ' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY
+              | "| `\(.check)` | \(.total) | \(.errors) | \(.warnings) |"
+            ' "$JSON" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Errors section — full detail for files with errors
+            ERROR_FILE_COUNT=$(jq '[.files[] | select(.errorCount > 0)] | length' "$JSON")
+            if [ "$ERROR_FILE_COUNT" -gt 0 ]; then
+              echo "## Errors ($ERROR_FILE_COUNT files)" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '
+                [.files[] | select(.errorCount > 0)]
+                | sort_by(-.errorCount)
+                | .[]
+                | "### \u274c `\(.path)`",
+                  "",
+                  "**Errors:** \(.errorCount) | **Warnings:** \(.warningCount)",
+                  "",
+                  "| Line | Col | Severity | Check | Message |",
+                  "|------|-----|----------|-------|---------|",
+                  (.offenses | sort_by(
+                    (if .severity == "error" then 0 elif .severity == "warning" then 1 else 2 end),
+                    .start_row
+                  ) | .[] | "| \(.start_row) | \(.start_column) | \(.severity) | `\(.check)` | \(.message | gsub("\n"; " ")) |"),
+                  ""
+              ' "$JSON" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            # Warnings section — collapsed, only top files shown
+            WARNING_ONLY_COUNT=$(jq '[.files[] | select(.errorCount == 0 and .warningCount > 0)] | length' "$JSON")
+            if [ "$WARNING_ONLY_COUNT" -gt 0 ]; then
+              TOTAL_WARNINGS=$(jq '.warningCount' "$JSON")
+              echo "<details>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary>## Warnings — ${TOTAL_WARNINGS} across ${WARNING_ONLY_COUNT} files (click to expand)</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+
+              # Show top 20 files by warning count
+              jq -r '
+                [.files[] | select(.errorCount == 0 and .warningCount > 0)]
+                | sort_by(-.warningCount)
+                | .[:20]
+                | .[]
+                | "### \u26a0\ufe0f `\(.path)` — \(.warningCount) warnings",
+                  "",
+                  "| Line | Col | Check | Message |",
+                  "|------|-----|-------|---------|",
+                  (.offenses | sort_by(.start_row)
+                  | .[] | "| \(.start_row) | \(.start_column) | `\(.check)` | \(.message | gsub("\n"; " ")) |"),
+                  ""
+              ' "$JSON" >> $GITHUB_STEP_SUMMARY
+
+              REMAINING=$((WARNING_ONLY_COUNT - 20))
+              if [ "$REMAINING" -gt 0 ]; then
+                echo "...and ${REMAINING} more files with warnings only." >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "## No output file found" >> $GITHUB_STEP_SUMMARY
             echo "Expected location: ${{ env.LOGS_DIR }}/platformos-check.json" >> $GITHUB_STEP_SUMMARY
