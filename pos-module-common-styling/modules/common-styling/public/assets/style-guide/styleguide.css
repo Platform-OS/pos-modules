@@ -80,6 +80,14 @@ p code {
       outline-offset: 4px;
     }
 
+    .styleguide-code pre code.hljs {
+      padding: 0;
+    }
+
+    .styleguide-code .hljs {
+      background: transparent;
+    }
+
 /* rendered output examples */
 .styleguide-example {
   padding: var(--pos-padding-card);

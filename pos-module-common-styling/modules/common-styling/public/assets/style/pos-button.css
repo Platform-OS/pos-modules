@@ -14,6 +14,10 @@
 
   /* basic
   ============================================================================ */
+  button {
+    cursor: pointer;
+  }
+  
   .pos-button {
     all: unset;
     display: revert;
