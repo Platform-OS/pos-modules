@@ -1,6 +1,7 @@
-query test_partials($path: String){
+query test_partials($path: String, $per_page: Int = 100, $page: Int = 1){
   admin_liquid_partials(
-    per_page: 300
+    per_page: $per_page
+    page: $page
     filter: {
       path: { ends_with: "_test", contains: $path }
     }

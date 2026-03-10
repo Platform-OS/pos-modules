@@ -3,7 +3,7 @@
 
   assign value = value | default: object[field_name]
   if value
-    function contract = 'modules/tests/helpers/register_error', contract: contract, field_name: field_name, key: 'test.should.not.be_true'
+    function contract = 'modules/tests/helpers/register_error', contract: contract, field_name: field_name, key: 'modules/tests/should.not.be_true'
   endif
 
   return contract

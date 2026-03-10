@@ -1,27 +1,34 @@
 {% liquid
   assign ctx = context
   assign ctx.tests = true
-  log 'Starting unit tests'
+  log 'Starting unit tests', type: test_name
   assign __start = "now" | to_time
-  graphql result = 'modules/tests/test_files/search', path: context.params.name
-  assign tests = result | dig: "admin_liquid_partials" | dig: "results"
+  assign per_page = 100
+  graphql count_result = 'modules/tests/test_files/count', per_page: per_page, path: context.params.name
+  assign total_pages = count_result | dig: "admin_liquid_partials" | dig: "total_pages"
 
   if tests.size == 0
-    echo 'no tests found'
+    unless format == 'js'
+      echo 'no tests found'
+    endunless
   endif
   assign total_errors = 0
   assign contracts = '' | split: ','
 
-  for test in tests
-    log test, type: "test:"
-    assign contract = { "errors": {}, "success": true, "total": 0 }
+  for page in (1..total_pages)
+    graphql search_result = 'modules/tests/test_files/search', path: context.params.name, page: page, per_page: per_page
+    assign tests = search_result | dig: "admin_liquid_partials" | dig: "results"
+    for test in tests
+      log test, type: test_name
+      assign contract = { "errors": {}, "success": true, "total": 0 }
 
-    # platformos-check-disable ConvertIncludeToRender
-    include test.path, registry: test.path, contract: contract
-    # platformos-check-enable ConvertIncludeToRender
-    assign contract.test_path = test.path
-    assign contracts = contracts << contract
-    assign total_errors = total_errors | plus: contract.errors.size
+      # platformos-check-disable ConvertIncludeToRender
+      include test.path, registry: test.path, contract: contract
+      # platformos-check-enable ConvertIncludeToRender
+      assign contract.test_path = test.path
+      assign contracts = contracts << contract
+      assign total_errors = total_errors | plus: contract.errors.size
+    endfor
   endfor
   assign __stop = "now" | to_time
   assign total_duration = __start | time_diff: __stop, 'ms' | round

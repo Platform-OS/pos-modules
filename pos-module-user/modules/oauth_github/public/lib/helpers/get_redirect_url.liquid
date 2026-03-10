@@ -1,8 +1,0 @@
-{% liquid 
-assign data = { "scope": "user:email", "client_id": provider.client_id, "state": state }
-
-assign querified_data = data | querify
-assign url = "https://github.com/login/oauth/authorize?" | append: querified_data
-
-return url
-%}
