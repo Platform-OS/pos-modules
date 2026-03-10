@@ -15,14 +15,14 @@
       {{ job_title }}
     {% endif %}
     {% if employer != blank %}
-      {{ 'modules/community/app.at' | t }} {{ employer }}{% if location != blank %}, {{ location }} {% endif %}
+      {{ 'modules/community/app.at' | t: default: 'at' }} {{ employer }}{% if location != blank %}, {{ location }} {% endif %}
     {% endif %}
   </div>
 
   <nav class="pos-card-user-actions">
     <ul>
       {% if my_profile %}
-        <li><a href="{{ url }}" class="pos-button pos-button-small">{{ 'modules/community/profiles.see_profile' | t }}</a></li>
+        <li><a href="{{ url }}" class="pos-button pos-button-small">{{ 'modules/community/profiles.see_profile' | t: default: 'See profile' }}</a></li>
       {% endif %}
 
       {% if allow_to_follow %}
