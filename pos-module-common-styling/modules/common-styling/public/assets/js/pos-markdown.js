@@ -47,7 +47,7 @@ window.pos.modules.markdown = function(settings){
     module.startEasyMde();
 
     // attach validation
-    module.settings.textarea.form.addEventListener('submit', event => {
+    module.settings.textarea.form?.addEventListener('submit', event => {
       module.validate(event);
     });
 
