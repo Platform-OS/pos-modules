@@ -24,8 +24,4 @@ code.hljs{color:#4c4f69;background:#eff1f5}code .hljs-keyword{color:#8839ef}code
 code.hljs {
   border-radius: calc(var(--pos-radius-card) / 2);
   background-color: var(--pos-color-highlight-background) !important;
-  
-  font-family: var(--pos-font-code) !important;
-  font-size: 1rem;
-  color: var(--pos-color-highlight-text) !important;
 }

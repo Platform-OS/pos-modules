@@ -368,7 +368,18 @@
 
     background-color: var(--pos-color-highlight-background);
 
+    font-family: var(--pos-font-code) !important;
+    font-size: 1rem;
     color: var(--pos-color-highlight-text);
+  }
+
+  .pos-prose pre code {
+    padding: 1rem;
+    display: block;
+    overflow-x: auto;
+
+    border-radius: calc(var(--pos-radius-card) / 2);
+    background-color: var(--pos-color-highlight-background);
   }
 
 
