@@ -8,7 +8,7 @@ export default class extends Generator {
 
     this.description = 'Generate table definition and commands for CRUD with graphql files';
     this.argument('modelName', { type: String, required: true, description: 'name of the table' });
-    this.argument('attributes', { type: Array, required: false, description: 'table column names with types', default: [] });
+    this.argument('attributes', { type: Array, required: false, description: 'table column names with types', default: "[]" });
     this.option('include-views', { type: Boolean, default: false, description: 'generate pages and partials', hide: 'no' });
 
     const attributes = this.options.attributes.map((attr) => {

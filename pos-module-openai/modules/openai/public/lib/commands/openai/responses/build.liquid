@@ -82,7 +82,7 @@ See also: https://platform.openai.com/docs/api-reference/responses/create
   assign data_frame.input[0].content = object['system_message'] | default: ""
   assign data_frame.input[1].content[0].text = object['user_message'] | default: ""
 
-  assign user_images = object['user_images'] | default: []
+  assign user_images = object['user_images'] | default: "[]"
 
   if user_images.size > 0
     assign user_content = data_frame.input[1].content
