@@ -2,7 +2,7 @@
   assign parameters = '' | split: ','
   for pair in payload
     assign component = pair[0] | append: '={' | append: pair[0] | append: '}'
-    assign parameters = parameters << component
+    assign parameters << component
   endfor
   if parameters.size > 0
     assign x_form_encoded = parameters | join: '&' | expand_url_template: payload

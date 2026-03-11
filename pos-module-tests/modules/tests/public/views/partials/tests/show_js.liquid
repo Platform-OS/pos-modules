@@ -8,7 +8,7 @@
 
     assign test_result = { "name": contract.test_path, "success": contract.success, "assertions": contract.total, "errors": contract.errors }
 
-    assign tests_array = tests_array << test_result
+    assign tests_array << test_result
   endfor
 
   if total_errors > 0

@@ -9,7 +9,7 @@ slug: admin/reports/list
 
 {% assign page = context.params.page | default: 1 | plus: 0 %}
 {% assign operation_models = [] %}
-{% assign operation_models = operation_models << params.type %}
+{% assign operation_models << params.type %}
 {% graphql operations = 'modules/reports/reports/search', limit: 10, page: page, operation_models: operation_models %}
 
 {% render 'admin/reports/list', operations: operations, page: page, type: context.params.type %}

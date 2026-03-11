@@ -18,7 +18,7 @@
   assign errors = contract.errors
 
   assign field_errors = errors[field_name] | default: []
-  assign field_errors = field_errors << msg
+  assign field_errors << msg
 
   assign errors[field_name] = field_errors
   assign contract.valid = false

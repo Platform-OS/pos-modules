@@ -13,7 +13,7 @@
   for page in all_pages
     assign contains_invalid_prefix = page.slug | start_with: ignored_prefixes
     unless contains_invalid_prefix
-      assign pages = pages << page
+      assign pages << page
     endunless
   endfor
 

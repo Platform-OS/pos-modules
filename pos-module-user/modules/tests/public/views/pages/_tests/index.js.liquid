@@ -15,7 +15,7 @@ layout: ''
         assign test_name = test.path | remove_first: 'lib/test/' | remove_first: '_test'
         assign test_url = '/_tests/run.js?test_name=' | append: test_name
         assign test_object = { "name": test_name, "url": test_url }
-        assign result = result << test_object
+        assign result << test_object
       endfor
     endfor
 

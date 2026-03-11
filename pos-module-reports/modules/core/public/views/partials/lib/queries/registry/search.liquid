@@ -11,7 +11,7 @@
       assign modules = []
       for module in registry
         if module.type == 'module'
-          assign modules = modules << module
+          assign modules << module
         endif
       endfor
       return modules
@@ -19,7 +19,7 @@
       assign themes = []
       for module in registry
         if module.type == 'theme'
-          assign themes = themes << module
+          assign themes << module
         endif
       endfor
       return themes

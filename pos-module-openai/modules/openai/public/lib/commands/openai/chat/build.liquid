@@ -86,7 +86,7 @@ See also: https://platform.openai.com/docs/api-reference/chat
 
     for item in user_images
       assign img_object = { "type": "image_url", "image_url": { "url": item } }
-      assign user_content = user_content << img_object
+      assign user_content << img_object
     endfor
 
     assign data_frame.messages[1].content = user_content

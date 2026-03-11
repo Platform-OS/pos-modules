@@ -2,7 +2,7 @@
 
 {% assign header_row = "id,created_at,updated_at,user_id,avatar,uuid,name,first_name,last_name,slug,email" | split: ',' %}
 
-{%- assign rows = rows << header_row -%}
+{%- assign rows << header_row -%}
 
 {%- graphql profiles = 'modules/profile/profiles/search', page: 1, limit: 100 -%}
 {%- assign total_pages = profiles.records.total_pages -%}
@@ -23,7 +23,7 @@
     {%- assign row = row <<profile.properties.last_name -%}
     {%- assign row = row <<profile.properties.slug -%}
     {%- assign row = row <<profile.properties.email -%}
-    {%- assign rows = rows << row -%}
+    {%- assign rows << row -%}
   {%- endfor -%}
 {%- endfor -%}
 

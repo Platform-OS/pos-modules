@@ -4,7 +4,7 @@
   assign errors = []
 
   if api_key != context.headers.HTTP_API_KEY
-    assign errors = errors << "API_KEY header invalid"
+    assign errors << "API_KEY header invalid"
   endif
 
   if whitelisted_ips != blank
@@ -13,7 +13,7 @@
     if whitelisted_ips contains ip
     else
       assign message = "IP address not allowed"
-      assign errors = errors << message
+      assign errors << message
     endif
   endif
 -%}

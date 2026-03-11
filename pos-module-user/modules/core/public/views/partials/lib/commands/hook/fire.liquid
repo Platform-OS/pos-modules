@@ -24,7 +24,7 @@
       endcomment
       if hook_result[0]
         for h_result in hook_result
-          assign results = results << h_result
+          assign results << h_result
         endfor
       comment
         Check if the result is an object.
@@ -32,7 +32,7 @@
       elsif hook_result.first and merge_to_object
         assign results = results | hash_merge: hook_result
       else
-        assign results = results << hook_result
+        assign results << hook_result
       endif
     endif
   endfor

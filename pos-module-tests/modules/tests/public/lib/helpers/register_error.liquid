@@ -18,7 +18,7 @@
   assign errors = contract.errors
 
   assign field_erorrs = errors[field_name] | default: '[]' | parse_json
-  assign field_erorrs = field_erorrs << msg
+  assign field_erorrs << msg
 
   assign errors[field_name] = field_erorrs
   assign contract.success = false

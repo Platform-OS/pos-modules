@@ -16,11 +16,11 @@
 
     for participant_id in conversation.participant_ids
       function profile = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
-      assign participants = participants << profile
+      assign participants << profile
     endfor
 
     assign conversation.participants = participants
-    assign conversations = conversations << conversation
+    assign conversations << conversation
   endfor
 
   assign result.results = conversations

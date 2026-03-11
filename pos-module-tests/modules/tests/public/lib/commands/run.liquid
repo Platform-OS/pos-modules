@@ -26,7 +26,7 @@
       include test.path, registry: test.path, contract: contract
       # platformos-check-enable ConvertIncludeToRender
       assign contract.test_path = test.path
-      assign contracts = contracts << contract
+      assign contracts << contract
       assign total_errors = total_errors | plus: contract.errors.size
     endfor
   endfor

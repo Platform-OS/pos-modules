@@ -13,7 +13,7 @@
     assign profile.properties.slug = slug
     assign p = profile | hash_merge: profile.properties
 
-    assign profiles = profiles << p
+    assign profiles << p
   endfor
   assign records.results = profiles
 

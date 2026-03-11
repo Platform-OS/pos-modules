@@ -8,7 +8,7 @@
   if object.roles == null
     assign roles = []
     if context.constants.USER_DEFAULT_ROLE != blank
-      assign roles = roles << context.constants.USER_DEFAULT_ROLE
+      assign roles << context.constants.USER_DEFAULT_ROLE
     endif
   else
     assign roles_type = object.roles | type_of
@@ -21,7 +21,7 @@
       assign roles = []
 
       if context.constants.USER_DEFAULT_ROLE != blank
-        assign roles = roles << context.constants.USER_DEFAULT_ROLE
+        assign roles << context.constants.USER_DEFAULT_ROLE
       endif
     endif
   endif
