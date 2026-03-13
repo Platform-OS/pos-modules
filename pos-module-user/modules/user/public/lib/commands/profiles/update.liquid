@@ -3,7 +3,7 @@
   function object = 'modules/user/commands/profiles/update/check', object: object
 
   if object.valid
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/user/profiles/update', object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/user/profiles/update', object: object, selection: null
     assign object = object | hash_merge: object.properties
   endif
   return object

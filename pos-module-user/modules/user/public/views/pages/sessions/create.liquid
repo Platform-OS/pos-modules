@@ -10,7 +10,7 @@ slug: sessions
   if res.valid and res.otp_required
     render 'modules/user/2fa/verify', object: context.params
   elsif res.valid
-    include 'modules/core/helpers/redirect_to'
+    include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
   else
     render 'modules/user/sessions/new', context: context, errors: res.errors, values: null
   endif

@@ -20,7 +20,7 @@ method: post
     function impersonate_user = 'modules/user/commands/session/impersonation/create', current_user_id: context.current_user.id, user: user_to_impersonate
 
     if impersonate_user.valid
-      include 'modules/core/helpers/redirect_to'
+      include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
     else
       print "Something went wrong."
     endif

@@ -16,7 +16,7 @@ method: post
       log object, 'ERROR: modules/user/profiles/mark_otp'
     endif
     assign notice = 'modules/user/2fa.delete.success' | t
-    include 'modules/core/helpers/redirect_to', url: '/', notice: notice
+    include 'modules/core/helpers/redirect_to', url: '/', notice: notice, default: null, error: null, format: null, info: null, object: null
   else
     render 'modules/user/2fa/disable', errors: object.errors
   endif

@@ -5,7 +5,7 @@ method: put
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
    if current_profile.user == null
-    include 'modules/core/helpers/redirect_to'
+    include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
   endif
 
   if current_profile.otp_configured
@@ -25,7 +25,7 @@ method: put
     function _event = 'modules/core/commands/events/publish', type: 'email_updated', object: event_payload, delay: null, max_attempts: null
 
      assign notice = 'modules/user/users.email.change_success' | t
-    include 'modules/core/helpers/redirect_to', url: '/', notice: notice
+    include 'modules/core/helpers/redirect_to', url: '/', notice: notice, default: null, error: null, format: null, info: null, object: null
   else
     render 'modules/user/users/email/edit', context: context, otp_enabled: null, errors: null
   endif

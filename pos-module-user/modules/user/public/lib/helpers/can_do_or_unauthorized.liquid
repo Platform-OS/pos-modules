@@ -21,7 +21,7 @@
     if requester.roles contains 'anonymous' and redirect_anonymous_to_login
       session return_to = anonymous_return_to | default: context.location.href
       assign info = 'modules/user/authorization.redirect_anonymous_info' | t
-      include 'modules/core/helpers/redirect_to', url: '/sessions/new', info: info
+      include 'modules/core/helpers/redirect_to', url: '/sessions/new', info: info, default: null, error: null, format: null, notice: null, object: null
     else
       response_status 403
       if forbidden_partial

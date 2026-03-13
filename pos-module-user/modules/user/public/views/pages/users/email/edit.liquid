@@ -1,7 +1,7 @@
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
    if current_profile.user == null
-    include 'modules/core/helpers/redirect_to'
+    include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
   endif
 
   render 'modules/user/users/email/edit', context: context, otp_enabled: current_profile.otp_configured, errors: null

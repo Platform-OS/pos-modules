@@ -1,6 +1,6 @@
 {% liquid
   assign object = { "valid": true, "id": id, "role": role }
-  function object = 'modules/core/commands/execute', object: object, mutation_name: 'modules/user/profiles/roles/remove'
+  function object = 'modules/core/commands/execute', object: object, mutation_name: 'modules/user/profiles/roles/remove', selection: null
 
   if object.errors == blank
     assign event_payload = {"profile_id": id, "role": role}
