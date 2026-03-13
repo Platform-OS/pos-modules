@@ -1,3 +1,9 @@
+{% doc %}
+  @param {object} object - The object to process
+  @param {string} type - The type identifier
+  @param {number} deprecated_delay - Deprecated: use metadata.delay in consumer file instead
+  @param {number} deprecated_max_attempts - Deprecated: use metadata.max_attempts in consumer file instead
+{% enddoc %}
 {% liquid
   function event = 'modules/core/commands/events/create/build', type: type, object: object
   function event = 'modules/core/commands/events/create/check', object: event, type: type

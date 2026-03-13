@@ -33,8 +33,6 @@
   assign __stop = "now" | to_time
   assign total_duration = __start | time_diff: __stop, 'ms' | round
 
-  assign data = { "contracts": contracts, "total_errors": total_errors, "total_duration": total_duration }
-
   assign test_formatter = format | default: 'html' | prepend: 'modules/tests/tests/show_'
   # platformos-check-disable ConvertIncludeToRender
   include test_formatter, contracts: contracts, total_errors: total_errors, total_duration: total_duration, test_name: test_name

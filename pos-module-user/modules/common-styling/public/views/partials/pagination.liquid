@@ -13,7 +13,7 @@
   assign url = '?'
   if context.location.search
     assign query_string = context.location.search
-    assign removed = query_string | hash_delete_key: 'page'
+    assign _ = query_string | hash_delete_key: 'page'
 
     if query_string.size > 0
       assign query_string = query_string | querify

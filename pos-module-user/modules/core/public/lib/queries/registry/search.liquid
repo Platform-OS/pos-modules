@@ -1,10 +1,8 @@
-{% comment %}
-  Required params:
-    - type string
-      it can be: all, module, theme
-{% endcomment %}
+{% doc %}
+  @param {string} type - The type identifier
+{% enddoc %}
 {% liquid
-  function registry = 'modules/core/commands/hook/fire', hook: 'module_info', merge_to_object: false
+  function registry = 'modules/core/commands/hook/fire', hook: 'module_info', merge_to_object: false, params: null
 
   case type
     when 'module'
