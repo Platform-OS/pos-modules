@@ -1,4 +1,8 @@
-{% liquid 
+{% doc %}
+  @param {object} provider - The OAuth provider configuration
+  @param {string} state - The OAuth state parameter
+{% enddoc %}
+{% liquid
 assign data = { "scope": "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid", "client_id": provider.client_id, "state": state }
 assign location = "https://" | append: context.location.host | append: '/oauth/google/callback'
 log location, type: "LOCATION"
