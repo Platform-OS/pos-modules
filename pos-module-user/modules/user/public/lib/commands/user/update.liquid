@@ -1,14 +1,9 @@
-{% comment %}
-  Updates a user.
-  Params:
-    - id: string
-    - email: string
-      the user's email address
-    - password: string
-      the user's password
-    - hook_params: object
-      the other params that will be passed to hook_user_update
-{% endcomment %}
+{% doc %}
+  @param {string} email - The email address
+  @param {object} hook_params - Additional parameters to pass to hooks
+  @param {string} id - The record ID
+  @param {string} password - The password
+{% enddoc %}
 {% liquid
   function object = 'modules/user/commands/user/update/build', id: id, email: email, password: password
   function object = 'modules/user/commands/user/update/check', object: object

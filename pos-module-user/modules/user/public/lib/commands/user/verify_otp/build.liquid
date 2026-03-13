@@ -1,3 +1,6 @@
+{% doc %}
+  @param {string} email - The email address
+{% enddoc %}
 {% parse_json object %}
   {
     "email": {{ email | default: object.email | json }},

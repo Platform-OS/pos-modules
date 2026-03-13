@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} email - The email address
+  @param {string} name
+{% enddoc %}
 {% liquid
   if email == blank
     log 'Something went wrong. Email cannot be blank.', type: 'ERROR'

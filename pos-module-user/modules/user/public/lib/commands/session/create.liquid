@@ -1,18 +1,10 @@
-{% comment %}
-  Creates a user sessions.
-  Params:
-    - user_id string (optional)
-    - validate_password boolean
-      default: true
-    - email: string (optional)
-      the user's email address
-    - password: string (optional)
-      the user's password
-    - hook_params: object
-      the other params that will be passed to hook_user_login
-    - skip_otp boolean
-      default: false
-{% endcomment %}
+{% doc %}
+  @param {string} email - The email address
+  @param {object} hook_params - Additional parameters to pass to hooks
+  @param {string} password - The password
+  @param {boolean} skip_otp - Whether to skip OTP verification
+  @param {boolean} validate_password - Whether to validate the password
+{% enddoc %}
 {% liquid
   if validate_password == nil
     assign validate_password = true

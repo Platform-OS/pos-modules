@@ -5,7 +5,9 @@ method: put
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
    if current_profile.user == null
+    # platformos-check-disable DeprecatedTag
     include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
+    # platformos-check-enable DeprecatedTag
   endif
 
   if current_profile.otp_configured
@@ -16,8 +18,7 @@ method: put
     endif
   endif
 
-  function object = 'modules/user/commands/user/email_update', object: context.params.user, current_user: current_profile.user, c: null
-
+  function object = 'modules/user/commands/user/email_update', object: context.params.user, current_user: current_profile.user
   if object.valid
     assign current_profile.email = context.params.user.email
     function _ = 'modules/user/commands/profiles/update', object: current_profile, profile: current_profile
@@ -25,7 +26,9 @@ method: put
     function _event = 'modules/core/commands/events/publish', type: 'email_updated', object: event_payload, delay: null, max_attempts: null
 
      assign notice = 'modules/user/users.email.change_success' | t
+    # platformos-check-disable DeprecatedTag
     include 'modules/core/helpers/redirect_to', url: '/', notice: notice, default: null, error: null, format: null, info: null, object: null
+    # platformos-check-enable DeprecatedTag
   else
     render 'modules/user/users/email/edit', context: context, otp_enabled: null, errors: null
   endif

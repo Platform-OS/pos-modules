@@ -23,7 +23,9 @@
       assign contract = { "errors": {}, "success": true, "total": 0 }
 
       # platformos-check-disable ConvertIncludeToRender
+      # platformos-check-disable DeprecatedTag
       include test.path, registry: test.path, contract: contract
+      # platformos-check-enable DeprecatedTag
       # platformos-check-enable ConvertIncludeToRender
       assign contract.test_path = test.path
       assign contracts << contract
@@ -35,7 +37,9 @@
 
   assign test_formatter = format | default: 'html' | prepend: 'modules/tests/tests/show_'
   # platformos-check-disable ConvertIncludeToRender
+  # platformos-check-disable DeprecatedTag
   include test_formatter, contracts: contracts, total_errors: total_errors, total_duration: total_duration, test_name: test_name
+  # platformos-check-enable DeprecatedTag
   # platformos-check-enable ConvertIncludeToRender
   if total_errors > 0
     response_status 500

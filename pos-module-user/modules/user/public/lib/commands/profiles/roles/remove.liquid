@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} id - The record ID
+  @param {string} role - The role name
+{% enddoc %}
 {% liquid
   assign object = { "valid": true, "id": id, "role": role }
   function object = 'modules/core/commands/execute', object: object, mutation_name: 'modules/user/profiles/roles/remove', selection: null

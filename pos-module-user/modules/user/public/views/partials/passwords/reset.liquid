@@ -6,6 +6,11 @@ metadata:
     errors: []
     values: {}
 ---
+{% doc %}
+  @param {object} errors - The validation errors object
+  @param {object} values - The form values object
+  @param {object} context - The request context
+{% enddoc %}
 {% liquid
   assign context = context | default: params.context
   assign errors = errors | default: params.errors

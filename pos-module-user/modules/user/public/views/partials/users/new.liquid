@@ -7,6 +7,12 @@ metadata:
     errors: []
     registration_fields: []
 ---
+{% doc %}
+  @param {object} errors - The validation errors object
+  @param {string} registration_fields - Additional registration form fields
+  @param {object} values - The form values object
+  @param {object} context - The request context
+{% enddoc %}
 
 {% liquid
   assign values = values | default: params.values

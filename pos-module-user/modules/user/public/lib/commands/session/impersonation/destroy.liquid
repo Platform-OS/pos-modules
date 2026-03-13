@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} current_user_id - The current user ID
+  @param {object} user - The user object
+{% enddoc %}
 {% liquid
   function object = 'modules/user/commands/session/impersonation/create/build', user: user, current_user_id: current_user_id
   function object = 'modules/user/commands/session/impersonation/destroy/check', object: object

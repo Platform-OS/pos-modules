@@ -1,3 +1,9 @@
+{% doc %}
+  @param {object} filters - The filter parameters
+  @param {string} id - The record ID
+  @param {string} user_id - The user ID
+  @param {string} uuid - The UUID identifier
+{% enddoc %}
 {% liquid
   function profile_module = 'modules/core/queries/variable/get', name: 'PROFILE_MODULE', default: 'modules/user', type: null
   assign function_name = profile_module | append: '/queries/profiles/find'
