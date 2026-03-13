@@ -1,4 +1,8 @@
-{% liquid 
+{% doc %}
+  @param {object} provider - The OAuth provider configuration
+  @param {string} state - The OAuth state parameter
+{% enddoc %}
+{% liquid
 assign data = { "scope": "user:email", "client_id": provider.client_id, "state": state }
 
 assign querified_data = data | querify
