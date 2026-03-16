@@ -1,6 +1,13 @@
+{% doc %}
+  @param {object} contracts - collection of test contracts
+  @param {number} total_errors - total number of errors
+  @param {string} test_name - name of the test run
+  @param {number} total_duration - total test duration in ms
+{% enddoc %}
 Liquid tests
 ------------------------
 {% liquid
+  assign total = 0
   for contract in contracts
     render 'modules/tests/tests/test_report_text', name: contract.test_path, contract: contract
     assign total = total | plus: contract.total

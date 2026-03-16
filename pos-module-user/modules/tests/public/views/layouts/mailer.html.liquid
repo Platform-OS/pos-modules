@@ -149,7 +149,9 @@
     <div class="container">
       <h1 class="title">
         <a class="" href="{{ url }}" class="text-center">
+          {% comment %}platformos-check-disable TranslationKeyExists{% endcomment %}
           {{ 'app.title' | t: default: 'App' }}
+          {% comment %}platformos-check-enable TranslationKeyExists{% endcomment %}
         </a>
       </h1>
 
