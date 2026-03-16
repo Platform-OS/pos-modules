@@ -7,7 +7,12 @@
         {% render 'modules/common-styling/forms/upload',
           id: 'styleguide-upload-1',
           presigned_upload: context.presigned_upload,
-          name: 'styleguide-upload-1'
+          name: 'styleguide-upload-1',
+          image_editor_enabled: null,
+          allowed_file_types: null,
+          max_number_of_files: null,
+          aspect_ratio: null,
+          files: null
         %}
       </div>
 {% capture code %}{% raw %}
@@ -44,7 +49,11 @@
           id: 'styleguide-upload-2',
           presigned_upload: context.presigned_upload,
           name: 'styleguide-upload-2',
-          files: files
+          files: files,
+          image_editor_enabled: null,
+          allowed_file_types: null,
+          max_number_of_files: null,
+          aspect_ratio: null
         %}
       </div>
 {% capture code %}{% raw %}

@@ -1,3 +1,8 @@
+{% doc %}
+  @param {boolean} inert - whether to render without collapsible class
+  @param {boolean} active - active URL to highlight
+  @param {object} items - array of navigation items with url, label, children
+{% enddoc %}
 {% liquid
   assign inert = inert | default: false
   assign active = active | default: false
@@ -17,7 +22,7 @@
 
         {% if item.children.size > 0 %}
           <button type="button" class="pos-collapsible-toggle" aria-expanded="false" aria-controls="pos-collapsible-{{ item.label | slugify }}">
-            {% render 'modules/common-styling/icon', icon: 'dashRight' %}
+            {% render 'modules/common-styling/icon', icon: 'dashRight', class: null %}
             <span class="pos-label">Expand "{{ item.label }}"</span>
           </button>
         {% endif %}
