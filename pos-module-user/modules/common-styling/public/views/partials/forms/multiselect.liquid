@@ -1,3 +1,18 @@
+{% doc %}
+  @param {string} id - unique ID of the input
+  @param {object} list - array of objects with value and label properties
+  @param {object} selected - array of selected values
+  @param {string} view - display view mode
+  @param {string} placeholder - translation key for placeholder
+  @param {string} placeholder_filter - translation key for filter placeholder
+  @param {string} placeholder_empty - translation key for empty filter results
+  @param {boolean} combine_selected - combine selected items into single element
+  @param {boolean} showFilter - show filter text input
+  @param {string} name - name for the multiselect checkboxes
+  @param {string} form - form element the multiselect belongs to
+  @param {boolean} required - whether at least one option is required
+  @param {boolean} multiline - extend list vertically for overflow
+{% enddoc %}
 {% comment %}
   Multiselect input component
 
@@ -57,7 +72,7 @@
         <span class="pos-form-multiselect-selected-item-label"><i>0</i> selected</span>
         <button type="button" class="pos-form-multiselect-selected-item-remove pos-form-multiselect-clear">
           <span class="pos-button-label">{{ 'modules/common-styling/form.clear_selection' | t }}</span>
-          {% render 'modules/common-styling/icon', icon: 'x' %}
+          {% render 'modules/common-styling/icon', icon: 'x', class: null %}
         </button>
       </div>
     {% endif %}
@@ -66,7 +81,7 @@
         <span class="pos-form-multiselect-selected-item-label"></span>
         <label class="pos-form-multiselect-selected-item-remove" for="">
           <span class="pos-button-label">{{ 'modules/common-styling/form.deselect' | t }}</span>
-          {% render 'modules/common-styling/icon', icon: 'x' %}
+          {% render 'modules/common-styling/icon', icon: 'x', class: null %}
         </label>
       </li>
     </template>

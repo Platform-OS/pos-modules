@@ -1,3 +1,6 @@
+{% doc %}
+  @param {number} total_pages - how many total pages available
+{% enddoc %}
 {% comment %}
 
   numbered pagination with arrows if the number of pages is large
@@ -31,7 +34,7 @@
     {% if current != 1 %}
       <a href="{{ url }}{{ current | minus: 1 }}" title="Go to page {{ current | minus: 1 }}" class="pos-pagination-previous">
         <span class="pos-label">Go to page {{ current | minus: 1 }}</span>
-        {% render 'modules/common-styling/icon', icon: 'dashLeft' %}
+        {% render 'modules/common-styling/icon', icon: 'dashLeft', class: null %}
       </a>
     {% endif %}
 
@@ -52,7 +55,7 @@
     {% if current != total_pages %}
       <a href="{{ url }}{{ current | plus: 1 }}" title="Go to page {{ current | plus: 1 }}" class="pos-pagination-next">
         <span class="pos-label">Go to page {{ current | plus: 1 }}</span>
-        {% render 'modules/common-styling/icon', icon: 'dashRight' %}
+        {% render 'modules/common-styling/icon', icon: 'dashRight', class: null %}
       </a>
     {% endif %}
 

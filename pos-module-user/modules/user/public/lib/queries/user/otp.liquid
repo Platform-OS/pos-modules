@@ -8,7 +8,9 @@
     return null
   endif
 
+  # platformos-check-disable TranslationKeyExists
   assign issuer = 'app.title' | t: default: 'App'
+  # platformos-check-enable TranslationKeyExists
   graphql r = 'modules/user/user/otp', email: email, issuer: issuer
 
   if r.errors
