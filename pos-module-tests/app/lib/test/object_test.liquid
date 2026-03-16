@@ -1,3 +1,6 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
 {% liquid
   # Test object validation assertions
 
@@ -12,5 +15,5 @@
   # Test object contains object
   assign container = {"foo": "bar", "nested": {"a": 1, "b": 2}}
   assign subset = {"foo": "bar"}
-  function contract = 'modules/tests/assertions/object_contains_object', contract: contract, object: container, subset: subset, field_name: 'container has subset'
+  function contract = 'modules/tests/assertions/object_contains_object', contract: contract, given: container, object_contains: subset, field_name: 'container has subset'
 %}

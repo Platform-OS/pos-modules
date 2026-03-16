@@ -9,7 +9,9 @@ layout: ''
     assign result = []
 
     for page in (1..total_pages)
+      # platformos-check-disable NestedGraphQLQuery
       graphql tests = 'modules/tests/test_files/search', path: context.params.name, page: page, per_page: per_page | dig: "admin_liquid_partials" | dig: "results"
+      # platformos-check-enable NestedGraphQLQuery
 
       for test in tests
         assign test_name = test.path | remove_first: 'lib/test/' | remove_first: '_test'

@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} test_name - name of the test to run
+  @param {string} format - output format for test results
+{% enddoc %}
 {% liquid
   assign ctx = context
   assign ctx.tests = true
@@ -7,6 +11,7 @@
   graphql count_result = 'modules/tests/test_files/count', per_page: per_page, path: context.params.name
   assign total_pages = count_result | dig: "admin_liquid_partials" | dig: "total_pages"
 
+  assign tests = null
   if tests.size == 0
     unless format == 'js'
       echo 'no tests found'
@@ -16,15 +21,17 @@
   assign contracts = '' | split: ','
 
   for page in (1..total_pages)
+    # platformos-check-disable NestedGraphQLQuery
     graphql search_result = 'modules/tests/test_files/search', path: context.params.name, page: page, per_page: per_page
+    # platformos-check-enable NestedGraphQLQuery
     assign tests = search_result | dig: "admin_liquid_partials" | dig: "results"
     for test in tests
       log test, type: test_name
       assign contract = { "errors": {}, "success": true, "total": 0 }
 
-      # platformos-check-disable ConvertIncludeToRender
+      # platformos-check-disable ConvertIncludeToRender, DeprecatedTag
       include test.path, registry: test.path, contract: contract
-      # platformos-check-enable ConvertIncludeToRender
+      # platformos-check-enable ConvertIncludeToRender, DeprecatedTag
       assign contract.test_path = test.path
       assign contracts << contract
       assign total_errors = total_errors | plus: contract.errors.size
@@ -33,12 +40,10 @@
   assign __stop = "now" | to_time
   assign total_duration = __start | time_diff: __stop, 'ms' | round
 
-  assign data = { "contracts": contracts, "total_errors": total_errors, "total_duration": total_duration }
-
   assign test_formatter = format | default: 'html' | prepend: 'modules/tests/tests/show_'
-  # platformos-check-disable ConvertIncludeToRender
+  # platformos-check-disable ConvertIncludeToRender, DeprecatedTag
   include test_formatter, contracts: contracts, total_errors: total_errors, total_duration: total_duration, test_name: test_name
-  # platformos-check-enable ConvertIncludeToRender
+  # platformos-check-enable ConvertIncludeToRender, DeprecatedTag
   if total_errors > 0
     response_status 500
   endif
