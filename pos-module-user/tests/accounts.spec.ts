@@ -100,29 +100,31 @@ test.describe('Testing registration', () => {
     await registrationPage.goto();
     await registrationPage.registerUser(users.test1, PASSWORD);
 
-    expect(registrationPage.form
+    await expect(registrationPage.form
       .fieldValidationError('Email', 'It seems you already have a registered account. Please check the email field again or log in with your credentials.'))
       .toBeVisible();
   });
 
   test('validate password strength indicator', async ({ page }) => {
     const registrationPage = new RegistrationPage(page);
-    const expectedMessages = ['must include at least one upper case', 'must include at least one number', 'is too short (minimum is 6 characters)'];
+    const mustIncludeUpperCase = 'must include at least one upper case';
+    const mustIncludeNumber = 'must include at least one number';
+    const tooShort = (len: number) => `has to be longer than ${len} characters`;
 
     await registrationPage.goto();
 
     const testCases = [
       {
         password: 'weak',
-        visibleErrors: [expectedMessages[0], expectedMessages[1], expectedMessages[2]]
+        visibleErrors: [mustIncludeUpperCase, mustIncludeNumber, tooShort(4)]
       },
       {
         password: 'weak1',
-        visibleErrors: [expectedMessages[0], expectedMessages[2]]
+        visibleErrors: [mustIncludeUpperCase, tooShort(5)]
       },
       {
         password: 'w3akB',
-        visibleErrors: [expectedMessages[2]]
+        visibleErrors: [tooShort(5)]
       },
       {
         password: 'w3akB1',
