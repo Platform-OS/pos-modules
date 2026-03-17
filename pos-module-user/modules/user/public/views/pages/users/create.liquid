@@ -11,7 +11,7 @@ slug: users
 
   function object = 'modules/user/commands/user/create', first_name: context.params.first_name, last_name: context.params.last_name, email: context.params.email, password: context.params.password, hook_params: context.params, roles: null
   if object.valid
-    function _ = 'modules/user/commands/session/create', validate_password: false, email: null, password: null, hook_params: null, skip_otp: null
+    function _ = 'modules/user/commands/session/create', validate_password: false, user_id: object.id, email: null, password: null, hook_params: null, skip_otp: null
     # platformos-check-disable DeprecatedTag
     include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
     # platformos-check-enable DeprecatedTag
