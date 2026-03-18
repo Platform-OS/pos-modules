@@ -1,7 +1,7 @@
 {% liquid
 
-  function pages = 'queries/pages/search_for_openai'
-  function object = 'modules/openai/queries/embeddings/search'
+  function pages = 'queries/pages/search_for_openai', limit: null
+  function object = 'modules/openai/queries/embeddings/search', limit: null, page: null, metadata: null, related_to: null
   assign existing_embeddings = object.results
 
   assign report = { "created": { "slugs": [], "count": 0 }, "updated": { "slugs": [], "count": 0 }, "errors": { "slugs": [], "count": 0 }}
@@ -39,7 +39,7 @@
 
         if found_embedding
             assign pos_embedding_input.id = found_embedding.id
-            function pos_embedding = 'modules/openai/commands/embeddings/update', object: pos_embedding_input
+            function pos_embedding = 'modules/openai/commands/embeddings/update', object: pos_embedding_input, id: null
 
 
             if pos_embedding.valid

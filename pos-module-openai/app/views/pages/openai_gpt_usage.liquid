@@ -1,7 +1,7 @@
 {% comment %} CAPTCHA verification {% endcomment %}
 {%- liquid
     assign c = { "errors": {}, "valid": true }
-    function c = 'modules/core/validations/hcaptcha', c: c, hcaptcha_params: context.params
+    function c = 'modules/core/validations/hcaptcha', c: c, hcaptcha_params: context.params, key: 'hcaptcha'
 -%}
 
 {% comment %}

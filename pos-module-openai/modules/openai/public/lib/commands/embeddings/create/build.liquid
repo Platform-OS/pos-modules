@@ -1,3 +1,6 @@
+{% doc %}
+  @param {object} object - The object to process
+{% enddoc %}
 {% liquid
   assign embedding = { "embedding": object.embedding, "content": object.content, "metadata": object.metadata, "token_count": object.token_count }
 
