@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} object_id - The report object ID
+  @param {object} event - The event object
+{% enddoc %}
 {% liquid
   graphql g = 'modules/reports/reports/search', id: object_id
   assign operation = g.reports.results.first
