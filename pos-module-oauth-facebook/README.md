@@ -11,7 +11,6 @@ To install the Facebook OAuth 2 module, add it to your instance via the partner 
 
 ```
 pos-cli modules install oauth_facebook
-pos-cli modules download oauth_facebook
 ```
 
 To configure the Facebook OAuth2 module, please set the following constants in your platformOS instance:

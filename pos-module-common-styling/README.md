@@ -43,13 +43,7 @@ The platformOS Common Styling is fully compatible with [platformOS Check](https:
 
 This command installs the Common Styling Module and updates or creates the `app/pos-modules.json` file in your project directory to track module configurations.
 
-3. **Download the source code** into your local environment:
-
-```bash
-   pos-cli modules download common-styling
-```
-
-4. **Explore the built-in Style Guide.**
+3. **Explore the built-in Style Guide.**
 After installation, visit `/style-guide` on your instance. (Make sure you deploy the module using `pos-cli deploy` command)
 - Preview all available components.
 - See examples of forms, buttons, and typography.

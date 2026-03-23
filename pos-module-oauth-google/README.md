@@ -11,7 +11,6 @@ To install the Google OAuth 2 module, add it to your instance via the partner po
 
 ```
 pos-cli modules install oauth_google
-pos-cli modules download oauth_google
 ```
 
 To configure the Google OAuth2 module, please set the following constants in your platformOS instance:
