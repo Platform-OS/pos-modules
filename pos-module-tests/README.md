@@ -24,13 +24,7 @@ The platformOS Tests Module is available on the [Partner Portal Modules Marketpl
 pos-cli modules install tests
 ```
 
-3. Download the module files:
-
-```bash
-pos-cli modules download tests
-```
-
-4. Deploy to your instance:
+3. Deploy to your instance:
 
 ```bash
 pos-cli deploy staging

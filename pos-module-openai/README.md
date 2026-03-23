@@ -28,19 +28,7 @@ This command installs the OpenAI Module along with its dependencies, such as [po
 1. **Create an OpenAI API Key**: Follow the official OpenAI instructions to [create an OpenAI API Key](https://platform.openai.com/docs/quickstart/step-2-set-up-your-api-key).
 2. **Configure the `modules/openai/OPENAI_SECRET_TOKEN` [Constant](https://documentation.platformos.com/api-reference/liquid/platformos-objects#context-constants)**: Store your API key in the `modules/openai/OPENAI_SECRET_TOKEN` as a constant for secure access.
 
-### Pulling the Source Code
-
-To use advanced features such as autocomplete for `function`, `include`, and `graphql` tags, you'll need to include the module's source code in your project. Follow these steps:
-
-1. **Pull the Source Code**: Use the `pos-cli` command to pull the source code into your local environment:
-
-```
-pos-cli modules download openai
-```
-
-2. **Update Your .gitignore**: Add `modules/openai` to your `.gitignore` file to avoid directly modifying the module files. This precaution helps maintain the integrity of the module and simplifies future updates. If needed, repeat this step for every dependency, such as the core module.
-
-#### Managing Module Files
+### Managing Module Files
 
 The default behavior of modules is that **the files are never deleted**. It is assumed that developers might not have access to all of the files, and thanks to this feature, they can still overwrite some of the module's files without breaking them. Since the OpenAI Module is fully public, it is recommended to delete files on deployment. To do this, ensure your `app/config.yml` includes the OpenAI Module in the list `modules_that_allow_delete_on_deploy`:
 
