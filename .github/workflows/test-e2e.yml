@@ -92,8 +92,9 @@ jobs:
               # Test all modules
               modules=$(jq -c '[.user, .chat, ."common-styling", ."payments-example-gateway"]' /tmp/module-config.json)
             else
-              # Parse comma-separated list and map to configurations
-              modules=$(echo "$manual_input" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' | \
+              # Parse comma-separated list, strip pos-module- prefix, and map to configurations
+              modules=$(echo "$manual_input" | \
+                jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))' | \
                 jq -c --slurpfile config /tmp/module-config.json \
                 'map(. as $m | $config[0][$m] | select(. != null))')
             fi

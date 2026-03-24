@@ -83,8 +83,8 @@ jobs:
               # Lint all modules
               modules='["payments","user","chat","common-styling","tests","core","oauth-facebook","oauth-github","oauth-google","openai","reports","data-export-api","payments-stripe","payments-example-gateway"]'
             else
-              # Parse comma-separated list and create array
-              modules=$(echo "$manual_input" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')
+              # Parse comma-separated list, strip pos-module- prefix, and create array
+              modules=$(echo "$manual_input" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))')
             fi
             echo "Manual trigger modules: $modules"
           else
