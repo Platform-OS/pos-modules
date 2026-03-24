@@ -1,10 +1,6 @@
 name: Lint modules
 
 on:
-  pull_request:
-    branches: [ master ]
-    paths-ignore:
-      - "**/README.md"
   push:
     paths-ignore:
       - "**/README.md"
@@ -35,6 +31,8 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.before }}
+          ref: ${{ github.event.after }}
           filters: |
             payments:
               - 'pos-module-payments/**'
@@ -68,11 +66,13 @@ jobs:
       - name: Set matrix for changed modules
         id: set-matrix
         run: |
-          # Extract module names where filter output is "true"
-          modules=$(echo '${{ toJSON(steps.filter.outputs) }}' | jq -c '[to_entries[] | select(.value == "true") | .key]')
+          # Get the changes array from path filter (most reliable)
+          changes='${{ steps.filter.outputs.changes }}'
+          echo "Detected changes: $changes"
 
-          echo "matrix=$modules" >> $GITHUB_OUTPUT
-          echo "Changed modules for linting: $modules"
+          # Use the changes array directly (already contains module names)
+          echo "matrix=$changes" >> $GITHUB_OUTPUT
+          echo "Changed modules for linting: $changes"
 
   lint-platformos-check:
     needs: detect-changes
