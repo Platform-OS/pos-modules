@@ -1,0 +1,8 @@
+# Test Application for Payment Gateway E2E Tests
+# This minimal app is used to test the payments_example_gateway module
+
+# Allow module files to be deleted on deployment
+modules_that_allow_delete_on_deploy:
+  - core
+  - payments
+  - payments_example_gateway

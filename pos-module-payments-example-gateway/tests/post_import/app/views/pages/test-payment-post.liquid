@@ -1,0 +1,30 @@
+---
+slug: test-payment
+method: post
+---
+{% comment %}
+  POST handler for test payment creation
+{% endcomment %}
+
+{% liquid
+  # Create a test transaction
+  assign payable_ids = '["test-item-1", "test-item-2"]' | parse_json
+  assign object = '{}' | parse_json | hash_merge: gateway: 'example_gateway' | hash_merge: payable_ids: payable_ids | hash_merge: amount_cents: 1099 | hash_merge: currency: 'USD'
+
+  function transaction = 'modules/payments/commands/transactions/create', object: object
+
+  if transaction.valid
+    # Generate the payment URL
+    assign gateway_params = '{}' | parse_json | hash_merge: success_url: '/test-payment?payment_success=1' | hash_merge: cancel_url: '/test-payment?payment_failed=1'
+
+    function pay_url = 'modules/payments/helpers/pay_url', transaction: transaction, gateway_params: gateway_params
+
+    if pay_url
+      redirect_to pay_url, status: 303
+    else
+      redirect_to '/test-payment?error=Failed to generate payment URL', status: 303
+    endif
+  else
+    redirect_to '/test-payment?error=Failed to create transaction', status: 303
+  endif
+%}
