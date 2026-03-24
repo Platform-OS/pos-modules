@@ -23,7 +23,7 @@ jobs:
         with:
           github_token: ${{ github.token }}
           paths_ignore: '["**/README.md"]'
-          do_not_skip: '["push"]'
+          do_not_skip: '["push", "workflow_dispatch"]'
 
   detect-changes:
     needs: pre_job
@@ -199,15 +199,16 @@ jobs:
     steps:
       - name: Generate workflow summary
         run: |
-          if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ]; then
-            echo "## Linting - No Changes Detected" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ] || [ "${{ needs.detect-changes.result }}" = "skipped" ]; then
+            echo "## Linting - Skipped" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ needs.detect-changes.result }}" = "skipped" ]; then
+              echo "Workflow was skipped by duplicate action check." >> $GITHUB_STEP_SUMMARY
+            elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
               echo "Manual trigger with no matching modules selected." >> $GITHUB_STEP_SUMMARY
             else
               echo "No modules were changed in this push." >> $GITHUB_STEP_SUMMARY
             fi
-            echo "Linting was skipped." >> $GITHUB_STEP_SUMMARY
           else
             if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
               echo "## Linting - Completed (Manual Trigger)" >> $GITHUB_STEP_SUMMARY
@@ -222,6 +223,8 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ needs.lint-platformos-check.result }}" = "success" ]; then
               echo "Result: All checks passed" >> $GITHUB_STEP_SUMMARY
+            elif [ "${{ needs.lint-platformos-check.result }}" = "skipped" ]; then
+              echo "Result: Linting was skipped" >> $GITHUB_STEP_SUMMARY
             else
               echo "Result: Some checks failed - see job output for details" >> $GITHUB_STEP_SUMMARY
             fi
