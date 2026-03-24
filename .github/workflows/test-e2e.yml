@@ -73,10 +73,15 @@ jobs:
           }
           EOF
 
+          # Get the changes array from path filter (most reliable)
+          changes='${{ steps.filter.outputs.changes }}'
+          echo "Detected changes: $changes"
+
           # Extract changed modules and map to their configurations
-          modules=$(echo '${{ toJSON(steps.filter.outputs) }}' | \
+          # Only use modules from the changes array, not all "true" values
+          modules=$(echo "$changes" | \
             jq -c --slurpfile config /tmp/module-config.json \
-            '[to_entries[] | select(.value == "true") | .key as $m | $config[0][$m] | select(. != null)]')
+            'fromjson | map(select(. != null) | . as $m | $config[0][$m] | select(. != null))')
 
           echo "matrix=$modules" >> $GITHUB_OUTPUT
           echo "Changed modules matrix: $modules"
