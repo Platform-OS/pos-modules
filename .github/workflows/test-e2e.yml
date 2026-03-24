@@ -41,6 +41,8 @@ jobs:
               - 'pos-module-chat/**'
             common-styling:
               - 'pos-module-common-styling/**'
+            payments-example-gateway:
+              - 'pos-module-payments-example-gateway/**'
 
       - name: Set matrix for changed modules
         id: set-matrix
@@ -64,6 +66,12 @@ jobs:
               "module": "common-styling",
               "path": "pos-module-common-styling",
               "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli deploy",
+              "test-commands": "npm run pw-tests"
+            },
+            "payments-example-gateway": {
+              "module": "payments-example-gateway",
+              "path": "pos-module-payments-example-gateway",
+              "deploy-script": "npm run test:setup:local\nnpm run test:deploy",
               "test-commands": "npm run pw-tests"
             }
           }
