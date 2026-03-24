@@ -158,3 +158,30 @@ jobs:
           method: release
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
           pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+  conclusion:
+    needs: [detect-changes, test-e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate workflow summary
+        run: |
+          if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ]; then
+            echo "## E2E Tests - No Changes Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No modules with E2E tests were changed in this push." >> $GITHUB_STEP_SUMMARY
+            echo "Tests were skipped." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## E2E Tests - Completed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Tests ran for the following modules:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '${{ needs.detect-changes.outputs.changed-modules }}' | jq -r '.[] | "- " + .module' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.test-e2e.result }}" = "success" ]; then
+              echo "Result: All tests passed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Result: Some tests failed - check job output for details" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

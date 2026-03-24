@@ -168,3 +168,30 @@ jobs:
         run: |
           echo "platformos-check failed — marking job as failed"
           exit 1
+
+  conclusion:
+    needs: [detect-changes, lint-platformos-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate workflow summary
+        run: |
+          if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ]; then
+            echo "## Linting - No Changes Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No modules were changed in this push." >> $GITHUB_STEP_SUMMARY
+            echo "Linting was skipped." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Linting - Completed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Linting ran for the following modules:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '${{ needs.detect-changes.outputs.changed-modules }}' | jq -r '.[] | "- " + .' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.lint-platformos-check.result }}" = "success" ]; then
+              echo "Result: All checks passed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Result: Some checks failed - see job output for details" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
