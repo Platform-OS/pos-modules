@@ -4,6 +4,12 @@ on:
     paths-ignore:
       - "**/README.md"
   workflow_dispatch:
+    inputs:
+      modules:
+        description: 'Modules to test (comma-separated: user, chat, common-styling, payments-example-gateway, or "all")'
+        required: false
+        default: 'all'
+        type: string
 
 jobs:
   pre_job:
@@ -29,6 +35,7 @@ jobs:
 
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
           base: ${{ github.event.before }}
           ref: ${{ github.event.after }}
@@ -75,17 +82,34 @@ jobs:
           }
           EOF
 
-          # Get the changes array from path filter (most reliable)
-          changes='${{ steps.filter.outputs.changes }}'
-          echo "Detected changes: $changes"
+          # Check if this is a manual trigger
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger detected"
+            manual_input="${{ github.event.inputs.modules }}"
+            echo "Manual input: $manual_input"
 
-          # Extract changed modules and map to their configurations
-          # Only use modules from the changes array, not all "true" values
-          modules=$(jq -nc --argjson changes "$changes" --slurpfile config /tmp/module-config.json \
-            '$changes | map(. as $m | $config[0][$m] | select(. != null))')
+            if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
+              # Test all modules
+              modules=$(jq -c '[.user, .chat, ."common-styling", ."payments-example-gateway"]' /tmp/module-config.json)
+            else
+              # Parse comma-separated list and map to configurations
+              modules=$(echo "$manual_input" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' | \
+                jq -c --slurpfile config /tmp/module-config.json \
+                'map(. as $m | $config[0][$m] | select(. != null))')
+            fi
+            echo "Manual trigger modules: $modules"
+          else
+            # Automatic detection from git changes
+            changes='${{ steps.filter.outputs.changes }}'
+            echo "Detected changes: $changes"
+
+            # Extract changed modules and map to their configurations
+            modules=$(jq -nc --argjson changes "$changes" --slurpfile config /tmp/module-config.json \
+              '$changes | map(. as $m | $config[0][$m] | select(. != null))')
+            echo "Changed modules matrix: $modules"
+          fi
 
           echo "matrix=$modules" >> $GITHUB_OUTPUT
-          echo "Changed modules matrix: $modules"
 
   test-e2e:
     needs: detect-changes
@@ -169,10 +193,18 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ]; then
             echo "## E2E Tests - No Changes Detected" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "No modules with E2E tests were changed in this push." >> $GITHUB_STEP_SUMMARY
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "Manual trigger with no matching modules selected." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No modules with E2E tests were changed in this push." >> $GITHUB_STEP_SUMMARY
+            fi
             echo "Tests were skipped." >> $GITHUB_STEP_SUMMARY
           else
-            echo "## E2E Tests - Completed" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "## E2E Tests - Completed (Manual Trigger)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "## E2E Tests - Completed" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Tests ran for the following modules:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY

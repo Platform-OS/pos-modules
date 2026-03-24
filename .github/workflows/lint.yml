@@ -5,6 +5,12 @@ on:
     paths-ignore:
       - "**/README.md"
   workflow_dispatch:
+    inputs:
+      modules:
+        description: 'Modules to lint (comma-separated or "all" for all modules)'
+        required: false
+        default: 'all'
+        type: string
 
 jobs:
   pre_job:
@@ -30,6 +36,7 @@ jobs:
 
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
           base: ${{ github.event.before }}
           ref: ${{ github.event.after }}
@@ -66,13 +73,29 @@ jobs:
       - name: Set matrix for changed modules
         id: set-matrix
         run: |
-          # Get the changes array from path filter (most reliable)
-          changes='${{ steps.filter.outputs.changes }}'
-          echo "Detected changes: $changes"
+          # Check if this is a manual trigger
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger detected"
+            manual_input="${{ github.event.inputs.modules }}"
+            echo "Manual input: $manual_input"
 
-          # Use the changes array directly (already contains module names)
-          echo "matrix=$changes" >> $GITHUB_OUTPUT
-          echo "Changed modules for linting: $changes"
+            if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
+              # Lint all modules
+              modules='["payments","user","chat","common-styling","tests","core","oauth-facebook","oauth-github","oauth-google","openai","reports","data-export-api","payments-stripe","payments-example-gateway"]'
+            else
+              # Parse comma-separated list and create array
+              modules=$(echo "$manual_input" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))')
+            fi
+            echo "Manual trigger modules: $modules"
+          else
+            # Automatic detection from git changes
+            changes='${{ steps.filter.outputs.changes }}'
+            echo "Detected changes: $changes"
+            modules="$changes"
+            echo "Changed modules for linting: $modules"
+          fi
+
+          echo "matrix=$modules" >> $GITHUB_OUTPUT
 
   lint-platformos-check:
     needs: detect-changes
@@ -179,10 +202,18 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ]; then
             echo "## Linting - No Changes Detected" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "No modules were changed in this push." >> $GITHUB_STEP_SUMMARY
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "Manual trigger with no matching modules selected." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No modules were changed in this push." >> $GITHUB_STEP_SUMMARY
+            fi
             echo "Linting was skipped." >> $GITHUB_STEP_SUMMARY
           else
-            echo "## Linting - Completed" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "## Linting - Completed (Manual Trigger)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "## Linting - Completed" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Linting ran for the following modules:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
