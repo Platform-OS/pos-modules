@@ -9,6 +9,6 @@
     assign short_name = event.name | replace: 'modules/reports/statuses.report.', ''
     assign object.status = short_name
 
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/reports/reports/update_status' object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/reports/reports/update_status', object: object, selection: null
   endif
  %}

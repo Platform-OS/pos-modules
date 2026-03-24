@@ -5,7 +5,7 @@
 {% liquid
   graphql g = 'modules/reports/reports/search', id: object_id
   assign operation = g.reports.results.first
-  function res = 'modules/core/commands/statuses/create', name: 'modules/reports/statuses.report.started', reference_id: operation.id, requester_id: 'report'
+  function res = 'modules/core/commands/statuses/create', name: 'modules/reports/statuses.report.started', reference_id: operation.id, requester_id: 'report', payload: null, delay: null, max_attempts: null, reference_schema: null, timestamp: null
 
   function results = operation.retrieve_all_command
   if operation.file_name
@@ -18,11 +18,11 @@
   assign object_payload = { "content": results, "object_uuid": operation.uuid, "document_type": "file", "content_type": "text/csv; charset=UTF-8", "content_disposition": content_disposition }
   function document = 'modules/reports/commands/documents/create_with_content', object: object_payload, creator_id: operation.creator_id
   if document.valid
-    function res = 'modules/core/commands/statuses/create', name: 'modules/reports/statuses.report.done', reference_id: operation.id, requester_id: 'report'
+    function res = 'modules/core/commands/statuses/create', name: 'modules/reports/statuses.report.done', reference_id: operation.id, requester_id: 'report', payload: null, delay: null, max_attempts: null, reference_schema: null, timestamp: null
     assign object_payload = { "creator_id": operation.creator_id, "user_id": operation.user_id, "object_id": operation.id, "document_id": document.id, "app_host": event.app_host }
-    function _event = 'modules/core/commands/events/publish', type: 'report_completed', object: object_payload
+    function _event = 'modules/core/commands/events/publish', type: 'report_completed', object: object_payload, delay: null, max_attempts: null
   else
     log document, type: 'ERROR: trigger_export document'
-    function res = 'modules/core/commands/statuses/create', name: 'modules/reports/statuses.report.error', reference_id: operation.id, requester_id: 'report'
+    function res = 'modules/core/commands/statuses/create', name: 'modules/reports/statuses.report.error', reference_id: operation.id, requester_id: 'report', payload: null, delay: null, max_attempts: null, reference_schema: null, timestamp: null
   endif
 %}
