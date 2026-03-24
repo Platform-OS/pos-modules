@@ -79,9 +79,8 @@ jobs:
 
           # Extract changed modules and map to their configurations
           # Only use modules from the changes array, not all "true" values
-          modules=$(echo "$changes" | \
-            jq -c --slurpfile config /tmp/module-config.json \
-            'fromjson | map(select(. != null) | . as $m | $config[0][$m] | select(. != null))')
+          modules=$(jq -nc --argjson changes "$changes" --slurpfile config /tmp/module-config.json \
+            '$changes | map(. as $m | $config[0][$m] | select(. != null))')
 
           echo "matrix=$modules" >> $GITHUB_OUTPUT
           echo "Changed modules matrix: $modules"
