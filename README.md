@@ -231,11 +231,8 @@ GitHub Action for reserving CI instances, managing authorization tokens, and rel
 Modules can be installed from the [Partner Portal Modules Marketplace](https://partners.platformos.com/marketplace):
 
 ```bash
-# Install a module
+# Install a module (also downloads module and all dependencies)
 pos-cli modules install <module-name>
-
-# Download source code for local development
-pos-cli modules download <module-name>
 
 # Deploy to your instance
 pos-cli deploy <env>

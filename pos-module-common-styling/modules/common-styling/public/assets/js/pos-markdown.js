@@ -47,9 +47,13 @@ window.pos.modules.markdown = function(settings){
     module.startEasyMde();
 
     // attach validation
-    module.settings.textarea.form.addEventListener('submit', event => {
+    module.settings.textarea.form?.addEventListener('submit', event => {
       module.validate(event);
     });
+
+    // dispatch custom event
+    module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-initialized', { bubbles: true, detail: { module, target: module.settings.container, id: module.settings.id } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-markdown-initialized', { module, target: module.settings.container, id: module.settings.id });
 
   };
 

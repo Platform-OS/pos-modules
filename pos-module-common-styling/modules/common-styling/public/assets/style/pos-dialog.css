@@ -40,7 +40,7 @@
 
   .pos-dialog {
     max-width: 600px;
-    max-height: calc(100vh - 4 * var(--pos-padding-page));
+    max-height: calc(100vh - 6 * var(--pos-padding-page));
     padding: var(--pos-padding-card);
 
     opacity: 0;

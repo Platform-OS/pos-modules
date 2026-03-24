@@ -11,11 +11,8 @@ This is a **modular monorepo** for platformOS modules. Each `pos-module-*` direc
 ### Common Module Operations
 
 ```bash
-# Install a module from marketplace
+# Install a module from marketplace (also downloads module and all dependencies)
 pos-cli modules install <module-name>
-
-# Download module source code locally for development
-pos-cli modules download <module-name>
 
 # Deploy to environment
 pos-cli deploy <env>

@@ -11,7 +11,6 @@ To install the GitHub OAuth 2 module, add it to your instance via the partner po
 
 ```
 pos-cli modules install oauth_github
-pos-cli modules download oauth_github
 ```
 
 To configure the GitHub OAuth2 module, please set the following constants in your platformOS instance:
