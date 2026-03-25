@@ -12,7 +12,7 @@
   if context.location.pathname != flash.from or flash.force_clear
     function _ = 'modules/core/commands/session/clear', key: 'sflash'
   endif
-  render 'modules/common-styling/toasts', params: flash
+  render 'modules/common-styling/toasts', message: flash.message, severity: flash.severity, autohide: flash.autohide, delay: flash.delay
 %}
       {% endraw %}{% endcapture %}
 

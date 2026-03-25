@@ -4,14 +4,9 @@
   @param {string} message - toast message content
   @param {string} severity - toast severity level
 {% enddoc %}
-{% comment %}platformos-check-disable UndefinedObject{% endcomment %}
 {% liquid
-  assign autohide = autohide | default: params.autohide
-  assign delay = delay | default: params.delay | default: 1000
-  assign message = message | default: params.message | default: null
-  assign severity = severity | default: params.severity
+  assign delay = delay | default: 1000
 %}
-{% comment %}platformos-check-enable UndefinedObject{% endcomment %}
 
 <aside
   class="pos-toasts"
