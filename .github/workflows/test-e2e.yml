@@ -156,6 +156,19 @@ jobs:
         with:
           node-version: 20.x
 
+      - name: Debug environment
+        shell: sh
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        run: |
+          echo "MPKIT_URL=$MPKIT_URL"
+          echo "MPKIT_TOKEN is set: ${MPKIT_TOKEN:+yes}"
+          echo "pos-cli version:"
+          pos-cli -v || echo "pos-cli not found"
+          echo "pos-cli env list:"
+          pos-cli env list || echo "pos-cli env list failed"
+
       - name: Deploy module
         timeout-minutes: 10
         shell: sh
