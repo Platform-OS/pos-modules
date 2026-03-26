@@ -168,6 +168,12 @@ jobs:
           pos-cli -v || echo "pos-cli not found"
           echo "pos-cli env list:"
           pos-cli env list || echo "pos-cli env list failed"
+          echo "Checking for .pos files:"
+          find . -name ".pos" -type f 2>/dev/null || echo "No .pos files found"
+          echo "Repo root .pos file:"
+          ls -la .pos 2>/dev/null || echo "No .pos in repo root"
+          echo "HOME directory .pos file:"
+          ls -la ~/.pos 2>/dev/null || echo "No .pos in HOME"
 
       - name: Deploy module
         timeout-minutes: 10
