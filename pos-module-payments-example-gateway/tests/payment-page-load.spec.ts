@@ -11,8 +11,8 @@ test.describe('Payment Gateway Smoke Tests', () => {
     // expect: Page loads with status 200
     expect(page).toHaveURL(/\/test-payment/);
 
-    // expect: Page displays the heading '🧪 Test Payment - Example Gateway'
-    await expect(page.getByRole('heading', { name: /🧪 Test Payment - Example Gateway/i })).toBeVisible();
+    // expect: Page displays the heading 'Test Payment - Example Gateway'
+    await expect(page.getByRole('heading', { name: /Test Payment - Example Gateway/i })).toBeVisible();
 
     // expect: Page shows test transaction details: Amount: $10.99, Currency: USD, Items: test-item-1, test-item-2
     await expect(page.getByText('$10.99')).toBeVisible();

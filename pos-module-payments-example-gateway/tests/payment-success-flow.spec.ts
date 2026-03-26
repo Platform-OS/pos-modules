@@ -70,8 +70,8 @@ test.describe('Payment Gateway Smoke Tests', () => {
     // expect: User lands on /test-payment page with payment_success=1 parameter
     expect(page.url()).toMatch(/payment_success=1/);
 
-    // expect: Green success message is displayed: '✓ Payment Successful!'
-    await expect(page.getByText(/✓.*Payment Successful/i)).toBeVisible();
+    // expect: Green success message is displayed: 'Payment Successful!'
+    await expect(page.getByText(/Payment Successful/i)).toBeVisible();
 
     // expect: Success message includes text: 'Your test payment was processed successfully.'
     await expect(page.getByText(/Your test payment was processed successfully/i)).toBeVisible();

@@ -44,7 +44,7 @@ test.describe('Payment Gateway Smoke Tests', () => {
     // 5. Verify success page displays
 
     // expect: Green success message is displayed
-    await expect(page.getByText(/✓.*Payment Successful/i)).toBeVisible();
+    await expect(page.getByText(/Payment Successful/i)).toBeVisible();
 
     // expect: Transaction will be updated to 'succeeded' status after background job completes (15 seconds)
     // Note: We don't wait for the background job to complete in this test

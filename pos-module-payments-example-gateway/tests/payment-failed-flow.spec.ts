@@ -36,8 +36,8 @@ test.describe('Payment Gateway Smoke Tests', () => {
     // expect: User lands on /test-payment page with payment_failed=1 parameter
     expect(page.url()).toMatch(/payment_failed=1/);
 
-    // expect: Red error message is displayed: '✗ Payment Failed'
-    await expect(page.getByText(/✗.*Payment Failed/i)).toBeVisible();
+    // expect: Red error message is displayed: 'Payment Failed'
+    await expect(page.getByText(/Payment Failed/i)).toBeVisible();
 
     // expect: Error message includes text: 'Your test payment was not processed.'
     await expect(page.getByText(/Your test payment was not processed/i)).toBeVisible();

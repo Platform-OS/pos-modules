@@ -24,7 +24,7 @@ test.describe('Payment Gateway Smoke Tests', () => {
 
     // expect: Transaction status is 'succeeded'
     await page.waitForURL(/\/test-payment\?payment_success=1/);
-    await expect(page.getByText(/✓.*Payment Successful/i)).toBeVisible();
+    await expect(page.getByText(/Payment Successful/i)).toBeVisible();
 
     // 2. Attempt to access the same transaction's payment gateway page again
 

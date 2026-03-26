@@ -17,7 +17,7 @@ The Payment Example Gateway module provides a mock payment gateway for testing p
 **Steps:**
   1. Navigate to /test-payment page
     - expect: Page loads with status 200
-    - expect: Page displays the heading '🧪 Test Payment - Example Gateway'
+    - expect: Page displays the heading 'Test Payment - Example Gateway'
     - expect: Page shows test transaction details: Amount: $10.99, Currency: USD, Items: test-item-1, test-item-2
     - expect: Page displays the 'Start Test Payment' button with id='start-payment'
     - expect: Info message is visible explaining this is a test payment gateway
@@ -54,7 +54,7 @@ The Payment Example Gateway module provides a mock payment gateway for testing p
     - expect: User is redirected to the success_url: /test-payment?payment_success=1
   5. Verify success page displays correctly
     - expect: User lands on /test-payment page with payment_success=1 parameter
-    - expect: Green success message is displayed: '✓ Payment Successful!'
+    - expect: Green success message is displayed: 'Payment Successful!'
     - expect: Success message includes text: 'Your test payment was processed successfully.'
     - expect: Start Test Payment button is still available for additional tests
 
@@ -76,7 +76,7 @@ The Payment Example Gateway module provides a mock payment gateway for testing p
     - expect: User is redirected to the failed_url: /test-payment?payment_failed=1
   4. Verify failure page displays correctly
     - expect: User lands on /test-payment page with payment_failed=1 parameter
-    - expect: Red error message is displayed: '✗ Payment Failed'
+    - expect: Red error message is displayed: 'Payment Failed'
     - expect: Error message includes text: 'Your test payment was not processed.'
     - expect: Start Test Payment button is available to retry
 
