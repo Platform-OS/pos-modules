@@ -76,7 +76,7 @@ jobs:
             "payments-example-gateway": {
               "module": "payments-example-gateway",
               "path": "pos-module-payments-example-gateway",
-              "deploy-script": "npm run test:setup:local\npos-cli data clean --include-schema --auto-confirm\ncd tests/post_import\npos-cli deploy",
+              "deploy-script": "npm run test:setup:local\n./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
             }
           }
@@ -142,7 +142,7 @@ jobs:
 
       - name: Get MPKIT token
         id: get-token
-        uses: Platform-OS/ci-repository-reserve-instance-url@debug-token
+        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
         with:
           method: get-token
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
@@ -156,25 +156,6 @@ jobs:
         with:
           node-version: 20.x
 
-      - name: Debug environment
-        shell: sh
-        env:
-          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
-          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
-        run: |
-          echo "MPKIT_URL=$MPKIT_URL"
-          echo "MPKIT_TOKEN is set: ${MPKIT_TOKEN:+yes}"
-          echo "pos-cli version:"
-          pos-cli -v || echo "pos-cli not found"
-          echo "pos-cli env list:"
-          pos-cli env list || echo "pos-cli env list failed"
-          echo "Checking for .pos files:"
-          find . -name ".pos" -type f 2>/dev/null || echo "No .pos files found"
-          echo "Repo root .pos file:"
-          ls -la .pos 2>/dev/null || echo "No .pos in repo root"
-          echo "HOME directory .pos file:"
-          ls -la ~/.pos 2>/dev/null || echo "No .pos in HOME"
-
       - name: Deploy module
         timeout-minutes: 10
         shell: sh
@@ -184,8 +165,7 @@ jobs:
         working-directory: ${{ matrix.path }}
         run: |
           set -eu
-          echo "Deploying payments-example-gateway"
-          ./tests/data/seed/seed.sh
+          ${{ matrix.deploy-script }}
 
       - name: Run Playwright tests
         shell: sh
