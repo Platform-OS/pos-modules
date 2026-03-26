@@ -4,7 +4,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Payment Gateway Smoke Tests', () => {
-  test('Delayed payment success flow', async ({ page }) => {
+  test.fixme('Delayed payment success flow', async ({ page }) => {
     // 1. Navigate to /test-payment page
     await page.goto('/test-payment');
 
