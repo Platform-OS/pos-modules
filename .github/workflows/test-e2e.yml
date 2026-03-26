@@ -178,13 +178,8 @@ jobs:
         working-directory: ${{ matrix.path }}
         run: |
           set -eu
-          if [ "${{ matrix.module }}" = "payments-example-gateway" ]; then
-            echo "Deploying payments-example-gateway"
-            npm run test:setup:local
-            ./tests/data/seed/seed.sh
-          else
-            ${{ matrix.deploy-script }}
-          fi
+          echo "Deploying payments-example-gateway"
+          ./tests/data/seed/seed.sh
 
       - name: Run Playwright tests
         shell: sh
