@@ -142,7 +142,7 @@ jobs:
 
       - name: Get MPKIT token
         id: get-token
-        uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
+        uses: Platform-OS/ci-repository-reserve-instance-url@debug-token
         with:
           method: get-token
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
