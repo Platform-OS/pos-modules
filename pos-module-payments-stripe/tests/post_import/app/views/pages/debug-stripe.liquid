@@ -1,0 +1,107 @@
+---
+layout: null
+---
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stripe Debug</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+    .section { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .success { color: green; }
+    .error { color: red; }
+    pre { background: #eee; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Stripe Configuration Debug</h1>
+
+  <div class="section">
+    <h2>1. Check Variable</h2>
+    {% liquid
+      function stripe_key = 'modules/core/queries/variable/find', name: 'stripe_sk_key'
+    %}
+    {% if stripe_key != blank %}
+      <p class="success">✅ Variable 'stripe_sk_key' is SET</p>
+      <p>Key starts with: <strong>{{ stripe_key | slice: 0, 10 }}...</strong></p>
+      <p>Key length: {{ stripe_key | size }} characters</p>
+    {% else %}
+      <p class="error">❌ Variable 'stripe_sk_key' is NOT SET</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>2. Test Transaction Creation</h2>
+    {% liquid
+      assign payable_ids = '["test_item_1"]' | parse_json
+      assign transaction_data = null | hash_merge: amount_cents: 5000, currency: 'usd', gateway: 'stripe', payer_id: 'test_payer', payable_ids: payable_ids
+      function transaction = 'modules/payments/commands/transactions/create', object: transaction_data
+    %}
+    {% if transaction.valid %}
+      <p class="success">✅ Transaction created successfully</p>
+      <p>Transaction ID: <strong>{{ transaction.id }}</strong></p>
+    {% else %}
+      <p class="error">❌ Transaction creation failed</p>
+      <pre>{{ transaction | json }}</pre>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>3. Test Stripe Checkout Session</h2>
+    {% if transaction.valid %}
+      {% liquid
+        assign success_url = 'https://' | append: context.location.host | append: '/test-stripe-payment?success=true&transaction_id=' | append: transaction.id
+        assign cancel_url = 'https://' | append: context.location.host | append: '/test-stripe-payment?failure=true&transaction_id=' | append: transaction.id
+        assign line_items = '[{"price_data":{"currency":"usd","product_data":{"name":"Test Product"},"unit_amount":5000},"quantity":1}]' | parse_json
+        assign gateway_params = null | hash_merge: success_url: success_url, cancel_url: cancel_url, line_items: line_items, mode: 'payment'
+
+        function pay_url = 'modules/payments_stripe/helpers/pay_url', transaction: transaction, gateway_params: gateway_params
+      %}
+      {% if pay_url %}
+        <p class="success">✅ Checkout session created successfully</p>
+        <p>Redirect URL: <a href="{{ pay_url }}" target="_blank">{{ pay_url }}</a></p>
+      {% else %}
+        <p class="error">❌ Checkout session creation failed</p>
+        <p>This usually means:</p>
+        <ul>
+          <li>Stripe API key is invalid</li>
+          <li>Stripe API key doesn't have correct permissions</li>
+          <li>Network/API error</li>
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="error">⚠️ Skipped (transaction not created)</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>4. Check Gateway Requests (Last 5)</h2>
+    {% liquid
+      function gateway_requests = 'modules/payments/queries/gateway_requests/search', limit: 5
+    %}
+    {% if gateway_requests.results.size > 0 %}
+      <p>Found {{ gateway_requests.results.size }} recent gateway requests:</p>
+      {% for request in gateway_requests.results %}
+        <div style="margin: 10px 0; padding: 10px; background: #f9f9f9;">
+          <p><strong>{{ request.name }}</strong> - {{ request.created_at }}</p>
+          <p>Status: {{ request.request_status }}</p>
+          <p>Response status: {{ request.response_status }}</p>
+          {% if request.request_errors %}
+            <p class="error">Errors: {{ request.request_errors }}</p>
+          {% endif %}
+          {% if request.response_body %}
+            <details>
+              <summary>Response body</summary>
+              <pre>{{ request.response_body }}</pre>
+            </details>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>No gateway requests found</p>
+    {% endif %}
+  </div>
+
+
+</body>
+</html>
