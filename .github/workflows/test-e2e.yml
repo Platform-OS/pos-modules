@@ -41,6 +41,8 @@ jobs:
               - 'pos-module-chat/**'
             common-styling:
               - 'pos-module-common-styling/**'
+            payments-stripe:
+              - 'pos-module-payments-stripe/**'
 
       - name: Set matrix for changed modules
         id: set-matrix
@@ -64,6 +66,12 @@ jobs:
               "module": "common-styling",
               "path": "pos-module-common-styling",
               "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli deploy",
+              "test-commands": "npm run pw-tests"
+            },
+            "payments-stripe": {
+              "module": "payments-stripe",
+              "path": "pos-module-payments-stripe",
+              "deploy-script": "mkdir -p tests/post_import/modules\ncp -r ../pos-module-core/modules/core tests/post_import/modules/\ncp -r ../pos-module-payments/modules/payments tests/post_import/modules/\ncp -r modules/payments_stripe tests/post_import/modules/\n./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
             }
           }
@@ -93,6 +101,7 @@ jobs:
       MPKIT_EMAIL: ${{ secrets.MPKIT_EMAIL }}
       NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
       E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      STRIPE_SK_KEY: ${{ secrets.STRIPE_SK_KEY }}
       HTML_ATTACHMENTS_BASE_URL: ${{ vars.HTML_ATTACHMENTS_BASE_URL }}
       TEST_REPORT_MPKIT_URL: ${{ vars.TEST_REPORT_MPKIT_URL }}
       TEST_REPORT_MPKIT_TOKEN: ${{ secrets.TEST_REPORT_MPKIT_TOKEN }}
