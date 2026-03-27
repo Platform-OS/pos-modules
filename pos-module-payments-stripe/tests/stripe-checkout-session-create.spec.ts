@@ -29,12 +29,6 @@ test.describe('Stripe Checkout Session Creation', () => {
       const isTestUrl = currentUrl.includes('test-stripe-payment');
 
       expect(isStripeUrl || isTestUrl).toBeTruthy();
-
-      if (isStripeUrl) {
-        console.log('Successfully redirected to Stripe checkout');
-      } else {
-        console.log('Redirect did not go to Stripe (likely due to missing API keys in test environment)');
-      }
     });
   });
 });

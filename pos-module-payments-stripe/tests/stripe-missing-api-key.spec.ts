@@ -31,16 +31,6 @@ test.describe('Missing Stripe API Key Handling', () => {
       const hasValidOutcome = isStripeCheckout || is500Error || isPaymentPage || hasFailureParam;
 
       expect(hasValidOutcome).toBeTruthy();
-
-      if (isStripeCheckout) {
-        console.log('✓ API key is set - successfully redirected to Stripe checkout');
-      } else if (is500Error) {
-        console.log('✓ API key missing - checkout failed with 500 error (graceful)');
-      } else if (hasFailureParam) {
-        console.log('✓ API key missing - checkout failed and redirected to failure page');
-      } else {
-        console.log('✓ API key missing - checkout failed and stayed on payment page');
-      }
     });
   });
 });

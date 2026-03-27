@@ -17,7 +17,6 @@ test.describe('Multiple Payment Attempts', () => {
       const match = url.match(/transaction_id=([^&]+)/);
       if (match) {
         firstTransactionId = match[1];
-        console.log('First transaction ID:', firstTransactionId);
       }
     });
 
@@ -39,7 +38,6 @@ test.describe('Multiple Payment Attempts', () => {
       const match = url.match(/transaction_id=([^&]+)/);
       if (match) {
         secondTransactionId = match[1];
-        console.log('Second transaction ID:', secondTransactionId);
       }
     });
 
@@ -47,9 +45,6 @@ test.describe('Multiple Payment Attempts', () => {
       if (firstTransactionId && secondTransactionId) {
         // Each attempt should create a new transaction
         expect(firstTransactionId).not.toBe(secondTransactionId);
-        console.log('Successfully created two different transactions');
-      } else {
-        console.log('Could not verify transaction IDs (might be in Stripe checkout)');
       }
     });
   });

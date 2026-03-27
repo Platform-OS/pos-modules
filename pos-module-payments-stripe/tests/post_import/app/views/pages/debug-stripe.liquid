@@ -22,11 +22,11 @@ layout: null
       function stripe_key = 'modules/core/queries/variable/find', name: 'stripe_sk_key'
     %}
     {% if stripe_key != blank %}
-      <p class="success">✅ Variable 'stripe_sk_key' is SET</p>
+      <p class="success"> Variable 'stripe_sk_key' is SET</p>
       <p>Key starts with: <strong>{{ stripe_key | slice: 0, 10 }}...</strong></p>
       <p>Key length: {{ stripe_key | size }} characters</p>
     {% else %}
-      <p class="error">❌ Variable 'stripe_sk_key' is NOT SET</p>
+      <p class="error"> Variable 'stripe_sk_key' is NOT SET</p>
     {% endif %}
   </div>
 
@@ -38,10 +38,10 @@ layout: null
       function transaction = 'modules/payments/commands/transactions/create', object: transaction_data
     %}
     {% if transaction.valid %}
-      <p class="success">✅ Transaction created successfully</p>
+      <p class="success"> Transaction created successfully</p>
       <p>Transaction ID: <strong>{{ transaction.id }}</strong></p>
     {% else %}
-      <p class="error">❌ Transaction creation failed</p>
+      <p class="error"> Transaction creation failed</p>
       <pre>{{ transaction | json }}</pre>
     {% endif %}
   </div>
@@ -58,10 +58,10 @@ layout: null
         function pay_url = 'modules/payments_stripe/helpers/pay_url', transaction: transaction, gateway_params: gateway_params
       %}
       {% if pay_url %}
-        <p class="success">✅ Checkout session created successfully</p>
+        <p class="success"> Checkout session created successfully</p>
         <p>Redirect URL: <a href="{{ pay_url }}" target="_blank">{{ pay_url }}</a></p>
       {% else %}
-        <p class="error">❌ Checkout session creation failed</p>
+        <p class="error"> Checkout session creation failed</p>
         <p>This usually means:</p>
         <ul>
           <li>Stripe API key is invalid</li>
@@ -70,7 +70,7 @@ layout: null
         </ul>
       {% endif %}
     {% else %}
-      <p class="error">⚠️ Skipped (transaction not created)</p>
+      <p class="error"> Skipped (transaction not created)</p>
     {% endif %}
   </div>
 

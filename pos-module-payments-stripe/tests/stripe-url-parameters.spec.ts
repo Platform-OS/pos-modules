@@ -24,12 +24,8 @@ test.describe('URL Parameter Preservation', () => {
         const transactionId = match![1];
         expect(transactionId).toBeTruthy();
         expect(transactionId.length).toBeGreaterThan(0);
-
-        console.log('Transaction ID successfully passed in URL:', transactionId);
-      } else {
-        console.log('URL does not contain transaction_id (might be redirected to Stripe)');
-        // If redirected to Stripe, the transaction_id would be in Stripe's success_url parameter
       }
+      // If redirected to Stripe, the transaction_id would be in Stripe's success_url parameter
     });
   });
 
