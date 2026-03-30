@@ -316,6 +316,11 @@
     color: var(--pos-color-input-disabled-text);
   }
 
+  .pos-form-simple select {
+    width: 100%;
+    display: block;
+  }
+
 
   /* errors
   ============================================================================ */

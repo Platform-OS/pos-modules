@@ -1,7 +1,7 @@
 {% doc %}
   @param {string} last_name - user last name
   @param {string} first_name - user first name
-  @param {string} imageSrc - URL of the user avatar image
+  @param {string} image_src - URL of the user avatar image
   @param {string} url - link to user profile
   @param {string} job_title - user job title
   @param {string} employer - user employer name
@@ -18,7 +18,7 @@
 <div class="pos-card pos-card-user">
 
   <a href="{{ url }}" class="pos-card-user-person">
-    {% render 'modules/common-styling/user/avatar', size: 'xxl', name: name, image_src: imageSrc %}
+    {% render 'modules/common-styling/user/avatar', size: 'xxl', name: name, image_src: image_src %}
     {{ name }}
   </a>
 

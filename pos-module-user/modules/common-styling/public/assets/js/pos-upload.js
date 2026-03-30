@@ -166,7 +166,7 @@ window.pos.modules.upload = function(settings){
             fields[attribute.name.replace('data-request-', '')] = attribute.value;
           }
         }
-        // fields['Content-Type'] = file.type;
+        fields['Content-Type'] = file.type;
         // this is disabled because it seems to work on some instances, and fails on others, idk yet
 
         return Promise.resolve({

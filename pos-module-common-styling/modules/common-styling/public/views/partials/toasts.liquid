@@ -1,8 +1,8 @@
 {% doc %}
-  @param {boolean} autohide - whether the toast auto-hides
-  @param {number} delay - delay in milliseconds before auto-hide
-  @param {string} message - toast message content
-  @param {string} severity - toast severity level
+  @param {boolean} [autohide] - whether the toast auto-hides
+  @param {number} [delay] - delay in milliseconds before auto-hide
+  @param {string} [message] - toast message content
+  @param {string} [severity] - toast severity level
 {% enddoc %}
 {% liquid
   assign delay = delay | default: 1000

@@ -1,14 +1,11 @@
 {% doc %}
   @param {string} size - avatar size (xs, sm, md, lg, xl, 2xl, 3xl)
+  @param {string} [class] - additional CSS classes
   @param {string} name - user display name
   @param {string} image_src - URL of the avatar image
 {% enddoc %}
-{% comment %}platformos-check-disable UndefinedObject{% endcomment %}
 {% liquid
-  assign size = size | default: params.size | default: 'md'
-  assign class = class | default: params.class
-  assign name = name | default: params.name
-  assign image_src = image_src | default: params.imageSrc
+  assign size = size | default: 'md'
 
   assign names = name | split: " "
 
@@ -29,7 +26,6 @@
       assign dimensions = 192
   endcase
 %}
-{% comment %}platformos-check-enable UndefinedObject{% endcomment %}
 
 {% if image_src == blank %}
 

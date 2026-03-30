@@ -84,8 +84,8 @@ p code {
       padding: 0;
     }
 
-    .styleguide-code .hljs {
-      background: transparent;
+    .styleguide-code code.hljs {
+      background: transparent !important;
     }
 
 /* rendered output examples */
