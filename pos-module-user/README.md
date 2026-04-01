@@ -647,3 +647,60 @@ To manage versioning with Git and npm, you can follow these commands:
 git fetch origin --tags
 npm version major | minor | patch
 ```
+
+## Sequence Diagram
+
+```mermaid
+ sequenceDiagram
+      actor User
+      participant Browser
+      participant POS as platformOS Server
+      participant UserModule as pos-module-user
+      participant DB as Database (GraphQL)
+      participant Session as Session Store
+
+      %% ── LOGIN ─────────────────────────────────────────────────────
+      rect rgb(230, 255, 230)
+          Note over Browser,DB: Login Flow
+          User->>Browser: Click "Log in"
+          Browser->>POS: GET /sessions/new
+          POS->>UserModule: queries/user/current
+          UserModule-->>POS: nil (not logged in)
+          POS-->>Browser: Render login form + authenticity_token
+
+          User->>Browser: Submit credentials
+          Browser->>POS: POST /sessions (email, password, authenticity_token)
+          POS->>POS: Validate CSRF token
+          POS->>DB: query users/authenticate(email, password)
+          DB-->>POS: user record
+          POS->>Session: sign_in user_id: user.id, timeout_in_minutes: 1440
+          Session-->>Browser: Set encrypted session cookie
+          POS-->>Browser: 302 Redirect /
+      end
+
+      %% ── AUTHENTICATED REQUEST ─────────────────────────────────────
+      rect rgb(255, 250, 220)
+          Note over Browser,DB: Authenticated Page Request
+          Browser->>POS: GET /protected-page (with session cookie)
+          POS->>Session: Read session cookie → user_id
+          POS->>UserModule: function profile = queries/user/current
+          UserModule->>DB: query user by session user_id
+          DB-->>UserModule: { id, email, role, properties }
+          UserModule-->>POS: profile hash
+          POS->>UserModule: can_do_or_unauthorized(requester: profile, do: 'resource.action')
+          POS->>DB: graphql query (page data)
+          DB-->>POS: records
+          POS-->>Browser: Render page HTML
+      end
+
+      %% ── LOGOUT ────────────────────────────────────────────────────
+      rect rgb(255, 230, 230)
+          Note over Browser,Session: Logout Flow
+          User->>Browser: Click Sign Out
+          Browser->>POS: POST /sessions (_method=delete, authenticity_token)
+          POS->>POS: Validate CSRF token
+          POS->>Session: sign_out (invalidate session)
+          Session-->>Browser: Clear session cookie
+          POS-->>Browser: 302 Redirect /
+      end
+```
