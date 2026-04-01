@@ -52,8 +52,8 @@ window.pos.modules.markdown = function(settings){
     });
 
     // dispatch custom event
-    module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-initialized', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id } }));
-    pos.modules.debug(module.settings.debug, 'event', 'pos-markdown-initialized', { target: module.settings.container, id: module.settings.id });
+    module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-initialized', { bubbles: true, detail: { module, target: module.settings.container, id: module.settings.id } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-markdown-initialized', { module, target: module.settings.container, id: module.settings.id });
 
   };
 
