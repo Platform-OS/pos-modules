@@ -76,7 +76,7 @@ jobs:
             "payments-example-gateway": {
               "module": "payments-example-gateway",
               "path": "pos-module-payments-example-gateway",
-              "deploy-script": "npm run test:setup:local\n./tests/data/seed/seed.sh",
+              "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
             }
           }

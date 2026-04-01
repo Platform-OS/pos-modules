@@ -80,8 +80,8 @@ jobs:
             echo "Manual input: $manual_input"
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
-              # Lint all modules
-              modules='["payments","user","chat","common-styling","tests","core","oauth-facebook","oauth-github","oauth-google","openai","reports","data-export-api","payments-stripe","payments-example-gateway"]'
+              # Dynamically discover all modules
+              modules=$(ls -d pos-module-*/ | sed 's|pos-module-||g; s|/||g' | jq -R -s -c 'split("\n") | map(select(length > 0))')
             else
               # Parse comma-separated list, strip pos-module- prefix, and create array
               modules=$(echo "$manual_input" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))')
