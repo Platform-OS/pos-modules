@@ -4,7 +4,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Payment Gateway Smoke Tests', () => {
-  test.fixme('Delayed payment success flow', async ({ page }) => {
+  test('Delayed payment success flow', async ({ page }) => {
     // 1. Navigate to /test-payment page
     await page.goto('/test-payment');
 
@@ -20,15 +20,16 @@ test.describe('Payment Gateway Smoke Tests', () => {
     // 3. Verify delayed payment button is present
 
     // expect: Third button with text 'Payment Success delay status change for 15s' is visible
-    const delayedButton = page.getByRole('button', { name: /Payment Success delay status change for 15s/i });
+    // Note: The button contains HTML tags, so we match on the button value attribute
+    const delayedButton = page.locator('button[name="payment_status"][value="success_delayed"]');
     await expect(delayedButton).toBeVisible();
-
-    // expect: Button shows transaction amount: $10.99
-    await expect(delayedButton).toContainText('$10.99');
 
     // expect: Button has name='payment_status' and value='success_delayed'
     await expect(delayedButton).toHaveAttribute('name', 'payment_status');
     await expect(delayedButton).toHaveAttribute('value', 'success_delayed');
+
+    // expect: Button shows transaction amount: $10.99
+    await expect(delayedButton).toContainText('$10.99');
 
     // 4. Click 'Payment Success delay status change for 15s' button
     await delayedButton.click();
