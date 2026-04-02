@@ -94,7 +94,7 @@ jobs:
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \
-                jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))' | \
+                jq -R -c 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))' | \
                 jq -c --slurpfile config /tmp/module-config.json \
                 'map(. as $m | $config[0][$m] | select(. != null))')
             fi
@@ -114,7 +114,9 @@ jobs:
 
   test-e2e:
     needs: detect-changes
-    if: needs.detect-changes.outputs.changed-modules != '[]'
+    if: |
+      needs.detect-changes.result == 'success' &&
+      needs.detect-changes.outputs.changed-modules != '[]'
     runs-on: ubuntu-latest
     container: ${{ vars.PW_CONTAINER }}
     strategy:
