@@ -263,7 +263,7 @@ jobs:
             exit 1
 
   conclusion:
-    needs: [detect-changes, lint-platformos-check]
+    needs: [detect-changes, run-linter]
     if: always()
     runs-on: ubuntu-latest
     steps:
