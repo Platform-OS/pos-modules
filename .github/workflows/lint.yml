@@ -97,100 +97,170 @@ jobs:
 
           echo "matrix=$modules" >> $GITHUB_OUTPUT
 
-  lint-platformos-check:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.changed-modules != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        module: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
-      fail-fast: false
-    env:
-      CI: true
-      PLATFORMOS_CHECK_DEBUG: true
-      DOCKER_WORKSPACE: ${{ github.workspace }}/pos-module-${{ matrix.module }}
-      LOGS_DIR: ${{ github.workspace }}/pos-module-${{ matrix.module }}/logs
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  run-linter:
+      needs: [pre_job, detect-changes]
+      if: |
+        always() &&
+        needs.pre_job.outputs.should_skip != 'true' &&
+        (github.event_name == 'workflow_dispatch' ||
+         needs.detect-changes.outputs.changed-modules != '[]')
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          module: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.module)) || fromJSON(needs.detect-changes.outputs.changed-modules) }}
+        fail-fast: false
+      env:
+        CI: true
+        LOGS_DIR: ${{ github.workspace }}/pos-module-${{ matrix.module }}/logs
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Set up logs directory
-        run: |
-          mkdir -p ${{ env.LOGS_DIR }}
-          chmod -R 777 ${{ env.LOGS_DIR }}
+        - name: Set up Node.js
+          uses: actions/setup-node@v3
+          with:
+            node-version: '22'
 
-      - name: Start PlatformOS LSP
-        id: start_lsp
-        run: |
-          docker run -i \
-            -v ${{ env.DOCKER_WORKSPACE }}:${{ env.DOCKER_WORKSPACE }} \
-            -w ${{ env.DOCKER_WORKSPACE }} \
-            -e PLATFORMOS_CHECK_DEBUG=${{ env.PLATFORMOS_CHECK_DEBUG }} \
-            -e PLATFORMOS_CHECK_DEBUG_LOG_FILE=${{ env.LOGS_DIR }}/platformos-lsp.log \
-            platformos/platformos-lsp:latest
+        - name: Install pos-cli
+          id: install_pos_cli
+          run: npm install -g @platformos/pos-cli@latest
 
-      - name: Run platformos-check
-        if: steps.start_lsp.outcome == 'success'
-        id: run_check
-        run: |
-          set +e  # Disable exit on error
-          docker run -i \
-            -v ${{ env.DOCKER_WORKSPACE }}:${{ env.DOCKER_WORKSPACE }} \
-            -w ${{ env.DOCKER_WORKSPACE }} \
-            -e PLATFORMOS_CHECK_DEBUG=${{ env.PLATFORMOS_CHECK_DEBUG }} \
-            -e PLATFORMOS_CHECK_DEBUG_LOG_FILE=${{ env.LOGS_DIR }}/platformos-check.log \
-            platformos/platformos-check:latest -o json > ${{ env.LOGS_DIR }}/platformos-check-raw.json
-          docker_exit_code=$?
-          set -e  # Re-enable exit on error
+        - name: Set up logs directory
+          if: steps.install_pos_cli.outcome == 'success'
+          run: |
+            mkdir -p ${{ env.LOGS_DIR }}
+            chmod -R 777 ${{ env.LOGS_DIR }}
 
-          jq . ${{ env.LOGS_DIR }}/platformos-check-raw.json | tee ${{ env.LOGS_DIR }}/platformos-check.json
+        # - name: Install modules
+        #   if: steps.install_pos_cli.outcome == 'success'
+        #   run: |
+        #     cd pos-module-${{ matrix.module }}
+        #     mkdir -p app
+        #     pos-cli modules install
 
-          exit $docker_exit_code
+        - name: Run pos-cli check
+          if: steps.install_pos_cli.outcome == 'success'
+          id: run_check
+          run: |
+            set +e  # Disable exit on error
+            pos-cli check run pos-module-${{ matrix.module }} -f json > ${{ env.LOGS_DIR }}/platformos-check-raw.json
+            check_exit_code=$?  # Capture the exit code
+            set -e  # Re-enable exit on error
 
-      - name: Upload logs
-        if: always() && steps.run_check.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
-        with:
-          name: platformos_check_logs_${{ matrix.module }}_${{ github.run_id }}
-          path: |
-            ${{ env.LOGS_DIR }}/platformos-lsp.log
-            ${{ env.LOGS_DIR }}/platformos-check.json
-            ${{ env.LOGS_DIR }}/platformos-check-raw.json
+            jq . ${{ env.LOGS_DIR }}/platformos-check-raw.json | tee ${{ env.LOGS_DIR }}/platformos-check.json
 
-      - name: Generate summary
-        if: always() && steps.run_check.outcome != 'skipped'
-        run: |
-          echo "# PlatformOS Check Summary - ${{ matrix.module }} :checkered_flag:" >> $GITHUB_STEP_SUMMARY
-          echo "## Result: ${{ steps.run_check.outcome }} ${{ env.RESULT_ICON }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+            exit $check_exit_code
 
-          if [ -f "${{ env.LOGS_DIR }}/platformos-check.json" ]; then
-            echo "## Issues Found" >> $GITHUB_STEP_SUMMARY
-            echo "| File | Line | Column | Severity | Check | Message |" >> $GITHUB_STEP_SUMMARY
-            echo "|------|------|--------|----------|-------|---------|" >> $GITHUB_STEP_SUMMARY
+        - name: Upload logs
+          if: always() && steps.run_check.outcome != 'skipped'
+          uses: actions/upload-artifact@v4
+          with:
+            name: platformos_check_logs_${{ matrix.module }}_${{ github.run_id }}
+            path: |
+              ${{ env.LOGS_DIR }}/platformos-check.json
+              ${{ env.LOGS_DIR }}/platformos-check-raw.json
 
-            # Try to parse and add issues
-            if jq -r '.[] | .path as $file | .offenses[] | "| \($file) | \(.start_row) | \(.start_column) | \(.severity) | \(.check) | \(.message) |"' ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY 2>&1; then
-              echo "Issues table generated successfully"
+        - name: Generate summary
+          if: always() && steps.run_check.outcome != 'skipped'
+          run: |
+            echo "# PlatformOS Check Summary - ${{ matrix.module }} :checkered_flag:" >> $GITHUB_STEP_SUMMARY
+            echo "## Result: ${{ steps.run_check.outcome }} ${{ env.RESULT_ICON }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ -f "${{ env.LOGS_DIR }}/platformos-check.json" ]; then
+              JSON="${{ env.LOGS_DIR }}/platformos-check.json"
+
+              # Summary statistics
+              echo "## Summary" >> $GITHUB_STEP_SUMMARY
+              echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+              echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+              jq -r '"| Total Offenses | \(.offenseCount) |", "| Files with Issues | \(.fileCount) |", "| Errors | \(.errorCount) |", "| Warnings | \(.warningCount) |", "| Info | \(.infoCount) |"' "$JSON" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+
+              # Offenses by check type
+              echo "## Offenses by Check Type" >> $GITHUB_STEP_SUMMARY
+              echo "| Check | Total | Errors | Warnings |" >> $GITHUB_STEP_SUMMARY
+              echo "|-------|-------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+              jq -r '
+                [.files[].offenses[]] | group_by(.check)
+                | map({
+                    check: .[0].check,
+                    total: length,
+                    errors: map(select(.severity == "error")) | length,
+                    warnings: map(select(.severity == "warning")) | length
+                  })
+                | sort_by(-.total)
+                | .[]
+                | "| `\(.check)` | \(.total) | \(.errors) | \(.warnings) |"
+              ' "$JSON" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+
+              # Errors section — full detail for files with errors
+              ERROR_FILE_COUNT=$(jq '[.files[] | select(.errorCount > 0)] | length' "$JSON")
+              if [ "$ERROR_FILE_COUNT" -gt 0 ]; then
+                echo "## Errors ($ERROR_FILE_COUNT files)" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                jq -r '
+                  [.files[] | select(.errorCount > 0)]
+                  | sort_by(-.errorCount)
+                  | .[]
+                  | "### \u274c `\(.path)`",
+                    "",
+                    "**Errors:** \(.errorCount) | **Warnings:** \(.warningCount)",
+                    "",
+                    "| Line | Col | Severity | Check | Message |",
+                    "|------|-----|----------|-------|---------|",
+                    (.offenses | sort_by(
+                      (if .severity == "error" then 0 elif .severity == "warning" then 1 else 2 end),
+                      .start_row
+                    ) | .[] | "| \(.start_row) | \(.start_column) | \(.severity) | `\(.check)` | \(.message | gsub("\n"; " ")) |"),
+                    ""
+                ' "$JSON" >> $GITHUB_STEP_SUMMARY
+              fi
+
+              # Warnings section — collapsed, only top files shown
+              WARNING_ONLY_COUNT=$(jq '[.files[] | select(.errorCount == 0 and .warningCount > 0)] | length' "$JSON")
+              if [ "$WARNING_ONLY_COUNT" -gt 0 ]; then
+                TOTAL_WARNINGS=$(jq '.warningCount' "$JSON")
+                echo "<details>" >> $GITHUB_STEP_SUMMARY
+                echo "<summary>## Warnings — ${TOTAL_WARNINGS} across ${WARNING_ONLY_COUNT} files (click to expand)</summary>" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+
+                # Show top 20 files by warning count
+                jq -r '
+                  [.files[] | select(.errorCount == 0 and .warningCount > 0)]
+                  | sort_by(-.warningCount)
+                  | .[:20]
+                  | .[]
+                  | "### \u26a0\ufe0f `\(.path)` — \(.warningCount) warnings",
+                    "",
+                    "| Line | Col | Check | Message |",
+                    "|------|-----|-------|---------|",
+                    (.offenses | sort_by(.start_row)
+                    | .[] | "| \(.start_row) | \(.start_column) | `\(.check)` | \(.message | gsub("\n"; " ")) |"),
+                    ""
+                ' "$JSON" >> $GITHUB_STEP_SUMMARY
+
+                REMAINING=$((WARNING_ONLY_COUNT - 20))
+                if [ "$REMAINING" -gt 0 ]; then
+                  echo "...and ${REMAINING} more files with warnings only." >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                fi
+
+                echo "</details>" >> $GITHUB_STEP_SUMMARY
+              fi
             else
-              echo "| N/A | N/A | N/A | N/A | N/A | Failed to parse JSON - see logs for details |" >> $GITHUB_STEP_SUMMARY
-              echo "JSON parse error. File contents:" >> $GITHUB_STEP_SUMMARY
-              echo '```json' >> $GITHUB_STEP_SUMMARY
-              cat ${{ env.LOGS_DIR }}/platformos-check.json >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "## No output file found" >> $GITHUB_STEP_SUMMARY
+              echo "Expected location: ${{ env.LOGS_DIR }}/platformos-check.json" >> $GITHUB_STEP_SUMMARY
             fi
-          else
-            echo "## No output file found" >> $GITHUB_STEP_SUMMARY
-            echo "Expected location: ${{ env.LOGS_DIR }}/platformos-check.json" >> $GITHUB_STEP_SUMMARY
-          fi
-        env:
-          RESULT_ICON: ${{ steps.run_check.outcome == 'success' && ':white_check_mark:' || ':x:' }}
+          env:
+            RESULT_ICON: ${{ steps.run_check.outcome == 'success' && ':white_check_mark:' || ':x:' }}
 
-      - name: Fail job if platformos-check failed
-        if: always() && steps.run_check.outcome == 'failure'
-        run: |
-          echo "platformos-check failed — marking job as failed"
-          exit 1
+        - name: Fail job if platformos-check failed
+          if: always() && steps.run_check.outcome == 'failure'
+          run: |
+            echo "platformos-check failed — marking job as failed"
+            exit 1
 
   conclusion:
     needs: [detect-changes, lint-platformos-check]
