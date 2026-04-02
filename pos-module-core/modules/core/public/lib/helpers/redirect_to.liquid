@@ -37,7 +37,7 @@
       echo response_json
     else
       response_status 422
-      assign res = { "errors": response_json.errors }
+      assign res = { "errors": object.errors }
 
       echo res
     endif
