@@ -1,8 +1,8 @@
-const Generator = require('yeoman-generator');
-const pluralize = require('pluralize');
-const startCase = require('lodash.startcase');
+import Generator from 'yeoman-generator';
+import pluralize from 'pluralize';
+import startCase from 'lodash.startcase';
 
-module.exports = class extends Generator {
+export default class extends Generator {
   constructor(args, opts) {
     super(args, opts);
 

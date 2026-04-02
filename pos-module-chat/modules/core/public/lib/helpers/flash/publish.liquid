@@ -1,3 +1,9 @@
+{% doc %}
+  @param {string} error - The error flash message
+  @param {string} info - The info flash message
+  @param {string} notice - The notice flash message
+  @param {boolean} force_clear - If true, clear flash messages immediately
+{% enddoc %}
 {% liquid
   if error and error contains 'app.'
     assign error = error | t
