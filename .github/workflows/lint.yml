@@ -84,7 +84,7 @@ jobs:
               modules=$(ls -d pos-module-*/ | sed 's|pos-module-||g; s|/||g' | jq -R -s -c 'split("\n") | map(select(length > 0))')
             else
               # Parse comma-separated list, strip pos-module- prefix, and create array
-              modules=$(echo "$manual_input" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))')
+              modules=$(echo "$manual_input" | jq -R -c 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))')
             fi
             echo "Manual trigger modules: $modules"
           else
@@ -100,14 +100,13 @@ jobs:
   run-linter:
       needs: [pre_job, detect-changes]
       if: |
-        always() &&
         needs.pre_job.outputs.should_skip != 'true' &&
-        (github.event_name == 'workflow_dispatch' ||
-         needs.detect-changes.outputs.changed-modules != '[]')
+        needs.detect-changes.result == 'success' &&
+        needs.detect-changes.outputs.changed-modules != '[]'
       runs-on: ubuntu-latest
       strategy:
         matrix:
-          module: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.module)) || fromJSON(needs.detect-changes.outputs.changed-modules) }}
+          module: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
         fail-fast: false
       env:
         CI: true
@@ -291,9 +290,9 @@ jobs:
             echo '${{ needs.detect-changes.outputs.changed-modules }}' | jq -r '.[] | "- " + .' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            if [ "${{ needs.lint-platformos-check.result }}" = "success" ]; then
+            if [ "${{ needs.run-linter.result }}" = "success" ]; then
               echo "Result: All checks passed" >> $GITHUB_STEP_SUMMARY
-            elif [ "${{ needs.lint-platformos-check.result }}" = "skipped" ]; then
+            elif [ "${{ needs.run-linter.result }}" = "skipped" ]; then
               echo "Result: Linting was skipped" >> $GITHUB_STEP_SUMMARY
             else
               echo "Result: Some checks failed - see job output for details" >> $GITHUB_STEP_SUMMARY
