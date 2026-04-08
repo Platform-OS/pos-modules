@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Stripe Payment Page', () => {
-  test('should load payment page successfully', async ({ page }) => {
+  test.skip('should load payment page successfully', async ({ page }) => {
     await test.step('Navigate to payment page', async () => {
       await page.goto('/test-stripe-payment');
       await expect(page).toHaveURL(/test-stripe-payment/);

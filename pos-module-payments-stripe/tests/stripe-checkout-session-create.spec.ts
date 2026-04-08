@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Stripe Checkout Session Creation', () => {
-  test('should create checkout session and redirect to Stripe', async ({ page }) => {
+  test.skip('should create checkout session and redirect to Stripe', async ({ page }) => {
     await test.step('Navigate to payment page', async () => {
       await page.goto('/test-stripe-payment');
     });

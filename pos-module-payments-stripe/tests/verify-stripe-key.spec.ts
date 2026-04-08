@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Verify Stripe API key is working', async ({ page }) => {
+test.skip('Verify Stripe API key is working', async ({ page }) => {
   await page.goto('/test-stripe-payment');
   
   const startButton = page.locator('#start-payment');

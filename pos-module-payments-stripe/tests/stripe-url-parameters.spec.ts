@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('URL Parameter Preservation', () => {
-  test('should preserve success_url and cancel_url through payment flow', async ({ page }) => {
+  test.skip('should preserve success_url and cancel_url through payment flow', async ({ page }) => {
     await test.step('Create checkout session', async () => {
       await page.goto('/test-stripe-payment');
 
@@ -29,7 +29,7 @@ test.describe('URL Parameter Preservation', () => {
     });
   });
 
-  test('should display transaction_id in success page', async ({ page }) => {
+  test.skip('should display transaction_id in success page', async ({ page }) => {
     await test.step('Navigate to success page with transaction_id', async () => {
       const testTransactionId = 'test_txn_12345';
       await page.goto(`/test-stripe-payment?success=true&transaction_id=${testTransactionId}`);
@@ -44,7 +44,7 @@ test.describe('URL Parameter Preservation', () => {
     });
   });
 
-  test('should display transaction_id in failure page', async ({ page }) => {
+  test.skip('should display transaction_id in failure page', async ({ page }) => {
     await test.step('Navigate to failure page with transaction_id', async () => {
       const testTransactionId = 'test_txn_67890';
       await page.goto(`/test-stripe-payment?failure=true&transaction_id=${testTransactionId}`);

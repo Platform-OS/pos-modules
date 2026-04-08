@@ -2,9 +2,15 @@
 
 This directory contains end-to-end tests for the Stripe payments module using Playwright.
 
+## Current Status
+
+**All tests are currently SKIPPED** because the required test application does not exist.
+
+The test app (tests/post_import/app/) with pages like `/test-stripe-payment` needs to be created before these tests can run. All 6 test files require the test app and will be skipped until it is implemented.
+
 ## Overview
 
-The test suite verifies the Stripe Checkout integration, including:
+The test suite is designed to verify the Stripe Checkout integration, including:
 - Payment page rendering
 - Checkout session creation
 - Webhook handling (success, expiration, failures)
@@ -18,6 +24,7 @@ The test suite verifies the Stripe Checkout integration, including:
 2. **Playwright** installed via `npm install`
 3. **MPKIT_URL** environment variable set to your platformOS instance
 4. **pos-cli** configured with environment access
+5. **Test application** deployed (currently missing - see note above)
 
 ## Test Setup
 
@@ -29,24 +36,21 @@ The test suite verifies the Stripe Checkout integration, including:
 # 1. Install dependencies
 npm install
 
-# 2. Deploy test application to your development environment
-pos-cli deploy <env>
-
-# 3. Set environment variable
+# 2. Set environment variable
 export MPKIT_URL=https://your-instance.staging.oregon.platform-os.com
 
-# 4. Run tests
+# 3. Run tests (currently all tests will be skipped)
 npm run pw-tests
 ```
 
-### What Gets Deployed
+### What Needs to Be Created
 
-The test setup deploys:
-- **Test pages**: `/test-stripe-payment`, `/test-stripe-payment-post`, `/test-stripe-webhook`
-- **Module dependencies**: core, payments, payments_stripe
+The test application needs to be created in `tests/post_import/app/` with:
+- **Test pages**: `/test-stripe-payment` (GET), `/test-stripe-payment-post` (POST), `/test-stripe-webhook` (POST)
 - **Test configuration**: `tests/post_import/app/config.yml`
+- **Module dependencies**: core, payments, payments_stripe need to be set up for test environment
 
-Files in `tests/post_import/` are deployed to create the test environment.
+Until the test app is created, all tests will be skipped.
 
 ## Running Tests
 
@@ -72,25 +76,20 @@ npx playwright test --ui
 
 ### Debug a test
 ```bash
-npx playwright test --debug tests/stripe-webhook-success.spec.ts
+npx playwright test --debug tests/stripe-payment-page-load.spec.ts
 ```
 
 ## Test Structure
 
-### Core Flow Tests (Priority 1)
-- **seed.spec.ts**: Initial page load for warming up
-- **stripe-payment-page-load.spec.ts**: Verifies payment page renders correctly
-- **stripe-checkout-session-create.spec.ts**: Tests checkout session creation and Stripe redirect
-- **stripe-webhook-success.spec.ts**: Tests successful payment webhook handling
-- **stripe-webhook-expired.spec.ts**: Tests expired session webhook handling
+All tests are currently skipped due to missing test app.
 
-### Error Scenario Tests (Priority 2)
-- **stripe-invalid-transaction.spec.ts**: Tests handling of invalid transaction IDs
-- **stripe-missing-api-key.spec.ts**: Tests graceful failure without Stripe API key
-
-### Additional Coverage Tests (Priority 3)
-- **stripe-url-parameters.spec.ts**: Verifies URL parameter preservation
-- **stripe-multiple-attempts.spec.ts**: Tests multiple payment attempts
+### Existing Test Files (All Skipped)
+- **stripe-payment-page-load.spec.ts**: Would verify payment page renders correctly
+- **stripe-checkout-session-create.spec.ts**: Would test checkout session creation and Stripe redirect
+- **stripe-missing-api-key.spec.ts**: Would test graceful failure without Stripe API key
+- **stripe-url-parameters.spec.ts**: Would verify URL parameter preservation (3 test cases)
+- **stripe-multiple-attempts.spec.ts**: Would test multiple payment attempts
+- **verify-stripe-key.spec.ts**: Would verify Stripe API key is working
 
 ## Test Environment Limitations
 
@@ -174,11 +173,8 @@ npm install
 export MPKIT_URL=https://your-instance.staging.oregon.platform-os.com
 ```
 
-### Tests fail with 404 errors
-Deploy the test application:
-```bash
-pos-cli deploy <env>
-```
+### Tests are all skipped
+The test application does not exist yet. Create the test app in `tests/post_import/app/` following the pattern from pos-module-payments-example-gateway, then remove `.skip` from the test files.
 
 ### Checkout fails with API key error
 This is expected in test environments without valid Stripe API keys. The tests are designed to handle this gracefully and verify error handling.
@@ -207,7 +203,7 @@ test.describe('My Test Suite', () => {
 
 ## Clean Up
 
-After testing, you can clean up the deployed test files by removing the `tests/post_import/` deployment or by redeploying without test files.
+Once the test application is created and deployed, you can clean up the deployed test files by removing the `tests/post_import/` deployment or by redeploying without test files.
 
 ## Support
 

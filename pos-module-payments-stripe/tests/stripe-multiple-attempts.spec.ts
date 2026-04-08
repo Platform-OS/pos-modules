@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Multiple Payment Attempts', () => {
-  test('should allow multiple payment attempts', async ({ page }) => {
+  test.skip('should allow multiple payment attempts', async ({ page }) => {
     let firstTransactionId: string | undefined;
     let secondTransactionId: string | undefined;
 

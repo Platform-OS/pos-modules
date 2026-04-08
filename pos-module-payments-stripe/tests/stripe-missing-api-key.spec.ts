@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Missing Stripe API Key Handling', () => {
-  test('should handle missing Stripe API key gracefully', async ({ page }) => {
+  test.skip('should handle missing Stripe API key gracefully', async ({ page }) => {
     await test.step('Attempt to create checkout without API key', async () => {
       // In a test environment without STRIPE_SECRET_KEY configured,
       // the checkout session creation should fail gracefully
