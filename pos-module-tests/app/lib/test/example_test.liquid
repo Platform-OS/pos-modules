@@ -1,3 +1,6 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
 {% liquid
   # Example test demonstrating basic assertions
 
@@ -12,14 +15,14 @@
 
   # Test blank assertion
   assign empty_string = ''
-  function contract = 'modules/tests/assertions/blank', contract: contract, given: empty_string, field_name: 'empty string is blank'
+  assign blank_obj = { "blank_field": empty_string }
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: blank_obj, field_name: 'blank_field'
 
   # Test presence assertion - expects object with field_name key
-  assign obj_with_value = '{}' | parse_json
-  hash_assign obj_with_value['my_field'] = 'some value'
+  assign obj_with_value = { "my_field": 'some value' }
   function contract = 'modules/tests/assertions/presence', contract: contract, object: obj_with_value, field_name: 'my_field'
 
   # Test true assertion - expects value parameter
   assign flag = true
-  function contract = 'modules/tests/assertions/true', contract: contract, value: flag, field_name: 'boolean true'
+  function contract = 'modules/tests/assertions/true', contract: contract, object: null, value: flag, field_name: 'boolean true'
 %}

@@ -5,7 +5,7 @@
   if object.valid
     function stripe_session = 'modules/payments_stripe/commands/stripe_checkout/retrieve', transaction: object.transaction, with_payment_intent: true
     if stripe_session.valid
-      assign ach_method_types = '["us_bank_account"]' | parse_json
+      assign ach_method_types = ["us_bank_account"]
       if stripe_session.payment_intent.payment_method_types != ach_method_types
         assign ach_payment = true
       endif
@@ -32,7 +32,7 @@
 
       if payment_status
         if payment_status != transaction.status.name
-          assign input = null | hash_merge: payment_status: payment_status
+          assign input = {"payment_status": payment_status}
           function object = 'modules/payments/commands/transactions/update_status', object: input, transaction: object.transaction, requester_id: requester_id
         endif
       else

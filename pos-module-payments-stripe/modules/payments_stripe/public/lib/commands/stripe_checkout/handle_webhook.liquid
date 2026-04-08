@@ -7,7 +7,7 @@
     if object.customer
       function _customer = 'modules/payments_stripe/commands/customers/create', object: object.customer
     endif
-    assign input = null | hash_merge: payment_status: object.status
+    assign input = {"payment_status": object.status}
     function object = 'modules/payments/commands/transactions/update_status', object: input, transaction: object.transaction, requester_id: requester_id
   else
     log object, type: "ERROR: modules/payments_stripe/commands/stripe_checkout/handle_webhook invalid"

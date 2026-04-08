@@ -1,20 +1,13 @@
-{% comment %}
-  Creates a status object.
-
-  Params:
-    - page
-      default: 1
-    - limit
-      default: 20
-    - id
-    - name: String
-      the name of the status. For example: 'app.status.transaction.failed'
-    - reference_id
-    - requester_id
-      the ID of the requester. It can be a user ID or 'stripe_webhook' or anything else that represents who stored the status
-    - timestamp (optional)
-    - reference_schema (optional)
-{% endcomment %}
+{% doc %}
+  @param {string} id - The record ID
+  @param {string} name - The name identifier
+  @param {string} reference_id - The reference record ID
+  @param {string} requester_id - The ID of the requester
+  @param {number} limit - Maximum number of results
+  @param {number} page - Page number for pagination
+  @param {string} reference_schema - The reference schema name
+  @param {string} timestamp - The timestamp
+{% enddoc %}
 {% liquid
   assign page = page | to_positive_integer: 1
   assign limit = limit | default: 20

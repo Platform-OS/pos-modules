@@ -1,9 +1,12 @@
+{% doc %}
+  @param {object} object - The object to process
+{% enddoc %}
 {% liquid
   graphql r = 'modules/openai/embeddings/update', args: object
 
   assign object = r.embedding_update
-  hash_assign object['valid'] = true
+  assign object.valid = true
 
   return object
-%}
+ %}
 

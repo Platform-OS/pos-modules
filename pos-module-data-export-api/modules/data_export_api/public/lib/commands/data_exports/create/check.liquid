@@ -1,7 +1,8 @@
 {% liquid
-  assign c = '{ "errors": {}, "valid": true }' | parse_json
+  assign c = { "errors": {}, "valid": true }
 
-  assign object = object | hash_merge: valid: c.valid, errors: c.errors
+  assign object.valid = c.valid
+  assign object.errors = c.errors
 
   return object
 %}

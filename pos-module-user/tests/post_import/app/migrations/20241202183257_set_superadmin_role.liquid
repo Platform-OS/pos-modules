@@ -1,4 +1,4 @@
-{% assign roles = '["member", "superadmin"]' | parse_json %}
+{% assign roles = ["member", "superadmin"] %}
 
 {% if context.environment == "staging" %}
   {% graphql r, userId: 1, roles: roles %}

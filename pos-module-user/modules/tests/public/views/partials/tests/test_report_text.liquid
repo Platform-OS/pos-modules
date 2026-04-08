@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} name - test name path
+  @param {object} contract - test contract with results
+{% enddoc %}
 {% assign test_name = name | replace: 'test/', '' %}
 {{ test_name }}
 {% for e in contract.errors %}

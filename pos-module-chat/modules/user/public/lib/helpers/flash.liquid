@@ -14,7 +14,7 @@
     assign message = info | t
     assign severity = 'info'
   endif
-  assign flash = null | hash_merge: message: message, severity: severity, from: context.location.pathname, force_clear: force_clear
+  assign flash = {"message": message, "severity": severity, "from": context.location.pathname, "force_clear": force_clear}
 
   function _ = 'modules/core/commands/session/set', key: 'sflash', value: flash
 

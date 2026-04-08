@@ -1,14 +1,17 @@
 ---
 metadata:
   event:
-    user_id
+    profile_id
     role
 ---
+{% doc %}
+  @param {object} event - The event object
+{% enddoc %}
 {% liquid
-  assign c = '{ "errors": {}, "valid": true }' | parse_json
+  assign c = { "errors": {}, "valid": true }
 
-  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'user_id'
-  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'role'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'profile_id', key: null
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'role', key: null
 
   return c
 %}

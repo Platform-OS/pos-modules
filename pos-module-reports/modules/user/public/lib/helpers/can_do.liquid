@@ -1,15 +1,9 @@
-{% comment %}
-  Checks if the requester can do domething on the given entiry.
-
-  Params:
-    - requester Object
-      The requester must have a string array field called 'roles'
-    - entity Object
-    - do String
-    - access_callback String
-      The callback function that checks the request. By default searches that the `requester`
-      has `do` permission or not.
-{% endcomment %}
+{% doc %}
+  @param {string} access_callback - Custom authorization callback path
+  @param {string} do - The permission to check
+  @param {object} entity - The entity to check access against
+  @param {object} requester - The user profile requesting access
+{% enddoc %}
 {% liquid
   assign roles_type = requester.roles | type_of
   unless roles_type == 'Array'

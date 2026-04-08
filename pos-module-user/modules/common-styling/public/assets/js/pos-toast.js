@@ -4,7 +4,7 @@
   usage:
     new window.pos.modules.toast('type', 'message');
     or
-    let notification = new window.pos.modules.toast('type', 'message')
+    let notification = new window.pos.modules.toast([type], [message])
     notification.remove();
 
   types:

@@ -2,7 +2,8 @@
   <html>
     <head>
       <title>Reports module</title>
-      <link rel="stylesheet" href="{{ 'css/app.css' | asset_path }}">
+      {% comment %}platformos-check-disable MissingAsset{% endcomment %}
+    <link rel="stylesheet" href="{{ 'css/app.css' | asset_url }}">
     </head>
     <body>
       {{ content_for_layout }}

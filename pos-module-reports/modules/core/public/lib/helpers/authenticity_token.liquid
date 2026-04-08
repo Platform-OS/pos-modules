@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} authenticity_token - The authenticity token from the form
+  @param {string} token - The authenticity token value
+{% enddoc %}
 {% assign token = token | default: authenticity_token | default: context.authenticity_token %}
 {% unless token %}
   <small>Liquid Error AuthenticityTokenNotFound</small>
