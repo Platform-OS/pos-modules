@@ -78,7 +78,9 @@ jobs:
             "payments-stripe": {
               "module": "payments-stripe",
               "path": "pos-module-payments-stripe",
-              "deploy-script": "mkdir -p tests/post_import/modules\ncp -r ../pos-module-core/modules/core tests/post_import/modules/\ncp -r ../pos-module-payments/modules/payments tests/post_import/modules/\ncp -r modules/payments_stripe tests/post_import/modules/\n./tests/data/seed/seed.sh",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
+            },
             "payments-example-gateway": {
               "module": "payments-example-gateway",
               "path": "pos-module-payments-example-gateway",
