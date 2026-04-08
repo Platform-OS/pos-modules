@@ -1,7 +1,13 @@
 {% capture url %}
 https://api.stripe.com//v1/accounts/{{ account_id }}/login_links
 {% endcapture %}
-{% assign payload = {"stripe_account_name": stripe_account_name} %}
 {% liquid
-  return {"payload": payload, "request_type": 'POST', "to": url}
+  assign payload = '{}' | parse_json
+  hash_assign payload['stripe_account_name'] = stripe_account_name
+
+  assign result = '{}' | parse_json
+  hash_assign result['payload'] = payload
+  hash_assign result['request_type'] = 'POST'
+  hash_assign result['to'] = url
+  return result
 %}

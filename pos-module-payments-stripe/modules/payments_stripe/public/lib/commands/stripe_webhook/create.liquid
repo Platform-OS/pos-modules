@@ -7,7 +7,7 @@
 {% endparse_json %}
 {% liquid
   assign idempotency_key = 20 | random_string
-  assign data = {"to": 'https://api.stripe.com/v1/webhook_endpoints', "request_type": 'Post', "payload": payload, "idempotency_key": idempotency_key, "stripe_account_name": stripe_account_name}
+  assign data = {"to": "https://api.stripe.com/v1/webhook_endpoints", "request_type": "POST", "payload": payload, "idempotency_key": idempotency_key, "stripe_account_name": stripe_account_name}
   graphql response = 'modules/payments_stripe/api_call', template: 'modules/payments_stripe/generic', data: data
   assign response = response | dig: 'api_call', 'response'
   return response

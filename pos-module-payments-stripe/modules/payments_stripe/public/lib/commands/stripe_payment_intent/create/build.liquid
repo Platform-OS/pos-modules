@@ -1,6 +1,10 @@
 {% liquid
   assign idempotency_key = object | hash_delete_key: 'idempotency_key'
-  assign data = {"payload": object, "request_type": 'POST', "to": 'https://api.stripe.com/v1/payment_intents', "idempotency_key": idempotency_key}
+  assign data = '{}' | parse_json
+  hash_assign data['payload'] = object
+  hash_assign data['request_type'] = 'POST'
+  hash_assign data['to'] = 'https://api.stripe.com/v1/payment_intents'
+  hash_assign data['idempotency_key'] = idempotency_key
 
   return data
 %}

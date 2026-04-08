@@ -1,7 +1,7 @@
 {% liquid
   assign idempotency_key = 20 | random_string
-  assign to = 'https://api.stripe.com/v1/webhook_endpoints/' | append: gateway_id
+  assign to = "https://api.stripe.com/v1/webhook_endpoints/" | append: gateway_id
 
-  assign object = {"to": to, "request_type": 'Delete', "idempotency_key": idempotency_key, "gateway_id": gateway_id}
+  assign object = {"to": to, "request_type": "DELETE", "idempotency_key": idempotency_key, "gateway_id": gateway_id}
   return object
 %}

@@ -8,5 +8,9 @@
   }
 {%- endparse_json -%}
 {% liquid
-  return {"payload": payload, "request_type": 'POST', "to": "https://api.stripe.com/v1/account_links"}
+  assign result = '{}' | parse_json
+  hash_assign result['payload'] = payload
+  hash_assign result['request_type'] = 'POST'
+  hash_assign result['to'] = 'https://api.stripe.com/v1/account_links'
+  return result
 %}

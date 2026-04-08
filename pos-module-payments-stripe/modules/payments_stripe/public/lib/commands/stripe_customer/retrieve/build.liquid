@@ -3,7 +3,7 @@ https://api.stripe.com/v1/customers/{{ customer_id }}
 {% endcapture %}
 {% liquid
   assign payload = {"stripe_account_name": stripe_account_name}
-  assign data = {"payload": payload, "request_type": 'GET', "to": url}
+  assign data = {"payload": payload, "request_type": "GET", "to": url}
 
   return data
 %}

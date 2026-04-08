@@ -1,7 +1,7 @@
 {%- liquid
   assign requester_id = 'stripe_webhook_request'
   assign response = {"status": 200}
-  assign gateway_transaction_ids = params.data.object.id | split: '!!' | push: params.data.object.payment_intent | compact
+  assign gateway_transaction_ids = params.data.object.id | split: '!!' | array_add: params.data.object.payment_intent | array_compact
   if params.data.object.metadata.transaction_id
     function transaction = 'modules/payments/queries/transactions/find', id: params.data.object.metadata.transaction_id
   elsif gateway_transaction_ids.size > 0

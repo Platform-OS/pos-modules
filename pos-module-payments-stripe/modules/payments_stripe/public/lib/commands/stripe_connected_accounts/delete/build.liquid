@@ -2,5 +2,9 @@
 https://api.stripe.com//v1/accounts/{{ account_id }}
 {% endcapture %}
 {% liquid
-  return {"payload": null, "request_type": 'DELETE', "to": url}
+  assign result = '{}' | parse_json
+  hash_assign result['payload'] = null
+  hash_assign result['request_type'] = 'DELETE'
+  hash_assign result['to'] = url
+  return result
 %}
