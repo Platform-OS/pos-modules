@@ -16,12 +16,14 @@
       forms
       utility
     negotiating colors based on the choosen theme
+  gradients
   fonts
   typography
   sizes
   spacing
   button shape
   input shape
+  transitions
 */
 
 
@@ -559,6 +561,11 @@
     --pos-color-content-text-prominent: var(--pos-color-dark-content-text-prominent);
     --pos-color-content-inverted-text: var(--pos-color-dark-content-inverted-text);
     --pos-color-frame: var(--pos-color-dark-frame);
+    --pos-color-highlight-background: var(--pos-color-dark-highlight-background);
+    --pos-color-highlight-text: var(--pos-color-dark-highlight-text);
+    --pos-color-standout-background: var(--pos-color-dark-standout-background);
+    --pos-color-standout-background-hover: var(--pos-color-dark-standout-background-hover);
+    --pos-color-standout-text: var(--pos-color-dark-standout-text);
 
 
     /* interactive elements */
@@ -638,6 +645,15 @@
 
 
 
+/* gradients */
+/* ================================================================================ */
+:root {
+  /* eased black-to-transparent gradient used as background for text and icons to improve legibility */
+  --pos-gradient-legibility: linear-gradient(hsl(0, 0%, 0%) 0%, hsla(0, 0%, 0%, 0.738) 19%, hsla(0, 0%, 0%, 0.541) 34%, hsla(0, 0%, 0%, 0.382) 47%, hsla(0, 0%, 0%, 0.278) 56.5%, hsla(0, 0%, 0%, 0.194) 65%, hsla(0, 0%, 0%, 0.126) 73%, hsla(0, 0%, 0%, 0.075) 80.2%, hsla(0, 0%, 0%, 0.042) 86.1%, hsla(0, 0%, 0%, 0.021) 91%, hsla(0, 0%, 0%, 0.008) 95.2%, hsla(0, 0%, 0%, 0.002) 98.2%, hsla(0, 0%, 0%, 0) 100%);
+}
+
+
+
 /* fonts */
 /* ================================================================================ */
 :root {
@@ -645,6 +661,8 @@
   --pos-font-default: system-ui, sans-serif;
   /* headings */
   --pos-font-heading: 'Source Code Pro', 'Consolas', monospace;
+  /* code */
+  --pos-font-code: monospace;
 }
 
 
@@ -758,7 +776,7 @@
   /* gap between section title and content */
   --pos-gap-title-content: 32px;
   /* gap between sections */
-  --pos-gap-section-section: 80px;
+  --pos-gap-section-section: 40px;
   /* gap between cards */
   --pos-gap-card-card: 16px;
   /* gap between text content */
@@ -825,4 +843,20 @@
   --pos-height-button: var(--pos-height-input);
   /* border width for inputs */
   --pos-border-button: var(--pos-border-input);
+}
+
+
+
+/* transitions */
+/* ================================================================================ */
+:root {
+  --pos-transition-ui-detail: cubic-bezier(.3, 1, .06, 1);
+}
+
+
+
+/* shadows */
+/* ================================================================================ */
+:root {
+  --pos-shadow-popover: 0 8px 8px 0 rgb(78, 78, 78, .05), 0 15px 20px 0 rgb(0, 0, 0, .05), 0 1px 1px 0 rgb(91, 91, 91, .20);
 }

@@ -20,7 +20,9 @@
     flex-direction: column;
 
     background-color: var(--pos-color-page-background);
+  }
 
+  .pos-app {
     text-rendering: optimizeLegibility;
     font-family: var(--pos-font-default);
     color: var(--pos-color-content-text);

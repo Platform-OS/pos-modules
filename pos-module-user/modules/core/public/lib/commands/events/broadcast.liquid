@@ -1,3 +1,8 @@
+{% doc %}
+  @param {object} object - The object to process
+  @param {number} deprecated_delay - Deprecated: use metadata.delay in consumer file instead
+  @param {number} deprecated_max_attempts - Deprecated: use metadata.max_attempts in consumer file instead
+{% enddoc %}
 {% liquid
   if object.type == blank
     log 'ERROR: events broadcast type blank'
@@ -6,9 +11,9 @@
   assign priorities = 'low,default,high' | split: ','
 
   assign name = 'consumers/' | append: object.type | append: '/'
-  graphql consumers = 'modules/core/events/consumers', name: name | fetch: "admin_liquid_partials" | fetch: "results"
+  graphql consumers = 'modules/core/events/consumers', name: name | dig: "admin_liquid_partials", "results"
 
-  hash_assign object['consumers'] = consumers
+  assign object.consumers = consumers
   for consumer in consumers
     assign priority = 'default'
     if priorities contains consumer.metadata.priority

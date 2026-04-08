@@ -1,3 +1,9 @@
+{% doc %}
+  @param {object} object - The object to process
+  @param {string} type - The type identifier
+  @param {number} delay - Delay in minutes before processing
+  @param {number} max_attempts - Maximum number of retry attempts
+{% enddoc %}
 {% liquid
   if delay > 0
     log 'use metadata.delay in the consumer file instead of passing it to modules/core/commands/events/publish', type: 'DEPRECATION'

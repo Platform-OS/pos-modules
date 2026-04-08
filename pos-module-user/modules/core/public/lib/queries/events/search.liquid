@@ -1,3 +1,8 @@
+{% doc %}
+  @param {number} limit - Maximum number of results
+  @param {number} page - Page number for pagination
+  @param {string} uuids - List of UUID identifiers
+{% enddoc %}
 {% liquid
   assign page = page | to_positive_integer: 1
   assign uuids = uuids | default: null

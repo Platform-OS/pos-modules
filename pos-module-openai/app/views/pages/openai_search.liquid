@@ -9,17 +9,17 @@ metadata:
   {% liquid
     if context.params.query != blank and context.params.query.size < 1000
 
-      assign c = '{ "errors": {}, "valid": true }' | parse_json
-      function c = 'modules/core/validations/hcaptcha', c: c, hcaptcha_params: context.params
+      assign c = { "errors": {}, "valid": true }
+      function c = 'modules/core/validations/hcaptcha', c: c, hcaptcha_params: context.params, key: 'hcaptcha'
 
       if c.valid
-        assign user_input = '[]' | parse_json | add_to_array: context.params.query
+        assign user_input = [context.params.query]
         function response = 'modules/openai/commands/openai/fetch_embeddings', object: user_input
 
         if response.data.size > 0
           assign embedding = response.data.first.embedding
 
-          function related_embeddings = 'modules/openai/queries/embeddings/search', related_to: embedding, limit: 5
+          function related_embeddings = 'modules/openai/queries/embeddings/search', related_to: embedding, limit: 5, page: null, metadata: null
           assign search_results = related_embeddings.results
         else
           print "Could not fetch embeddings: " | append: response

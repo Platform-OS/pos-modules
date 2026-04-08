@@ -52,6 +52,7 @@ posStyleGuide.colors = () => {
     module.wrapIcons();
     module.showIconNames();
     module.copyIcon();
+    module.addMeasurements();
   };
 
 
@@ -128,9 +129,9 @@ posStyleGuide.colors = () => {
     document.querySelectorAll('.styleguide-code').forEach(element => {
       element.appendChild(copyButton.content.cloneNode(true));
 
-      element.addEventListener('click', event => {
+      element.querySelector('.styleguide-copy').addEventListener('click', event => {
         // text to copy to the clipboard (string)
-        const text = element.parentElement.querySelector('pre code').textContent.trim();
+        const text = element.querySelector('pre code').textContent.trim();
 
         // copy code to clipboard
         navigator.clipboard.writeText(text).then(() => {
@@ -153,8 +154,6 @@ posStyleGuide.colors = () => {
     module.settings.iconNodes.forEach(item => {
       let wrapper = document.createElement('li');
 
-      wrapper.classList.add('flex', 'flex-col', 'items-center', 'cursor-pointer');
-
       item.parentNode.insertBefore(wrapper, item);
       wrapper.appendChild(item);
     });
@@ -167,7 +166,8 @@ posStyleGuide.colors = () => {
   module.showIconNames = () => {
     
     module.settings.iconNodes.forEach(item => {
-      item.insertAdjacentHTML('afterend', item.getAttribute('data-icon'));
+      item.insertAdjacentHTML('afterend', `<span>${item.getAttribute('data-icon')}</span>`);
+      item.parentElement.title = `Copy '${item.getAttribute('data-icon')}' icon code to clipboard`;
     });
 
   };
@@ -190,6 +190,15 @@ posStyleGuide.colors = () => {
           new Error('Could not copy the code to clipboard');
         });
       });
+    });
+  };
+
+
+  // purpose:   adds measurements to the spacings section
+  // ------------------------------------------------------------------------
+  module.addMeasurements = () => {
+    document.querySelectorAll('#spacings .styleguide-spacings-example').forEach(element => {
+      element.innerHTML += `<div class="styleguide-spacings-example-value">${(window.getComputedStyle(element.parentElement.querySelector('.styleguide-placeholder-input:last-child'))).getPropertyValue('margin-block-start')}</div>`;
     });
   };
 

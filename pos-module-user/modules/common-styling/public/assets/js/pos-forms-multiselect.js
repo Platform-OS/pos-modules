@@ -157,6 +157,11 @@ window.pos.modules.multiselect = function(container, settings){
     document.addEventListener('focusin', module.reactToFocusOutside);
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Popup opened');
+
+    // dispatch custom event
+    document.dispatchEvent(new CustomEvent('pos-multiselect-opened', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, popover: module.settings.optionsNode } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-multiselect-opened', { target: module.settings.container, id: module.settings.id, popover: module.settings.optionsNode });
+
   };
 
 
@@ -179,6 +184,11 @@ window.pos.modules.multiselect = function(container, settings){
     }
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Popup closed');
+
+    // dispatch custom event
+    document.dispatchEvent(new CustomEvent('pos-multiselect-closed', { bubbles: true, detail: { container: module.settings.container, id: module.settings.id, target: module.settings.optionsNode } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-multiselect-closed', { container: module.settings.container, id: module.settings.id, target: module.settings.optionsNode });
+
   };
 
 
@@ -249,6 +259,11 @@ window.pos.modules.multiselect = function(container, settings){
     module.settings.selectedListNode.append(item);
 
     pos.modules.debug(module.settings.debug, module.settings.id, `Showed in the input: ${module.settings.availableOptions[value].label}`);
+
+    // dispatch custom event
+    document.dispatchEvent(new CustomEvent('pos-multiselect-changed', { bubbles: true, detail: { container: module.settings.container, id: module.settings.id, target: module.settings.availableOptions[value], selected: module.settings.selected } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-multiselect-changed', { target: module.settings.container, id: module.settings.id, target: module.settings.availableOptions[value], selected: module.settings.selected });
+
   };
 
 
@@ -262,6 +277,10 @@ window.pos.modules.multiselect = function(container, settings){
 
     module.settings.selectedListNode.querySelector(`.pos-form-multiselect-selected-item-remove[for="pos-multiselect-${module.settings.id}-${value}"]`).closest('.pos-form-multiselect-selected-item').remove();
     pos.modules.debug(module.settings.debug, module.settings.id, `Removed from the input: ${module.settings.availableOptions[value].label}`);
+
+    // dispatch custom event
+    document.dispatchEvent(new CustomEvent('pos-multiselect-changed', { bubbles: true, detail: { container: module.settings.container, id: module.settings.id, target: module.settings.availableOptions[value], selected: module.settings.selected } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-multiselect-changed', { target: module.settings.container, id: module.settings.id, target: module.settings.availableOptions[value], selected: module.settings.selected });
 
     module.updateCounter(); 
   };
@@ -291,6 +310,11 @@ window.pos.modules.multiselect = function(container, settings){
     module.updateCounter();
 
     pos.modules.debug(module.settings.debug, module.settings.id, `Cleared all of the selected items`);
+
+    // dispatch custom event
+    document.dispatchEvent(new CustomEvent('pos-multiselect-changed', { bubbles: true, detail: { container: module.settings.container, id: module.settings.id, selected: module.settings.selected } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-multiselect-changed', { target: module.settings.container, id: module.settings.id, selected: module.settings.selected });
+
   };
 
 
@@ -320,6 +344,11 @@ window.pos.modules.multiselect = function(container, settings){
     }
 
     pos.modules.debug(module.settings.debug, module.settings.id, `Filtered options by phrase: ${phrase}`);
+
+    // dispatch custom event
+    document.dispatchEvent(new CustomEvent('pos-multiselect-filtered', { bubbles: true, detail: { container: module.settings.container, id: module.settings.id, phrase: phrase } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-multiselect-filtered', { target: module.settings.container, id: module.settings.id, phrase: phrase });
+
   };
 
 

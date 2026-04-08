@@ -1,9 +1,14 @@
+{% doc %}
+  @param {object} object - The object to process
+{% enddoc %}
 {% liquid
-  assign c = '{ "errors": {}, "valid": true }' | parse_json
+  assign c = { "errors": {}, "valid": true }
 
-  function c = 'modules/core/validations/presence', c: c, object: object.data.payload, field_name: 'input'
+  function c = 'modules/core/validations/presence', c: c, object: object.data.payload, field_name: 'input', key: 'input'
 
-  assign object = object | hash_merge: c
+  assign object.valid = c.valid
+
+  assign object.errors = c.errors
 
   return object
 %}

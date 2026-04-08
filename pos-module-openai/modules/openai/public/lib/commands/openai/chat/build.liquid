@@ -1,3 +1,6 @@
+{% doc %}
+  @param {object} object - The object to process
+{% enddoc %}
 {%- comment -%}
 Creates an OpenAI API request data with customizable parameters.
 object: JSON Object
@@ -74,31 +77,30 @@ See also: https://platform.openai.com/docs/api-reference/chat
 
 
 {%- liquid
-  hash_assign data_frame['model'] = object['model'] | default: "gpt-4o-mini"
-  hash_assign data_frame['temperature'] = object['temperature'] | default: 1
-  hash_assign data_frame['messages'][0]['content'] = object['system_message'] | default: ""
-  hash_assign data_frame['messages'][1]['content'][0]['text'] = object['user_message'] | default: ""
+  assign data_frame.model = object['model'] | default: "gpt-4o-mini"
+  assign data_frame.temperature = object['temperature'] | default: 1
+  assign data_frame.messages[0].content = object['system_message'] | default: ""
+  assign data_frame.messages[1].content[0].text = object['user_message'] | default: ""
 
-  assign user_images = object['user_images'] | default: '[]' | parse_json
+  assign user_images = object['user_images'] | default: "[]"
 
   if user_images.size > 0
-    assign user_content = data_frame['messages'][1]['content']
+    assign user_content = data_frame.messages[1].content
 
     for item in user_images
-      assign img_object = null | hash_merge: type: "image_url" | hash_merge: image_url: null
-      hash_assign img_object['image_url'] = null | hash_merge: url: item
-      assign user_content = user_content | array_add: img_object
+      assign img_object = { "type": "image_url", "image_url": { "url": item } }
+      assign user_content << img_object
     endfor
 
-    hash_assign data_frame['messages'][1]['content'] = user_content
+    assign data_frame.messages[1].content = user_content
   endif
 
   assign response_format_schema_json = object['response_format_schema_json'] | default: null
 
   if response_format_schema_json != blank
-    hash_assign data_frame['response_format']['json_schema']['schema']['properties'] = response_format_schema_json
+    assign data_frame.response_format.json_schema.schema.properties = response_format_schema_json
   else
-    hash_assign data_frame['response_format'] = null
+    assign data_frame.response_format = null
   endif
 
   return data_frame

@@ -5,7 +5,7 @@ method: post
 ---
 
 {% liquid
-  assign report_id = params.report_id
+  assign report_id = context.params.report_id
   graphql report = 'modules/reports/reports/search', id: report_id, include_documents: true
   assign document_url = report.reports.results.first.documents.first.file.url
 %}

@@ -4,12 +4,13 @@ metadata:
   params:
     context: {}
     errors: {}
+    otp_enabled: null
 ---
-{% liquid
-  assign context = context | default: params.context
-  assign errors = errors | default: params.errors
-%}
-
+{% doc %}
+  @param {object} errors - The validation errors object
+  @param {boolean} otp_enabled - Whether OTP is enabled for the user
+  @param {object} context - The request context
+{% enddoc %}
 <section class="pos-user-content">
 
   <h1 class="pos-heading-2">{{ 'modules/user/users.email.change_email' | t }}</h1>

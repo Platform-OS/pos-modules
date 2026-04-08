@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} current_user_id - The current user ID
+  @param {object} user - The user object
+{% enddoc %}
 {% parse_json object %}
   {
     "id": {{ user.id | json }},

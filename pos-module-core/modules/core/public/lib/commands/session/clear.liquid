@@ -1,3 +1,6 @@
+{% doc %}
+  @param {string} key - The translation key for the error message
+{% enddoc %}
 {% liquid
   if context.session[key] != blank
     graphql _ = 'modules/core/session/delete', name: key

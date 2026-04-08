@@ -8,5 +8,5 @@
   }
 {%- endparse_json -%}
 {% liquid
-  return nil | hash_merge: payload: payload, request_type: 'POST', to: "https://api.stripe.com/v1/account_links"
+  return {"payload": payload, "request_type": 'POST', "to": "https://api.stripe.com/v1/account_links"}
 %}

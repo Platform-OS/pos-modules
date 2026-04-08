@@ -1,3 +1,6 @@
+{% doc %}
+  @param {boolean} reset - whether to include the CSS reset stylesheet
+{% enddoc %}
 {% if reset %}
   <link rel="stylesheet" href="{{ 'modules/common-styling/style/pos-reset.css' | asset_url }}">
 {% endif %}

@@ -2,8 +2,8 @@
 https://api.stripe.com/v1/customers/{{ customer_id }}
 {% endcapture %}
 {% liquid
-  assign payload = null | hash_merge: stripe_account_name: stripe_account_name
-  assign data = null | hash_merge: payload: payload, request_type: 'GET', to: url
+  assign payload = {"stripe_account_name": stripe_account_name}
+  assign data = {"payload": payload, "request_type": 'GET', "to": url}
 
   return data
 %}

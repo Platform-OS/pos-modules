@@ -1,4 +1,5 @@
 name: Lint modules
+run-name: ${{ inputs.module && format('Lint {0}', inputs.module) || ' ' }}
 
 on:
   push:
@@ -27,7 +28,7 @@ jobs:
 
   detect-changes:
     needs: pre_job
-    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    if: ${{ github.event_name != 'workflow_dispatch' && needs.pre_job.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
     outputs:
       changed-modules: ${{ steps.set-matrix.outputs.matrix }}

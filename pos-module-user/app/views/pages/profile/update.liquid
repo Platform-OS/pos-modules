@@ -2,13 +2,18 @@
 method: post
 slug: profile/update
 ---
+{% doc %}
+  @param {object} params - The request parameters
+{% enddoc %}
 {% liquid
     function current_profile = 'modules/user/helpers/current_profile'
     # platformos-check-disable UnreachableCode
-    include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'profile.manage', redirect_anonymous_to_login: true, forbidden_partial: 'modules/user/components/pages/403'
+    # platformos-check-disable DeprecatedTag
+    include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'profile.manage', redirect_anonymous_to_login: true, forbidden_partial: 'modules/user/components/pages/403', access_callback: null, anonymous_return_to: null, entity: null
+    # platformos-check-enable DeprecatedTag
     # platformos-check-enable UnreachableCode
   
     function object = 'modules/user/commands/profiles/update', object: params, profile: current_profile
-    render 'profile/index', errors: object.errors, otp_configured: current_profile.otp_configured
+    render 'profile/index', errors: object.errors, otp_configured: current_profile.otp_configured, current_user: current_profile.user
   %}
   

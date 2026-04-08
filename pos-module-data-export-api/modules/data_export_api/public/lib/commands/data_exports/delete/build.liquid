@@ -1,6 +1,5 @@
 {%- liquid
-  assign result = '{}' | parse_json
-  hash_assign result['id'] = object.id
+  assign result = { "id": object.id }
 
   return result
-%}
+ %}

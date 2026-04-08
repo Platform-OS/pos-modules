@@ -16,9 +16,9 @@
     assign participant_ids = "" | append: seeded_participant_id | append: "," | append: migrated_participant_id | split: ","
     assign participant_read_ids = "" | append: seeded_participant_id
 
-    assign object = null
-    assign object = object | hash_merge: participant_ids: participant_ids
-    assign object = object | hash_merge: participant_read_ids: participant_read_ids 
+    assign object = {}
+    assign object.participant_ids = participant_ids
+    assign object.participant_read_ids = participant_read_ids
     function conversation = 'modules/core/commands/execute', mutation_name: 'modules/chat/conversations/create' object: object, selection: 'record_create'
 
     comment
@@ -26,14 +26,14 @@
     endcomment
     assign messageText = "" | append: "This is migrated message from " | append: seeded_participant_email | append: " to " | append: migrated_participant_email
 
-    assign object = null
-    assign object = object | hash_merge: autor_id: seeded_participant_id
-    assign object = object | hash_merge: conversation_id: conversation.id
-    assign object = object | hash_merge: message: messageText
+    assign object = {}
+    assign object.autor_id = seeded_participant_id
+    assign object.conversation_id = conversation.id
+    assign object.message = messageText
 
     function message = 'modules/core/commands/execute', mutation_name: 'modules/chat/messages/create' object: object, selection: 'record_create'
 
-    assign event_object = null | hash_merge: message_id: object.id, app_host: context.location.host
+    assign event_object = {"message_id": object.id, "app_host": context.location.host}
     function _ = 'modules/core/commands/events/publish', type: 'chat_message_created', object: event_object, delay: null, max_attempts: null
   endfor
 %}

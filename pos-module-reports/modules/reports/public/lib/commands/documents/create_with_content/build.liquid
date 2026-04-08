@@ -1,12 +1,9 @@
+{% doc %}
+  @param {object} object - The object to process
+  @param {string} creator_id - The ID of the creator
+{% enddoc %}
 {% liquid
-  assign output = '{}' | parse_json
-
-  hash_assign output['content']             = object.content
-  hash_assign output['document_type']       = object.document_type
-  hash_assign output['object_uuid']         = object.object_uuid
-  hash_assign output['content_type']        = object.content_type
-  hash_assign output['content_disposition'] = object.content_disposition
-  hash_assign output['creator_id']          = creator_id
+  assign output = { "content": object.content, "document_type": object.document_type, "object_uuid": object.object_uuid, "content_type": object.content_type, "content_disposition": object.content_disposition, "creator_id": creator_id }
 
   return output
-%}
+ %}

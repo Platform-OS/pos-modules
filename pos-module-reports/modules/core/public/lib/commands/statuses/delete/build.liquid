@@ -1,4 +1,7 @@
+{% doc %}
+  @param {string} id - The record ID
+{% enddoc %}
 {% liquid
-  assign object = null | hash_merge: id: id
+  assign object = {"id": id}
   return object
 %}

@@ -7,7 +7,7 @@
     assign last_message = g.messages.results.first
 
     if last_message.id == message.id
-      assign event_object = null | hash_merge: message_id: message.id, app_host: app_host
+      assign event_object = {"message_id": message.id, "app_host": app_host}
       
       function _ = 'modules/core/commands/events/publish', type: 'message_notification_to_send', object: event_object
     endif

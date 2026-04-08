@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "postinstall": "npx playwright install chromium",
     "pw-tests": "playwright test tests --project=test",
     "admin-panel-pw-tests": "playwright test tests --project=admin-panel"
   },

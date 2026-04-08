@@ -1,9 +1,7 @@
-{% comment %}
-  Required params:
-    - name string
-    - type string (optional)
-      it can be: module, theme
-{% endcomment %}
+{% doc %}
+  @param {string} name - The name identifier
+  @param {string} type - The type identifier
+{% enddoc %}
 {% liquid
   function modules = 'modules/core/queries/registry/search', type: type
   assign module = modules | array_detect: machine_name: name

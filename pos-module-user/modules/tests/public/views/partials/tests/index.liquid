@@ -1,3 +1,6 @@
+{% doc %}
+  @param {object} tests - collection of test objects to display
+{% enddoc %}
 <ul>
   <a href="/_tests/run" class="button">Run</a>
   <a href="/_tests/run_async" class="button">Run Async</a>
@@ -15,4 +18,5 @@
       <li><a href="/_tests/run?name={{ test_name }}" class="button">Run</a></li>
     </ul>
   {% endfor %}
+  </div>
 </section>

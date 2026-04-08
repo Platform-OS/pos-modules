@@ -9,7 +9,7 @@
 
   if profile
     function slug = 'modules/user/helpers/profiles/slugs/build', current_profile: profile
-    hash_assign profile['slug'] = slug
+    assign profile.slug = slug
   endif
 
   return profile

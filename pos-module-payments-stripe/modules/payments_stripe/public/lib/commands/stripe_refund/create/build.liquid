@@ -1,6 +1,8 @@
 {%- liquid
   assign payable_ids = transaction.payable_ids | join: ','
-  hash_assign object['metadata'] = object.metadata | hash_merge: transaction_id: transaction.id, payable_ids: payable_ids, payer_id: transaction.payer_id
+  assign object.metadata.transaction_id = transaction.id
+  assign object.metadata.payable_ids = payable_ids
+  assign object.metadata.payer_id = transaction.payer_id
 -%}
 
 {%- parse_json data -%}
@@ -20,7 +22,7 @@
   }
 {%- endparse_json -%}
 {% liquid
-  assign data = null | hash_merge: payload: data, request_type: 'POST', to: 'https://api.stripe.com/v1/refunds'
+  assign data = {"payload": data, "request_type": 'POST', "to": 'https://api.stripe.com/v1/refunds'}
 
   return data
 %}
