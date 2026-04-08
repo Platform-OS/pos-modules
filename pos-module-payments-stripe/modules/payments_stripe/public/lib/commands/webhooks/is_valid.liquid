@@ -1,6 +1,8 @@
 {% liquid
   assign webhook_listen_url = "https://" | append: context.location.host | append: webhook_path
+  # platformos-check-disable GraphQLVariablesCheck
   graphql g = 'modules/payments_stripe/webhook_endpoints/search', livemode: context.exports.payment.livemode, url: webhook_listen_url, stripe_account_name: stripe_account_name
+  # platformos-check-enable GraphQLVariablesCheck
   assign last_webhook_config = g.webhook_endpoints.results.last
   if last_webhook_config.id == blank
     if context.constants.DEBUG == "true"

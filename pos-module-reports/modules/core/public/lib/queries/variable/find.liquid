@@ -1,11 +1,8 @@
-{% comment %}
-  Required params:
-    - name string
-    - default any
-      the default vaue of the variable
-    - type string (optional)
-      it can be: array, integer, float, boolean, object
-{% endcomment %}
+{% doc %}
+  @param {string} default - The default value
+  @param {string} type - The type identifier
+  @param {string} name - The name identifier
+{% enddoc %}
 {% liquid
   assign value = context.constants[name] | default: default, allow_false: true
 

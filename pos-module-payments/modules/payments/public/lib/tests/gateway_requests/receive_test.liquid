@@ -1,5 +1,5 @@
 {% liquid
-  assign data = '{ "foo": "bar" }' | parse_json
+  assign data = { "foo": "bar" }
   assign url = "https://{{ context.location.host }}/payments/webhook"
   function object = 'modules/payments/commands/gateway_requests/receive', object: data, name: 'webhook_payment_finished', external_id: "5", request_url: url
 

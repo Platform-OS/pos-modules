@@ -19,6 +19,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
   
   border-radius: 50%;
   background-color: var(--pos-color-frame);
@@ -35,36 +36,47 @@
   font-size: .6rem;
 }
 
-.pos-avatar-s {
+.pos-avatar-sm {
   width: 24px;
   height: 24px;
 
   font-size: .7rem;
 }
 
-.pos-avatar-m {
+.pos-avatar-md {
   width: 32px;
   height: 32px;
+
+  font-size: .85rem;
 }
 
-.pos-avatar-l {
+
+.pos-avatar-lg {
   width: 48px;
   height: 48px;
+
+  font-size: 1rem;
 }
 
 .pos-avatar-xl {
   width: 94px;
   height: 94px;
+
+  font-size: 2rem;
 }
 
-.pos-avatar-xxl {
+.pos-avatar-2xl {
   width: 160px;
   height: 160px;
+
+  font-size: 3rem;
 }
 
-.pos-avatar-xxxl {
+.pos-avatar-3xl {
   width: 192px;
   height: 192px;
+
+  font-size: 3.5rem;
 }
 
 

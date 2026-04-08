@@ -1,5 +1,5 @@
 {% liquid
-  assign params = null | hash_merge: reference_id: reference_id, c__status: "app.statuses.setup_intents.new", stripe_account_name: object.stripe_account_name
+  assign params = {"reference_id": reference_id, "c__status": "app.statuses.setup_intents.new", "stripe_account_name": object.stripe_account_name}
   function setup_intent = 'modules/payments_stripe/commands/setup_intents/create', object: params
   if setup_intent.valid
     function object = 'modules/payments_stripe/commands/stripe_checkout/setup_intent/build', object: object

@@ -1,25 +1,23 @@
-{% comment %}
-  Required params:
-    - type string
-      it can be: all, module, theme
-{% endcomment %}
+{% doc %}
+  @param {string} type - The type identifier
+{% enddoc %}
 {% liquid
-  function registry = 'modules/core/commands/hook/fire', hook: 'module_info', merge_to_object: false
+  function registry = 'modules/core/commands/hook/fire', hook: 'module_info', merge_to_object: false, params: null
 
   case type
     when 'module'
-      assign modules = '[]' | parse_json
+      assign modules = []
       for module in registry
         if module.type == 'module'
-          assign modules = modules | add_to_array: module
+          assign modules << module
         endif
       endfor
       return modules
     when 'theme'
-      assign themes = '[]' | parse_json
+      assign themes = []
       for module in registry
         if module.type == 'theme'
-          assign themes = themes | add_to_array: module
+          assign themes << module
         endif
       endfor
       return themes

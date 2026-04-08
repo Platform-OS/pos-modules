@@ -5,11 +5,11 @@
     if user
       session reset_password_session_user_id = user.id
     else
-      function _ = 'modules/user/helpers/flash', error: 'modules/user/passwords.expired_link'
+      function _ = 'modules/user/helpers/flash', error: 'modules/user/passwords.expired_link', force_clear: null, info: null, notice: null
       redirect_to '/sessions/new'
       break
     endif
   endif
 
-  render 'modules/user/passwords/new', context: context
+  render 'modules/user/passwords/new', context: context, errors: null
 %}

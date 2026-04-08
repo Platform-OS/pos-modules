@@ -1,11 +1,14 @@
+{% doc %}
+  @param {object} event - The event object
+{% enddoc %}
 {% liquid
-  assign object = '{}' | parse_json
+  assign object = {}
 
   if event.name contains 'modules/reports/statuses.report'
-    hash_assign object['id'] = event.reference_id
+    assign object.id = event.reference_id
     assign short_name = event.name | replace: 'modules/reports/statuses.report.', ''
-    hash_assign object['status'] = short_name
+    assign object.status = short_name
 
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/reports/reports/update_status' object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/reports/reports/update_status', object: object, selection: null
   endif
-%}
+ %}

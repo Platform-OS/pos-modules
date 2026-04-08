@@ -1,9 +1,12 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
 {% liquid
   # Test string-related assertions
 
   # Test not_true assertion
   assign flag = false
-  function contract = 'modules/tests/assertions/not_true', contract: contract, value: flag, field_name: 'boolean false'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: null, value: flag, field_name: 'boolean false'
 
   # Test equal with strings
   assign greeting = 'Hello World'

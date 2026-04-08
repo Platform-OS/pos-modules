@@ -1,3 +1,12 @@
+{% doc %}
+  @param {string} error - The error flash message
+  @param {string} info - The info flash message
+  @param {string} notice - The notice flash message
+  @param {object} object - The object to process
+  @param {string} default - The default value
+  @param {string} format - The response format
+  @param {string} url - The URL to redirect to
+{% enddoc %}
 {% liquid
   if url == blank and context.session.return_to != blank
     assign url = context.session.return_to
@@ -18,18 +27,17 @@
     assign url = url | default: default
   endif
 
-  # platformos-check-disable ConvertIncludeToRender
-  include 'modules/core/helpers/flash/publish', notice: notice, error: error, info: info
-  # platformos-check-enable ConvertIncludeToRender
+  # platformos-check-disable DeprecatedTag
+  include 'modules/core/helpers/flash/publish', notice: notice, error: error, info: info, force_clear: null
+  # platformos-check-enable DeprecatedTag
 
   if format == 'json'
-    assign response_json = null | hash_merge: type: 'redirect', url: url
+    assign response_json = {"type": "redirect", "url": url}
     if object.valid
       echo response_json
     else
       response_status 422
-      assign res = '{ "errors": {} }' | parse_json
-      hash_assign res['errors'] = response_json.errors
+      assign res = { "errors": response_json.errors }
 
       echo res
     endif

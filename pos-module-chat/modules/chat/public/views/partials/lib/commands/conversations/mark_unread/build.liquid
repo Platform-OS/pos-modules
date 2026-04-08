@@ -1,7 +1,5 @@
 {% liquid
-  assign data = '{}' | parse_json
-  hash_assign data['id'] = conversation.id
-  hash_assign data['participant_read_ids'] = current_profile.id
+  assign data = { "id": conversation.id, "participant_read_ids": current_profile.id }
 
   return data
-%}
+ %}

@@ -1,9 +1,6 @@
-{% comment %}
-  Deletes a status object.
-
-  Params:
-    - id: String
-{% endcomment %}
+{% doc %}
+  @param {string} id - The record ID
+{% enddoc %}
 {% liquid
   function object = 'modules/core/commands/statuses/delete/build', id: id
   function object = 'modules/core/commands/statuses/delete/check', object: object

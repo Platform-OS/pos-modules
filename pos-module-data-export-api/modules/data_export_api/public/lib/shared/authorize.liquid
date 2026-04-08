@@ -1,10 +1,10 @@
 {%- liquid
   function api_key = 'modules/core/queries/variable/find', name: '_data_export_api_key', type: 'string'
   function whitelisted_ips = 'modules/core/queries/variable/find', name: '_data_export_whitelisted_ips', type: 'array'
-  assign errors = '[]' | parse_json
+  assign errors = []
 
   if api_key != context.headers.HTTP_API_KEY
-    assign errors = errors | array_add: "API_KEY header invalid"
+    assign errors << "API_KEY header invalid"
   endif
 
   if whitelisted_ips != blank
@@ -13,7 +13,7 @@
     if whitelisted_ips contains ip
     else
       assign message = "IP address not allowed"
-      assign errors = errors | array_add: message
+      assign errors << message
     endif
   endif
 -%}

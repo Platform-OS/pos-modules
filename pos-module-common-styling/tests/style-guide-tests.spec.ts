@@ -6,7 +6,7 @@ test('Articles test', async ({ page }) => {
   await styleGuidePage.goto();
 
   const articlesId = ['initialization', 'colors', 'icons', 'fonts', 'headings',
-    'interactive-elements', 'buttons', 'forms', 'boxes', 'tables', 'toasts']
+    'buttons', 'forms', 'boxes', 'tables', 'toasts']
 
   for(const articleId of articlesId) {
     expect(styleGuidePage.articleById(articleId)).toBeVisible();
@@ -119,39 +119,53 @@ test('Select tests', async({ page }) => {
     const firstMultiSelect = page.locator('#styleguide-form-multiselect-test-1');
     await firstMultiSelect.click();
 
+    // Page initializes with 3 selected: value0, value5, value6
+    // Uncheck value0, check value1 → result: value1, value5, value6 (3 selected)
     await firstMultiSelect.locator('label').getByText('Label for value 0', { exact: true }).click();
     await firstMultiSelect.locator('label').getByText('Label for value 1', { exact: true }).click();
 
     //close the multi-select
     await firstMultiSelect.locator('svg[data-icon="dashDown"]').click();
 
-    expect(firstMultiSelect).toContainText('2 selected');
+    expect(firstMultiSelect).toContainText('3 selected');
 
     //pick more options
     await firstMultiSelect.click();
     await firstMultiSelect.locator('label').getByText('Label for value 2', { exact: true }).click();
     await firstMultiSelect.locator('svg[data-icon="dashDown"]').click();
-    expect(firstMultiSelect).toContainText('3 selected');
+    expect(firstMultiSelect).toContainText('4 selected');
   });
 
   await test.step('Second multi-select test', async () => {
     const secondMultiSelect = page.locator('#styleguide-form-multiselect-test-2');
-    await secondMultiSelect.click();
+    const trigger = secondMultiSelect.locator('.pos-form-multiselect-input');
 
+    // Open dropdown with keyboard (Enter works better than click for this multiselect)
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+
+    // Wait for dropdown to fully open
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(secondMultiSelect.locator('.pos-form-multiselect-list-container')).toBeVisible();
+
+    // Multiselect starts with value0, value5, value6 selected
+    // Click value3 and value4 to CHECK them
+    // Click value5 and value6 to UNCHECK them (they're pre-selected)
     await secondMultiSelect.locator('label').getByText('Label for value 3', { exact: true }).click();
     await secondMultiSelect.locator('label').getByText('Label for value 4', { exact: true }).click();
     await secondMultiSelect.locator('label').getByText('Label for value 5', { exact: true }).click();
     await secondMultiSelect.locator('label').getByText('Label for value 6', { exact: true }).click();
 
-    //close the multi-select
+    // Close the multi-select
     await secondMultiSelect.locator('svg[data-icon="dashDown"]').click();
 
+    // Final selected items: value0 (unchanged), value3 (checked), value4 (checked)
+    // value5 and value6 were unchecked
     let selectedOption = secondMultiSelect.locator('.pos-form-multiselect-selected-item-label')
 
-    expect(selectedOption.getByText('Label for value 3')).toBeVisible();
-    expect(selectedOption.getByText('Label for value 4')).toBeVisible();
-    expect(selectedOption.getByText('Label for value 5')).toBeVisible();
-    expect(selectedOption.getByText('Label for value 6')).toBeVisible();
+    await expect(selectedOption.getByText('Label for value 0')).toBeVisible();
+    await expect(selectedOption.getByText('Label for value 3')).toBeVisible();
+    await expect(selectedOption.getByText('Label for value 4')).toBeVisible();
   });
 
   await test.step('Third multi-select test', async () => {

@@ -1,5 +1,5 @@
 {% liquid
-  assign data = null | hash_merge: transaction: transaction, id: object.id, status: object.status
+  assign data = {"transaction": transaction, "id": object.id, "status": object.status}
 
   return data
 %}
