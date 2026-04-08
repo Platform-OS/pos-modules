@@ -1,11 +1,11 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'id'
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'c__status'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'id', key: null
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'c__status', key: null
 
   assign valid_statuses = 'app.statuses.transactions.new,app.statuses.transactions.pending,app.statuses.transactions.succeeded,app.statuses.transactions.expired,app.statuses.transactions.failed' | split: ','
-  function c = 'modules/core/validations/included', c: c, object: object, field_name: 'c__status', array: valid_statuses
+  function c = 'modules/core/validations/included', c: c, object: object, field_name: 'c__status', array: valid_statuses, key: null, value: null
 
   assign object.valid = c.valid
   assign object.errors = c.errors

@@ -1,7 +1,7 @@
 {% liquid
   assign data = { "foo": "bar" }
   assign url = "https://{{ context.location.host }}/payments/webhook"
-  function object = 'modules/payments/commands/gateway_requests/receive', object: data, name: 'webhook_payment_finished', external_id: "5", request_url: url
+  function object = 'modules/payments/commands/gateway_requests/receive', object: data, name: 'webhook_payment_finished', external_id: "5", request_url: url, stripe_account_name: null
 
   function contract = 'modules/tests/assertions/valid_object', contract: contract, object: object, field_name: 'base'
   assign payload = object.request_data | parse_json

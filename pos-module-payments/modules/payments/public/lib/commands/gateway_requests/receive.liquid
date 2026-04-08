@@ -3,7 +3,7 @@
   function object = 'modules/payments/commands/gateway_requests/receive/check', object: object
 
   if object.valid
-    function gateway_request  = 'modules/payments/commands/execute', mutation_name: 'modules/payments/gateway_requests/create', object: object
+    function gateway_request  = 'modules/payments/commands/execute', mutation_name: 'modules/payments/gateway_requests/create', object: object, selection: null
   endif
 
   return object

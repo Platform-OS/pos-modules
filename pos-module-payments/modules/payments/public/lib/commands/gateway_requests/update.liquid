@@ -1,9 +1,13 @@
+{% doc %}
+  @param {object} object - The object to process
+  @param {object} gateway_request - The gateway request object
+{% enddoc %}
 {%  liquid
   function object = 'modules/payments/commands/gateway_requests/update/build', object: object, gateway_request: gateway_request
   function object = 'modules/payments/commands/gateway_requests/update/check', object: object
 
   if object.valid
-    function object  = 'modules/payments/commands/execute', mutation_name: 'modules/payments/gateway_requests/update', object: object
+    function object  = 'modules/payments/commands/execute', mutation_name: 'modules/payments/gateway_requests/update', object: object, selection: null
   endif
 
   return object
