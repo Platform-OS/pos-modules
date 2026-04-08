@@ -12,12 +12,12 @@ slug: authentication_links
         break
       endif
 
-      function _ = 'modules/user/helpers/flash', notice: 'modules/user/authentication_links.created'
+      function _ = 'modules/user/helpers/flash', notice: 'modules/user/authentication_links.created', error: null, force_clear: null, info: null
       redirect_to '/'
     else
       log email.errors, type: 'ERROR: authentication_links/create email'
 
-      function _ = 'modules/user/helpers/flash', notice: 'modules/user/authentication_links.something_went_wrong'
+      function _ = 'modules/user/helpers/flash', notice: 'modules/user/authentication_links.something_went_wrong', error: null, force_clear: null, info: null
       redirect_to '/'
     endif
   elsif object.token == blank
@@ -25,9 +25,9 @@ slug: authentication_links
       log object, type: 'DEBUG: reset-password-user-not-found'
     endif
 
-    function _ = 'modules/user/helpers/flash', notice: 'modules/user/authentication_links.created'
+    function _ = 'modules/user/helpers/flash', notice: 'modules/user/authentication_links.created', error: null, force_clear: null, info: null
     redirect_to '/'
   else
-    render 'modules/user/passwords/reset', context: context, errors: object.errors
+    render 'modules/user/passwords/reset', context: context, errors: object.errors, values: null
   endif
 %}

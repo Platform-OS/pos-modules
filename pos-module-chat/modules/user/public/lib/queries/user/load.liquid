@@ -1,9 +1,6 @@
-{% comment %}
-  Loads a user's data.
-  Params:
-    - id: string
-      the user's id
-{% endcomment %}
+{% doc %}
+  @param {string} id - The record ID
+{% enddoc %}
 {% liquid
 
   graphql g = 'modules/user/user/load', id: id

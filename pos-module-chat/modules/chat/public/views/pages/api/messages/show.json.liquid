@@ -15,9 +15,9 @@ method: get
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
 
-  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
-  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', return_url: '/'
-  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox'
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
   assign conversation_id = context.params.conversation_id
   assign page = context.params.page | plus: 0 | default: 1

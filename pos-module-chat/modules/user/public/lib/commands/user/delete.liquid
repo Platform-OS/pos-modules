@@ -1,9 +1,6 @@
-{% comment %}
-  Deletes a user.
-  Params:
-    - id: string
-      the user's id
-{% endcomment %}
+{% doc %}
+  @param {string} id - The record ID
+{% enddoc %}
 {% liquid
   graphql user = 'modules/user/user/delete', id: id
 

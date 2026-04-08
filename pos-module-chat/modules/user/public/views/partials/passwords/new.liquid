@@ -5,18 +5,16 @@ metadata:
     context: {}
     errors: {}
 ---
-{% liquid
-  assign context = context | default: params.context
-  assign errors = errors | default: params.errors
-%}
-
+{% doc %}
+  @param {object} errors - The validation errors object
+  @param {object} context - The request context
+{% enddoc %}
 <section class="pos-user-content">
 
   <h1 class="pos-heading-2">{{ 'modules/user/passwords.edit' | t }}</h1>
 
   <form action="/passwords" method="POST" class="pos-form pos-form-simple">
-
-    {% render 'modules/core/helpers/authenticity_token', context: context %}
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
 
     <fieldset>
       <label for="pos-user-password">{{ 'modules/user/passwords.new_password' | t }}</label>

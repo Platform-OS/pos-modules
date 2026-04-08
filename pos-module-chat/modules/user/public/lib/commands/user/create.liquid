@@ -1,24 +1,18 @@
-{% comment %}
-  Creates a user.
-  Params:
-    - first_name: string
-      user's first name
-    - last_name: string
-      user's last name
-    - email: string
-      user's email address
-    - password: string
-      user's password
-    - roles: array
-      user's roles
-{% endcomment %}
+{% doc %}
+  @param {string} email - The email address
+  @param {string} first_name - The first name
+  @param {object} hook_params - Additional parameters to pass to hooks
+  @param {string} last_name - The last name
+  @param {string} password - The password
+  @param {string} roles - The roles to assign
+{% enddoc %}
 {% liquid
   function object = 'modules/user/commands/user/create/build', first_name: first_name, last_name: last_name, email: email, password: password, hook_params: hook_params, roles: roles
   function object = 'modules/user/commands/user/create/check', object: object
   if object.valid
     function user = 'modules/core/commands/execute', mutation_name: 'modules/user/user/create', object: object, selection: 'user'
     assign object.user_id = user.id
-    
+
     function profile = 'modules/user/commands/profiles/create', object: object
     if profile.valid != true
       return profile

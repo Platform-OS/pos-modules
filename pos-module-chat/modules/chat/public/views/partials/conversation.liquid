@@ -1,8 +1,16 @@
+{% doc %}
+  @param {string} id - Conversation ID
+  @param {boolean} current - Whether this is the active conversation
+  @param {string} name - Display name of the participant
+  @param {string} image_src - Avatar image URL
+  @param {string} last_message - Last message text
+  @param {string} [timezone] - Timezone for date formatting
+{% enddoc %}
 {% if current == false %}
 	<a href="/inbox?conversation_id={{ id }}">
 {% endif %}
     <div class="pos-chat-conversationCard {% if current %} active {% endif %}" data-tc="chat-room">
-      {% render 'modules/common-styling/user/avatar', size: 'l', name: name, imageSrc: imageSrc %}
+      {% render 'modules/common-styling/user/avatar', size: 'l', name: name, image_src: image_src, class: null %}
         <span class="pos-chat-conversationCard-name">
           {{ name }}
         </span>

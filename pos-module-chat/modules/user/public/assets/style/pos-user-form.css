@@ -47,6 +47,12 @@
   color: var(--pos-color-content-foreground-supplementary);
 }
 
+.pos-form-simple fieldset:has(.pos-user-label-password) {
+  display: flex;
+  flex-direction: column;
+      gap: .2em;
+}
+
 .pos-user-social-login-separator {
   margin: 20px 0px;
   text-align: center;
@@ -68,6 +74,10 @@
 .pos-user-content .pos-user-social-login-providers form {
   margin-top: 0;
   margin-bottom: 10px;
+}
+
+.pos-user-content .pos-user-social-login-providers .pos-button {
+  width: 100%;
 }
 
 .pos-button-social {
@@ -97,4 +107,16 @@
   flex-direction: column;
   max-width: 350px;
   gap: 10px;
+}
+
+.pos-2fa-input {
+  width: 50px;
+}
+
+.pos-2fa-spacing {
+  padding-top: var(--pos-gap-title-content);
+}
+
+.pos-user-2fa .submit-2fa {
+  margin-top: 5px;
 }
