@@ -1,3 +1,6 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
 {% liquid
   # seed DB with a user
   assign email = 10 | random_string | append: '-user-append@example.com'

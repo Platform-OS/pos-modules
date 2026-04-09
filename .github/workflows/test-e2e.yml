@@ -1,13 +1,15 @@
 name: E2E tests
 on:
-  pull_request:
-    branches: [ master ]
-    paths-ignore:
-      - "**/README.md"
   push:
     paths-ignore:
       - "**/README.md"
   workflow_dispatch:
+    inputs:
+      modules:
+        description: 'Modules to test (comma-separated: user, chat, common-styling, payments-example-gateway, or "all")'
+        required: false
+        default: 'all'
+        type: string
 
 jobs:
   pre_job:
@@ -20,7 +22,7 @@ jobs:
         with:
           github_token: ${{ github.token }}
           paths_ignore: '["**/README.md"]'
-          do_not_skip: '["push"]'
+          do_not_skip: '["push", "workflow_dispatch"]'
 
   detect-changes:
     needs: pre_job
@@ -33,7 +35,10 @@ jobs:
 
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
+          base: ${{ github.event.before }}
+          ref: ${{ github.event.after }}
           filters: |
             user:
               - 'pos-module-user/**'
@@ -41,6 +46,8 @@ jobs:
               - 'pos-module-chat/**'
             common-styling:
               - 'pos-module-common-styling/**'
+            payments-example-gateway:
+              - 'pos-module-payments-example-gateway/**'
 
       - name: Set matrix for changed modules
         id: set-matrix
@@ -65,21 +72,51 @@ jobs:
               "path": "pos-module-common-styling",
               "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli deploy",
               "test-commands": "npm run pw-tests"
+            },
+            "payments-example-gateway": {
+              "module": "payments-example-gateway",
+              "path": "pos-module-payments-example-gateway",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
             }
           }
           EOF
 
-          # Extract changed modules and map to their configurations
-          modules=$(echo '${{ toJSON(steps.filter.outputs) }}' | \
-            jq -c --slurpfile config /tmp/module-config.json \
-            '[to_entries[] | select(.value == "true") | .key as $m | $config[0][$m] | select(. != null)]')
+          # Check if this is a manual trigger
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger detected"
+            manual_input="${{ github.event.inputs.modules }}"
+            echo "Manual input: $manual_input"
+
+            if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
+              # Test all modules
+              modules=$(jq -c '[.user, .chat, ."common-styling", ."payments-example-gateway"]' /tmp/module-config.json)
+            else
+              # Parse comma-separated list, strip pos-module- prefix, and map to configurations
+              modules=$(echo "$manual_input" | \
+                jq -R -c 'split(",") | map(gsub("^\\s+|\\s+$"; "") | gsub("^pos-module-"; ""))' | \
+                jq -c --slurpfile config /tmp/module-config.json \
+                'map(. as $m | $config[0][$m] | select(. != null))')
+            fi
+            echo "Manual trigger modules: $modules"
+          else
+            # Automatic detection from git changes
+            changes='${{ steps.filter.outputs.changes }}'
+            echo "Detected changes: $changes"
+
+            # Extract changed modules and map to their configurations
+            modules=$(jq -nc --argjson changes "$changes" --slurpfile config /tmp/module-config.json \
+              '$changes | map(. as $m | $config[0][$m] | select(. != null))')
+            echo "Changed modules matrix: $modules"
+          fi
 
           echo "matrix=$modules" >> $GITHUB_OUTPUT
-          echo "Changed modules matrix: $modules"
 
   test-e2e:
     needs: detect-changes
-    if: needs.detect-changes.outputs.changed-modules != '[]'
+    if: |
+      needs.detect-changes.result == 'success' &&
+      needs.detect-changes.outputs.changed-modules != '[]'
     runs-on: ubuntu-latest
     container: ${{ vars.PW_CONTAINER }}
     strategy:
@@ -148,3 +185,41 @@ jobs:
           method: release
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
           pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
+
+  conclusion:
+    needs: [detect-changes, test-e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate workflow summary
+        run: |
+          if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ] || [ "${{ needs.detect-changes.result }}" = "skipped" ]; then
+            echo "## E2E Tests - Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.detect-changes.result }}" = "skipped" ]; then
+              echo "Workflow was skipped by duplicate action check." >> $GITHUB_STEP_SUMMARY
+            elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "Manual trigger with no matching modules selected." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No modules with E2E tests were changed in this push." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "## E2E Tests - Completed (Manual Trigger)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "## E2E Tests - Completed" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Tests ran for the following modules:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '${{ needs.detect-changes.outputs.changed-modules }}' | jq -r '.[] | "- " + .module' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.test-e2e.result }}" = "success" ]; then
+              echo "Result: All tests passed" >> $GITHUB_STEP_SUMMARY
+            elif [ "${{ needs.test-e2e.result }}" = "skipped" ]; then
+              echo "Result: Tests were skipped" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Result: Some tests failed - check job output for details" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

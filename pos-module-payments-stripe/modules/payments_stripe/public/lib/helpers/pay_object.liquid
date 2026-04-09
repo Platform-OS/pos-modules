@@ -30,7 +30,7 @@ Possible payment_mode:
     function object = 'modules/payments_stripe/commands/stripe_checkout/create', object: gateway_params, transaction: transaction
     assign gateway_transaction_id = object.payment_intent | default: object.setup_intent
   endcase
-  assign transaction_object = null | hash_merge: id: transaction.id, gateway_transaction_id: gateway_transaction_id, c__status: transaction_status
+  assign transaction_object = {"id": transaction.id, "gateway_transaction_id": gateway_transaction_id, "c__status": transaction_status}
 
   function transaction = 'modules/payments/commands/transactions/update_gateway_transaction_id', object: transaction_object
   unless transaction.valid

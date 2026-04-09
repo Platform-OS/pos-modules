@@ -1,9 +1,9 @@
-const Generator = require('yeoman-generator');
-const path = require('path');
-const pluralize = require('pluralize');
-const fs = require('fs');
+import Generator from 'yeoman-generator';
+import path from 'path';
+import pluralize from 'pluralize';
+import fs from 'fs';
 
-module.exports = class extends Generator {
+export default class extends Generator {
   constructor(args, opts) {
     super(args, opts);
 

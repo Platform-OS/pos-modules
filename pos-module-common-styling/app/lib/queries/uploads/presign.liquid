@@ -1,3 +1,7 @@
+{% doc %}
+  @param {string} table - database table name
+  @param {string} property - property name for the upload
+{% enddoc %}
 {% liquid
   graphql presign = 'uploads/presign', table: table, property: property
 

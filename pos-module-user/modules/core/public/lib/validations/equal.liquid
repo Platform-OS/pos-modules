@@ -1,9 +1,12 @@
-{% comment %}
-  params: @given
-          @expected
-          @field_name
-          @c
-{% endcomment %}
+{% doc %}
+  @param {object} c - The contract object for collecting validation errors
+  @param {string} expected - The expected value to compare against
+  @param {string} field_name - The name of the field to validate
+  @param {string} given - The given value to compare
+  @param {string} key - The translation key for the error message
+  @param {string} message - Custom error message override
+  @param {boolean} not_verbose - If true, suppress detailed error output
+{% enddoc %}
 {% liquid
   if given != expected
 

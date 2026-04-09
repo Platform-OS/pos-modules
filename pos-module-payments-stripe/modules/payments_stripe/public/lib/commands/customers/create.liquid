@@ -1,7 +1,7 @@
 {% liquid
   function customer = 'modules/payments_stripe/queries/customers/find_by_customer_id', customer_id: object.customer_id
   if customer
-    hash_assign customer['valid'] = true
+    assign customer.valid = true
     return customer
   endif
 

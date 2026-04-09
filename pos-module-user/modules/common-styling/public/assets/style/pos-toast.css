@@ -16,6 +16,7 @@
   .pos-toasts {
     width: 300px;
     position: fixed;
+    z-index: 10;
     inset-block-end: var(--pos-padding-page);
     inset-inline-start: var(--pos-padding-page);
     display: flex;

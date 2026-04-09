@@ -4,10 +4,10 @@
   if object.valid
     graphql r = 'modules/payments_stripe/webhook_endpoints/create', args: object
     assign object = r['record']
-    hash_assign object['valid'] = true
+    assign object.valid = true
   else
     log object, type: 'ERROR: modules/payments_stripe webhook_endpoints/create'
   endif
 
   return object
-%}
+ %}

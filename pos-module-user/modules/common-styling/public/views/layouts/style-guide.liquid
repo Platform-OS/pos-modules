@@ -17,6 +17,10 @@
       <body>
         
         {{ content_for_layout }}
+
+        {% liquid
+          render 'modules/common-styling/toasts'
+        %}
     
       </body>
   </html>

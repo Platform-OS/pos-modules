@@ -6,8 +6,7 @@
   if object.valid
     assign query = object | querify
 
-    assign headers = "{}" | parse_json
-    hash_assign headers["Accept"] = "application/json"
+    assign headers = { "Accept": "application/json" }
 
     assign url = "https://graph.facebook.com/v22.0/oauth/access_token?" | append: query
     graphql r  = "modules/oauth_facebook/get_token", body: url, headers: headers

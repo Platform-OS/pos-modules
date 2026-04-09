@@ -1,18 +1,18 @@
 {% liquid
-  assign data = '{}' | parse_json
+  assign data = {}
 
   if object.response_body
     assign response = object.response_body | parse_json
     if response.error
-      hash_assign data['errors'] = response.error
-      hash_assign data['valid'] = false
+      assign data.errors = response.error
+      assign data.valid = false
     else
-      assign data = data | hash_merge: id: response.id
-      hash_assign data['valid'] = true
+      assign data.id = response.id
+      assign data.valid = true
     endif
   else
-    hash_assign data['valid'] = false
+    assign data.valid = false
   endif
 
   return data
-%}
+ %}

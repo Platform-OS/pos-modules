@@ -1,3 +1,6 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
 {% liquid
   # Example test demonstrating various assertions
 
@@ -7,14 +10,14 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: actual_value, expected: expected_value, field_name: 'equal_strings'
 
   # Test presence assertion
-  assign user = '{ "id": "123", "name": "John" }' | parse_json
+  assign user = { "id": "123", "name": "John" }
   function contract = 'modules/tests/assertions/presence', contract: contract, object: user, field_name: 'id'
 
   # Test blank assertion
-  assign result = '{ "error": null }' | parse_json
+  assign result = { "error": null }
   function contract = 'modules/tests/assertions/blank', contract: contract, object: result, field_name: 'error'
 
   # Test true assertion
-  assign flags = '{ "active": true }' | parse_json
-  function contract = 'modules/tests/assertions/true', contract: contract, object: flags, field_name: 'active'
+  assign flags = { "active": true }
+  function contract = 'modules/tests/assertions/true', contract: contract, object: flags, field_name: 'active', value: null
 %}

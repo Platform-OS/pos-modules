@@ -26,9 +26,6 @@
   ============================================================================ */
   .pos-form fieldset,
   .pos-form-fieldset {
-    all: unset;
-    display: revert;
-
     box-sizing: border-box;
   }
 
@@ -37,7 +34,8 @@
     margin-top: var(--pos-gap-text-text);
   }
 
-  .pos-form-simple fieldset:has(label + input) {
+  .pos-form-simple fieldset:has(label + input),
+  .pos-form-simple fieldset:has(label + textarea) {
     display: flex;
     flex-direction: column;
     gap: .2em;
@@ -47,21 +45,75 @@
   .pos-form-simple fieldset:has([type="radio"] + label) {
     display: flex;
     gap: .5em;
+    align-items: start;
+  }
+
+    .pos-form-simple fieldset:has([type="checkbox"] + label) input,
+    .pos-form-simple fieldset:has([type="radio"] + label) input {
+      height: 1lh;
+      margin-block-start: 1px;
+    }
+
+  /* combined fieldset */
+  .pos-form-fieldset-combined {
+    display: flex;
     align-items: center;
   }
+
+    .pos-form-fieldset-combined > * {
+      margin-inline-start: -1px;
+    }
+
+    .pos-form-fieldset-combined > *:not(:first-child) {
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+    }
+
+    .pos-form-fieldset-combined > *:not(:last-child) {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+    }
+
+    .pos-form-fieldset-combined > :first-child {
+      margin-inline-start: 0;
+    }
+
 
 
   /* labels
   ============================================================================ */
-  .pos-form-simple fieldset:has(label + input) label {
-    margin-inline-start: -.1em;
+  .pos-form-simple fieldset:has(label + input) label,
+  .pos-form-simple fieldset:has(label + textarea) label,
+  .pos-form-simple fieldset:has(label + .hashtag-container) label,
+  .pos-form-simple fieldset:has(label + .uppy-container) label {
+    margin-inline-start: -.1ex;
+    margin-block-end: .1em;
     align-self: start;
   }
 
-  .pos-form :has([required]) label:after {
+  .pos-form :has([required]:not([type="radio"])) label:after,
+  .pos-form :has([required]:not([type="radio"])) label strong:after {
     color: var(--pos-color-important);
 
     content: " *";
+  }
+
+  .pos-form :has([required]) label:has(strong):after {
+    display: none;
+  }
+
+  .pos-form label:has(strong) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pos-form label strong {
+    font-weight: 400;
+  }
+
+  .pos-form label small {
+    font-size: .85em;
+    color: var(--pos-color-content-text-supplementary);
   }
 
 
@@ -70,6 +122,10 @@
   .pos-form [type="checkbox"] {
     margin: 0;
     box-sizing: border-box;
+
+    transition-property: border-color, background-color, color;
+    transition-duration: .1s, .1s, .1s;
+    transition-timing-function: linear;
   }
 
   .pos-form [type="checkbox"]:focus-visible,
@@ -82,6 +138,12 @@
 
   /* radio
   ============================================================================ */
+  .pos-form [type="radio"] {
+    transition-property: border-color, background-color, color;
+    transition-duration: .1s, .1s, .1s;
+    transition-timing-function: linear;
+  }
+
   .pos-form [type="radio"]:focus-visible,
   .pos-form-radio:focus-visible,
   .pos-debug-radio-focus-visible {
@@ -94,16 +156,17 @@
 
   /* text inputs
   ============================================================================ */
-  .pos-form-input {
-    all: unset;
-    display: revert;
-  }
-
   .pos-form-input,
   .pos-form [type="text"],
   .pos-form [type="email"],
   .pos-form [type="password"],
-  .pos-form [type="url"] {
+  .pos-form [type="url"],
+  .pos-form [type="datetime"],
+  .pos-form [type="datetime-local"],
+  .pos-form textarea {
+    all: unset;
+    display: revert;
+
     height: var(--pos-height-input);
     padding-inline: var(--pos-padding-input);
     box-sizing: border-box;
@@ -118,14 +181,19 @@
     text-align: start;
     color: var(--pos-color-input-text);
 
-    transition: all .1s linear;
+    transition-property: border-color, background-color, color;
+    transition-duration: .1s, .1s, .1s;
+    transition-timing-function: linear;
   }
 
-  .pos-form-input:not(:disabled):hover,
-  .pos-form [type="text"]:not(:disabled):hover,
-  .pos-form [type="email"]:not(:disabled):hover,
-  .pos-form [type="password"]:not(:disabled):hover,
-  .pos-form [type="url"]:not(:disabled):hover,
+  .pos-form-input:not(:disabled):not(:focus-visible):hover,
+  .pos-form [type="text"]:not(:disabled):not(:focus-visible):hover,
+  .pos-form [type="email"]:not(:disabled):not(:focus-visible):hover,
+  .pos-form [type="password"]:not(:disabled):not(:focus-visible):hover,
+  .pos-form [type="url"]:not(:disabled):not(:focus-visible):hover,
+  .pos-form [type="datetime"]:not(:disabled):not(:focus-visible):hover,
+  .pos-form [type="datetime-local"]:not(:disabled):not(:focus-visible):hover,
+  .pos-form textarea:not(:disabled):not(:focus-visible):hover,
   .pos-debug-form-input-hover {
     border-color: var(--pos-color-input-hover-frame);
     background-color: var(--pos-color-input-hover-background);
@@ -138,22 +206,28 @@
   .pos-form [type="email"]:focus-visible,
   .pos-form [type="password"]:focus-visible,
   .pos-form [type="url"]:focus-visible,
+  .pos-form [type="datetime"]:focus-visible,
+  .pos-form [type="datetime-local"]:focus-visible,
+  .pos-form textarea:focus-visible,
   .pos-debug-form-input-focus-visible {
     position: relative;
-    z-index: 1;
+    z-index: 2;
 
     border-color: var(--pos-color-input-active-frame);
     background-color: var(--pos-color-input-active-background);
     outline: 2px solid var(--pos-color-focused);
 
-    color: var(--pos-color-input-focus-text);
+    color: var(--pos-color-input-active-text);
   }
 
   .pos-form-input:disabled,
   .pos-form [type="text"]:disabled,
   .pos-form [type="email"]:disabled,
   .pos-form [type="password"]:disabled,
-  .pos-form [type="url"]:disabled {
+  .pos-form [type="url"]:disabled,
+  .pos-form [type="datetime"]:disabled,
+  .pos-form [type="datetime-local"]:disabled,
+  .pos-form textarea:disabled {
     border-color: var(--pos-color-input-disabled-frame);
     background-color: var(--pos-color-input-disabled-background);
 
@@ -164,18 +238,26 @@
   .pos-form [type="text"]::placeholder,
   .pos-form [type="email"]::placeholder,
   .pos-form [type="password"]::placeholder,
-  .pos-form [type="url"]::placeholder {
+  .pos-form [type="url"]::placeholder,
+  .pos-form [type="datetime"]::placeholder,
+  .pos-form [type="datetime-local"]::placeholder,
+  .pos-form textarea::placeholder {
     color: var(--pos-color-input-placeholder);
   }
 
 
   /* textareas
   ============================================================================ */
-  .pos-form textarea {
-    all: unset;
-    display: revert;
+  .pos-form textarea,
+  textarea.pos-form-input {
+    height: auto;
+    min-height: var(--pos-height-input);
+    padding-block: var(--pos-padding-input);
+  }
 
-    box-sizing: border-box;
+  .pos-form-simple textarea {
+    width: 100%;
+    display: block;
   }
 
 
@@ -234,6 +316,11 @@
     color: var(--pos-color-input-disabled-text);
   }
 
+  .pos-form-simple select {
+    width: 100%;
+    display: block;
+  }
+
 
   /* errors
   ============================================================================ */
@@ -241,13 +328,26 @@
   .pos-form [type="text"][aria-invalid="true"],
   .pos-form [type="email"][aria-invalid="true"],
   .pos-form [type="password"][aria-invalid="true"],
-  .pos-form [type="url"][aria-invalid="true"] {
+  .pos-form [type="url"][aria-invalid="true"],
+  .pos-form [type="datetime"][aria-invalid="true"],
+  .pos-form [type="datetime-local"][aria-invalid="true"],
+  .pos-form textarea[aria-invalid="true"] {
     border-color: var(--pos-color-important);
   }
 
   .pos-form-error {
     text-wrap: pretty;
     color: var(--pos-color-important);
+  }
+
+
+  /* form actions, submit buttons
+  ============================================================================ */
+  .pos-form-actions {
+    margin-block-start: var(--pos-gap-section-elements);
+    display: flex;
+    justify-content: end;
+    gap: var(--pos-gap-button-button);
   }
 
 
@@ -557,6 +657,5 @@
   .pos-form-multiselect-list .pos-form-multiselect-list-item-filtered {
     display: none;
   }
-
 
 }

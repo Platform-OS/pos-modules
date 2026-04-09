@@ -1,9 +1,6 @@
-{% comment %}
-  Find a status object.
-
-  Params:
-    - id: String
-{% endcomment %}
+{% doc %}
+  @param {string} id - The record ID
+{% enddoc %}
 {% liquid
   if id == blank
     return null
