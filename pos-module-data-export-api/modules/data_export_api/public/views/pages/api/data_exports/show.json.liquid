@@ -2,7 +2,9 @@
 slug: _api/data-exports/:id
 ---
 {% liquid
+  # platformos-check-disable DeprecatedTag, UnreachableCode
   include 'modules/data_export_api/shared/authorize'
+  # platformos-check-enable DeprecatedTag, UnreachableCode
 
   function object = 'modules/data_export_api/queries/data_exports/find', id: context.params.id
 

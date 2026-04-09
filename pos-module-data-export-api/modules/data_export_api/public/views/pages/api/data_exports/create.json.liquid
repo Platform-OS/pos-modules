@@ -3,7 +3,9 @@ slug: _api/data-exports
 method: post
 ---
 {% liquid
+  # platformos-check-disable DeprecatedTag, UnreachableCode
   include 'modules/data_export_api/shared/authorize'
+  # platformos-check-enable DeprecatedTag, UnreachableCode
 
   function object = 'modules/data_export_api/commands/data_exports/create', object: context.params.data_export
 

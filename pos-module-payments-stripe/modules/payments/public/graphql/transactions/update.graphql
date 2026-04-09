@@ -1,0 +1,29 @@
+mutation update_transaction(
+  $id: ID!
+  $c__status: String
+  $gateway_transaction_id: String
+) {
+  record: record_update(
+    id: $id
+    record: {
+      table: "modules/payments/transaction"
+      properties: [
+        { name: "c__status", value: $c__status }
+        { name: "gateway_transaction_id", value: $gateway_transaction_id }
+      ]
+    }
+  ) {
+    id
+    type: table
+    created_at
+    deleted_at
+
+    payable_ids: property_array(name: "payable_ids")
+    amount_cents: property_int(name: "amount_cents")
+    currency: property(name: "currency")
+    gateway: property(name: "gateway")
+    gateway_transaction_id: property(name: "gateway_transaction_id")
+    c__status: property(name: "c__status")
+    stripe_account_name: property(name: "stripe_account_name")
+  }
+}

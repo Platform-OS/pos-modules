@@ -3,7 +3,7 @@
   function object = 'modules/data_export_api/commands/data_exports/create/check', object: object
 
   if object.valid
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/data_export_api/data_exports/mutations/create' object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/data_export_api/data_exports/mutations/create', selection: 'record', object: object
   else
     log object, type: "ERROR: modules/data_export_api/lib/commands/data_exports/create"
   endif

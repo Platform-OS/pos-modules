@@ -1,0 +1,21 @@
+{% comment %}
+  Loads a transaction.
+
+  Params:
+    - id
+    - with_gateway_requests: Boolean = false
+    - with_statuses: Boolean = false
+{% endcomment %}
+{% liquid
+  assign with_gateway_requests = with_gateway_requests | default: false
+  assign with_statuses = with_statuses | default: false
+
+  if id == blank
+    log 'Something went wrong. ID cannot be blank.', type: 'ERROR: modules/payments/queries/transactions/find'
+    return null
+  endif
+
+  graphql r  = 'modules/payments/transactions/search', id: id, limit: 1, with_gateway_requests: with_gateway_requests, with_statuses: with_statuses
+
+  return r.transactions.results.first
+%}

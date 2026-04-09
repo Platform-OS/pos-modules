@@ -1,0 +1,42 @@
+mutation create_transaction(
+  $payable_ids: [String]!
+  $amount_cents: Int!
+  $currency: String!
+  $payer_id: String
+  $gateway_transaction_id: String
+  $gateway: String!
+  $c__status: String!
+  $origin_domain: String
+  $stripe_account_name: String
+) {
+  record: record_create(
+    record: {
+      table: "modules/payments/transaction"
+      properties: [
+        { name: "payable_ids", value_array: $payable_ids }
+        { name: "amount_cents", value_int: $amount_cents }
+        { name: "currency", value: $currency }
+        { name: "gateway_transaction_id", value: $gateway_transaction_id }
+        { name: "payer_id", value: $payer_id }
+        { name: "gateway", value: $gateway }
+        { name: "c__status", value: $c__status }
+        { name: "origin_domain", value: $origin_domain }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+  ) {
+    id
+    type: table
+    created_at
+    deleted_at
+
+    payable_ids: property_array(name: "payable_ids")
+    amount_cents: property_int(name: "amount_cents")
+    currency: property(name: "currency")
+    gateway_transaction_id: property(name: "gateway_transaction_id")
+    payer_id: property(name: "payer_id")
+    gateway: property(name: "gateway")
+    c__status: property(name: "c__status")
+    stripe_account_name: property(name: "stripe_account_name")
+  }
+}

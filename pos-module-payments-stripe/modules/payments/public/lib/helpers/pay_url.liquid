@@ -1,0 +1,23 @@
+{% liquid
+  # Params:
+  #   transaction
+  #   params
+
+  assign use_fallback = use_fallback | default: null
+
+  assign gateway_is_configured_function = 'modules/payments_' | append: transaction.gateway | append: '/helpers/is_configured'
+  function gateway_configured = gateway_is_configured_function
+  if gateway_configured
+    assign gateway_pay_url_function = 'modules/payments_' | append: transaction.gateway | append: '/helpers/pay_url'
+    function url = gateway_pay_url_function, transaction: transaction, gateway_params: gateway_params
+  else
+    unless context.environment == 'production'
+      if use_fallback
+        assign gateway_pay_url_function = 'modules/payments_' | append: use_fallback | append: '/helpers/pay_url'
+        function url = gateway_pay_url_function
+      endif
+    endunless
+  endif
+
+  return url
+%}
