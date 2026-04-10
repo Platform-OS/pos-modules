@@ -79,7 +79,7 @@ jobs:
               "module": "payments-stripe",
               "path": "pos-module-payments-stripe",
               "deploy-script": "./tests/data/seed/seed.sh",
-              "test-commands": "npm run pw-tests"
+              "test-commands": "npm run api-tests"
             },
             "payments-example-gateway": {
               "module": "payments-example-gateway",

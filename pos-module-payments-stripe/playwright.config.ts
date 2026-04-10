@@ -35,8 +35,13 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
-      name: 'smoke-tests',
-      testMatch: /.*\.spec\.ts/,
+      name: 'api-tests',
+      testMatch: /tests\/(webhooks|graphql|integration|helpers)\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'e2e-tests',
+      testMatch: /tests\/stripe-.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "pw-tests": "playwright test tests --project=smoke-tests"
+    "api-tests": "playwright test tests --project=api-tests",
+    "e2e-tests": "playwright test tests --project=e2e-tests"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
