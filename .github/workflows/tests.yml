@@ -1,4 +1,4 @@
-name: E2E tests
+name: Tests
 on:
   push:
     paths-ignore:
@@ -26,7 +26,7 @@ jobs:
 
   detect-changes:
     needs: pre_job
-    if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.pre_job.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
     outputs:
       changed-modules: ${{ steps.set-matrix.outputs.matrix }}
@@ -120,7 +120,7 @@ jobs:
 
           echo "matrix=$modules" >> $GITHUB_OUTPUT
 
-  test-e2e:
+  run-tests:
     needs: detect-changes
     if: |
       needs.detect-changes.result == 'success' &&
@@ -197,27 +197,27 @@ jobs:
           pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
 
   conclusion:
-    needs: [detect-changes, test-e2e]
+    needs: [detect-changes, run-tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Generate workflow summary
         run: |
           if [ "${{ needs.detect-changes.outputs.changed-modules }}" = "[]" ] || [ "${{ needs.detect-changes.result }}" = "skipped" ]; then
-            echo "## E2E Tests - Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "## Tests - Skipped" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ needs.detect-changes.result }}" = "skipped" ]; then
               echo "Workflow was skipped by duplicate action check." >> $GITHUB_STEP_SUMMARY
             elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
               echo "Manual trigger with no matching modules selected." >> $GITHUB_STEP_SUMMARY
             else
-              echo "No modules with E2E tests were changed in this push." >> $GITHUB_STEP_SUMMARY
+              echo "No modules with tests were changed in this push." >> $GITHUB_STEP_SUMMARY
             fi
           else
             if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              echo "## E2E Tests - Completed (Manual Trigger)" >> $GITHUB_STEP_SUMMARY
+              echo "## Tests - Completed (Manual Trigger)" >> $GITHUB_STEP_SUMMARY
             else
-              echo "## E2E Tests - Completed" >> $GITHUB_STEP_SUMMARY
+              echo "## Tests - Completed" >> $GITHUB_STEP_SUMMARY
             fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Tests ran for the following modules:" >> $GITHUB_STEP_SUMMARY
@@ -225,9 +225,9 @@ jobs:
             echo '${{ needs.detect-changes.outputs.changed-modules }}' | jq -r '.[] | "- " + .module' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            if [ "${{ needs.test-e2e.result }}" = "success" ]; then
+            if [ "${{ needs.run-tests.result }}" = "success" ]; then
               echo "Result: All tests passed" >> $GITHUB_STEP_SUMMARY
-            elif [ "${{ needs.test-e2e.result }}" = "skipped" ]; then
+            elif [ "${{ needs.run-tests.result }}" = "skipped" ]; then
               echo "Result: Tests were skipped" >> $GITHUB_STEP_SUMMARY
             else
               echo "Result: Some tests failed - check job output for details" >> $GITHUB_STEP_SUMMARY
