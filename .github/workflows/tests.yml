@@ -182,6 +182,7 @@ jobs:
         shell: sh
         env:
           MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
         working-directory: ${{ matrix.path }}
         run: |
           set -eu
