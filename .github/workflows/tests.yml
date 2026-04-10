@@ -173,7 +173,6 @@ jobs:
         env:
           MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
           MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
-          PARTNER_PORTAL_HOST: ${{ vars.PARTNER_PORTAL_HOST }}
         working-directory: ${{ matrix.path }}
         run: |
           set -eu
