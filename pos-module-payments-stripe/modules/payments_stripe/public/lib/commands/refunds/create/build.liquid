@@ -1,17 +1,7 @@
-{%- parse_json object -%}
-  {
-    "amount": {{ object.amount | round | json }},
-    "transaction_id": {{ transaction.id | json }},
-    "refund_id": {{ object.refund_id | json }},
-    "charge": {{ object.charge | json }},
-    "payment_intent": {{ object.payment_intent | json }},
-    "refund_application_fee": {{ object.refund_application_fee | json }},
-    "reverse_transfer": {{ object.reverse_transfer | json }},
-    "reason": {{ object.reason | json }},
-    "stripe_account_name": {{ object.stripe_account_name | json }},
-    "status": {{ object.status | default: 'new' | json }}
-  }
-{%- endparse_json -%}
 {% liquid
+  assign amount = object.amount | round
+  assign status = object.status | default: "new"
+  assign object = {"amount": amount, "transaction_id": transaction.id, "refund_id": object.refund_id, "charge": object.charge, "payment_intent": object.payment_intent, "refund_application_fee": object.refund_application_fee, "reverse_transfer": object.reverse_transfer, "reason": object.reason, "stripe_account_name": object.stripe_account_name, "status": status}
+
   return object
 %}

@@ -1,4 +1,7 @@
 {% liquid
-  assign result = object | default: {}
+  assign result = object
+  if result == blank
+    assign result = {}
+  endif
   return result
  %}

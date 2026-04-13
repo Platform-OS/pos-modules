@@ -1,28 +1,22 @@
-{%- liquid
+{% liquid
   assign payable_ids = transaction.payable_ids | join: ','
   assign object.metadata.transaction_id = transaction.id
   assign object.metadata.payable_ids = payable_ids
   assign object.metadata.payer_id = transaction.payer_id
--%}
 
-{%- parse_json data -%}
-  {
-    "amount": {{ object.amount | json }},
-    {% if transaction.gateway_transaction_id contains 'ch_' or transaction.gateway_transaction_id contains 'py_' %}
-      "charge": {{ transaction.gateway_transaction_id | json }},
-    {% else %}
-      "payment_intent": {{ transaction.gateway_transaction_id | json }},
-    {% endif %}
-    "metadata": {{ object.metadata }},
-    {% if object.reason %}
-      "reason": {{ object.reason | json }},
-    {% endif %}
-    "refund_application_fee": {{ object.refund_application_fee | json }},
-    "reverse_transfer": {{ object.reverse_transfer | json }}
-  }
-{%- endparse_json -%}
-{% liquid
-  assign data = {"payload": data, "request_type": "POST", "to": "https://api.stripe.com/v1/refunds"}
+  assign payload = {"amount": object.amount, "metadata": object.metadata, "refund_application_fee": object.refund_application_fee, "reverse_transfer": object.reverse_transfer}
+
+  if transaction.gateway_transaction_id contains 'ch_' or transaction.gateway_transaction_id contains 'py_'
+    assign payload.charge = transaction.gateway_transaction_id
+  else
+    assign payload.payment_intent = transaction.gateway_transaction_id
+  endif
+
+  if object.reason
+    assign payload.reason = object.reason
+  endif
+
+  assign data = {"payload": payload, "request_type": "POST", "to": "https://api.stripe.com/v1/refunds"}
 
   return data
 %}

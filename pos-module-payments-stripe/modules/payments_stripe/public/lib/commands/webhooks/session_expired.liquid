@@ -3,7 +3,8 @@
   assign requester_id = 'stripe_webhook_request'
   assign response = {"status": 200}
 
-  assign gateway_transaction_ids = params.data.object.id | split: '!!' | push: params.data.object.payment_intent
+  assign gateway_transaction_ids = params.data.object.id | split: '!!'
+  assign gateway_transaction_ids << params.data.object.payment_intent
 
   function transactions = 'modules/payments/queries/transactions/search', gateway_transaction_ids: gateway_transaction_ids, limit: 1
   assign transaction = transactions.results[0]

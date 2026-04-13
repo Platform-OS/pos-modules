@@ -1,26 +1,14 @@
 {% liquid
   assign body = response.body | parse_json
-%}
-{% parse_json webhook %}
-  {%- if response.status == 200 -%}
-    {
-      {%- if body.error -%}
-        "errors": [
-          { "message": {{ body.error.message | json }} }
-        ],
-      {%- endif -%}
-      "gateway_id": "{{ body.id }}",
-      "valid": true
-    }
-  {%- else -%}
-    {
-      "errors": [
-        { "message": {{ body.error.message | json }} }
-      ],
-      "valid": false
-    }
-  {%- endif -%}
-{% endparse_json %}
-{% liquid
+
+  if response.status == 200
+    assign webhook = {"gateway_id": body.id, "valid": true}
+    if body.error
+      assign webhook.errors = [{"message": body.error.message}]
+    endif
+  else
+    assign webhook = {"errors": [{"message": body.error.message}], "valid": false}
+  endif
+
   return webhook
 %}

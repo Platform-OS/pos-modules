@@ -2,7 +2,9 @@
   # platformos-check-disable MetadataParamsCheck
   assign requester_id = 'stripe_webhook_request'
   assign response = {"status": 200}
-  assign gateway_transaction_ids = params.data.object.id | split: '!!' | push: params.data.object.payment_intent | compact
+  assign gateway_transaction_ids = params.data.object.id | split: '!!'
+  assign gateway_transaction_ids << params.data.object.payment_intent
+  assign gateway_transaction_ids = gateway_transaction_ids | compact
   if params.data.object.metadata.transaction_id
     function transaction = 'modules/payments/queries/transactions/find', id: params.data.object.metadata.transaction_id
   elsif gateway_transaction_ids.size > 0
