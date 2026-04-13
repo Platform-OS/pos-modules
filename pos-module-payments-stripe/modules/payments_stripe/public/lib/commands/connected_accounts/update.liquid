@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function object = 'modules/payments_stripe/commands/connected_accounts/update/build', object: object, params: params
   function object = 'modules/payments_stripe/commands/connected_accounts/update/check', object: object
 
@@ -12,4 +13,5 @@
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

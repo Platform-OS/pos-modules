@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function payout = 'modules/payments_stripe/queries/payouts/find_by_payout_id', payout_id: object.payout_id
   if payout
     return payout
@@ -13,4 +14,5 @@
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

@@ -1,0 +1,61 @@
+query search(
+  $id: ID
+  $limit: Int = 20
+  $page: Int = 1
+  $gateway: String
+  $gateway_object_id: String
+  $gateway_object_ids: [String!]
+  $external_id: String
+  $payload: String
+  $name: String
+  $response_status: String
+  $api_call_name: String
+  $stripe_account_name: String
+) {
+  gateway_requests: records(
+    per_page: $limit
+    page: $page
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/payments/gateway_request" }
+      properties: [
+        { name: "gateway", value: $gateway }
+        {
+          name: "gateway_object_id"
+          value: $gateway_object_id
+          value_in: $gateway_object_ids
+        }
+        { name: "external_id", value: $external_id }
+        { name: "payload", value: $payload }
+        { name: "name", value: $name }
+        { name: "response_status", value: $response_status }
+        { name: "api_call_name", value: $api_call_name }
+        { name: "stripe_account_name", value: $stripe_account_name }
+      ]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    has_next_page
+    has_previous_page
+    current_page
+
+    results {
+      id
+      created_at
+      type: table
+
+      gateway: property(name: "gateway")
+      gateway_object_id: property(name: "gateway_object_id")
+      external_id: property(name: "external_id")
+      payload: property(name: "payload")
+      name: property(name: "name")
+      response_body: property(name: "response_body")
+      response_status: property(name: "response_status")
+      request_data: property(name: "request_data")
+      request_url: property(name: "request_url")
+      api_call_name: property(name: "api_call_name")
+      stripe_account_name: property(name: "stripe_account_name")
+    }
+  }
+}

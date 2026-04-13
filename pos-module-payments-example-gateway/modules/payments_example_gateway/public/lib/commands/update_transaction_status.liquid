@@ -1,8 +1,8 @@
 {% liquid
-  function gateway_request  = 'modules/payments/commands/gateway_requests/receive', object: object, gateway: 'example_gateway', external_id: object['transaction_id'], name: 'example_gateway_update_transaction_status', request_url: context.location.pathname
+  function gateway_request  = 'modules/payments/commands/gateway_requests/receive', object: object, external_id: object['transaction_id'], name: 'example_gateway_update_transaction_status', request_url: context.location.pathname, stripe_account_name: null
   if gateway_request.valid
     function object = 'modules/payments_example_gateway/commands/update_transaction_status/map_response', gateway_request: gateway_request
-    function transaction = 'modules/payments/queries/transactions/find', id: object['transaction_id']
+    function transaction = 'modules/payments/queries/transactions/find', id: object['transaction_id'], with_gateway_requests: false, with_statuses: false
     if transaction
       function transaction = 'modules/payments/commands/transactions/update_status', object: object, transaction: transaction
     endif

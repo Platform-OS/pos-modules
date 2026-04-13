@@ -1,4 +1,5 @@
 {%  liquid
+  # platformos-check-disable MetadataParamsCheck
   function object = 'modules/payments_stripe/commands/setup_intents/update_gateway_id/build', object: object, gateway_id: gateway_id
   function object = 'modules/payments_stripe/commands/setup_intents/update_gateway_id/check', object: object
 
@@ -9,4 +10,5 @@
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

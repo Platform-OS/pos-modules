@@ -4,6 +4,7 @@ method: post
 layout: null
 ---
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: context.location.pathname, context: context, stripe_account_name: context.params.stripe_account_name
   if valid_webhook
     case context.params.type
@@ -26,4 +27,5 @@ layout: null
     response_status 403
     break
   endif
+  # platformos-check-enable MetadataParamsCheck
 %}

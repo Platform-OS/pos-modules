@@ -1,0 +1,9 @@
+{% liquid
+  assign data = {"id": object.id, "gateway_transaction_id": object.gateway_transaction_id}
+
+  if object.c__status
+    assign data.c__status = object.c__status
+  endif
+
+  return data
+%}

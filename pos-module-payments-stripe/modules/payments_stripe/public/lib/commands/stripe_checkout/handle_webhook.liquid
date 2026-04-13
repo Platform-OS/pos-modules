@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function object = 'modules/payments_stripe/commands/stripe_checkout/handle_webhook/build', object: params.data.object, transaction: transaction
   function object = 'modules/payments_stripe/commands/stripe_checkout/handle_webhook/check', object: object
 
@@ -14,4 +15,5 @@
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

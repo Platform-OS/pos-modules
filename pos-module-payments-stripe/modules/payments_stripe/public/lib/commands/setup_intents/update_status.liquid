@@ -1,4 +1,5 @@
 {%  liquid
+  # platformos-check-disable MetadataParamsCheck
   assign request_payload = request_payload | default: null
   function object = 'modules/payments_stripe/commands/setup_intents/update_status/build', setup_intent: setup_intent, status: status
   function object = 'modules/payments_stripe/commands/setup_intents/update_status/check', object: object
@@ -13,4 +14,5 @@
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

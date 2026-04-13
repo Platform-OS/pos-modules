@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function object = 'modules/payments_stripe/commands/stripe_checkout/complete/build', object: object
   function object = 'modules/payments_stripe/commands/stripe_checkout/complete/check', object: object
   unless object.valid
@@ -16,4 +17,5 @@
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

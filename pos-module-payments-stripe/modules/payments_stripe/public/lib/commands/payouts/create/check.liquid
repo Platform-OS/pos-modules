@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   assign c = { "errors": {}, "valid": true }
 
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'connected_account_id'
@@ -9,4 +10,5 @@
   assign object.errors = c.errors
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

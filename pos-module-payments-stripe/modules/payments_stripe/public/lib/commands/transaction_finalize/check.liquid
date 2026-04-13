@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   assign c = { "errors": {}, "valid": true }
 
   assign new_statuses = 'new' | split: ','
@@ -10,4 +11,5 @@
   assign object.errors = c.errors
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

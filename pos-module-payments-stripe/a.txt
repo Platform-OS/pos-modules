@@ -1,0 +1,1090 @@
+[]
+{
+  "settings": {
+    "DeprecatedFilter": {
+      "enabled": true,
+      "severity": 1
+    },
+    "DeprecatedTag": {
+      "enabled": true,
+      "severity": 1
+    },
+    "DuplicateFunctionArguments": {
+      "enabled": true,
+      "severity": 1
+    },
+    "DuplicateRenderPartialArguments": {
+      "enabled": true,
+      "severity": 1
+    },
+    "GraphQLCheck": {
+      "enabled": true,
+      "severity": 0
+    },
+    "GraphQLVariablesCheck": {
+      "enabled": true,
+      "severity": 0
+    },
+    "ImgWidthAndHeight": {
+      "enabled": true,
+      "severity": 0
+    },
+    "InvalidHashAssignTarget": {
+      "enabled": true,
+      "severity": 0
+    },
+    "JSONSyntaxError": {
+      "enabled": true,
+      "severity": 0
+    },
+    "LiquidHTMLSyntaxError": {
+      "enabled": true,
+      "severity": 0
+    },
+    "MatchingTranslations": {
+      "enabled": true,
+      "severity": 0
+    },
+    "MetadataParamsCheck": {
+      "enabled": true,
+      "severity": 0
+    },
+    "MissingAsset": {
+      "enabled": true,
+      "severity": 0
+    },
+    "MissingPage": {
+      "enabled": true,
+      "severity": 1
+    },
+    "MissingPartial": {
+      "enabled": true,
+      "severity": 0,
+      "ignoreMissing": []
+    },
+    "MissingRenderPartialArguments": {
+      "enabled": true,
+      "severity": 0
+    },
+    "NestedGraphQLQuery": {
+      "enabled": true,
+      "severity": 1
+    },
+    "OrphanedPartial": {
+      "enabled": true,
+      "severity": 1
+    },
+    "ParserBlockingScript": {
+      "enabled": true,
+      "severity": 0
+    },
+    "TranslationKeyExists": {
+      "enabled": true,
+      "severity": 0
+    },
+    "UnclosedHTMLElement": {
+      "enabled": true,
+      "severity": 1
+    },
+    "UndefinedObject": {
+      "enabled": true,
+      "severity": 1
+    },
+    "UniqueDocParamNames": {
+      "enabled": true,
+      "severity": 0
+    },
+    "UnknownFilter": {
+      "enabled": true,
+      "severity": 0
+    },
+    "UnknownProperty": {
+      "enabled": true,
+      "severity": 0
+    },
+    "UnrecognizedRenderPartialArguments": {
+      "enabled": true,
+      "severity": 1
+    },
+    "UnusedAssign": {
+      "enabled": true,
+      "severity": 1
+    },
+    "UnusedDocParam": {
+      "enabled": true,
+      "severity": 1
+    },
+    "ValidDocParamTypes": {
+      "enabled": true,
+      "severity": 0
+    },
+    "ValidHTMLTranslation": {
+      "enabled": true,
+      "severity": 1
+    },
+    "ValidJSON": {
+      "enabled": true,
+      "severity": 0
+    },
+    "ValidRenderPartialArgumentTypes": {
+      "enabled": true,
+      "severity": 1
+    },
+    "VariableName": {
+      "enabled": true,
+      "severity": 1,
+      "format": "snake_case"
+    }
+  },
+  "checks": [
+    {
+      "meta": {
+        "code": "DeprecatedFilter",
+        "aliases": [
+          "DeprecatedFilters"
+        ],
+        "name": "Deprecated Filter",
+        "docs": {
+          "description": "Discourages using deprecated filters.",
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/deprecated-filter",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "DeprecatedTag",
+        "aliases": [
+          "DeprecatedTags"
+        ],
+        "name": "Deprecated Tag",
+        "docs": {
+          "description": "This check is aimed at eliminating the use of deprecated tags.",
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/deprecated-tag",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "DuplicateFunctionArguments",
+        "name": "Duplicate Function Arguments",
+        "aliases": [],
+        "docs": {
+          "description": "This check ensures that no duplicate argument names are provided when invoking partial as a function.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/duplicate-function-arguments"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "DuplicateRenderPartialArguments",
+        "name": "Duplicate Render Partial Arguments",
+        "aliases": [
+          "DuplicateRenderPartialParams"
+        ],
+        "docs": {
+          "description": "This check ensures that no duplicate argument names are provided when rendering a partial.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/duplicate-render-partial-arguments"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "ImgWidthAndHeight",
+        "name": "Width and height attributes on image tags",
+        "docs": {
+          "description": "This check is aimed at eliminating content layout shift by enforcing the use of the width and height attributes on img tags.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/img-width-and-height"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "JSONSyntaxError",
+        "name": "Enforce valid JSON",
+        "docs": {
+          "description": "This check exists to prevent invalid JSON files in apps.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/json-syntax-error"
+        },
+        "type": "JSON",
+        "severity": 0,
+        "schema": {},
+        "targets": [],
+        "deprecated": true
+      }
+    },
+    {
+      "meta": {
+        "code": "LiquidHTMLSyntaxError",
+        "aliases": [
+          "SyntaxError",
+          "HtmlParsingError"
+        ],
+        "name": "Prevent LiquidHTML Syntax Errors",
+        "docs": {
+          "description": "This check exists to inform the user of Liquid HTML syntax errors.",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "MatchingTranslations",
+        "name": "Translation files should have the same keys",
+        "docs": {
+          "description": "TODO",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/matching-translations"
+        },
+        "type": "YAML",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "MissingAsset",
+        "name": "Avoid rendering missing asset files",
+        "docs": {
+          "description": "Reports missing asset files",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/missing-asset"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "MissingPartial",
+        "name": "Avoid rendering missing partials",
+        "docs": {
+          "description": "Reports missing partial liquid file",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/missing-partial"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {
+          "ignoreMissing": {
+            "options": {
+              "type": "array",
+              "defaultValue": [],
+              "itemType": {
+                "options": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "OrphanedPartial",
+        "name": "Prevent orphaned partials",
+        "docs": {
+          "description": "This check exists to prevent orphaned partials in platformOS apps.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/orphaned-partial"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "ParserBlockingScript",
+        "aliases": [
+          "ParserBlockingScriptTag"
+        ],
+        "name": "Avoid parser blocking scripts",
+        "docs": {
+          "description": "Parser-blocking scripts delay page rendering by blocking the HTML parser.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/parser-blocking-script"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "TranslationKeyExists",
+        "name": "Reports missing translation keys",
+        "docs": {
+          "description": "Reports missing translation keys",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/translation-key-exists"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UnclosedHTMLElement",
+        "aliases": [
+          "UnclosedHTMLElement"
+        ],
+        "name": "Unclosed HTML Element",
+        "docs": {
+          "description": "Warns you of unbalanced HTML tags in branching code",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/unclosed-html-element"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UndefinedObject",
+        "name": "Undefined Object",
+        "docs": {
+          "description": "This check exists to identify references to undefined Liquid objects.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/undefined-object"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UniqueDocParamNames",
+        "name": "Unique doc parameter names",
+        "docs": {
+          "description": "This check exists to ensure any parameter names defined in the `doc` tag are unique.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/unique-doc-param-names"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UnknownFilter",
+        "name": "Prevent use of unknown filters",
+        "docs": {
+          "description": "This check is aimed at preventing the use of unknown filters.",
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/unknown-filter",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UnrecognizedRenderPartialArguments",
+        "name": "Unrecognized Render Partial Arguments",
+        "aliases": [
+          "UnrecognizedRenderPartialParams"
+        ],
+        "docs": {
+          "description": "This check ensures that no unknown arguments are used when rendering a partial.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/unrecognized-render-partial-arguments"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UnusedAssign",
+        "name": "Prevent unused assigns",
+        "docs": {
+          "description": "This check exists to prevent bloat by surfacing variable definitions that are not used.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/unused-assign"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UnusedDocParam",
+        "name": "Prevent unused doc parameters",
+        "docs": {
+          "description": "This check exists to ensure any parameters defined in the `doc` tag are used within the partial.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/unused-doc-param"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "ValidHTMLTranslation",
+        "name": "Valid HTML Translation",
+        "docs": {
+          "description": "This check exists to prevent invalid HTML inside translations.",
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/valid-html-translation",
+          "recommended": true
+        },
+        "type": "YAML",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "ValidJSON",
+        "aliases": [
+          "ValidJson"
+        ],
+        "name": "Enforce valid JSON",
+        "docs": {
+          "description": "This check exists to prevent invalid JSON files in apps. Will check against schema if available.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/json-syntax-error"
+        },
+        "type": "JSON",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "ValidDocParamTypes",
+        "name": "Valid doc parameter types",
+        "docs": {
+          "description": "This check exists to ensure any parameter types defined in the `doc` tag are valid.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/valid-doc-param-types"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "ValidRenderPartialArgumentTypes",
+        "name": "Valid Render Partial Argument Types",
+        "aliases": [
+          "ValidRenderPartialParamTypes"
+        ],
+        "docs": {
+          "description": "This check ensures that arguments passed to partial match the expected types defined in the liquidDoc header if present.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/valid-render-partial-argument-types"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "VariableName",
+        "name": "Invalid variable naming format",
+        "docs": {
+          "description": "This check is aimed at using certain variable naming conventions",
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/variable-name",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {
+          "format": {
+            "options": {
+              "type": "string",
+              "defaultValue": "snake_case"
+            }
+          }
+        },
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "MetadataParamsCheck",
+        "name": "Metadata Params Check",
+        "docs": {
+          "description": "Ensures that parameters referenced in the document exist in the doc tag or are inferred from undefined variables.",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "GraphQLVariablesCheck",
+        "name": "GraphQL Variables Check",
+        "docs": {
+          "description": "Ensures that parameters referenced in the document exist in the GraphQL query or mutation.",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "GraphQLCheck",
+        "name": "GraphQL Check",
+        "docs": {
+          "description": "Ensures that GraphQL query or mutation is valid and matches predefined schema.",
+          "recommended": true
+        },
+        "type": "GraphQL",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "UnknownProperty",
+        "name": "Unknown property access",
+        "docs": {
+          "description": "Reports errors when accessing properties that do not exist on variables with known structure.",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "InvalidHashAssignTarget",
+        "name": "Invalid hash_assign target",
+        "docs": {
+          "description": "Reports errors when hash_assign is used on a variable that is not an object type (e.g., number, string, boolean, array).",
+          "recommended": true
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "MissingRenderPartialArguments",
+        "name": "Missing Required Render Partial Arguments",
+        "aliases": [
+          "MissingRenderPartialParams"
+        ],
+        "docs": {
+          "description": "This check ensures that all required @param arguments declared by a partial are provided at the call site.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/missing-render-partial-arguments"
+        },
+        "type": "LiquidHtml",
+        "severity": 0,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "NestedGraphQLQuery",
+        "name": "Prevent N+1 GraphQL queries in loops",
+        "docs": {
+          "description": "This check detects {% graphql %} tags placed inside loop tags ({% for %}, {% tablerow %}), which causes one database request per loop iteration (N+1 pattern). It also follows {% function %} and {% render %} calls transitively to detect indirect GraphQL queries.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/nested-graphql-query"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    },
+    {
+      "meta": {
+        "code": "MissingPage",
+        "name": "Missing page for route",
+        "docs": {
+          "description": "Reports links and form actions that point to routes with no corresponding platformOS page.",
+          "recommended": true,
+          "url": "https://documentation.platformos.com/developer-guide/platformos-check/checks/missing-page"
+        },
+        "type": "LiquidHtml",
+        "severity": 1,
+        "schema": {},
+        "targets": []
+      }
+    }
+  ],
+  "ignore": [
+    "node_modules/**"
+  ],
+  "rootUri": "file:///workspaces/pos-modules/pos-module-payments-stripe"
+}
+[
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/template-values.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/package.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/template-values.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/package.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/template-values.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/template-values.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/package.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/package-lock.json",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/schema/webhook_endpoint.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/schema/setup_intent.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/schema/refund.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/schema/payout.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/schema/payment_method.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/schema/customer.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/schema/connected_account.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/api_call.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/api_calls/generic.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/schema/transaction.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/schema/gateway_request.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/api_call.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/schema/status.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/emails/generic.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/api_calls/generic_x_form_encoded.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/api_calls/generic.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/webhook_endpoints/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/webhook_endpoints/delete_many.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/webhook_endpoints/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/setup_intents/update.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/setup_intents/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/setup_intents/delete.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/setup_intents/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/refunds/update.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/refunds/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/refunds/delete.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/refunds/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/payouts/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/payouts/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/payment_methods/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/payment_methods/delete.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/payment_methods/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/customers/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/customers/delete.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/customers/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/connected_accounts/update.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/connected_accounts/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/connected_accounts/delete.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/graphql/connected_accounts/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/helpers/pay_url.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/helpers/pay_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/helpers/is_configured.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/events/payments_stripe_setup_intent_succeeded.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/events/payments_stripe_payout_paid.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/events/payments_stripe_connected_account_updated.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/events/payments_stripe_connected_account_deleted.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/transaction_finalize.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/helpers/pay_url.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/helpers/pay_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/events/payments_transaction_succeeded.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/events/payments_transaction_pending.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/events/payments_transaction_new.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/events/payments_transaction_failed.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/events/payments_transaction_expired.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/execute.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/transactions/update.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/transactions/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/transactions/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/transactions/count.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/translations/en/should.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/gateway_requests/update.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/gateway_requests/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/graphql/gateway_requests/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/layouts/test.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/layouts/mailer.html.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/helpers/register_error.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/commands/run.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/valid_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/true.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/presence.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/object_contains_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/not_valid_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/not_true.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/not_presence.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/invalid_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/equal.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/assertions/blank.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/graphql/test_files/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/graphql/test_files/count.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/graphql/sent_mails/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/layouts/mailer.html.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/layouts/basic.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/translations/en/validation.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/translations/en/common.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/valid_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/uniqueness.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/unique_elements.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/truthy.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/presence.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/password_complexity.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/number.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/not_null.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/matches.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/length.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/is_url.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/included.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/hcaptcha.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/exist_in_db.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/equal.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/email.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/elements_included.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/each_element_length.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/validations/date.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/register_error.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/redirect_to.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/log_time.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/hash_to_x_form_encoded.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/authenticity_token.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/events/status_created.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/execute.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/variable/set.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/statuses/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/statuses/delete.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/statuses/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/session/set.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/session/delete.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/records/count.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/hook/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/events/search.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/events/events_checks.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/events/create.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/events/consumers.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/email/send.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/graphql/api_calls/send.graphql",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/generators/crud/templates/config.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/setup_intents/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/setup_intents/find_by_reference_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/setup_intents/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/refunds/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/refunds/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/payouts/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/payouts/find_by_payout_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/payouts/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/payment_methods/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/payment_methods/find_by_payment_method_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/payment_methods/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/customers/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/customers/find_by_reference_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/customers/find_by_customer_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/customers/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/connected_accounts/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/connected_accounts/find_by_reference_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/connected_accounts/find_by_account_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/queries/connected_accounts/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhooks/setup_intent.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhooks/session_expired.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhooks/payout.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhooks/is_valid.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhooks/connected_account.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhooks/charge.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhook_endpoints/delete_many.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhook_endpoints/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/transaction_finalize/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/transaction_finalize/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_webhook/delete.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_webhook/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_setup_intent/handle_webhook.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_refund/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_payment_method/retrieve.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_payment_intent/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_customer/retrieve.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/handle_webhook.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_onboarding_link.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_dashboard_link.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/delete.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/setup_intent.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/retrieve.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/handle_webhook.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/expire.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/complete.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_charge/handle_webhook.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_charge/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_balance_history/retrieve.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/update_status.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/update_gateway_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/refunds/update.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/refunds/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payouts/handle_webhook.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payouts/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payment_methods/create_card.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payment_methods/create_bank_account.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payment_methods/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/customers/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/update.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/delete.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/tests/transactions/update_gateway_transaction_id_test.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/tests/gateway_requests/send_test.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/tests/gateway_requests/receive_test.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/queries/transactions/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/queries/transactions/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/queries/gateway_requests/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/queries/gateway_requests/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/consumers/status_created/set_transaction_status_cache.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/update_status.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/update_gateway_transaction_id.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/set_status_cache.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/map_status.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/finalize.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/update.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/send.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/receive.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/test_report_text.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/test_report_html.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/show_text.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/show_log_js.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/show_log.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/show_js.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/show_html.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/tests/index.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/sent_mails/show.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/sent_mails/pagination.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/partials/sent_mails/list.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/run_async.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/run_async.js.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/run.js.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/run.html.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/index.js.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/index.html.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/queries/sent_mails/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/lib/queries/sent_mails/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/events/show.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/events/list.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/events/event_card.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/pages/_events/trigger.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/pages/_events/index.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/variable/get.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/variable/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/statuses/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/statuses/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/registry/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/registry/get.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/module/exists.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/hook/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/headscripts/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/headscripts/get.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/events/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/events/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/queries/constants/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/timezone/get_by_offset.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/timezone/get_by_name.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/timezone/get_all.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/helpers/flash/publish.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/variable/set.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/statuses/delete.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/statuses/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/session/set.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/session/get.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/session/clear.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/hook/fire.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/hook/alter.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/events/publish.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/events/create.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/events/broadcast.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/email/send.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/generators/crud/templates/translations/model.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/generators/crud/templates/schema/model.yml",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/views/pages/payments/stripe/webhooks_connect.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/views/pages/payments/stripe/webhooks.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/views/pages/payments/stripe/checkout_session_completed_webhook.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhook_endpoints/delete_many/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/webhook_endpoints/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_webhook/delete/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_webhook/delete/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_setup_intent/handle_webhook/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_setup_intent/handle_webhook/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_refund/create/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_refund/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_refund/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_payment_method/retrieve/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_payment_method/retrieve/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_payment_intent/create/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_payment_intent/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_customer/retrieve/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_customer/retrieve/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/handle_webhook/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/handle_webhook/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_onboarding_link/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_onboarding_link/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_onboarding_link/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_dashboard_link/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_dashboard_link/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/get_dashboard_link/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/delete/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/delete/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/create/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_connected_accounts/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/setup_intent/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/setup_intent/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/retrieve/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/retrieve/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/handle_webhook/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/handle_webhook/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/expire/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/expire/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/create/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/complete/map_request.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/complete/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_checkout/complete/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_charge/handle_webhook/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_charge/handle_webhook/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_charge/create/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_charge/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_balance_history/retrieve/map_response.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/stripe_balance_history/retrieve/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/update_status/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/update_status/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/update_gateway_id/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/update_gateway_id/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/setup_intents/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/refunds/update/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/refunds/update/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/refunds/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/refunds/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payouts/handle_webhook/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payouts/handle_webhook/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payouts/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payment_methods/create_card/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payment_methods/create_card/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payment_methods/create_bank_account/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/payment_methods/create_bank_account/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/customers/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/customers/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/update/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/update/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/delete/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/delete/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments_stripe/public/lib/commands/connected_accounts/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/update_status/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/update_status/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/update_gateway_transaction_id/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/update_gateway_transaction_id/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/set_status_cache/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/set_status_cache/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/transactions/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/update/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/update/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/send/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/send/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/receive/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/payments/public/lib/commands/gateway_requests/receive/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/sent_mails/show.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/tests/public/views/pages/_tests/sent_mails/index.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/valid_object.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/uniqueness.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/unique_elements.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/truthy.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/presence.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/password_complexity.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/number.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/not_null.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/matches.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/length.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/included.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/hcaptcha.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/exist_in_db.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/equal.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/email.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/elements_included.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/each_element_length.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/validations/date.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/helpers/register_error.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/statuses/delete/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/statuses/delete/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/statuses/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/statuses/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/events/create/execute.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/events/create/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/events/create/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/email/send/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/lib/commands/email/send/build.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/variable/get.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/variable/find.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/registry/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/registry/get.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/module/exists.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/hook/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/headscripts/search.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/queries/headscripts/get.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/commands/hook/fire.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/commands/hook/alter.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/commands/variable/set.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/commands/email/send.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/commands/email/send/check.liquid",
+  "file:///workspaces/pos-modules/pos-module-payments-stripe/modules/core/public/views/partials/lib/commands/email/send/build.liquid"
+]

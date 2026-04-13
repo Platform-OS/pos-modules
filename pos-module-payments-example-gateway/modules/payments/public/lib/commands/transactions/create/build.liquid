@@ -1,0 +1,18 @@
+{% assign origin_domain = context.location.host %}
+
+{% parse_json object %}
+  {
+    "payable_ids": {{ object.payable_ids | json }},
+    "amount_cents": {{ object.amount_cents | json }},
+    "currency": {{ object.currency | json }},
+    "gateway": {{ object.gateway | json }},
+    "c__status": "app.statuses.transactions.new",
+    "origin_domain": {{ origin_domain | json }},
+    "payer_id": {{ object.payer_id | json }},
+    "gateway_transaction_id": {{ object.gateway_transaction_id | json }},
+    "stripe_account_name": {{ object.stripe_account_name | json }}
+  }
+{% endparse_json %}
+
+ {% return object %}
+

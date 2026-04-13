@@ -1,0 +1,30 @@
+mutation update_gateway_request(
+  $id: ID!
+  $response_body: String
+  $response_status: String
+  $gateway_object_id: String
+) {
+  record: record_update(
+    id: $id
+    record: {
+      table: "modules/payments/gateway_request"
+      properties: [
+        { name: "response_body", value: $response_body }
+        { name: "response_status", value: $response_status }
+        { name: "gateway_object_id", value: $gateway_object_id }
+      ]
+    }
+  ) {
+    id
+    created_at
+    updated_at
+    gateway_object_id: property(name: "gateway_object_id")
+    external_id: property(name: "external_id")
+    name: property(name: "name")
+    request_data: property(name: "request_data")
+    response_body: property(name: "response_body")
+    response_status: property(name: "response_status")
+    api_call_template: property(name: "api_call_template")
+    stripe_account_name: property(name: "stripe_account_name")
+  }
+}

@@ -1,0 +1,11 @@
+name: gateway_request
+properties:
+  - name: name
+  - name: gateway_object_id
+  - name: external_id
+  - name: request_data
+  - name: request_url
+  - name: response_body
+  - name: response_status
+  - name: api_call_template
+  - name: stripe_account_name

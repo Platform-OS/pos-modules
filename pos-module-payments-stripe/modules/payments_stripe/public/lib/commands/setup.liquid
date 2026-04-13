@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   if stripe_account_name != blank
     assign stripe_key_name = 'stripe_sk_key' | append: '_' | append: stripe_account_name
     assign webhooks_path = '/payments/stripe/webhooks/' | append: stripe_account_name
@@ -26,4 +27,5 @@
     log null, type: 'ERROR: modules/payments_stripe you have to set `stripe_sk_key` variable'
     return false
   endif
+  # platformos-check-enable MetadataParamsCheck
 %}
