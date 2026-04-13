@@ -35,6 +35,29 @@ EXAMPLE GATEWAY
 </form>
 ```
 
+## Testing
+
+This module includes E2E tests using Playwright.
+
+### Running Tests
+
+```bash
+npm run pw-tests
+```
+
+### Test Coverage
+
+The test suite includes:
+- Payment page loading
+- Successful payment flows
+- Failed payment flows
+- Delayed payment processing
+- Invalid transaction handling
+- Multiple payment attempts
+- URL parameter preservation
+
+For more details, see [Test README](tests/README.md).
+
 ## TODO
 
 - [ ] do the page that similate external api

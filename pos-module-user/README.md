@@ -647,3 +647,73 @@ To manage versioning with Git and npm, you can follow these commands:
 git fetch origin --tags
 npm version major | minor | patch
 ```
+
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+      actor User
+      participant Browser
+      participant POS as platformOS Instance
+      participant UserModule as pos-module-user
+      participant GQL as GraphQL
+      participant Session as Session Store (Redis)
+
+      rect rgb(230, 255, 230)
+          Note over Browser,Session: Login Flow
+          User->>Browser: Click "Log in"
+          Browser->>POS: GET /sessions/new (_pos_session cookie)
+          POS->>Session: Lookup session by _pos_session
+          Session-->>POS: session data (no user_id)
+          POS->>UserModule: modules/user/public/views/pages/sessions/new.liquid
+          UserModule-->>Browser: Render modules/user/partials/sessions/new + authenticity_token
+
+          User->>Browser: Submit credentials
+          Browser->>POS: POST /sessions (email, password, authenticity_token, _pos_session cookie)
+          POS->>Session: Lookup session by _pos_session
+          Session-->>POS: session data (no user_id)
+          POS->>UserModule: modules/user/public/views/pages/sessions/create.liquid
+          UserModule->>+POS: modules/user/commands/session/create
+          Note over POS: check
+          POS->>GQL: query modules/user/queries/users/authenticate
+          GQL-->>POS: user record
+          Note over POS: execute
+          POS->>Session: sign_in user_id: user.id, timeout_in_minutes: 1440
+          Session-->>POS: session updated
+          POS-->>-UserModule: done
+          POS-->>Browser: 302 Redirect / (Set-Cookie: _pos_session)
+      end
+
+      rect rgb(255, 250, 220)
+          Note over Browser,Session: Authenticated Page Request
+          Browser->>POS: GET /protected-page (_pos_session cookie)
+          POS->>Session: Lookup session by _pos_session
+          Session-->>POS: session data (user_id)
+          POS->>UserModule: modules/user/helpers/current_profile
+          UserModule->>POS: modules/user/queries/user/current + modules/user/queries/profiles/find
+          POS->>GQL: modules/user/queries/user/current + modules/user/queries/profiles/find
+          GQL-->>POS: user + profile record
+          POS-->>UserModule: user + profile record
+          UserModule-->>POS: profile (id, email, roles)
+          POS->>UserModule: modules/user/helpers/can_do_or_unauthorized
+          UserModule-->>POS: granted
+          POS->>GQL: query page data
+          GQL-->>POS: records
+          POS-->>Browser: Render page HTML
+      end
+
+      rect rgb(255, 230, 230)
+          Note over Browser,Session: Logout Flow
+          User->>Browser: Click Sign Out
+          Browser->>POS: POST /sessions (_method=delete, authenticity_token, _pos_session cookie)
+          POS->>Session: Lookup session by _pos_session
+          Session-->>POS: session data (user_id)
+          POS->>POS: Validate CSRF token
+          POS->>UserModule: modules/user/public/views/pages/sessions/destroy.liquid
+          UserModule->>POS: modules/user/commands/session/destroy
+          POS->>GQL: mutation user_session_destroy
+          GQL->>Session: Destroy session
+          Session-->>Browser: Clear _pos_session cookie
+          POS-->>Browser: 302 Redirect /
+      end
+```
