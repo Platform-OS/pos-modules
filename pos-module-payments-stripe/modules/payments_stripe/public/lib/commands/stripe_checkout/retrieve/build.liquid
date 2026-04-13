@@ -7,7 +7,7 @@
     assign expand = ["payment_intent"]
     assign payload.expand = expand
   endif
-  assign data = {"payload": payload, "request_type": 'GET', "to": url}
+  assign data = {"payload": payload, "request_type": "GET", "to": url}
 
   return data
  %}
