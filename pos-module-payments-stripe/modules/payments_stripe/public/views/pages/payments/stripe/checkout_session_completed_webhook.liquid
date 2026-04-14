@@ -12,7 +12,7 @@ layout: null
     endunless
 
     assign requester_id = context.current_user.id | default: 'stripe_webhook_request'
-    function object = 'modules/payments_stripe/commands/stripe_checkout/complete', object: context.post_params, requester_id: requester_id, request_url: context.location.url
+    function object = 'modules/payments_stripe/commands/stripe_checkout/complete', object: context.params, requester_id: requester_id, request_url: context.location.url
 
     if object.valid
       echo object
