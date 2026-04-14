@@ -6,7 +6,7 @@
   assign now = 'now' | to_time
   assign data = object
   assign data.type = type
-  assign data.date = now
+  assign data.date = data.date | default: now
 
   return data
 %}
