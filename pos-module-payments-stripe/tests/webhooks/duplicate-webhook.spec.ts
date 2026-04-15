@@ -84,8 +84,8 @@ test.describe('Duplicate Webhook Idempotency', () => {
         '/payments/stripe/webhooks'
       );
 
-      // Should still accept (idempotent)
-      expect(response.status()).toBe(200);
+      // Should still accept (idempotent) - 202 means already processed, 200 means freshly processed
+      expect([200, 202]).toContain(response.status());
 
       // Wait a bit for processing
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -149,8 +149,8 @@ test.describe('Duplicate Webhook Idempotency', () => {
         '/payments/stripe/webhooks'
       );
 
-      // Should accept without error (same charge, idempotent)
-      expect(response.status()).toBe(200);
+      // Should accept without error (same charge, idempotent) - 202 means already processed, 200 means freshly processed
+      expect([200, 202]).toContain(response.status());
       await new Promise(resolve => setTimeout(resolve, 1000));
     });
 

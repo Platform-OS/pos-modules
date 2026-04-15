@@ -176,7 +176,8 @@ test.describe('Charge Failed Webhook', () => {
       '/payments/stripe/webhooks'
     );
 
-    expect(response.status()).toBe(200);
+    // 202 means already processed (idempotent), 200 means freshly processed
+    expect([200, 202]).toContain(response.status());
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 

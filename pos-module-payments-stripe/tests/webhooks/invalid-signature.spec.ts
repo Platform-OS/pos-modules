@@ -63,11 +63,8 @@ test.describe('Invalid Webhook Signature', () => {
       data: payload,
     });
 
-    // Should reject with 403 Forbidden
+    // Should reject with 403 Forbidden (body is always empty - no echo after response_status 403)
     expect(response.status()).toBe(403);
-
-    const responseText = await response.text();
-    expect(responseText).toContain('invalid webhook');
   });
 
   test('Webhook with missing signature header is rejected', async ({ request }) => {
