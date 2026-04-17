@@ -1,9 +1,0 @@
-{% liquid
-  if id == blank
-    return null
-  endif
-
-  graphql r  = 'modules/payments/gateway_requests/search', id: id, limit: 1
-
-  return r.gateway_requests.results.first
-%}

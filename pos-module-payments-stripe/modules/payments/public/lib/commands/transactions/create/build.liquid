@@ -1,7 +1,0 @@
-{% liquid
-  assign origin_domain = context.location.host
-  assign object = {"payable_ids": object.payable_ids, "amount_cents": object.amount_cents, "currency": object.currency, "gateway": object.gateway, "c__status": "app.statuses.transactions.new", "origin_domain": origin_domain, "payer_id": object.payer_id, "gateway_transaction_id": object.gateway_transaction_id, "stripe_account_name": object.stripe_account_name}
-
-  return object
-%}
-

@@ -1,9 +1,0 @@
-{% doc %}
-  @param {string} key - The translation key for the error message
-  @param {string} value - The value
-{% enddoc %}
-{% liquid
-  assign value = value | json
-  graphql _ = 'modules/core/session/set', name: key, value: value
-  return true
-%}
