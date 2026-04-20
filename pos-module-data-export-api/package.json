@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "description": "API endpoints to trigger the data export and retrieve URL to the data",
   "scripts": {
-    "version": "(cd ../../ && pos-cli modules version pos-module-data-export-api -p) && git add template-values.json && auto-changelog -p && git add CHANGELOG.md"
+    "version": "(cd ../../ && pos-cli modules version pos-module-data-export-api -p) && git add template-values.json && auto-changelog -p && git add CHANGELOG.md",
+    "api-tests": "playwright test tests --project=api-tests"
   },
   "repository": {
     "type": "git",

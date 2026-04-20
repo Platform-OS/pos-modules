@@ -75,6 +75,12 @@ jobs:
               "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli deploy",
               "test-commands": "npm run pw-tests"
             },
+            "data-export-api": {
+              "module": "data-export-api",
+              "path": "pos-module-data-export-api",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
             "payments-stripe": {
               "module": "payments-stripe",
               "path": "pos-module-payments-stripe",
