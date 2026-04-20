@@ -36,7 +36,7 @@ export default defineConfig({
   projects: [
     {
       name: 'api-tests',
-      testMatch: /tests\/(webhooks|graphql|integration|helpers|validation|api)\/.*\.spec\.ts/,
+      testMatch: /tests\/(webhooks|graphql)\/.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
     {

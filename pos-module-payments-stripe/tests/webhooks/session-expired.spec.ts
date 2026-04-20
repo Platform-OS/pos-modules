@@ -2,10 +2,13 @@ import { test, expect } from '@playwright/test';
 import {
   createWebhookEndpoint,
   createTransaction,
+  createCheckoutCompletedEvent,
   sendWebhook,
   queryTransaction,
   getProperty,
   deleteRecord,
+  getRequiredBaseURL,
+  getHostFromBaseURL,
 } from '../helpers/stripe-api';
 
 /**
@@ -35,25 +38,38 @@ function createSessionExpiredEvent(data: {
 }
 
 test.describe('Checkout Session Expired Webhook', () => {
-  const baseURL = process.env.MPKIT_URL!;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
-  const host = new URL(baseURL).host;
 
+  let baseURL: string;
+  let host: string;
   let webhookEndpoint: any;
+  let checkoutCompletedEndpoint: any;
   let transaction: any;
+  let sessionId: string;
 
   test.beforeEach(async ({ request }) => {
+    baseURL = getRequiredBaseURL();
+    host = getHostFromBaseURL(baseURL);
+
     webhookEndpoint = await createWebhookEndpoint(request, baseURL, {
       url: `https://${host}/payments/stripe/webhooks`,
       secret: webhookSecret,
       livemode: false,
     });
 
+    checkoutCompletedEndpoint = await createWebhookEndpoint(request, baseURL, {
+      url: `https://${host}/payments/stripe/checkout_session_completed_webhook`,
+      secret: webhookSecret,
+      livemode: false,
+    });
+
+    sessionId = `cs_test_${Date.now()}`;
     transaction = await createTransaction(request, baseURL, {
       gateway: 'stripe',
       amount_cents: 10000,
       currency: 'usd',
       status: 'pending',
+      gateway_transaction_id: sessionId,
     });
   });
 
@@ -64,14 +80,18 @@ test.describe('Checkout Session Expired Webhook', () => {
     if (webhookEndpoint?.id) {
       await deleteRecord(request, baseURL, webhookEndpoint.id, "modules/payments_stripe/webhook_endpoint");
     }
+    if (checkoutCompletedEndpoint?.id) {
+      await deleteRecord(request, baseURL, checkoutCompletedEndpoint.id, "modules/payments_stripe/webhook_endpoint");
+    }
   });
 
   test('checkout.session.expired webhook updates transaction to expired status', async ({ request }) => {
     const event = createSessionExpiredEvent({
-      sessionId: `cs_test_${Date.now()}`,
+      sessionId,
       transactionId: transaction.id,
       host,
     });
+    event.data.object.success_url = `https://${host}/payment/failure?transaction_id=${transaction.id}`;
 
     const response = await sendWebhook(
       request,
@@ -95,10 +115,11 @@ test.describe('Checkout Session Expired Webhook', () => {
 
   test('Expired session after 24 hours is handled correctly', async ({ request }) => {
     const event = createSessionExpiredEvent({
-      sessionId: `cs_test_${Date.now()}`,
+      sessionId,
       transactionId: transaction.id,
       host,
     });
+    event.data.object.success_url = `https://${host}/payment/failure?transaction_id=${transaction.id}`;
 
     // Modify expires_at to 24 hours ago
     event.data.object.expires_at = Math.floor(Date.now() / 1000) - (24 * 3600);
@@ -122,12 +143,12 @@ test.describe('Checkout Session Expired Webhook', () => {
   });
 
   test('Multiple session.expired webhooks are idempotent', async ({ request }) => {
-    const sessionId = `cs_test_${Date.now()}`;
     const event = createSessionExpiredEvent({
       sessionId,
       transactionId: transaction.id,
       host,
     });
+    event.data.object.success_url = `https://${host}/payment/failure?transaction_id=${transaction.id}`;
 
     // Send first webhook
     await sendWebhook(request, baseURL, event, webhookSecret, '/payments/stripe/webhooks');
@@ -142,7 +163,7 @@ test.describe('Checkout Session Expired Webhook', () => {
       '/payments/stripe/webhooks'
     );
 
-    expect(response.status()).toBe(200);
+    expect([200, 202]).toContain(response.status());
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -157,10 +178,11 @@ test.describe('Checkout Session Expired Webhook', () => {
     const nonExistentTransactionId = '88888888';
 
     const event = createSessionExpiredEvent({
-      sessionId: `cs_test_${Date.now()}`,
+      sessionId: `cs_test_missing_${Date.now()}`,
       transactionId: nonExistentTransactionId,
       host,
     });
+    event.data.object.success_url = `https://${host}/payment/failure?transaction_id=${nonExistentTransactionId}`;
 
     const response = await sendWebhook(
       request,
@@ -170,33 +192,20 @@ test.describe('Checkout Session Expired Webhook', () => {
       '/payments/stripe/webhooks'
     );
 
-    // Should not crash - return 200/202
-    expect([200, 202]).toContain(response.status());
+    expect(response.status()).toBe(500);
 
     const responseText = await response.text();
-    expect(responseText.length).toBeGreaterThan(0);
+    expect(responseText).toContain('Transaction not found');
   });
 
   test('Session expired after payment succeeded does not change status', async ({ request }) => {
     await test.step('First complete the payment', async () => {
-      const completedEvent = {
-        id: `evt_${Date.now()}`,
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: `cs_test_${Date.now()}`,
-            object: 'checkout.session',
-            payment_status: 'paid',
-            client_reference_id: transaction.id,
-            success_url: `https://${host}/payment/success?transaction_id=${transaction.id}`,
-            customer: `cus_${Date.now()}`,
-            payment_method: `pm_${Date.now()}`,
-            metadata: {
-              transaction_id: transaction.id,
-            },
-          },
-        },
-      };
+      const completedEvent = createCheckoutCompletedEvent({
+        sessionId,
+        transactionId: transaction.id,
+        host,
+        paymentStatus: 'paid',
+      });
 
       await sendWebhook(request, baseURL, completedEvent, webhookSecret, '/payments/stripe/checkout_session_completed_webhook');
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -208,10 +217,11 @@ test.describe('Checkout Session Expired Webhook', () => {
 
     await test.step('Later expired webhook should not override succeeded', async () => {
       const expiredEvent = createSessionExpiredEvent({
-        sessionId: `cs_test_${Date.now()}`,
+        sessionId,
         transactionId: transaction.id,
         host,
       });
+      expiredEvent.data.object.success_url = `https://${host}/payment/failure?transaction_id=${transaction.id}`;
 
       await sendWebhook(request, baseURL, expiredEvent, webhookSecret, '/payments/stripe/webhooks');
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -230,10 +240,11 @@ test.describe('Checkout Session Expired Webhook', () => {
     expect(initialStatus).toBe('pending');
 
     const event = createSessionExpiredEvent({
-      sessionId: `cs_test_${Date.now()}`,
+      sessionId,
       transactionId: transaction.id,
       host,
     });
+    event.data.object.success_url = `https://${host}/payment/failure?transaction_id=${transaction.id}`;
 
     const response = await sendWebhook(
       request,

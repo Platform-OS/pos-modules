@@ -6,6 +6,8 @@ import {
   queryTransaction,
   getProperty,
   deleteRecord,
+  getRequiredBaseURL,
+  getHostFromBaseURL,
 } from '../helpers/stripe-api';
 
 /**
@@ -40,14 +42,17 @@ function createChargeFailedEvent(data: {
 }
 
 test.describe('Charge Failed Webhook', () => {
-  const baseURL = process.env.MPKIT_URL!;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
-  const host = new URL(baseURL).host;
 
+  let baseURL: string;
+  let host: string;
   let webhookEndpoint: any;
   let transaction: any;
 
   test.beforeEach(async ({ request }) => {
+    baseURL = getRequiredBaseURL();
+    host = getHostFromBaseURL(baseURL);
+
     webhookEndpoint = await createWebhookEndpoint(request, baseURL, {
       url: `https://${host}/payments/stripe/webhooks`,
       secret: webhookSecret,
@@ -231,9 +236,7 @@ test.describe('Charge Failed Webhook', () => {
       const finalTransaction = await queryTransaction(request, baseURL, transaction.id);
       const finalStatus = getProperty(finalTransaction, 'c__status');
 
-      // Should remain succeeded (once succeeded, failure webhooks should be ignored)
-      // OR this documents a bug if it changes to failed
-      expect(finalStatus).toBeDefined();
+      expect(finalStatus).toContain('succeeded');
     });
   });
 });

@@ -50,6 +50,19 @@ export function generateWebhookSignature(
     .digest('hex');
 }
 
+export function getRequiredBaseURL(): string {
+  const baseURL = process.env.MPKIT_URL;
+  if (!baseURL) {
+    throw new Error('MPKIT_URL must be set to run Stripe API tests.');
+  }
+
+  return baseURL;
+}
+
+export function getHostFromBaseURL(baseURL: string): string {
+  return new URL(baseURL).host;
+}
+
 /**
  * Send a signed webhook to a Stripe webhook endpoint
  */
@@ -501,4 +514,207 @@ export function createPayoutPaidEvent(data: {
     },
     account: data.accountId,
   };
+}
+
+/**
+ * Create a Stripe account.updated event payload
+ */
+export function createAccountUpdatedEvent(data: {
+  accountId: string;
+  payoutsEnabled?: boolean;
+  chargesEnabled?: boolean;
+  disabledReason?: string;
+}) {
+  return {
+    id: `evt_${Date.now()}`,
+    type: 'account.updated',
+    account: data.accountId,
+    data: {
+      object: {
+        id: data.accountId,
+        object: 'account',
+        payouts_enabled: data.payoutsEnabled ?? false,
+        charges_enabled: data.chargesEnabled ?? false,
+        requirements: {
+          disabled_reason: data.disabledReason || null,
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Query a payout record by Stripe payout_id
+ */
+export async function queryPayoutByPayoutId(
+  request: APIRequestContext,
+  baseURL: string,
+  payoutId: string
+) {
+  const query = `
+    query {
+      records(
+        per_page: 1
+        filter: {
+          table: { value: "modules/payments_stripe/payout" }
+          properties: [{ name: "payout_id", value: "${payoutId}" }]
+        }
+      ) {
+        results {
+          id
+          payout_id: property(name: "payout_id")
+          amount_cents: property_int(name: "amount_cents")
+          currency: property(name: "currency")
+          state: property(name: "state")
+          connected_account_id: property(name: "connected_account_id")
+          gateway_connected_account_id: property(name: "gateway_connected_account_id")
+        }
+      }
+    }
+  `;
+
+  const response = await request.post(`${baseURL}/api/graph`, {
+    headers: getGraphQLHeaders(),
+    data: { query },
+  });
+
+  const json = await handleGraphQLResponse(response);
+  return json.data.records.results[0] || null;
+}
+
+/**
+ * Query a connected_account record by Stripe account_id
+ */
+export async function queryConnectedAccountByAccountId(
+  request: APIRequestContext,
+  baseURL: string,
+  accountId: string
+) {
+  const query = `
+    query {
+      records(
+        per_page: 1
+        filter: {
+          table: { value: "modules/payments_stripe/connected_account" }
+          properties: [{ name: "account_id", value: "${accountId}" }]
+        }
+      ) {
+        results {
+          id
+          account_id: property(name: "account_id")
+          state: property(name: "state")
+          reference_id: property(name: "reference_id")
+        }
+      }
+    }
+  `;
+
+  const response = await request.post(`${baseURL}/api/graph`, {
+    headers: getGraphQLHeaders(),
+    data: { query },
+  });
+
+  const json = await handleGraphQLResponse(response);
+  return json.data.records.results[0] || null;
+}
+
+export async function querySetupIntentByGatewayId(
+  request: APIRequestContext,
+  baseURL: string,
+  gatewayId: string
+) {
+  const query = `
+    query {
+      records(
+        per_page: 1
+        filter: {
+          table: { value: "modules/payments_stripe/setup_intent" }
+          properties: [{ name: "gateway_id", value: "${gatewayId}" }]
+        }
+      ) {
+        results {
+          id
+          gateway_id: property(name: "gateway_id")
+          reference_id: property(name: "reference_id")
+          status: property(name: "c__status")
+          payment_method_id: property(name: "payment_method_id")
+        }
+      }
+    }
+  `;
+
+  const response = await request.post(`${baseURL}/api/graph`, {
+    headers: getGraphQLHeaders(),
+    data: { query },
+  });
+
+  const json = await handleGraphQLResponse(response);
+  return json.data.records.results[0] || null;
+}
+
+export async function queryCustomerByCustomerId(
+  request: APIRequestContext,
+  baseURL: string,
+  customerId: string
+) {
+  const query = `
+    query {
+      records(
+        per_page: 1
+        filter: {
+          table: { value: "modules/payments_stripe/customer" }
+          properties: [{ name: "customer_id", value: "${customerId}" }]
+        }
+      ) {
+        results {
+          id
+          customer_id: property(name: "customer_id")
+          reference_id: property(name: "reference_id")
+          email: property(name: "email")
+          name: property(name: "name")
+        }
+      }
+    }
+  `;
+
+  const response = await request.post(`${baseURL}/api/graph`, {
+    headers: getGraphQLHeaders(),
+    data: { query },
+  });
+
+  const json = await handleGraphQLResponse(response);
+  return json.data.records.results[0] || null;
+}
+
+export async function queryPaymentMethodByPaymentMethodId(
+  request: APIRequestContext,
+  baseURL: string,
+  paymentMethodId: string
+) {
+  const query = `
+    query {
+      records(
+        per_page: 1
+        filter: {
+          table: { value: "modules/payments_stripe/payment_method" }
+          properties: [{ name: "payment_method_id", value: "${paymentMethodId}" }]
+        }
+      ) {
+        results {
+          id
+          payment_method_id: property(name: "payment_method_id")
+          customer_id: property(name: "customer_id")
+          reference_id: property(name: "reference_id")
+        }
+      }
+    }
+  `;
+
+  const response = await request.post(`${baseURL}/api/graph`, {
+    headers: getGraphQLHeaders(),
+    data: { query },
+  });
+
+  const json = await handleGraphQLResponse(response);
+  return json.data.records.results[0] || null;
 }

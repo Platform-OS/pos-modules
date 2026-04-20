@@ -5,24 +5,34 @@ import {
   createSetupIntentSucceededEvent,
   sendWebhook,
   deleteRecord,
+  getProperty,
+  getRequiredBaseURL,
+  getHostFromBaseURL,
+  querySetupIntentByGatewayId,
+  queryCustomerByCustomerId,
+  queryPaymentMethodByPaymentMethodId,
 } from '../helpers/stripe-api';
 
 test.describe('Setup Intent Webhooks', () => {
-  const baseURL = process.env.MPKIT_URL!;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
-  const host = new URL(baseURL).host;
 
+  let baseURL: string;
+  let host: string;
   let webhookEndpoint: any;
   let setupIntent: any;
+  let setupIntentId: string;
 
   test.beforeEach(async ({ request }) => {
+    baseURL = getRequiredBaseURL();
+    host = getHostFromBaseURL(baseURL);
+
     webhookEndpoint = await createWebhookEndpoint(request, baseURL, {
       url: `https://${host}/payments/stripe/webhooks`,
       secret: webhookSecret,
       livemode: false,
     });
 
-    const setupIntentId = `seti_test_${Date.now()}`;
+    setupIntentId = `seti_test_${Date.now()}`;
     const referenceId = `ref_${Date.now()}`;
     setupIntent = await createSetupIntent(request, baseURL, {
       gateway_id: setupIntentId,
@@ -45,7 +55,6 @@ test.describe('Setup Intent Webhooks', () => {
 
     const paymentMethodId = `pm_test_${Date.now()}`;
     const customerId = `cus_test_${Date.now()}`;
-    const setupIntentId = setupIntent.properties?.gateway_id || `seti_test_${Date.now()}`;
 
     const event = createSetupIntentSucceededEvent({
       setupIntentId,
@@ -62,5 +71,21 @@ test.describe('Setup Intent Webhooks', () => {
     );
 
     expect(response.status()).toBe(200);
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const updatedSetupIntent = await querySetupIntentByGatewayId(request, baseURL, setupIntentId);
+    expect(updatedSetupIntent).not.toBeNull();
+    expect(updatedSetupIntent.status).toContain('succeeded');
+
+    const customer = await queryCustomerByCustomerId(request, baseURL, customerId);
+    expect(customer).not.toBeNull();
+    expect(customer.customer_id).toBe(customerId);
+    expect(customer.reference_id).toBe(getProperty(setupIntent, 'reference_id'));
+
+    const paymentMethod = await queryPaymentMethodByPaymentMethodId(request, baseURL, paymentMethodId);
+    expect(paymentMethod).not.toBeNull();
+    expect(paymentMethod.payment_method_id).toBe(paymentMethodId);
+    expect(paymentMethod.customer_id).toBe(customerId);
   });
 });

@@ -7,17 +7,22 @@ import {
   queryTransaction,
   getProperty,
   deleteRecord,
+  getRequiredBaseURL,
+  getHostFromBaseURL,
 } from '../helpers/stripe-api';
 
 test.describe('Duplicate Webhook Idempotency', () => {
-  const baseURL = process.env.MPKIT_URL!;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
-  const host = new URL(baseURL).host;
 
+  let baseURL: string;
+  let host: string;
   let webhookEndpoint: any;
   let transaction: any;
 
   test.beforeEach(async ({ request }) => {
+    baseURL = getRequiredBaseURL();
+    host = getHostFromBaseURL(baseURL);
+
     webhookEndpoint = await createWebhookEndpoint(request, baseURL, {
       url: `https://${host}/payments/stripe/webhooks`,
       secret: webhookSecret,
@@ -181,9 +186,9 @@ test.describe('Duplicate Webhook Idempotency', () => {
       sendWebhook(request, baseURL, event, webhookSecret, '/payments/stripe/webhooks'),
     ]);
 
-    // All should succeed (200)
+    // A race may process one request fully and mark the rest as already handled.
     responses.forEach(response => {
-      expect(response.status()).toBe(200);
+      expect([200, 202]).toContain(response.status());
     });
 
     // Wait for all to process

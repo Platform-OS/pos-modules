@@ -5,17 +5,22 @@ import {
   createChargeSucceededEvent,
   sendWebhook,
   deleteRecord,
+  getRequiredBaseURL,
+  getHostFromBaseURL,
 } from '../helpers/stripe-api';
 
 test.describe('Webhook Signature Validation', () => {
-  const baseURL = process.env.MPKIT_URL!;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test_secret';
-  const host = new URL(baseURL).host;
 
+  let baseURL: string;
+  let host: string;
   let webhookEndpoint: any;
   let transaction: any;
 
   test.beforeEach(async ({ request }) => {
+    baseURL = getRequiredBaseURL();
+    host = getHostFromBaseURL(baseURL);
+
     webhookEndpoint = await createWebhookEndpoint(request, baseURL, {
       url: `https://${host}/payments/stripe/webhooks`,
       secret: webhookSecret,
