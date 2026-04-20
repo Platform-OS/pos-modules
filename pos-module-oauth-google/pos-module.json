@@ -1,8 +1,7 @@
 {
-  "name": "pos-module-oauth-google",
   "machine_name": "oauth_google",
-  "type": "module",
   "version": "0.0.5",
+  "name": "pos-module-oauth-google",
   "dependencies": {
     "core": "^2.1.8"
   }
