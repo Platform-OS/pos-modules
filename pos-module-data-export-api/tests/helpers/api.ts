@@ -15,7 +15,18 @@ export interface ExportResponse {
 }
 
 export interface ErrorResponse {
-  errors: Record<string, string[]>;
+  error?: string;
+  errors?: Record<string, string[]>;
+  [key: string]: unknown;
+}
+
+async function parseResponseBody(response: Response): Promise<any> {
+  const text = await response.text();
+  if (!text.trim()) {
+    return null;
+  }
+
+  return JSON.parse(text);
 }
 
 /**
@@ -37,7 +48,7 @@ export async function createExport(
 
   return {
     status: response.status(),
-    body: await response.json(),
+    body: await parseResponseBody(response as unknown as Response),
   };
 }
 
@@ -58,7 +69,7 @@ export async function getExport(
 
   return {
     status: response.status(),
-    body: await response.json(),
+    body: await parseResponseBody(response as unknown as Response),
   };
 }
 
@@ -79,7 +90,7 @@ export async function deleteExport(
 
   return {
     status: response.status(),
-    body: response.status() === 204 ? null : await response.json(),
+    body: await parseResponseBody(response as unknown as Response),
   };
 }
 
@@ -99,8 +110,12 @@ export async function waitForExportCompletion(
   while (Date.now() - startTime < timeoutMs) {
     const { body } = await getExport(request, baseURL, apiKey, exportId);
 
-    if ('errors' in body) {
+    if (body && 'errors' in body) {
       throw new Error(`Export failed: ${JSON.stringify(body.errors)}`);
+    }
+
+    if (body && 'error' in body) {
+      throw new Error(`Export failed: ${body.error}`);
     }
 
     if (body.status === 'completed' || body.status === 'failed') {

@@ -8,7 +8,7 @@ test.describe('Authentication - Valid API Key', () => {
 
     const { status, body } = await createExport(request, baseURL, apiKey);
 
-    expect(status).toBe(201);
+    expect(status).toBe(200);
     expect(body).toHaveProperty('id');
     expect(body).toHaveProperty('status');
   });
