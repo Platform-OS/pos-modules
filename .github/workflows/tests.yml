@@ -92,7 +92,14 @@ jobs:
               "path": "pos-module-payments-example-gateway",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
+            },
+            "reports": {
+              "module": "reports",
+              "path": "pos-module-reports",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
             }
+
           }
           EOF
 
