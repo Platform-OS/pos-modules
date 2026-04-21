@@ -4,10 +4,13 @@
     "common-styling": "1.37.26",
     "oauth_github": "0.0.12"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "tests": "1.3.3"
+  },
   "registries": {
     "core": "https://partners.platformos.com",
     "common-styling": "https://partners.platformos.com",
-    "oauth_github": "https://partners.platformos.com"
+    "oauth_github": "https://partners.platformos.com",
+    "tests": "https://partners.platformos.com"
   }
 }
