@@ -1,18 +1,13 @@
 {
   "dependencies": {
-    "user": "4.1.0",
-    "core": "2.0.6",
-    "oauth_github": "0.0.9-beta",
-    "common-styling": "1.11.0"
+    "core": "2.1.8",
+    "common-styling": "1.37.26",
+    "oauth_github": "0.0.12"
   },
-  "devDependencies": {
-    "tests": "1.3.3"
-  },
+  "devDependencies": {},
   "registries": {
-    "user": "https://partners.platformos.com",
-    "tests": "https://partners.platformos.com",
     "core": "https://partners.platformos.com",
-    "oauth_github": "https://partners.platformos.com",
-    "common-styling": "https://partners.platformos.com"
+    "common-styling": "https://partners.platformos.com",
+    "oauth_github": "https://partners.platformos.com"
   }
 }
