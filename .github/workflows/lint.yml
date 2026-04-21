@@ -136,7 +136,7 @@ jobs:
           run: |
             cd pos-module-${{ matrix.module }}
             mkdir -p app
-            pos-cli modules install --dev
+            pos-cli modules install --dev --frozen
 
         - name: Run pos-cli check
           if: steps.install_pos_cli.outcome == 'success'
