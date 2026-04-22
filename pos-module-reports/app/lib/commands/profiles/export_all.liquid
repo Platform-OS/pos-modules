@@ -13,14 +13,14 @@
   {%- endif -%}
   {%- for profile in profiles.records.results -%}
     {%- assign row = [] -%}
-    {%- assign row = row <<profile.id -%}
-    {%- assign row = row <<profile.created_at -%}
-    {%- assign row = row <<profile.user_id -%}
-    {%- assign row = row <<profile.uuid -%}
-    {%- assign row = row <<profile.name -%}
-    {%- assign row = row <<profile.first_name -%}
-    {%- assign row = row <<profile.last_name -%}
-    {%- assign row = row <<profile.email -%}
+    {%- assign row << profile.id -%}
+    {%- assign row << profile.created_at -%}
+    {%- assign row << profile.user_id -%}
+    {%- assign row << profile.uuid -%}
+    {%- assign row << profile.name -%}
+    {%- assign row << profile.first_name -%}
+    {%- assign row << profile.last_name -%}
+    {%- assign row << profile.email -%}
     {%- assign rows << row -%}
   {%- endfor -%}
 {%- endfor -%}
