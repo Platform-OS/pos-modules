@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "profile": "1.1.1",
+    "core": "2.0.6",
+    "user": "3.1.1",
+    "reports": "1.0.1"
+  },
+  "machine_name": "reports",
+  "name": "Pos Module Reports",
+  "version": "2.0.0"
+}
