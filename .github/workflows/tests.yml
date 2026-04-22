@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Modules to test (comma-separated: user, chat, common-styling, payments-example-gateway, or "all")'
+        description: 'Modules to test (comma-separated: user, chat, common-styling, payments-example-gateway, payments-stripe, data-export-api, reports, or "all")'
         required: false
         default: 'all'
         type: string
@@ -50,6 +50,8 @@ jobs:
               - 'pos-module-payments-stripe/**'
             payments-example-gateway:
               - 'pos-module-payments-example-gateway/**'
+            reports:
+              - 'pos-module-reports/**'
 
       - name: Set matrix for changed modules
         id: set-matrix
@@ -92,7 +94,14 @@ jobs:
               "path": "pos-module-payments-example-gateway",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
+            },
+            "reports": {
+              "module": "reports",
+              "path": "pos-module-reports",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
             }
+
           }
           EOF
 
@@ -104,7 +113,7 @@ jobs:
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
               # Test all modules
-              modules=$(jq -c '[.user, .chat, ."common-styling", ."payments-example-gateway"]' /tmp/module-config.json)
+              modules=$(jq -c '[.user, .chat, ."common-styling", ."data-export-api", ."payments-stripe", ."payments-example-gateway", .reports]' /tmp/module-config.json)
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \

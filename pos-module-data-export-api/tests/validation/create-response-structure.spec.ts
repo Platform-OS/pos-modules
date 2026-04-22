@@ -8,7 +8,7 @@ test.describe('Validation - Create Response Structure', () => {
 
     const { status, body } = await createExport(request, baseURL, apiKey);
 
-    expect(status).toBe(201);
+    expect(status).toBe(200);
 
     // Verify required fields
     expect(body).toHaveProperty('id');

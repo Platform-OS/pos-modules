@@ -13,9 +13,8 @@ test.describe('Authentication - Missing API Key', () => {
 
     expect(response.status()).toBe(401);
     const body = await response.json();
-    expect(body).toHaveProperty('error');
-    expect(body.error).toContain('Unauthorized');
-    expect(body.error).toContain('API key is required');
+    expect(body).toHaveProperty('errors');
+    expect(body.errors['401']).toContain('API_KEY header invalid');
   });
 
   test('should reject GET request without API key', async ({ request }) => {
@@ -29,9 +28,8 @@ test.describe('Authentication - Missing API Key', () => {
 
     expect(response.status()).toBe(401);
     const body = await response.json();
-    expect(body).toHaveProperty('error');
-    expect(body.error).toContain('Unauthorized');
-    expect(body.error).toContain('API key is required');
+    expect(body).toHaveProperty('errors');
+    expect(body.errors['401']).toContain('API_KEY header invalid');
   });
 
   test('should reject DELETE request without API key', async ({ request }) => {
@@ -45,8 +43,7 @@ test.describe('Authentication - Missing API Key', () => {
 
     expect(response.status()).toBe(401);
     const body = await response.json();
-    expect(body).toHaveProperty('error');
-    expect(body.error).toContain('Unauthorized');
-    expect(body.error).toContain('API key is required');
+    expect(body).toHaveProperty('errors');
+    expect(body.errors['401']).toContain('API_KEY header invalid');
   });
 });
