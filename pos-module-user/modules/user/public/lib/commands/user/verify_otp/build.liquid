@@ -1,14 +1,9 @@
 {% doc %}
   @param {string} email - The email address
+  @param {object} object - The object containing password and otp_code
 {% enddoc %}
-{% parse_json object %}
-  {
-    "email": {{ email | default: object.email | json }},
-    "password": {{ object.password | json }},
-    "otp_code": {{ object.otp_code | json }}
-  }
-{% endparse_json %}
-
 {% liquid
+  assign email = email | default: object.email
+  assign object = { "email": email, "password": object.password, "otp_code": object.otp_code }
   return object
 %}
