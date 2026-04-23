@@ -52,6 +52,16 @@
     width: auto;
   }
 
+  /* focused state */
+  .EasyMDEContainer:has(.CodeMirror-focused) {
+    outline: 2px solid var(--pos-color-focused);
+  }
+
+  /* text color */
+  .EasyMDEContainer:not(:has(.CodeMirror-focused)) .CodeMirror-code {
+    color: var(--pos-color-input-text) !important;
+  }
+
 
   /* validation
   ============================================================================ */
