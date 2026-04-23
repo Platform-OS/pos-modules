@@ -1,7 +1,3 @@
 {
-  "name": "platformOS common styling",
-  "machine_name": "common-styling",
-  "type": "module",
-  "version": "1.37.27",
   "dependencies": {}
 }

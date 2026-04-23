@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "common-styling": "1.37.21"
+  },
+  "devDependencies": {},
+  "registries": {
+    "common-styling": "https://partners.platformos.com"
+  }
+}
