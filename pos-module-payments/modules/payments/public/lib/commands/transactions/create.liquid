@@ -5,8 +5,8 @@
   if object.valid
     function object = 'modules/payments/commands/execute', mutation_name: 'modules/payments/transactions/create', object: object, selection: null
 
-    assign input = {"payment_status": 'new'}
-    function _ = 'modules/payments/commands/transactions/update_status', object: input, transaction: object, requester_id: 'system', request_payload: null
+    assign input = {"payment_status": "new"}
+    function _ = 'modules/payments/commands/transactions/update_status', object: input, transaction: object, requester_id: 'system'
   else
     log object, type: "ERROR modules/payments/commands/transactions/create"
   endif
