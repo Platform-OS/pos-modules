@@ -1,0 +1,6 @@
+name: order
+properties:
+  - name: profile_id
+  - name: amount
+  - name: currency
+  - name: idempotency_key

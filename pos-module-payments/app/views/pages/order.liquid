@@ -1,0 +1,13 @@
+---
+slug: orders/:order_id
+---
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+  if current_profile.user == null
+    redirect_to "/"
+  endif
+
+  assign payable_ids = '[]' | parse_json | array_add: context.params.order_id
+  function transactions = 'modules/payments/queries/transactions/search', payer_id: current_profile.id, payable_ids: payable_ids, with_gateway_requests: true, with_statuses: true
+  render 'order', current_profile: current_profile, transactions: transactions, order_id: context.params.order_id
+%}

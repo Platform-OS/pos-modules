@@ -1,0 +1,40 @@
+query search(
+  $id: ID
+  $ids: [ID!]
+  $limit: Int = 20
+  $page: Int = 1
+  $amount: String
+  $currency: String
+  $profile_id: String
+) {
+  records(
+    per_page: $limit
+    page: $page
+    filter: {
+      id: { value: $id, value_in: $ids }
+      table: { value: "order" }
+      properties: [
+        { name: "amount", value: $amount }
+        { name: "currency", value: $currency }
+        { name: "profile_id", value: $profile_id }
+      ]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    has_next_page
+    has_previous_page
+    current_page
+
+    results {
+      id
+      created_at
+      type: table
+
+      amount: property_int(name: "amount")
+      profile_id: property(name: "profile_id")
+      currency: property(name: "currency")
+      idempotency_key: property(name: "idempotency_key")
+    }
+  }
+}

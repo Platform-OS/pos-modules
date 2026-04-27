@@ -1,0 +1,46 @@
+
+<main class="app-user-page">
+<nav class="app-user-navigation">
+    <a href="/">Home</a>
+    <a href="/orders">Orders</a>
+</nav>
+<section class="app-user-info pos-card pos-card-highlighted">
+    <header>
+        <h1 class="pos-heading-3">Welcome {{ current_profile.name }}</h1>
+        <form action="/sessions" method="post">
+            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+            <input type="hidden" name="_method" value="delete">
+            <button type="submit" class="pos-button">
+                {{ 'modules/user/users.logout' | t }}
+            </button>
+        </form>
+    </header>
+
+    <section class="app-order">
+        <h1 class="pos-heading-2">Order {{ order_id }}</h1>
+        
+        {% if transactions.results.size == 0 %}
+        <p class="app-order-empty">There are no transactions to show</p>
+        {% endif %}
+
+        <section class="app-order-items">
+        {% for transaction in transactions.results %}
+            <article class="app-order-item">
+                <div>ID: {{ transaction.id }}</div>
+                <div>Status: {{ transaction.c__status | t }}</div>
+                    <section class="app-order-finalize">
+                        {% if transaction.c__status == 'app.statuses.transactions.new' %}
+                        <form action="/finalize" method="post">
+                            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                            <input type="hidden" name="_method" value="post">
+                            <input type="hidden" name="order" value="{{ order_id }}">
+                            <input type="hidden" name="transaction" value="{{ transaction.id }}">
+                            <button type="submit" class="pos-button pos-button-primary">Pay now</button>
+                        </form>
+                        {% endif %}
+                    </section>
+            </article>
+        {% endfor %}
+    </section>
+</section>
+</main>

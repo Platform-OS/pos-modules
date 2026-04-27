@@ -1,0 +1,9 @@
+{% liquid
+function current_profile = 'modules/user/helpers/current_profile'
+if current_profile.user == null
+    redirect_to "/"
+endif
+
+function orders = 'queries/orders/search', profile_id: current_profile.id
+render 'orders', current_profile: current_profile, orders: orders
+%}

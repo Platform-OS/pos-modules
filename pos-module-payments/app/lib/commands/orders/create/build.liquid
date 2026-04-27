@@ -1,0 +1,10 @@
+{% parse_json object %}
+  {
+    "profile_id": {{ object.profile_id | json }},
+    "amount": {{ object.amount | json }},
+    "currency": {{ object.currency | json }},
+    "idempotency_key": {{ '' | uuid | json }}
+  }
+{% endparse_json %}
+
+{% return object %}

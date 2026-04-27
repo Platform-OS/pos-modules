@@ -1,0 +1,12 @@
+{%  liquid
+  function object = 'commands/orders/create/build', object: object
+  function object = 'commands/orders/create/check', object: object
+
+  if object.valid
+    function order = 'modules/core/commands/execute', mutation_name: 'orders/create', object: object
+    return order
+  endif
+
+  return object
+%}
+

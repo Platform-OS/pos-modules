@@ -1,0 +1,9 @@
+{
+  "modules": {
+    "payments_stripe": "0.2.9",
+    "user": "5.0.4",
+    "core": "1.5.5",
+    "payments": "0.2.5",
+    "common-styling": "1.16.0"
+  }
+}

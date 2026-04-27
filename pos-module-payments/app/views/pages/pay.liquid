@@ -1,0 +1,40 @@
+---
+method: post
+---
+{% liquid
+    function current_profile = 'modules/user/helpers/current_profile'
+    if current_profile.user == null
+        redirect_to "/"
+    endif
+
+    assign total = 0
+    assign line_items = '[]' | parse_json
+    for item in params.line_items
+        assign line_price = item.price_data.unit_amount | times: 100 | times: item.quantity
+        assign total = total | plus: line_price
+
+        assign unit_amount = item.price_data.unit_amount | times: 100
+        assign price_data = null | hash_merge: unit_amount: unit_amount, currency: params.currency, product_data: item.price_data.product_data
+        assign item_data = null | hash_merge: price_data: price_data, quantity: item.quantity
+        assign line_items = line_items | array_add: item_data
+    endfor
+
+    assign object = null | hash_merge: profile_id: current_profile.id, amount: total, currency: params.currency
+    function order = 'commands/orders/create', object: object
+
+    if order.valid
+        assign ids = '[]' | parse_json | array_add: order.id
+        assign object = null | hash_merge: gateway: 'stripe', payable_ids: ids, amount_cents: total, currency: params.currency, payer_id: current_profile.id
+        function object = 'modules/payments/commands/transactions/create', object: object
+
+        assign success_url = 'https://' | append: context.location.host | append: '/success/' | append: object.id
+        assign failed_url = 'https://' | append: context.location.host | append: '/cancel/' | append: object.id
+        assign stripe_params = null | hash_merge: success_url: success_url, cancel_url: failed_url, line_items: line_items
+
+        function url = 'modules/payments/helpers/pay_url', transaction: object, gateway_params: stripe_params, idempotency_key: order.idempotency_key
+
+        redirect_to url, status: 303
+    else
+        redirect_to '/'
+    endif
+%}

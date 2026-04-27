@@ -1,0 +1,6 @@
+en:
+  app:
+    statuses:
+      transactions:
+        succeeded: 'Paid'
+        new: 'Unpaid'

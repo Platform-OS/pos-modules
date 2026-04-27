@@ -1,0 +1,18 @@
+---
+slug: success/:transaction_id
+---
+
+{% liquid
+function current_profile = 'modules/user/helpers/current_profile'
+if current_profile.user == null
+    redirect_to "/"
+endif
+
+function transaction = 'modules/payments/queries/transactions/find', id: context.params.transaction_id, payer_id: current_profile.id
+
+if transaction == null or transaction.payer_id != current_profile.id
+    redirect_to "/"
+endif
+
+render 'success', current_profile: current_profile, transaction: transaction
+%}
