@@ -24,7 +24,7 @@ method: post
 
     assign success_url = 'https://' | append: context.location.host | append: '/success/' | append: params.transaction
     assign failed_url = 'https://' | append: context.location.host | append: '/cancel/' | append: params.transaction
-    assign stripe_params = null | hash_merge: success_url: success_url, cancel_url: failed_url, line_items: request.payload.line_items
+    assign stripe_params = null | hash_merge: mode: 'payment', success_url: success_url, cancel_url: failed_url, line_items: request.payload.line_items
     function url = 'modules/payments/helpers/pay_url', transaction: transaction, gateway_params: stripe_params, idempotency_key: order.idempotency_key
 
     redirect_to url, status: 303

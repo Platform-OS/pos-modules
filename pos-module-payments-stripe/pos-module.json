@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "payments": "0.3.0",
-    "core": "2.1.8"
+    "core": "2.1.8",
+    "user": "5.2.8"
   },
   "machine_name": "payments_stripe",
   "version": "1.3.1",
