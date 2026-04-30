@@ -181,6 +181,14 @@
   }
 
   /* headings */
+  .pos-prose h1 + h2 {
+    margin-block-start: .4rem;
+  }
+
+  .pos-prose h2 + h3 {
+    margin-block-start: .3rem;
+  }
+
   .pos-prose .pos-heading-1,
   .pos-prose h1 {
     line-height: 1em;
