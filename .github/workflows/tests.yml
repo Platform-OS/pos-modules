@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Modules to test (comma-separated: user, chat, common-styling, payments-example-gateway, payments-stripe, data-export-api, reports, or "all")'
+        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, openai, payments-example-gateway, payments-stripe, reports, user or "all")'
         required: false
         default: 'all'
         type: string
@@ -40,18 +40,22 @@ jobs:
           base: ${{ github.event.before }}
           ref: ${{ github.event.after }}
           filters: |
-            user:
-              - 'pos-module-user/**'
             chat:
               - 'pos-module-chat/**'
             common-styling:
               - 'pos-module-common-styling/**'
+            data-export-api:
+              - 'pos-module-data-export-api/**'
+            openai:
+              - 'pos-module-openai/**'
             payments-stripe:
               - 'pos-module-payments-stripe/**'
             payments-example-gateway:
               - 'pos-module-payments-example-gateway/**'
             reports:
               - 'pos-module-reports/**'
+            user:
+              - 'pos-module-user/**'
 
       - name: Set matrix for changed modules
         id: set-matrix
@@ -59,12 +63,6 @@ jobs:
           # Define module configurations
           cat > /tmp/module-config.json << 'EOF'
           {
-            "user": {
-              "module": "user",
-              "path": "pos-module-user",
-              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
-              "test-commands": "npm run admin-panel-pw-tests\nnpm run pw-tests"
-            },
             "chat": {
               "module": "chat",
               "path": "pos-module-chat",
@@ -83,6 +81,12 @@ jobs:
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
             },
+            "openai": {
+              "module": "openai",
+              "path": "pos-module-openai",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
+            },
             "payments-stripe": {
               "module": "payments-stripe",
               "path": "pos-module-payments-stripe",
@@ -100,8 +104,13 @@ jobs:
               "path": "pos-module-reports",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
+            },
+            "user": {
+              "module": "user",
+              "path": "pos-module-user",
+              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "test-commands": "npm run admin-panel-pw-tests\nnpm run pw-tests"
             }
-
           }
           EOF
 
@@ -113,7 +122,7 @@ jobs:
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
               # Test all modules
-              modules=$(jq -c '[.user, .chat, ."common-styling", ."data-export-api", ."payments-stripe", ."payments-example-gateway", .reports]' /tmp/module-config.json)
+              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", .openai, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \
