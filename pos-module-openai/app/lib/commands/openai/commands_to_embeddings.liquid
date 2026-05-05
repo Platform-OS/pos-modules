@@ -43,22 +43,22 @@
 
 
             if pos_embedding.valid
-              assign report.updated.slugs = report.updated.slugs << pos_embedding_input.metadata.slug
+              assign report.updated.slugs << pos_embedding_input.metadata.slug
               assign report.updated.count = report['updated']['count'] | plus: 1
             else
               assign err = "Failed to update Embedding#" | append: pos_embedding_input.id | append: ": " | append: pos_embedding.errors
-              assign report.errors.slugs = report.errors.slugs << pos_embedding_input.metadata.slug
+              assign report.errors.slugs << pos_embedding_input.metadata.slug
               assign report.errors.count = report['errors']['count'] | plus: 1
               log err, type: 'ERROR'
             endif
           else
             function pos_embedding = 'modules/openai/commands/embeddings/create', object: pos_embedding_input
             if pos_embedding.valid
-              assign report.created.slugs = report.created.slugs << pos_embedding_input.metadata.slug
+              assign report.created.slugs << pos_embedding_input.metadata.slug
               assign report.created.count = report['created']['count'] | plus: 1
             else
               assign err = "Failed to create Embedding: " | append: pos_embedding.errors
-              assign report.errors.slugs = report.errors.slugs << pos_embedding_input.metadata.slug
+              assign report.errors.slugs << pos_embedding_input.metadata.slug
               assign report.errors.count = report['errors']['count'] | plus: 1
               log err, type: 'ERROR'
             endif
