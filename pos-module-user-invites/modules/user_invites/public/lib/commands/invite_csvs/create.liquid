@@ -1,0 +1,18 @@
+{% doc %}
+  Persists an uploaded CSV as a new invite_csv record with status 'pending'.
+  @param csv {string} - raw CSV text
+  @param filename {string} - original filename
+  @param created_by_id {string} - user id of uploader
+{% enddoc %}
+{% liquid
+  assign object = '{}' | parse_json | hash_merge: csv: csv, filename: filename, created_by_id: created_by_id
+
+  function object = 'modules/user_invites/commands/invite_csvs/create/build', object: object
+  function object = 'modules/user_invites/commands/invite_csvs/create/check', object: object
+
+  if object.valid
+    function object = 'modules/user_invites/commands/invite_csvs/create/execute', object: object
+  endif
+
+  return object
+%}

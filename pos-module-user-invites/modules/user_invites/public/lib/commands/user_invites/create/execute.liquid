@@ -1,0 +1,25 @@
+{% liquid
+  assign password = 12 | random_string | append: 'Az3!/'
+  assign email_prefix = object.email | split: '@' | first
+  assign first_name = object.first_name | default: email_prefix
+  assign last_name = object.last_name | default: email_prefix
+
+  function user = 'modules/user/commands/user/create', email: object.email, password: password, first_name: first_name, last_name: last_name
+  assign user_id = user.id
+
+  if user_id == blank
+    return user
+  endif
+
+  graphql user_invite = 'modules/user_invites/user_invites/create', user_id: user_id
+
+  if user_invite.record_create.id == blank
+    return false
+  endif
+
+  assign user_invited_object = null | hash_merge: email: object.email, user_id: user_id, user_invite_id: user_invite.record_create.id, app_host: context.location.host
+
+  function _ = 'modules/core/commands/events/publish', type: 'user_invited', object: user_invited_object
+
+  return user_invite
+%}

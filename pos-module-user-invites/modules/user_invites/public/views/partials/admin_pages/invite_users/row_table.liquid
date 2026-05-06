@@ -1,0 +1,24 @@
+{% comment %}
+  @prompt: Renders a table of CSV rows (email / first_name / last_name).
+           Required: rows (array of {email, first_name, last_name})
+{% endcomment %}
+<div class="p-6 rounded-surface shadow-card mb-6 bg-panel">
+  <table class="w-full">
+    <thead>
+      <tr class="uppercase text-sm text-left">
+        <th class="font-normal py-2">{{ 'modules/user_invites/admin.invite_users.table_email' | t }}</th>
+        <th class="font-normal py-2">{{ 'modules/user_invites/admin.invite_users.table_first_name' | t }}</th>
+        <th class="font-normal py-2">{{ 'modules/user_invites/admin.invite_users.table_last_name' | t }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr class="border-t">
+          <td class="py-2">{{ row.email }}</td>
+          <td class="py-2">{{ row.first_name }}</td>
+          <td class="py-2">{{ row.last_name }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,17 @@
+{% liquid
+  assign c = '{ "errors": {}, "valid": true }' | parse_json
+
+  function c = 'modules/core/validations/email', c: c, object: object, field_name: 'email'
+
+  if object.email != blank
+    graphql emails_count = 'modules/user/user/emails_count', email: object.email | dig: 'users', 'total_entries'
+    if emails_count > 0
+      assign message = 'app.errors.taken' | t
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'email', message: message
+    endif
+  endif
+
+  assign object = object | hash_merge: c
+
+  return object
+%}

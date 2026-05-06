@@ -1,0 +1,31 @@
+---
+layout: "{{ context.constants.USER_INVITES_ADMIN_LAYOUT }}"
+method: post
+slug: admin/community/invite_users/:id/send
+---
+{% liquid
+  function current_profile = 'modules/user_invites/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'profiles.manage.all'
+  # platformos-check-enable UnreachableCode
+
+  function invite_csv = 'modules/user_invites/queries/invite_csvs/find', id: context.params.id
+
+  if invite_csv == blank
+    render 'modules/user_invites/admin_pages/invite_users/not_found'
+    break
+  endif
+
+  if invite_csv.status == 'sent'
+    render 'modules/user_invites/admin_pages/invite_users/already_sent', invite_csv: invite_csv
+    break
+  endif
+
+  function result = 'modules/user_invites/commands/invite_csvs/send', id: invite_csv.id, csv: invite_csv.csv
+
+  if result.valid
+    render 'modules/user_invites/admin_pages/invite_users/queued', sent_count: result.sent_count
+  else
+    redirect_to '/admin/community/invite_users'
+  endif
+%}

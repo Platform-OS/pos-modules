@@ -1,0 +1,10 @@
+{
+  "machine_name": "user_invites",
+  "version": "1.0.0",
+  "name": "Pos Module User Invites",
+  "dependencies": {
+    "core": "^1.0.0",
+    "user": "5.1.2",
+    "common-styling": "1.37.26"
+  }
+}

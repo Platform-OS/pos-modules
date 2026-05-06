@@ -1,0 +1,24 @@
+---
+layout: "{{ context.constants.USER_INVITES_ADMIN_LAYOUT }}"
+method: post
+slug: admin/community/invite_users/upload
+---
+{% liquid
+  function current_profile = 'modules/user_invites/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'profiles.manage.all'
+  # platformos-check-enable UnreachableCode
+
+  assign filename = context.params.filename | default: 'upload.csv'
+  function result = 'modules/user_invites/commands/invite_csvs/create', csv: context.params.csv_content, filename: filename, created_by_id: current_profile.user_id
+
+  if result.valid
+    assign preview_url = '/admin/community/invite_users/' | append: result.id | append: '/preview'
+    redirect_to preview_url
+  else
+    assign message = 'modules/user_invites/admin.invite_users.empty_csv' | t
+    assign flash = null | hash_merge: message: message, severity: 'error'
+    function _ = 'modules/core/commands/session/set', key: 'sflash', value: flash
+    redirect_to '/admin/community/invite_users'
+  endif
+%}

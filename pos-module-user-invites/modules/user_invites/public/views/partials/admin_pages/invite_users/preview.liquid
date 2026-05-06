@@ -1,0 +1,42 @@
+{% comment %}
+  @prompt: Renders the pre-send preview of an invite_csv: counts, send button,
+           and tables of users-to-invite + skipped rows.
+           Required: invite_csv, preview (with to_invite, skipped, invalid), context
+{% endcomment %}
+{% liquid
+  assign unnamed_label = 'modules/user_invites/admin.invite_users.unnamed' | t
+  assign filename_label = invite_csv.filename | default: unnamed_label
+%}
+<div class="container">
+  <h2 class="pb-4 font-extrabold text-3xl">{{ 'modules/user_invites/admin.invite_users.preview_heading' | t: filename: filename_label }}</h2>
+
+  <div class="p-6 rounded-surface shadow-card mb-6 bg-panel">
+    <p class="mb-2">{{ 'modules/user_invites/admin.invite_users.preview_to_invite' | t: count: preview.to_invite.size }}</p>
+    <p class="mb-2">{{ 'modules/user_invites/admin.invite_users.preview_skipped' | t: count: preview.skipped.size }}</p>
+    {% if preview.invalid.size > 0 %}
+      <p class="mb-2">{{ 'modules/user_invites/admin.invite_users.preview_invalid' | t: count: preview.invalid.size }}</p>
+    {% endif %}
+  </div>
+
+  {% if preview.to_invite.size > 0 %}
+    <form action="/admin/community/invite_users/{{ invite_csv.id }}/send" method="post" class="mb-6">
+      {% render 'modules/core/helpers/authenticity_token', context: context %}
+      <button type="submit" class="h-11 px-4 py-2.5 leading-tight inline-flex items-center justify-center gap-3 rounded-button whitespace-nowrap transition-all uppercase tracking-wide text-sm font-medium border border-important hover:border-important-hover bg-important hover:bg-important-hover text-button-primary-foreground hover:text-button-primary-hover-foreground">
+        {{ 'modules/user_invites/admin.invite_users.send_button' | t: count: preview.to_invite.size }}
+      </button>
+      <a href="/admin/community/invite_users" class="ml-4 underline">{{ 'modules/user_invites/admin.invite_users.cancel' | t }}</a>
+    </form>
+  {% else %}
+    <a href="/admin/community/invite_users" class="underline mb-6 inline-block">{{ 'modules/user_invites/admin.invite_users.back' | t }}</a>
+  {% endif %}
+
+  {% if preview.to_invite.size > 0 %}
+    <h3 class="pb-2 font-bold text-xl">{{ 'modules/user_invites/admin.invite_users.users_to_invite' | t }}</h3>
+    {% render 'modules/user_invites/admin_pages/invite_users/row_table', rows: preview.to_invite %}
+  {% endif %}
+
+  {% if preview.skipped.size > 0 %}
+    <h3 class="pb-2 font-bold text-xl">{{ 'modules/user_invites/admin.invite_users.skipped_users' | t }}</h3>
+    {% render 'modules/user_invites/admin_pages/invite_users/row_table', rows: preview.skipped %}
+  {% endif %}
+</div>

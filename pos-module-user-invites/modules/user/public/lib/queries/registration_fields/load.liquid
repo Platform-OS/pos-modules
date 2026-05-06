@@ -1,0 +1,19 @@
+{% comment %}
+  Loads the registration fields.
+{% endcomment %}
+
+{% parse_json fields %}
+[
+  {% comment %}
+    Example value:
+    {
+      "name": "email",
+      "type": "email",
+      "label": "Email"
+    }
+  {% endcomment %}
+]
+{% endparse_json %}
+{% liquid
+  return fields
+%}

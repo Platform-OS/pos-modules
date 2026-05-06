@@ -1,0 +1,28 @@
+{% parse_json fields %}
+[
+  {
+    "name": "first_name",
+    "required": true,
+    "type": "text",
+    "weight": 0,
+    "label": "First name"
+  },
+  {
+    "name": "last_name",
+    "required": true,
+    "type": "text",
+    "weight": 1,
+    "label": "Last name"
+  },
+  {
+    "name": "password",
+    "required": true,
+    "type": "password",
+    "weight": 2,
+    "label": "Password"
+  }
+]
+{% endparse_json %}
+{% liquid
+  return fields
+%}

@@ -1,0 +1,5 @@
+{% liquid
+  graphql created = 'modules/user_invites/invite_csvs/create', csv: object.csv, filename: object.filename, status: object.status, created_by_id: object.created_by_id
+  assign object = object | hash_merge: id: created.record_create.id
+  return object
+%}

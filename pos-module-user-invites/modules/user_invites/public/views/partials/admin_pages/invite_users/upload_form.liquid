@@ -1,0 +1,47 @@
+{% comment %}
+  @prompt: Renders the file-upload form for the invite-users CSV. Reads the chosen
+           file in the browser, posts its contents to /admin/community/invite_users/upload.
+           Required: context (for authenticity_token)
+{% endcomment %}
+<form action="/admin/community/invite_users/upload" method="post" id="invite-csv-upload-form">
+  {% render 'modules/core/helpers/authenticity_token', context: context %}
+  <input type="hidden" name="csv_content" id="invite-csv-content">
+  <input type="hidden" name="filename" id="invite-csv-filename">
+
+  <fieldset class="mb-6">
+    <label for="invite-csv-file" class="block mb-2 font-medium">{{ 'modules/user_invites/admin.invite_users.file_label' | t }}</label>
+    <input
+      id="invite-csv-file"
+      type="file"
+      accept=".csv,text/csv"
+      required
+      class="block w-full text-sm">
+  </fieldset>
+
+  <button type="submit" class="h-11 px-4 py-2.5 leading-tight inline-flex items-center justify-center gap-3 rounded-button whitespace-nowrap transition-all disabled:opacity-30 disabled:pointer-events-none uppercase tracking-wide text-sm font-medium border border-important hover:border-important-hover bg-important hover:bg-important-hover text-button-primary-foreground hover:text-button-primary-hover-foreground">
+    {{ 'modules/user_invites/admin.invite_users.attach_and_preview' | t }}
+  </button>
+</form>
+
+<script>
+  (function() {
+    const form = document.getElementById('invite-csv-upload-form');
+    const fileInput = document.getElementById('invite-csv-file');
+    const contentInput = document.getElementById('invite-csv-content');
+    const filenameInput = document.getElementById('invite-csv-filename');
+
+    form.addEventListener('submit', function(e) {
+      const file = fileInput.files[0];
+      if (!file) return;
+      if (contentInput.value) return;
+      e.preventDefault();
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        contentInput.value = ev.target.result;
+        filenameInput.value = file.name;
+        form.submit();
+      };
+      reader.readAsText(file);
+    });
+  })();
+</script>

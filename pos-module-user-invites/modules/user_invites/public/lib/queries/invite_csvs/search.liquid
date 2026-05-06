@@ -1,0 +1,10 @@
+{% doc %}
+  Returns a paginated list of invite_csv records.
+  @param page {integer} - page number (1-based)
+  @param limit {integer} - per-page count
+  @param status {string} - optional status filter ('pending' | 'sent')
+{% enddoc %}
+{% liquid
+  graphql result = 'modules/user_invites/invite_csvs/search', page: page, limit: limit, status: status
+  return result.invite_csvs
+%}

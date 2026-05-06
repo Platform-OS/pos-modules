@@ -1,0 +1,4 @@
+{% liquid
+  assign data = null | hash_merge: id: object.id, csv: object.csv
+  return data
+%}

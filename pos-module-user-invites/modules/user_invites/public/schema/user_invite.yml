@@ -1,0 +1,10 @@
+name: user_invite
+properties:
+  - name: user_id
+    type: string
+  - name: sent_at
+    type: datetime
+  - name: accepted_at
+    type: datetime
+  - name: expires_at
+    type: datetime

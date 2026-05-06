@@ -1,0 +1,19 @@
+---
+layout: "{{ context.constants.USER_INVITES_ADMIN_LAYOUT }}"
+metadata:
+  menu:
+    title: "Invite users"
+  permission: "profiles.manage.all"
+  relative_path: "/admin/community/invite_users"
+---
+{% liquid
+  function current_profile = 'modules/user_invites/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: context.page.metadata.permission
+  # platformos-check-enable UnreachableCode
+
+  assign page = context.params.page | default: 1 | plus: 0
+  function invite_csvs = 'modules/user_invites/queries/invite_csvs/search', page: page, limit: 20, status: null
+
+  render 'modules/user_invites/admin_pages/invite_users/index', invite_csvs: invite_csvs, page: page, context: context
+%}

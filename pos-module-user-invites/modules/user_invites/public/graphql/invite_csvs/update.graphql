@@ -1,0 +1,21 @@
+mutation update(
+  $id: ID!
+  $status: String
+  $sent_at: String
+  $sent_count: Int
+) {
+  record_update(
+    id: $id
+    record: {
+      table: "modules/user_invites/invite_csv"
+      properties: [
+        { name: "status" value: $status }
+        { name: "sent_at" value: $sent_at }
+        { name: "sent_count" value_int: $sent_count }
+      ]
+    }
+  ) {
+    id
+    properties
+  }
+}

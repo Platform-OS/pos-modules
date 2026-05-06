@@ -1,0 +1,76 @@
+{% comment %}
+  @prompt: Renders the admin "Invite users from CSV" index page with the upload form
+           and a paginated list of past CSV imports.
+           Required: invite_csvs (search result), page (current page number), context
+{% endcomment %}
+{% liquid
+  assign unnamed_label = 'modules/user_invites/admin.invite_users.unnamed' | t
+%}
+<div class="container">
+  <h2 class="pb-8 font-extrabold text-3xl">{{ 'modules/user_invites/admin.invite_users.heading' | t }}</h2>
+
+  <div class="p-6 rounded-surface shadow-card mb-6 bg-panel">
+    <p class="mb-4">{{ 'modules/user_invites/admin.invite_users.intro_columns' | t }}</p>
+    <p class="mb-4">{{ 'modules/user_invites/admin.invite_users.intro_summary' | t }}</p>
+
+    {% render 'modules/user_invites/admin_pages/invite_users/upload_form', context: context %}
+  </div>
+
+  <h3 class="pb-4 font-bold text-xl">{{ 'modules/user_invites/admin.invite_users.past_imports' | t }}</h3>
+
+  <div class="p-6 rounded-surface shadow-card mb-6 bg-panel">
+    {% if invite_csvs.results.size == 0 %}
+      <p class="text-supplementary">{{ 'modules/user_invites/admin.invite_users.no_imports' | t }}</p>
+    {% else %}
+      <table class="w-full">
+        <thead class="hidden md:table-header-group">
+          <tr class="uppercase text-sm">
+            <th class="font-normal text-left py-2">{{ 'modules/user_invites/admin.invite_users.column_filename' | t }}</th>
+            <th class="font-normal text-left py-2">{{ 'modules/user_invites/admin.invite_users.column_uploaded' | t }}</th>
+            <th class="font-normal text-left py-2">{{ 'modules/user_invites/admin.invite_users.column_status' | t }}</th>
+            <th class="font-normal text-left py-2">{{ 'modules/user_invites/admin.invite_users.column_action' | t }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for record in invite_csvs.results %}
+            {% liquid
+              assign filename_label = record.filename | default: unnamed_label
+              assign uploaded_at = record.created_at | localize: 'short'
+              assign action_label = 'modules/user_invites/admin.invite_users.action_view' | t
+              if record.status == 'pending'
+                assign action_label = 'modules/user_invites/admin.invite_users.action_resume' | t
+              endif
+            %}
+            <tr class="border-t">
+              <td class="py-2">{{ filename_label }}</td>
+              <td class="py-2">{{ uploaded_at }}</td>
+              <td class="py-2">
+                {% liquid
+                  assign chip_variant = 'warning'
+                  if record.status == 'sent'
+                    assign chip_variant = 'success'
+                  endif
+                  theme_render_rc 'components/molecules/chip', variant: chip_variant, content: record.status
+                %}
+              </td>
+              <td class="py-2">
+                <a href="/admin/community/invite_users/{{ record.id }}/preview" class="underline">{{ action_label }}</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-row-reverse">
+    {% liquid
+      if invite_csvs.total_pages > 1
+        assign url_params = null | hash_merge: page: ''
+        assign url_template = '/admin/community/invite_users{?page}'
+        assign pager_url = url_template | expand_url_template: url_params
+        theme_render_rc 'components/molecules/pagination', count: invite_csvs.total_pages, active: page, url: pager_url
+      endif
+    %}
+  </div>
+</div>

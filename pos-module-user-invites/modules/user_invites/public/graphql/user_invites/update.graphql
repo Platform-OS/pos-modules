@@ -1,0 +1,23 @@
+mutation update(
+  $id: ID!
+  $expires_at: String
+  $sent_at: String
+  $accepted_at: String
+) {
+  record_update(
+    id: $id
+    record: {
+      table: "modules/user_invites/user_invite"
+      properties: [
+        { name: "expires_at" value: $expires_at }
+        { name: "sent_at" value: $sent_at }
+        { name: "accepted_at" value: $accepted_at }
+      ]
+    }
+  ) {
+    id
+    created_at
+    deleted_at
+    properties
+  }
+}

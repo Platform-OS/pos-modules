@@ -1,0 +1,10 @@
+---
+en:
+  emails:
+    invitation_subject: "You are invited to join %{site_name}"
+    invitation_title: You have an invitation waiting
+    invitation_content: An account has been created for you. Use the button
+      below to set your password and claim your account.
+    invitation_ignore: If you don't want to accept the invitation, please just
+      ignore this message.
+    invitation_claim: Claim account
