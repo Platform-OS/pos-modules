@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, oauth-github, openai, payments-example-gateway, payments-stripe, reports, user or "all")'
+        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, oauth-github, oauth-google, openai, payments-example-gateway, payments-stripe, reports, user or "all")'
         required: false
         default: 'all'
         type: string
@@ -48,6 +48,8 @@ jobs:
               - 'pos-module-data-export-api/**'
             oauth-github:
               - 'pos-module-oauth-github/**'
+            oauth-google:
+              - 'pos-module-oauth-google/**'
             openai:
               - 'pos-module-openai/**'
             payments-stripe:
@@ -86,6 +88,12 @@ jobs:
             "oauth-github": {
               "module": "oauth-github",
               "path": "pos-module-oauth-github",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
+            "oauth-google": {
+              "module": "oauth-google",
+              "path": "pos-module-oauth-google",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
             },
@@ -130,7 +138,7 @@ jobs:
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
               # Test all modules
-              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", ."oauth-github", .openai, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
+              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", ."oauth-github", ."oauth-google", .openai, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \
