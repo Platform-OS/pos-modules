@@ -16,11 +16,11 @@ Those pages are thin harnesses that invoke the real module helpers:
 The current tests verify two narrow contracts:
 
 - `get_redirect_url` builds a parseable GitHub authorization URL containing the expected GitHub origin, authorize path, `client_id`, `state`, and `scope=user:email`.
-- `get_user_info` returns `{ "valid": false }` when the OAuth callback code is missing, without raising a platformOS error.
+- the test app returns `{ "valid": false }` when required callback input for `get_user_info` is missing, without driving into downstream token exchange.
 
 The redirect URL test is intentionally shallow. It mostly protects helper wiring, query parameter propagation, and the public URL contract. It does not provide deep behavioral confidence.
 
-The `get_user_info` test exercises more of the module than a direct GitHub smoke test: it goes through the module helper, token command, token request builder, and token request validator. It intentionally avoids an outbound GitHub call so CI does not depend on GitHub availability or platformOS external API call behavior.
+The `get_user_info` missing-input test is a test-app guard, not a module behavior assertion. It exists to keep the harness endpoint stable in CI and to document that missing callback input is outside this module's tested behavior. It intentionally avoids the token command and outbound GitHub call so CI does not depend on GitHub availability, platformOS external API call behavior, or core validation partial deployment.
 
 ## What Is Not Tested
 
@@ -31,6 +31,8 @@ They intentionally do not cover:
 - browser login through GitHub
 - real GitHub callback handling
 - successful access token exchange
+- module-level missing-code handling in `get_user_info`
+- downstream token command validation
 - GitHub error responses for invalid OAuth codes
 - successful GitHub user normalization
 - fallback lookup through `/user/emails` for private primary email addresses
