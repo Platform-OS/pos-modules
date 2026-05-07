@@ -1,0 +1,10 @@
+---
+layout: ''
+slug: test/oauth-google/user-info
+---
+{% liquid
+  assign provider = '{}' | parse_json | hash_merge: client_id: context.params.client_id, secret_value: context.params.secret_value
+  function user_info = 'modules/oauth_google/helpers/get_user_info', provider: provider
+
+  echo user_info | json
+%}
