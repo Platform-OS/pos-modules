@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, openai, payments-example-gateway, payments-stripe, reports, user or "all")'
+        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, oauth-github, openai, payments-example-gateway, payments-stripe, reports, user or "all")'
         required: false
         default: 'all'
         type: string
@@ -46,6 +46,8 @@ jobs:
               - 'pos-module-common-styling/**'
             data-export-api:
               - 'pos-module-data-export-api/**'
+            oauth-github:
+              - 'pos-module-oauth-github/**'
             openai:
               - 'pos-module-openai/**'
             payments-stripe:
@@ -78,6 +80,12 @@ jobs:
             "data-export-api": {
               "module": "data-export-api",
               "path": "pos-module-data-export-api",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
+            "oauth-github": {
+              "module": "oauth-github",
+              "path": "pos-module-oauth-github",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
             },
@@ -122,7 +130,7 @@ jobs:
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
               # Test all modules
-              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", .openai, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
+              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", ."oauth-github", .openai, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \
