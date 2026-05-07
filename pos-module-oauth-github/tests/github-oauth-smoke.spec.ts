@@ -23,14 +23,13 @@ test.describe('GitHub OAuth module', () => {
     expect(redirectUrl.searchParams.get('scope')).toBe('user:email');
   });
 
-  test('returns invalid user info when token exchange fails', async ({ request, baseURL }) => {
+  test('returns invalid user info when OAuth code is missing', async ({ request, baseURL }) => {
     expect(baseURL, 'MPKIT_URL must be set to run GitHub OAuth tests.').toBeTruthy();
 
     const response = await request.get('/test/oauth-github/user-info', {
       params: {
         client_id: 'test-client-id',
         secret_value: 'test-secret-value',
-        code: 'invalid-code',
       },
     });
 

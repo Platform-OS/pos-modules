@@ -1,6 +1,6 @@
 # GitHub OAuth Module Tests
 
-These tests cover the provider-helper surface exposed by `pos-module-oauth-github`.
+These tests are a minimal smoke suite for the provider-helper surface exposed by `pos-module-oauth-github`.
 
 This module does not provide a full OAuth callback route, user creation flow, session flow, or public API endpoint. Its useful module surface is made of Liquid helpers and commands that a host OAuth implementation is expected to call.
 
@@ -13,12 +13,14 @@ Those pages are thin harnesses that invoke the real module helpers:
 - `modules/oauth_github/helpers/get_redirect_url`
 - `modules/oauth_github/helpers/get_user_info`
 
-The current tests verify:
+The current tests verify two narrow contracts:
 
-- `get_redirect_url` builds a GitHub authorization URL containing the expected GitHub origin, authorize path, `client_id`, `state`, and `scope=user:email`.
-- `get_user_info` returns `{ "valid": false }` when GitHub token exchange fails for an invalid OAuth code.
+- `get_redirect_url` builds a parseable GitHub authorization URL containing the expected GitHub origin, authorize path, `client_id`, `state`, and `scope=user:email`.
+- `get_user_info` returns `{ "valid": false }` when the OAuth callback code is missing, without raising a platformOS error.
 
-The `get_user_info` test exercises more of the module than a direct GitHub smoke test: it goes through the module helper, token command, token request builder/validator, and the module GraphQL wrapper for GitHub's token endpoint.
+The redirect URL test is intentionally shallow. It mostly protects helper wiring, query parameter propagation, and the public URL contract. It does not provide deep behavioral confidence.
+
+The `get_user_info` test exercises more of the module than a direct GitHub smoke test: it goes through the module helper, token command, token request builder, and token request validator. It intentionally avoids an outbound GitHub call so CI does not depend on GitHub availability or platformOS external API call behavior.
 
 ## What Is Not Tested
 
@@ -29,6 +31,7 @@ They intentionally do not cover:
 - browser login through GitHub
 - real GitHub callback handling
 - successful access token exchange
+- GitHub error responses for invalid OAuth codes
 - successful GitHub user normalization
 - fallback lookup through `/user/emails` for private primary email addresses
 - host-app user creation or login
@@ -56,4 +59,3 @@ The seed script deploys the module and then deploys `tests/post_import`, which c
 ```sh
 sh tests/data/seed/seed.sh dev
 ```
-
