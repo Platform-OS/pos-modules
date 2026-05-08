@@ -119,7 +119,7 @@ jobs:
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
             },
-            payments: {
+            "payments": {
               "module": "payments",
               "path": "pos-module-payments",
               "deploy-script": "./tests/data/seed/seed.sh",
