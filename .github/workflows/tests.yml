@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, oauth-facebook, oauth-github, oauth-google, openai, payments-example-gateway, payments-stripe, reports, user or "all")'
+        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, oauth-facebook, oauth-github, oauth-google, openai, payments, payments-example-gateway, payments-stripe, reports, user or "all")'
         required: false
         default: 'all'
         type: string
@@ -54,6 +54,8 @@ jobs:
               - 'pos-module-oauth-google/**'
             openai:
               - 'pos-module-openai/**'
+            payments:
+              - 'pos-module-payments/**'
             payments-stripe:
               - 'pos-module-payments-stripe/**'
             payments-example-gateway:
@@ -117,6 +119,12 @@ jobs:
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
             },
+            payments: {
+              "module": "payments",
+              "path": "pos-module-payments",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
             "payments-example-gateway": {
               "module": "payments-example-gateway",
               "path": "pos-module-payments-example-gateway",
@@ -146,7 +154,7 @@ jobs:
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
               # Test all modules
-              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", ."oauth-facebook", ."oauth-github", ."oauth-google", .openai, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
+              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", ."oauth-facebook", ."oauth-github", ."oauth-google", .openai, .payments, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \

@@ -1,0 +1,56 @@
+---
+layout: ''
+slug: test/payments/transactions/status-mapping
+method: post
+---
+{% liquid
+  assign payable_ids = context.params.payable_ids | default: context.params.payable_id | split: ','
+  assign amount_cents = context.params.amount_cents | default: 1200 | plus: 0
+  assign currency = context.params.currency | default: 'USD'
+  assign gateway = context.params.gateway | default: 'test_gateway'
+
+  assign create_object = {
+    "gateway": gateway,
+    "payable_ids": payable_ids,
+    "currency": currency,
+    "amount_cents": amount_cents
+  }
+  function expired_created = 'modules/payments/commands/transactions/create', object: create_object
+  function after_expired_create = 'modules/payments/queries/transactions/find', id: expired_created.id, with_statuses: true
+
+  assign expired_input = {"payment_status": "expired"}
+  assign expired_payload = {"source": "payments-status-mapping-test", "step": "expired"} | json
+  function expired = 'modules/payments/commands/transactions/update_status', object: expired_input, transaction: after_expired_create, requester_id: 'payments-status-mapping-test', request_payload: expired_payload
+  function after_expired = 'modules/payments/queries/transactions/find', id: expired_created.id, with_statuses: true
+
+  function succeeded_created = 'modules/payments/commands/transactions/create', object: create_object
+  function after_succeeded_create = 'modules/payments/queries/transactions/find', id: succeeded_created.id, with_statuses: true
+
+  assign succeeded_input = {"payment_status": "succeeded"}
+  assign succeeded_payload = {"source": "payments-status-mapping-test", "step": "succeeded"} | json
+  function succeeded = 'modules/payments/commands/transactions/update_status', object: succeeded_input, transaction: after_succeeded_create, requester_id: 'payments-status-mapping-test', request_payload: succeeded_payload
+  function after_succeeded = 'modules/payments/queries/transactions/find', id: succeeded_created.id, with_statuses: true
+
+  assign failed_create_object = create_object | hash_merge: payable_ids: payable_ids
+  function failed_created = 'modules/payments/commands/transactions/create', object: failed_create_object
+  function after_failed_create = 'modules/payments/queries/transactions/find', id: failed_created.id, with_statuses: true
+
+  assign unexpected_input = {"payment_status": "unexpected_status"}
+  assign unexpected_payload = {"source": "payments-status-mapping-test", "step": "unexpected"} | json
+  function unexpected = 'modules/payments/commands/transactions/update_status', object: unexpected_input, transaction: after_failed_create, requester_id: 'payments-status-mapping-test', request_payload: unexpected_payload
+  function after_unexpected = 'modules/payments/queries/transactions/find', id: failed_created.id, with_statuses: true
+
+  assign response = {
+    "expired_created": expired_created,
+    "expired": expired,
+    "after_expired": after_expired,
+    "succeeded_created": succeeded_created,
+    "succeeded": succeeded,
+    "after_succeeded": after_succeeded,
+    "failed_created": failed_created,
+    "unexpected": unexpected,
+    "after_unexpected": after_unexpected
+  }
+
+  echo response | json
+%}
