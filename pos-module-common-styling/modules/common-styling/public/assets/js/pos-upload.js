@@ -34,7 +34,7 @@ window.pos.modules.upload = function(settings){
   // if you want the photo editor (bool)
   module.settings.imageEditorEnabled = settings.imageEditorEnabled || false;
   // aspect ration for cropping the image (float)
-  module.settings.aspectRatio = settings.aspectRatio;
+  module.settings.aspectRatio = settings.aspectRatio || null;
   // width of the dashboard (string)
   module.settings.width = settings.width || '100%';
   // height of the dashboard (string)
@@ -199,7 +199,11 @@ window.pos.modules.upload = function(settings){
 
     if(module.settings.imageEditorEnabled){
       pos.modules.debug(module.settings.debug, module.settings.id, 'Starting image editor', module.settings.container);
-      module.settings.uppy.use(pos.modules.uppy.ImageEditor);
+      module.settings.uppy.use(pos.modules.uppy.ImageEditor, {
+        cropperOptions: {
+          aspectRatio: module.settings.aspectRatio
+        }
+      });
     }
 
   };
