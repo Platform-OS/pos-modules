@@ -74,7 +74,7 @@ jobs:
             "chat": {
               "module": "chat",
               "path": "pos-module-chat",
-              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
             },
             "common-styling": {
