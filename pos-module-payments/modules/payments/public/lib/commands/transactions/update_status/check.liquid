@@ -1,8 +1,8 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'id', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'c__status', key: null
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'id'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'c__status'
 
   assign object.valid = c.valid
   assign object.errors = c.errors

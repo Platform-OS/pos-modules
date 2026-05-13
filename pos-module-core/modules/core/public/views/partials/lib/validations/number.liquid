@@ -26,7 +26,7 @@
 {% liquid
   if test1 != test2
     assign message = message | default: 'modules/core/validation.number.invalid' | t: value: number
-    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message
 
     return c
   endif
@@ -35,7 +35,7 @@
 
   if lt != null and number >= lt
     assign message = message_lt | default: 'modules/core/validation.number.lt' | t: count: lt, value: number
-    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   if lte == blank
@@ -43,27 +43,27 @@
   endif
   if number > lte
     assign message = message_lte | default: 'modules/core/validation.number.lte' | t: count: lte, value: number
-    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   if gt != null and number <= gt
     assign message = message_gt | default: 'modules/core/validation.number.gt' | t: count: gt, value: number
-    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   if gte != null and number < gte
     assign message = message_gte | default: 'modules/core/validation.number.gte' | t: count: gte, value: number
-    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   if eq != null and number != eq
     assign message = message_eq | default: 'modules/core/validation.number.eq' | t: count: eq, value: number
-    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   if ne != null and number == ne
     assign message = message_ne | default: 'modules/core/validation.number.ne' | t: count: ne, value: number
-    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/lib/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   return c

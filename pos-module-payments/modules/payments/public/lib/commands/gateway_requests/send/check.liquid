@@ -1,14 +1,14 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
-  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'external_id', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'request_data', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'request_url', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'name', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'api_call_template', key: null
+  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'external_id'
+  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'request_data'
+  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'request_url'
+  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'name'
+  function c = 'modules/core/validations/presence', c: c, object: object.gateway_request, field_name: 'api_call_template'
 
-  function c = 'modules/core/validations/presence', c: c, object: object.api_call, field_name: 'template', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object.api_call, field_name: 'data', key: null
+  function c = 'modules/core/validations/presence', c: c, object: object.api_call, field_name: 'template'
+  function c = 'modules/core/validations/presence', c: c, object: object.api_call, field_name: 'data'
 
   assign object.valid = c.valid
 

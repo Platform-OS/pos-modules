@@ -1,10 +1,10 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'external_id', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'request_data', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'request_url', key: null
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'name', key: null
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'external_id'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'request_data'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'request_url'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'name'
 
   assign object.valid = c.valid
 

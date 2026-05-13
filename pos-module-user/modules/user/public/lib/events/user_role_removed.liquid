@@ -10,8 +10,8 @@ metadata:
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
-  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'profile_id', key: null
-  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'role', key: null
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'profile_id'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'role'
 
   return c
 %}
