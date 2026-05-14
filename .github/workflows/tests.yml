@@ -74,7 +74,7 @@ jobs:
             "chat": {
               "module": "chat",
               "path": "pos-module-chat",
-              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
             },
             "common-styling": {
@@ -140,7 +140,7 @@ jobs:
             "user": {
               "module": "user",
               "path": "pos-module-user",
-              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run admin-panel-pw-tests\nnpm run pw-tests"
             }
           }
