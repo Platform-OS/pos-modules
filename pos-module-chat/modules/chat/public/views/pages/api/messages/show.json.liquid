@@ -16,7 +16,7 @@ method: get
   function current_profile = 'modules/user/helpers/current_profile'
 
   # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
-  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox'
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
   assign conversation_id = context.params.conversation_id
