@@ -13,7 +13,7 @@ en:
       2fa_info: |-
         To be able to log in you need to scan this QR Code with your authentication app.
 
-        You can use [Authy](https://authy.com) or [any other authentication tool](https://www.lastpass.com/two-factor-authentication).</a>
+        You can use [Authy](https://authy.com) or [any other authentication tool](https://www.lastpass.com/two-factor-authentication).
       if_you_cannot_scan: 'Or enter the following code manually in the app:'
       confirm_otp_code: Confirm code
       please_confirm: Enter 6-digit code from your two-factor authenticator app
