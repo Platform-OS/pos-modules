@@ -1,0 +1,17 @@
+mutation create(
+  $user_id: String!
+) {
+  record_create(
+    record: {
+      table: "modules/user_invites/user_invite"
+      properties: [
+        { name: "user_id" value: $user_id }
+      ]
+    }
+  ) {
+    id
+    created_at
+    deleted_at
+    properties
+  }
+}

@@ -1,0 +1,7 @@
+---
+en:
+  user_invites:
+    form:
+      title: "Create a %{site_name} account"
+    errors:
+      registration_failed: "Could not complete registration. Please try again."

@@ -1,0 +1,14 @@
+name: invite_csv
+properties:
+  - name: filename
+    type: string
+  - name: csv
+    type: text
+  - name: status
+    type: string
+  - name: created_by_id
+    type: string
+  - name: sent_at
+    type: datetime
+  - name: sent_count
+    type: integer

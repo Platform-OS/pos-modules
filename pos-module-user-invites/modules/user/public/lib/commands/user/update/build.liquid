@@ -1,0 +1,14 @@
+{% doc %}
+  @param {string} email - The email address
+  @param {string} id - The record ID
+  @param {string} password - The password
+{% enddoc %}
+{% parse_json object %}
+  {
+    "id": {{ id | json }},
+    "email": {{ email | json }},
+    "password": {{ password | json }}
+  }
+{% endparse_json %}
+
+{% return object %}

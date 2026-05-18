@@ -1,0 +1,31 @@
+{% doc %}
+  Returns a full preview of an invite CSV: parsed rows split into to_invite vs
+  skipped (already-existing emails), plus invalid (no-email rows). Performs a
+  single batched profile lookup against modules/user/profiles/search.
+  @param csv {string} - raw CSV text
+{% enddoc %}
+{% liquid
+  function parsed = 'modules/user_invites/queries/invite_csvs/parse', csv: csv
+
+  assign existing_lookup = '{}' | parse_json
+  if parsed.csv_emails.size > 0
+    graphql existing = 'modules/user/profiles/search', emails: parsed.csv_emails, limit: parsed.csv_emails.size
+    for profile in existing.records.results
+      assign existing_email = profile.email | downcase
+      hash_assign existing_lookup[existing_email] = true
+    endfor
+  endif
+
+  assign to_invite = '[]' | parse_json
+  assign skipped = '[]' | parse_json
+  for row in parsed.parsed_rows
+    if existing_lookup[row.email]
+      assign skipped = skipped | array_add: row
+    else
+      assign to_invite = to_invite | array_add: row
+    endif
+  endfor
+
+  assign result = parsed | hash_merge: to_invite: to_invite, skipped: skipped
+  return result
+%}
