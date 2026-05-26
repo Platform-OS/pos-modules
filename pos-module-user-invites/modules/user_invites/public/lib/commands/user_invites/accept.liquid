@@ -1,0 +1,10 @@
+{% liquid
+  function object = 'modules/user_invites/commands/user_invites/accept/build', object: object
+  function object = 'modules/user_invites/commands/user_invites/accept/check', object: object
+
+  if object.valid
+    function object = 'modules/user_invites/commands/user_invites/accept/execute', object: object
+  endif
+
+  return object
+%}

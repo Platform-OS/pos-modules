@@ -1,0 +1,8 @@
+{
+  "machine_name": "oauth_github",
+  "version": "0.0.12",
+  "name": "pos-module-oauth-github",
+  "dependencies": {
+    "core": "^2.1.8"
+  }
+}

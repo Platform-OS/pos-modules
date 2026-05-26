@@ -1,0 +1,21 @@
+{% liquid
+  function profile = 'modules/user/queries/profiles/find', user_id: object.user_id, id: null, uuid: null, first_name: null, last_name: null
+
+  graphql _ = 'modules/user/user/update', id: object.user_id, password: object.password
+
+  assign full_name = object.first_name | append: ' ' | append: object.last_name
+  assign tokenize_object = null | hash_merge: email: object.email, first_name: object.first_name, last_name: object.last_name
+  function tokenized_names = 'modules/user/commands/profiles/tokenize_names', object: tokenize_object
+  graphql _ = 'modules/user/profiles/update', id: profile.id, first_name: object.first_name, last_name: object.last_name, name: full_name, email: object.email, roles: profile.roles, c__names: tokenized_names
+
+  assign now_time = 'now' | to_time: 'UTC'
+  assign accepted_at = now_time | strftime: "%Y-%m-%dT%H:%M:%S%Z"
+  graphql _ = 'modules/user_invites/user_invites/update', id: object.user_invite_id, accepted_at: accepted_at
+
+  function _ = 'modules/user/commands/session/create', user_id: object.user_id, validate_password: false
+
+  assign user_invite_accepted_object = null | hash_merge: email: object.email, user_id: object.user_id, user_invite_id: object.user_invite_id, app_host: object.app_host
+  function _ = 'modules/core/commands/events/publish', type: 'user_invite_accepted', object: user_invite_accepted_object
+
+  return object
+%}

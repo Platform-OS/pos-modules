@@ -1,0 +1,22 @@
+mutation create(
+  $filename: String
+  $csv: String!
+  $status: String!
+  $created_by_id: String
+) {
+  record_create(
+    record: {
+      table: "modules/user_invites/invite_csv"
+      properties: [
+        { name: "filename" value: $filename }
+        { name: "csv" value: $csv }
+        { name: "status" value: $status }
+        { name: "created_by_id" value: $created_by_id }
+      ]
+    }
+  ) {
+    id
+    created_at
+    properties
+  }
+}

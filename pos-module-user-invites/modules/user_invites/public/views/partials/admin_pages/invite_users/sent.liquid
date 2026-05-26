@@ -1,0 +1,18 @@
+{% comment %}
+  @prompt: Renders the post-send summary for a sent invite_csv, showing how many
+           users were invited and when.
+           Required: invite_csv (record with filename, sent_count, sent_at)
+{% endcomment %}
+{% liquid
+  assign unnamed_label = 'modules/user_invites/admin.invite_users.unnamed' | t
+  assign filename_label = invite_csv.filename | default: unnamed_label
+  assign sent_date = invite_csv.sent_at | localize: 'short'
+  assign sent_count = invite_csv.sent_count | default: 0
+%}
+<div class="container">
+  <h2 class="pb-4 font-extrabold text-3xl">{{ 'modules/user_invites/admin.invite_users.sent_heading' | t: filename: filename_label }}</h2>
+  <div class="p-6 rounded-surface shadow-card mb-6 bg-panel">
+    <p class="mb-2">{{ 'modules/user_invites/admin.invite_users.sent_summary' | t: count: sent_count, date: sent_date }}</p>
+  </div>
+  <a href="/admin/community/invite_users" class="underline">{{ 'modules/user_invites/admin.invite_users.back_to_list' | t }}</a>
+</div>

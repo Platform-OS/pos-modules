@@ -17,14 +17,6 @@
     cursor: pointer;
   }
 
-    .pos-popover > [popovertarget]:hover {
-      color: var(--pos-color-interactive-hover);
-    }
-
-    .pos-popover > [popovertarget]:active {
-      color: var(--pos-color-interactive-active);
-    }
-
   .pos-popover [popover] {
     min-width: 100px;
     max-width: 600px;

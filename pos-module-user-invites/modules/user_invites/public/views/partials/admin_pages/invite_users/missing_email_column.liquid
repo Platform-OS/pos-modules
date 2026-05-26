@@ -1,0 +1,8 @@
+{% comment %}
+  @prompt: Renders the "missing email column" error for an uploaded CSV.
+{% endcomment %}
+<div class="container">
+  <h2 class="pb-4 font-extrabold text-3xl">{{ 'modules/user_invites/admin.invite_users.missing_email_heading' | t }}</h2>
+  <p class="mb-4">{{ 'modules/user_invites/admin.invite_users.missing_email_message' | t }}</p>
+  <a href="/admin/community/invite_users" class="underline">{{ 'modules/user_invites/admin.invite_users.back' | t }}</a>
+</div>

@@ -1,0 +1,4 @@
+{% liquid
+  assign data = null | hash_merge: email: object.email, first_name: object.first_name, last_name: object.last_name
+  return data
+%}

@@ -3,6 +3,7 @@
 
   container
   validation
+  content
 */
 
 
@@ -67,6 +68,15 @@
   ============================================================================ */
   .pos-markdown-error-disabled {
     display: none;
+  }
+
+
+  /* content
+  ============================================================================ */
+  .EasyMDEContainer .CodeMirror-code [data-img-src]::after {
+    width: auto !important;
+    max-height: 50vh !important;
+    padding-top: min(var(--height), 35vh) !important;
   }
 
 }

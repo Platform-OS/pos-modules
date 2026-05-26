@@ -1,0 +1,8 @@
+{% doc %}
+  Finds a user_invite record by id.
+  @param id {string} - user_invite record id
+{% enddoc %}
+{% liquid
+  graphql found = 'modules/user_invites/user_invites/find', id: id
+  return found.records.results.first
+%}

@@ -1,0 +1,57 @@
+{% doc %}
+  Parses an invite CSV string and discovers the email/first_name/last_name columns
+  (case-insensitive). Returns parsed_rows (rows with a non-blank email),
+  csv_emails (downcased), invalid (rows missing email), header, and email_index.
+  @param csv {string} - raw CSV text
+{% enddoc %}
+{% liquid
+  assign rows = csv | parse_csv
+  assign header = rows | first
+
+  assign email_index = -1
+  assign first_name_index = -1
+  assign last_name_index = -1
+
+  for column in header
+    assign column_name = column | strip | downcase
+    if column_name == 'email'
+      assign email_index = forloop.index0
+    elsif column_name == 'first_name'
+      assign first_name_index = forloop.index0
+    elsif column_name == 'last_name'
+      assign last_name_index = forloop.index0
+    endif
+  endfor
+
+  assign parsed_rows = '[]' | parse_json
+  assign csv_emails = '[]' | parse_json
+  assign invalid = '[]' | parse_json
+
+  if email_index >= 0
+    for cols in rows offset: 1
+      assign email = cols[email_index] | strip | downcase
+
+      if email == blank
+        assign invalid_row = null | hash_merge: cols: cols
+        assign invalid = invalid | array_add: invalid_row
+        continue
+      endif
+
+      assign first_name = blank
+      assign last_name = blank
+      if first_name_index >= 0
+        assign first_name = cols[first_name_index] | strip
+      endif
+      if last_name_index >= 0
+        assign last_name = cols[last_name_index] | strip
+      endif
+
+      assign row = null | hash_merge: email: email, first_name: first_name, last_name: last_name
+      assign parsed_rows = parsed_rows | array_add: row
+      assign csv_emails = csv_emails | array_add: email
+    endfor
+  endif
+
+  assign result = null | hash_merge: email_index: email_index, header: header, parsed_rows: parsed_rows, csv_emails: csv_emails, invalid: invalid
+  return result
+%}

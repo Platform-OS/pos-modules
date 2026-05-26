@@ -1,0 +1,18 @@
+{% doc %}
+  Marks an invite_csv record as sent and dispatches per-row user_invite creation
+  in the background.
+  @param id {string} - invite_csv record id
+  @param csv {string} - invite_csv csv text
+{% enddoc %}
+{% liquid
+  assign object = '{}' | parse_json | hash_merge: id: id, csv: csv
+
+  function object = 'modules/user_invites/commands/invite_csvs/send/build', object: object
+  function object = 'modules/user_invites/commands/invite_csvs/send/check', object: object
+
+  if object.valid
+    function object = 'modules/user_invites/commands/invite_csvs/send/execute', object: object
+  endif
+
+  return object
+%}

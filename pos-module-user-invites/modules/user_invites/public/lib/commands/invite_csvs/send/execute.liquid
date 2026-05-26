@@ -1,0 +1,24 @@
+{% liquid
+  function preview = 'modules/user_invites/queries/invite_csvs/preview', csv: object.csv
+  assign to_invite = preview.to_invite
+
+  assign now_time = 'now' | to_time: 'UTC'
+  assign sent_at = now_time | strftime: '%Y-%m-%dT%H:%M:%S%Z'
+  graphql _ = 'modules/user_invites/invite_csvs/update', id: object.id, status: 'sent', sent_at: sent_at, sent_count: to_invite.size
+%}
+
+{% background delay: 0.1, max_attempts: 0, to_invite: to_invite %}
+  {% liquid
+    for row in to_invite
+      function result = 'modules/user_invites/commands/user_invites/create', email: row.email, first_name: row.first_name, last_name: row.last_name
+      unless result.valid == false
+        log row.email, type: 'INFO: user_invite created'
+      endunless
+    endfor
+  %}
+{% endbackground %}
+
+{% liquid
+  assign object = object | hash_merge: sent_count: to_invite.size
+  return object
+%}

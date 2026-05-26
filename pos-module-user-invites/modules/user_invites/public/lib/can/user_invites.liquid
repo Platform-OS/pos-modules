@@ -1,0 +1,34 @@
+{% liquid
+  assign authenticated = entity.user_invite_token | is_token_valid: entity.user_id
+
+  assign is_accepted = false
+  assign is_expired = false
+
+  if entity.user_invite.properties.accepted_at
+    assign is_accepted = true
+  endif
+
+  assign expires_at = entity.user_invite.properties.expires_at | to_time
+  assign now = 'now' | to_time
+
+  if expires_at < now
+    assign is_expired = true
+  endif
+
+  assign authenticated_success = false
+  if authenticated
+    unless is_accepted or is_expired
+      assign authenticated_success = true
+    endunless
+  endif
+
+  case do
+
+  when 'update'
+    return authenticated_success
+  when 'edit'
+    return authenticated_success
+  else
+    return false
+  endcase
+%}

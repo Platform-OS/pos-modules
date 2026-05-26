@@ -1,0 +1,12 @@
+{% comment %}
+  @prompt: Renders the "Already sent" minimal page (post-send view of an invite_csv).
+           Required: invite_csv (record with sent_at)
+{% endcomment %}
+{% liquid
+  assign sent_date = invite_csv.sent_at | localize: 'short'
+%}
+<div class="container">
+  <h2 class="pb-4 font-extrabold text-3xl">{{ 'modules/user_invites/admin.invite_users.already_sent_heading' | t }}</h2>
+  <p class="mb-4">{{ 'modules/user_invites/admin.invite_users.already_sent_message' | t: date: sent_date }}</p>
+  <a href="/admin/community/invite_users" class="underline">{{ 'modules/user_invites/admin.invite_users.back' | t }}</a>
+</div>
