@@ -29,7 +29,7 @@
   assign maxlength = maxlength | default: 10000
 %}
 
-<div class="pos-markdown" id="{{ id }}" data-minlength="{{ minlength }}" data-maxlength="{{ maxlength }}">
+<div class="pos-markdown" id="{{ id }}" data-minlength="{{ minlength }}" data-maxlength="{{ maxlength }}" aria-describedby="{{ id }}-instructions">
 
   <textarea
     class="pos-forms-text"
@@ -41,6 +41,13 @@
         data-request-{{ field[0] }}="{{ field[1] }}"
     {% endfor %}
   >{{ value }}</textarea>
+
+  <small id="{{ id }}-instructions" class="pos-tip">
+    {% render 'modules/common-styling/icon', icon: 'info' %}
+    <span>
+      {{ 'modules/common-styling/form.markdown.instructions' | t }}
+    </span>
+  </small>
 
 
   <ul class="pos-form-errors">

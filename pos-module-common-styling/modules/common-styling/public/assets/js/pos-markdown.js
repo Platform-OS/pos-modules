@@ -79,6 +79,27 @@ window.pos.modules.markdown = function(settings){
       previewClass: ['pos-prose', 'editor-preview']
     });
 
+    // accessibility: escape releases the Tab trap so keyboard users can navigate out
+    // pressing Esc sets a flag; the capture-phase listener on the wrapper intercepts the next tab before codemirror can call preventDefault, letting the browser move focus naturally; any other key cancels the released state
+    const cmWrapper = module.settings.easyMde.codemirror.getWrapperElement();
+    
+    module.settings.easyMde.codemirror.addKeyMap({
+      'Esc': function(){
+        module.settings.easyMde.codemirror.state.tabTrapReleased = true;
+      }
+    });
+    
+    cmWrapper.addEventListener('keydown', function(event) {
+      if (module.settings.easyMde.codemirror.state.tabTrapReleased) {
+        if(event.key === 'Tab') {
+          module.settings.easyMde.codemirror.state.tabTrapReleased = false;
+          event.stopPropagation(); // codemirror never sees it → never calls preventDefault → browser navigates
+        } else if(event.key !== 'Escape') {
+          module.settings.easyMde.codemirror.state.tabTrapReleased = false; // user resumed editing, re-engage tab trap
+        }
+      }
+    }, true); // capture phase — fires before codemirror's listener on the inner textarea
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'EasyMDE instance created', module.settings.easyMde);
   };
 

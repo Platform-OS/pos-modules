@@ -15,3 +15,5 @@ en:
     at_least_one_option: At least one option must be choosen
     minimum_length_validation: Please enter at least %{count} characters
     maximum_length_validation: Please enter no more than %{count} characters
+    markdown:
+      instructions: You can use <a href="https://www.markdownguide.org/cheat-sheet/" target="_blank" nofollow>Markdown</a> to format your text. Press <kbd>Esc</kbd> to navigate out of the editor.
