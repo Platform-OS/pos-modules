@@ -1,6 +1,6 @@
 {
   "machine_name": "user",
-  "version": "5.2.10",
+  "version": "5.2.11",
   "name": "User",
   "dependencies": {
     "core": "^2.1.9",
