@@ -2,7 +2,7 @@
   "dependencies": {
     "user": "5.2.8",
     "common-styling": "1.37.26",
-    "core": "2.1.8",
+    "core": "2.1.9",
     "oauth_github": "0.0.12"
   },
   "devDependencies": {},

@@ -1,17 +1,15 @@
 {
   "dependencies": {
-    "payments": "0.3.0",
-    "core": "2.1.8",
-    "user": "5.2.8",
-    "oauth_github": "0.0.12",
-    "common-styling": "1.37.27"
+    "payments": "0.3.1",
+    "core": "2.1.9",
+    "user": "5.2.11",
+    "common-styling": "1.37.30"
   },
   "devDependencies": {},
   "registries": {
     "payments": "https://partners.platformos.com",
     "core": "https://partners.platformos.com",
     "user": "https://partners.platformos.com",
-    "oauth_github": "https://partners.platformos.com",
     "common-styling": "https://partners.platformos.com"
   }
 }

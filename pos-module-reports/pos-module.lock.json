@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "core": "2.1.8",
-    "user": "5.2.7",
-    "common-styling": "1.37.26"
+    "core": "2.1.9",
+    "user": "5.2.11",
+    "common-styling": "1.37.30"
   },
   "devDependencies": {},
   "registries": {
