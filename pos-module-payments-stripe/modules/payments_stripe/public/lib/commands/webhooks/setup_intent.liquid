@@ -3,7 +3,7 @@
   assign requester_id = 'stripe_webhook_request'
   assign response = {"status": 200}
 
-  function setup_intents = 'modules/payments_stripe/queries/setup_intents/search', gateway_id: params.data.object.id, limit: 1
+  function setup_intents = 'modules/payments_stripe/queries/setup_intents/search', gateway_id: params.data.object.id, limit: 1, page: 1
   assign setup_intent = setup_intents.results[0]
 
   if setup_intent == blank and params.data.object.metadata.host contains host

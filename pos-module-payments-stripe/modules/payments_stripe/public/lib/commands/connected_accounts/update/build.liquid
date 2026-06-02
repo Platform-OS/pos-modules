@@ -1,3 +1,7 @@
+{% doc %}
+  @param {object} object - The object to update
+  @param {object} params - Stripe webhook params
+{% enddoc %}
 {% liquid
   assign object.data = params
   assign object.last_errors = params.requirements.disabled_reason

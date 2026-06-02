@@ -4,7 +4,7 @@
   function object = 'modules/payments_stripe/commands/setup_intents/create/check', object: object
 
   if object.valid
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/setup_intents/create', object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/setup_intents/create', object: object, selection: nil
   else
     log object, type: "ERROR: modules/payments_stripe/commands/setup_intents/create"
   endif

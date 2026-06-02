@@ -4,7 +4,7 @@ layout: null
 ---
 {% liquid
   # platformos-check-disable MetadataParamsCheck
-  function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: '/payments/stripe/checkout_session_completed_webhook', context: context
+  function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: '/payments/stripe/checkout_session_completed_webhook', stripe_account_name: nil
   if valid_webhook
     unless context.params.data.object.success_url contains context.location.host
       echo "Transaction from different host"

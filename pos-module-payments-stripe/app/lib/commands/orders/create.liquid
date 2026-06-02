@@ -3,7 +3,7 @@
   function object = 'commands/orders/create/check', object: object
 
   if object.valid
-    function order = 'modules/core/commands/execute', mutation_name: 'orders/create', object: object
+    function order = 'modules/core/commands/execute', mutation_name: 'orders/create', object: object, selection: nil
     return order
   endif
 

@@ -8,7 +8,7 @@ if current_profile.user == null
     redirect_to "/"
 endif
 
-function transaction = 'modules/payments/queries/transactions/find', id: context.params.transaction_id, payer_id: current_profile.id
+function transaction = 'modules/payments/queries/transactions/find', id: context.params.transaction_id
 
 if transaction == null
     redirect_to "/"

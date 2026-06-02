@@ -8,7 +8,7 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'type'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'bank_name'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'last4'
-  function c = 'modules/core/validations/uniqueness', c: c, object: object, field_name: 'payment_method_id', table: 'modules/payments_stripe/payment_method'
+  function c = 'modules/core/validations/uniqueness', c: c, object: object, field_name: 'payment_method_id', table: 'modules/payments_stripe/payment_method', exclude_name: nil, scope_name: nil
   assign object.valid = c.valid
   assign object.errors = c.errors
 

@@ -1,3 +1,7 @@
+{% doc %}
+  @param {object} object - Refund input object
+  @param {object} transaction - Transaction being refunded
+{% enddoc %}
 {% liquid
   assign payable_ids = transaction.payable_ids | join: ','
   assign object.metadata.transaction_id = transaction.id

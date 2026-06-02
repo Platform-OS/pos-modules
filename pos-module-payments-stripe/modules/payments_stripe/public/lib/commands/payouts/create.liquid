@@ -8,7 +8,7 @@
   function object = 'modules/payments_stripe/commands/payouts/create/check', object: object
 
   if object.valid
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/payouts/create', object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/payouts/create', object: object, selection: nil
   else
     log object, type: "ERROR: modules/payments_stripe/commands/payouts/create"
   endif

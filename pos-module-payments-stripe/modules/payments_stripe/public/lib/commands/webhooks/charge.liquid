@@ -8,7 +8,7 @@
   if params.data.object.metadata.transaction_id
     function transaction = 'modules/payments/queries/transactions/find', id: params.data.object.metadata.transaction_id
   elsif gateway_transaction_ids.size > 0
-    function transactions = 'modules/payments/queries/transactions/search', gateway_transaction_ids: gateway_transaction_ids
+    function transactions = 'modules/payments/queries/transactions/search', gateway_transaction_ids: gateway_transaction_ids, page: 1, limit: 20
     assign transaction = transactions.results[0]
   endif
   function payment_status = 'modules/payments/commands/transactions/map_status', payment_status: params.data.object.status

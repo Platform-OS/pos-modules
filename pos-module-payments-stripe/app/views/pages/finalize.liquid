@@ -6,8 +6,8 @@ method: post
     if current_profile.user == null
         redirect_to "/"
     endif
-    assign payable_ids = '[]' | parse_json | array_add: params.order
-    function transaction = 'modules/payments/queries/transactions/search', payer_id: current_profile.id, payable_ids: payable_ids, with_gateway_requests: true, limit: 1, id: params.transaction
+    assign payable_ids = '[]' | parse_json | array_add: context.params.order
+    function transaction = 'modules/payments/queries/transactions/search', payer_id: current_profile.id, payable_ids: payable_ids, with_gateway_requests: true, limit: 1, id: context.params.transaction, page: 1
     if transaction.results.size == 0
         redirect_to "/orders"
         return
@@ -22,10 +22,10 @@ method: post
         return
     endif
 
-    assign success_url = 'https://' | append: context.location.host | append: '/success/' | append: params.transaction
-    assign failed_url = 'https://' | append: context.location.host | append: '/cancel/' | append: params.transaction
+    assign success_url = 'https://' | append: context.location.host | append: '/success/' | append: context.params.transaction
+    assign failed_url = 'https://' | append: context.location.host | append: '/cancel/' | append: context.params.transaction
     assign stripe_params = null | hash_merge: mode: 'payment', success_url: success_url, cancel_url: failed_url, line_items: request.payload.line_items
-    function url = 'modules/payments/helpers/pay_url', transaction: transaction, gateway_params: stripe_params, idempotency_key: order.idempotency_key
+    function url = 'modules/payments/helpers/pay_url', transaction: transaction, gateway_params: stripe_params
 
     redirect_to url, status: 303
 %}

@@ -37,7 +37,7 @@
         function _ = 'modules/core/commands/session/clear', key: 'sflash'
       endif
 
-      render 'modules/common-styling/toasts', params: flash
+      render 'modules/common-styling/toasts', message: flash.message, severity: flash.severity, autohide: flash.autohide, delay: flash.delay
     %}
 
   </body>

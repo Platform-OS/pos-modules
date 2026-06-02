@@ -4,6 +4,6 @@ if current_profile.user == null
     redirect_to "/"
 endif
 
-function orders = 'queries/orders/search', profile_id: current_profile.id
+function orders = 'queries/orders/search', profile_id: current_profile.id, page: 1, limit: 20, amount: nil, currency: nil
 render 'orders', current_profile: current_profile, orders: orders
 %}

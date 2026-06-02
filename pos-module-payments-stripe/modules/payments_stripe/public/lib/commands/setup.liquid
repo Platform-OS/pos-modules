@@ -9,7 +9,7 @@
     assign webhooks_path = '/payments/stripe/webhooks'
     assign connect_webhooks_path = '/payments/stripe/webhooks_connect'
   endif
-  function stripe_sk_key = 'modules/core/lib/queries/variable/find', name: stripe_key_name
+  function stripe_sk_key = 'modules/core/lib/queries/variable/find', name: stripe_key_name, default: nil, type: nil
 
   if stripe_sk_key
     assign stripe_events = 'checkout.session.expired,charge.succeeded,charge.pending,setup_intent.succeeded' | split: ','

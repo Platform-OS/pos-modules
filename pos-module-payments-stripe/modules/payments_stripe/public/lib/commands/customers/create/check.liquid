@@ -4,7 +4,7 @@
 
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'customer_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'reference_id'
-  function c = 'modules/core/validations/uniqueness', c: c, object: object, field_name: 'customer_id', table: 'modules/payments_stripe/customer'
+  function c = 'modules/core/validations/uniqueness', c: c, object: object, field_name: 'customer_id', table: 'modules/payments_stripe/customer', exclude_name: nil, scope_name: nil
   assign object.valid = c.valid
   assign object.errors = c.errors
 

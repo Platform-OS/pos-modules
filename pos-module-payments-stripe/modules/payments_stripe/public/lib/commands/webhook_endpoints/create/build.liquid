@@ -1,3 +1,8 @@
+{% doc %}
+  @param {object} response - Stripe API response
+  @param {string} events - Subscribed Stripe events list
+  @param {string} stripe_account_name - Optional connected-account name
+{% enddoc %}
 {% liquid
   assign body = response.body | parse_json
 
