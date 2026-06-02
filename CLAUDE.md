@@ -373,6 +373,10 @@ pos-cli test run staging [test-name]
 
 ## Important Notes
 
+### Dependencies
+
+Dependencies of each module are added to .gitignore to avoid adding duplicated code to the repository.
+
 ### Module Files Never Delete by Default
 
 Modules use partial deployment - files are never deleted unless explicitly configured. This allows developers to override specific files without breaking the module.
