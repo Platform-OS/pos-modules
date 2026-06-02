@@ -5,8 +5,7 @@ POS_ENV="${1:-$DEFAULT_ENV}"
 
 mkdir -p app/
 # This also installs core module
-# Temporarily disable this installation
-# pos-cli modules install payments
+pos-cli modules install --dev
 
 pos-cli data clean $POS_ENV --auto-confirm --include-schema
 pos-cli deploy $POS_ENV
