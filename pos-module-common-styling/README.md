@@ -400,3 +400,4 @@ Clicking the following button will load the HTML from `/test/example_endpoint` t
 | data-load-target     | Selector for the target container that the HTML will be applied to           |
 | data-load-method     | `replace` or `append` – the returned HTML will either replace the container’s content or be appended after the last node of the container |
 | data-load-trigger-type | Defines whether the loading process is triggered by a `click` or `mouseenter` event |
+

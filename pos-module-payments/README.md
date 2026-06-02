@@ -62,3 +62,4 @@ Here are instructions how to write consumer https://github.com/Platform-OS/pos-m
 git fetch origin --tags
 npm version major | minor | patch
 ```
+

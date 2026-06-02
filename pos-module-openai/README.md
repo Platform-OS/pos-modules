@@ -235,3 +235,4 @@ The implementation showcases how to combine multiple content types (text and ima
 ## Contribution
 
 For contributing to this module, please check `.git/CONTRIBUTING.md`.
+
