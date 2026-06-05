@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/Platform-OS/pos-module-data-export-api#readme",
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "auto-changelog": "^2.4.0"
   },
   "auto-changelog": {

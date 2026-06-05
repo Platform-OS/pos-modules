@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/Platform-OS/pos-module-openai#readme",
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.0.0",
     "auto-changelog": "^2.4.0"
   },

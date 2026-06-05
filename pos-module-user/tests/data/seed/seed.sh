@@ -3,8 +3,8 @@ set -eu
 DEFAULT_ENV=""
 POS_ENV="${1:-$DEFAULT_ENV}"
 
-pos-cli modules install common-styling
-pos-cli modules install oauth_github
+pos-cli modules install --dev
+
 pos-cli data clean $POS_ENV --auto-confirm --include-schema
 pos-cli deploy $POS_ENV
 
