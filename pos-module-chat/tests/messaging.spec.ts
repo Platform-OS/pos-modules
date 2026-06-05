@@ -22,7 +22,7 @@ test.describe('Testing messaging', () => {
       await peoplePage.goto();
 
       const isMessageSent = await inboxPage.sendMessage(receiver.fullName, senderMessage);
-      await expect(isMessageSent).toBe(true);
+      expect(isMessageSent).toBe(true);
     });
 
     await test.step(`verify chatCard was created and is visible after page refresh`, async () => {
@@ -32,7 +32,7 @@ test.describe('Testing messaging', () => {
       await inboxPage.goto();
 
       const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(receiver.fullName);
-      await expect(isChatCardVisible).toBe(true);
+      expect(isChatCardVisible).toBe(true);
     });
 
     await test.step(`${receiver.fullName} received the message`, async () => {
@@ -43,16 +43,16 @@ test.describe('Testing messaging', () => {
       await peoplePage.goto();
 
       const isChatOpened = await inboxPage.isChatOpened(sender.fullName);
-      await expect(isChatOpened).toBe(true);
+      expect(isChatOpened).toBe(true);
 
       const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(sender.fullName);
-      await expect(isChatCardVisible).toBe(true);
+      expect(isChatCardVisible).toBe(true);
 
       const isMessageVisible = await inboxPage.message.isMessageReceived(senderMessage);
-      await expect(isMessageVisible).toBe(true);
+      expect(isMessageVisible).toBe(true);
     });
   });
-  
+
   test('sending multiple messages and order verification', async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
@@ -71,10 +71,10 @@ test.describe('Testing messaging', () => {
       await peoplePage.goto();
 
       const areMessagesSent = await inboxPage.sendMessages(receiver.fullName, senderMessages);
-      await expect(areMessagesSent).toBe(true);
+      expect(areMessagesSent).toBe(true);
 
       const isOrderCorrect = await inboxPage.chat.verifyMessageOrder(senderMessages);
-      await expect(isOrderCorrect).toBe(true);
+      expect(isOrderCorrect).toBe(true);
     });
 
     await test.step(`user ${receiver.fullName} received messages in correct order`, async () => {
@@ -85,13 +85,13 @@ test.describe('Testing messaging', () => {
       await peoplePage.goto();
 
       const isChatOpened = await inboxPage.isChatOpened(sender.fullName);
-      await expect(isChatOpened).toBe(true);  
+      expect(isChatOpened).toBe(true);
 
       const lastMessage = await inboxPage.chatList.getCardLastMessage(sender.fullName);
-      await expect(lastMessage).toHaveText(lastMessageText);
-    
+      expect(lastMessage).toHaveText(lastMessageText);
+
       const isOrderCorrect = await inboxPage.chat.verifyMessageOrder(senderMessages);
-      await expect(isOrderCorrect).toBe(true);
+      expect(isOrderCorrect).toBe(true);
     });
   });
 
@@ -120,15 +120,15 @@ test.describe('Testing messaging', () => {
       await inboxPage.goto();
 
       const countCards = await inboxPage.chatList.countCards();
-      await expect(countCards).toBe(0);
+      expect(countCards).toBe(0);
     });
   });
 
   test(`user can't see his own profile card on people list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
-    
-    ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test7.email}.json`));    
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test7.email}.json`));
 
     const peoplePage = new PeoplePage(page);
 
@@ -142,10 +142,10 @@ test.describe('Testing messaging', () => {
     let context: BrowserContext | null = null;
     let page: Page;
 
-    ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test7.email}.json`));    
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test7.email}.json`));
 
     await page.goto(`/inbox/?to_uuid=${users.test7.uuid}`);
-  
+
 
     await expect(page.locator('header').getByText(users.test7.fullName)).not.toBeVisible();
   });
@@ -156,7 +156,7 @@ test.describe('Testing messaging', () => {
 
     const receiverFullName = "Dummy10 User";
 
-    ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test6.email}.json`));    
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test6.email}.json`));
 
     const peoplePage = new PeoplePage(page);
     const inboxPage = new InboxPage(page);
@@ -165,5 +165,5 @@ test.describe('Testing messaging', () => {
 
     const isChatOpened = await inboxPage.isChatOpened(receiverFullName);
     expect(isChatOpened).toBe(true);
-  })  
+  })
 });
