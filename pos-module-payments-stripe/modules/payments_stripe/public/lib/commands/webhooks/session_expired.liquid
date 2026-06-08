@@ -5,6 +5,7 @@
 
   assign gateway_transaction_ids = params.data.object.id | split: '!!'
   assign gateway_transaction_ids << params.data.object.payment_intent
+  assign gateway_transaction_ids = gateway_transaction_ids | compact
 
   function transactions = 'modules/payments/queries/transactions/search', gateway_transaction_ids: gateway_transaction_ids, limit: 1, page: 1
   assign transaction = transactions.results[0]

@@ -9,7 +9,7 @@
     sign_in user_id: object.id
     session original_user_id = object.current_user_id
 
-    assign event_object = {"actor_id": object.current_user_id, "target_id": object.user_id}
+    assign event_object = {"actor_id": object.current_user_id, "target_id": object.id}
     function _ = 'modules/core/commands/events/publish', type: 'impersonation_started', object: event_object, delay: null, max_attempts: null
   endif
 
