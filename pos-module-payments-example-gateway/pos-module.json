@@ -1,0 +1,9 @@
+{
+  "machine_name": "payments_example_gateway",
+  "version": "0.1.2",
+  "name": "pOS Payments Example Gateway",
+  "dependencies": {
+    "core": "^2.1.9",
+    "payments": "^0.3.1"
+  }
+}

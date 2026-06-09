@@ -9,7 +9,14 @@
   function object = 'modules/payments/commands/transactions/update_status/build', object: object, transaction: transaction
   function object = 'modules/payments/commands/transactions/update_status/check', object: object
 
-  if object.valid and object.c__status != transaction.c__status
+  # 'succeeded' is terminal - a later failed/expired webhook must not override it
+  function succeeded_status = 'modules/payments/commands/transactions/map_status', payment_status: 'succeeded'
+  assign downgrades_succeeded = false
+  if transaction.c__status == succeeded_status and object.c__status != succeeded_status
+    assign downgrades_succeeded = true
+  endif
+
+  if object.valid and object.c__status != transaction.c__status and downgrades_succeeded == false
     function object = 'modules/core/commands/execute', mutation_name: 'modules/payments/transactions/update', object: object, selection: null
 
     assign event_payload = {"transaction_id": object.id}

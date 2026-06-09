@@ -4,7 +4,7 @@
     function object = 'modules/payments_example_gateway/commands/update_transaction_status/map_response', gateway_request: gateway_request
     function transaction = 'modules/payments/queries/transactions/find', id: object['transaction_id'], with_gateway_requests: false, with_statuses: false
     if transaction
-      function transaction = 'modules/payments/commands/transactions/update_status', object: object, transaction: transaction
+      function transaction = 'modules/payments/commands/transactions/update_status', object: object, transaction: transaction, requester_id: 'system'
     endif
   else
     log gateway_request, type: 'ERROR: example_payment_gateway gateway_request'

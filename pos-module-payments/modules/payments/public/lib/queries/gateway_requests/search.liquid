@@ -1,16 +1,3 @@
-{% doc %}
-  @param {string} id - Gateway request record ID
-  @param {string} gateway_object_id - Single gateway object ID to match
-  @param {string} gateway_object_ids - List of gateway object IDs to match
-  @param {string} gateway - Gateway name (e.g. 'stripe')
-  @param {string} external_id - External (caller-supplied) ID
-  @param {string} response_status - HTTP response status filter
-  @param {string} api_call_name - API call template name
-  @param {string} name - Event/request name
-  @param {string} stripe_account_name - Stripe connected-account name
-  @param {number} page - Page number for pagination
-  @param {number} limit - Maximum number of results
-{% enddoc %}
 {% liquid
   assign page = page | to_positive_integer: 1
   assign limit = limit | to_positive_integer: 20

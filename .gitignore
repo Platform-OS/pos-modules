@@ -76,3 +76,6 @@ pos-module-tests/modules/*
 
 pos-module-user/modules/*
 !pos-module-user/modules/user/
+
+pos-module-user-invites/modules/*
+!pos-module-user-invites/modules/user_invites/
