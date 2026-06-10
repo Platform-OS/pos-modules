@@ -19,6 +19,7 @@ export class BasePage {
 
   async goto() {
     await this.page.goto(this.path);
+    await this.page.waitForLoadState('domcontentloaded');
   }
 }
 

@@ -31,7 +31,7 @@ class PeopleCard {
   }
 
   getCardByFullName(author: string) {
-    return this.getCard().getByText(author).locator('..');
+    return this.getCard().getByText(author);
   }
 
   isPeopleCardVisible(fullName: string) {
