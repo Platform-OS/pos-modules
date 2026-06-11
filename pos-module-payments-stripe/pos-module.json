@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "payments": "^0.3.1",
+    "payments": "^0.3.2",
     "core": "^2.1.9",
     "user": "^5.2.10"
   },

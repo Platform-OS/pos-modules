@@ -1,7 +1,7 @@
 {
   "machine_name": "payments",
   "name": "pOS Payments",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "dependencies": {
     "core": "^2.1.9"
   },
