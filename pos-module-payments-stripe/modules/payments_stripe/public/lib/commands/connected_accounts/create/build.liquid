@@ -1,14 +1,6 @@
-{%- parse_json object -%}
-  {
-    "account_id": {{ object.account_id | json }},
-    "reference_id": {{ object.reference_id | json }},
-    "state": {{ object.state | default: 'pending' | json }},
-    "last_errors": {{ object.last_errors | json }},
-    "stripe_account_name": {{ object.stripe_account_name | json }},
-    "data": {{ object.data | json }}
-  }
-{%- endparse_json -%}
-
 {% liquid
+  assign state = object.state | default: "pending"
+  assign object = {"account_id": object.account_id, "reference_id": object.reference_id, "state": state, "last_errors": object.last_errors, "stripe_account_name": object.stripe_account_name, "data": object.data}
+
   return object
 %}

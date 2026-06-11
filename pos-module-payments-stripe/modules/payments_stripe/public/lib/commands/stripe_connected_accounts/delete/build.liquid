@@ -2,5 +2,7 @@
 https://api.stripe.com//v1/accounts/{{ account_id }}
 {% endcapture %}
 {% liquid
-  return {"payload": null, "request_type": 'DELETE', "to": url}
+  assign data = {"payload": null, "request_type": "DELETE", "to": url}
+
+  return data
 %}

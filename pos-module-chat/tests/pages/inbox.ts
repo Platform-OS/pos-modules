@@ -24,14 +24,14 @@ export class PeoplePage extends BasePage {
 }
 
 class PeopleCard {
-  constructor(private page:Page, private listLocator: Locator) {}
+  constructor(private page: Page, private listLocator: Locator) { }
 
   getCard() {
     return this.listLocator.locator('ul li');
   }
 
   getCardByFullName(author: string) {
-    return this.getCard().getByText(author).locator('..');
+    return this.getCard().getByText(author);
   }
 
   isPeopleCardVisible(fullName: string) {
@@ -40,7 +40,7 @@ class PeopleCard {
     return card.isVisible();
   }
 }
-  
+
 class PeopleList {
   private peopleCard: PeopleCard;
 
@@ -86,15 +86,16 @@ export class InboxPage extends BasePage {
     if (text != '') {
       return await this.chat.sendMessage(text);
     }
-  } 
-  
+  }
+
   async sendMessages(fullName: string, messages: string[]) {
     await this.peoplePage.peopleList.openChat(fullName);
     return await this.chat.sendMessages(messages);
-  } 
+  }
 
   async isChatOpened(author: string) {
     await this.peoplePage.peopleList.openChat(author);
+    await this.chat.messageInputField.waitFor({ state: 'visible' });
     const isAuthorHeaderVisible = await this.page.locator('header').getByText(author).isVisible();
 
     return isAuthorHeaderVisible;
@@ -102,7 +103,7 @@ export class InboxPage extends BasePage {
 }
 
 class ChatCard {
-  constructor(private page: Page, private listLocator: Locator) {}
+  constructor(private page: Page, private listLocator: Locator) { }
 
   getCard() {
     return this.listLocator.locator('.pos-chat-conversationCard');
@@ -152,7 +153,7 @@ class ChatList {
     for (const conversation of conversations) {
       await this.openCard(conversation.fullName);
     }
-  }  
+  }
 
   async isChatCardVisible(text: string) {
     const chatCard = this.getCardByAuthor(text);
@@ -163,7 +164,7 @@ class ChatList {
 }
 
 class MessageBox {
-  constructor(private page: Page) {}
+  constructor(private page: Page) { }
 
   getMessage(type?: string): Locator {
     if (type === 'received') return this.page.locator('li.pos-chat-message:not(.pos-chat-message-authored) div');
@@ -196,7 +197,7 @@ class MessageBox {
   countReceivedMessageBox() {
     return this.getMessage('received').count();
   }
-  
+
   async isMessageVisible(text: string) {
     const message = this.getMessageByText(text);
     const isVisible = await message.isVisible();
@@ -231,15 +232,15 @@ class Chat {
   private buttonWithText: (text: string) => Locator;
 
   constructor(private page: Page, private chatLocator: Locator) {
-    this.header = (text: string) => chatLocator.locator('header').getByText(text);
-    this.messageBox = new MessageBox(page);
-    this.messageInputField = chatLocator.locator('#chat-messageInput');
-    this.messageInputFieldEnabled = chatLocator.locator('#chat-messageInput:not([disabled])');
-    this.buttonWithText = (text: string) => page.getByRole('button', { name: text, exact: true });
+    this.header = (text: string) => this.chatLocator.locator('header').getByText(text);
+    this.messageBox = new MessageBox(this.page);
+    this.messageInputField = this.chatLocator.locator('#chat-messageInput');
+    this.messageInputFieldEnabled = this.chatLocator.locator('#chat-messageInput:not([disabled])');
+    this.buttonWithText = (text: string) => this.page.getByRole('button', { name: text, exact: true });
   }
 
   async sendMessage(text: string) {
-    if(await this.messageInputField.isVisible()) {
+    if (await this.messageInputField.isVisible()) {
       await this.messageInputFieldEnabled.waitFor();
     }
     await this.messageInputField.click();
@@ -251,12 +252,12 @@ class Chat {
 
   async sendMessages(messages: string[]) {
     const sentMessages = [];
-  
+
     for (const text of messages) {
       const sent = await this.sendMessage(text);
       sentMessages.push(sent);
     }
-  
+
     return sentMessages.every((result) => result === true);
   }
 
@@ -269,5 +270,5 @@ class Chat {
       }
     }
     return true;
-  }  
+  }
 }

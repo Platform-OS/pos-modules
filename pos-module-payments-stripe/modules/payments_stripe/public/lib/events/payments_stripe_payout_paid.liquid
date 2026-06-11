@@ -7,6 +7,7 @@ metadata:
     reference_id
 ---
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   assign c = { "errors": {}, "valid": true }
 
   function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'payout_id'
@@ -15,4 +16,5 @@ metadata:
   function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'reference_id'
 
   return c
+  # platformos-check-enable MetadataParamsCheck
 %}

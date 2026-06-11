@@ -1,0 +1,16 @@
+{%- liquid
+  if id == blank
+    log "id is null", type: "QUERY ERROR"
+    return null
+  endif
+
+  assign params = null | hash_merge: id: id
+
+  graphql g  = 'orders/search', args: params, limit: 1
+  if g.records == blank
+    log params, type: "QUERY ERROR - PARAMS"
+    log g, type: "QUERY ERROR"
+  endif
+
+  return g.records.results[0]
+-%}

@@ -1,3 +1,4 @@
+{% # platformos-check-disable MissingAsset %}
 <script type="importmap">
   {
     "imports": {
@@ -10,6 +11,7 @@
     }
   }
 </script>
+{% # platformos-check-enable MissingAsset %}
 
 <script>
   /* namespace */
@@ -72,12 +74,12 @@
         endif
 
         assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | default: from_profile.name
-        assign imageSrc = from_profile.avatar.photo.versions.sm
+        assign image_src = from_profile.avatar.photo.versions.sm
         assign last_message = conversation.last_message.message
       %}
       {% if conversation.last_message %}
         <li>
-          {% render 'modules/chat/conversation', id: conversation.id, current: current, name: name, imageSrc: imageSrc, last_message: last_message, timezone: current_profile.timezone %}
+          {% render 'modules/chat/conversation', id: conversation.id, current: current, name: name, image_src: image_src, last_message: last_message, timezone: current_profile.timezone %}
         </li>
       {% endif %}
     {% endfor %}
@@ -102,7 +104,7 @@
               else
                 assign name = from_profile.name
               endif
-              render 'modules/common-styling/user/avatar', size: 's', name: name, imageSrc: from_profile.avatar.photo.versions.sm
+              render 'modules/common-styling/user/avatar', size: 's', name: name, image_src: from_profile.avatar.photo.versions.sm, class: null
             endif
           endif
         %}

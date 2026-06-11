@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Modules to test (comma-separated: user, chat, common-styling, payments-example-gateway, or "all")'
+        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, oauth-facebook, oauth-github, oauth-google, openai, payments, payments-example-gateway, payments-stripe, reports, user or "all")'
         required: false
         default: 'all'
         type: string
@@ -40,16 +40,30 @@ jobs:
           base: ${{ github.event.before }}
           ref: ${{ github.event.after }}
           filters: |
-            user:
-              - 'pos-module-user/**'
             chat:
               - 'pos-module-chat/**'
             common-styling:
               - 'pos-module-common-styling/**'
+            data-export-api:
+              - 'pos-module-data-export-api/**'
+            oauth-facebook:
+              - 'pos-module-oauth-facebook/**'
+            oauth-github:
+              - 'pos-module-oauth-github/**'
+            oauth-google:
+              - 'pos-module-oauth-google/**'
+            openai:
+              - 'pos-module-openai/**'
+            payments:
+              - 'pos-module-payments/**'
             payments-stripe:
               - 'pos-module-payments-stripe/**'
             payments-example-gateway:
               - 'pos-module-payments-example-gateway/**'
+            reports:
+              - 'pos-module-reports/**'
+            user:
+              - 'pos-module-user/**'
 
       - name: Set matrix for changed modules
         id: set-matrix
@@ -57,16 +71,10 @@ jobs:
           # Define module configurations
           cat > /tmp/module-config.json << 'EOF'
           {
-            "user": {
-              "module": "user",
-              "path": "pos-module-user",
-              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
-              "test-commands": "npm run admin-panel-pw-tests\nnpm run pw-tests"
-            },
             "chat": {
               "module": "chat",
               "path": "pos-module-chat",
-              "deploy-script": "rm app/pos-modules.* || true\nsh ./tests/data/seed/seed.sh",
+              "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
             },
             "common-styling": {
@@ -75,9 +83,45 @@ jobs:
               "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli deploy",
               "test-commands": "npm run pw-tests"
             },
+            "data-export-api": {
+              "module": "data-export-api",
+              "path": "pos-module-data-export-api",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
+            "oauth-facebook": {
+              "module": "oauth-facebook",
+              "path": "pos-module-oauth-facebook",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
+            "oauth-github": {
+              "module": "oauth-github",
+              "path": "pos-module-oauth-github",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
+            "oauth-google": {
+              "module": "oauth-google",
+              "path": "pos-module-oauth-google",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
+            "openai": {
+              "module": "openai",
+              "path": "pos-module-openai",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
+            },
             "payments-stripe": {
               "module": "payments-stripe",
               "path": "pos-module-payments-stripe",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run api-tests"
+            },
+            "payments": {
+              "module": "payments",
+              "path": "pos-module-payments",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
             },
@@ -86,6 +130,18 @@ jobs:
               "path": "pos-module-payments-example-gateway",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
+            },
+            "reports": {
+              "module": "reports",
+              "path": "pos-module-reports",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run pw-tests"
+            },
+            "user": {
+              "module": "user",
+              "path": "pos-module-user",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm run admin-panel-pw-tests\nnpm run pw-tests"
             }
           }
           EOF
@@ -98,7 +154,7 @@ jobs:
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
               # Test all modules
-              modules=$(jq -c '[.user, .chat, ."common-styling", ."payments-example-gateway"]' /tmp/module-config.json)
+              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", ."oauth-facebook", ."oauth-github", ."oauth-google", .openai, .payments, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \

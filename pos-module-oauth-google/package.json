@@ -1,0 +1,10 @@
+{
+  "name": "pos-module-oauth-google",
+  "scripts": {
+    "api-tests": "playwright test --project=api-tests"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^22.0.0"
+  }
+}

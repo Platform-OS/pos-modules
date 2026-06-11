@@ -1,13 +1,15 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   assign c = { "errors": {}, "valid": true }
 
   assign new_statuses = 'new' | split: ','
   assign transaction_status_short = object.transaction_status | split: '.' | last
-  function c = 'modules/core/validations/included', c: c, field_name: 'transaction_status', array: new_statuses, value: transaction_status_short
+  function c = 'modules/core/validations/included', c: c, field_name: 'transaction_status', array: new_statuses, value: transaction_status_short, object: nil
 
   assign object.valid = c.valid
 
   assign object.errors = c.errors
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

@@ -295,7 +295,7 @@ test.describe.serial('Testing password reset', () => {
 
     await test.step('validate password strength indicator', async () => {
       const weakPassword = 'weak';
-      const expectedError = 'is too short (minimum is 6 characters)';
+      const expectedError = 'has to be longer than 4 characters';
 
       await passwordResetPage.form.fillNewPassword({ password: weakPassword, passwordConfirmation: weakPassword });
       await passwordResetPage.form.buttonWithText('Update').click();

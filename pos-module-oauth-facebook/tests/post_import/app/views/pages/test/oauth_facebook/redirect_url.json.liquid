@@ -1,0 +1,11 @@
+---
+layout: ''
+slug: test/oauth-facebook/redirect-url
+---
+{% liquid
+  assign provider = '{}' | parse_json | hash_merge: client_id: context.params.client_id
+  function redirect_url = 'modules/oauth_facebook/helpers/get_redirect_url', provider: provider, state: context.params.state
+
+  assign response = '{}' | parse_json | hash_merge: url: redirect_url
+  echo response | json
+%}

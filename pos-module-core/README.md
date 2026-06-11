@@ -512,3 +512,4 @@ Core module provides useful generators to quickly create files.
 ## Contribution
 
 Please check `.github/CONTRIBUTING.md`
+

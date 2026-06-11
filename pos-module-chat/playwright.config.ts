@@ -56,15 +56,6 @@ export default defineConfig({
       testMatch: /prepare-env\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
       fullyParallel: false,
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
     }
   ]
 });

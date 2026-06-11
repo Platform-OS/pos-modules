@@ -1,0 +1,19 @@
+{% comment %}
+  Searches for orders.
+
+  Params:
+    - limit Int
+      default: 20
+    - page: Int
+      default: 1
+    - amount: Int
+    - profile_id: String
+    - currency: String
+{% endcomment %}
+{% liquid
+  assign page = page | to_positive_integer: 1
+  assign limit = limit | to_positive_integer: 20
+
+  graphql r = 'orders/search', limit: limit, page: page, profile_id: profile_id, amount: amount, currency: currency
+  return r.records
+%}

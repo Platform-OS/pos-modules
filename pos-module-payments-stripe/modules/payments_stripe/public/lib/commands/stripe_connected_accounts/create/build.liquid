@@ -1,19 +1,6 @@
-{%- parse_json payload -%}
-  {
-    "stripe_account_name": {{ metadata.stripe_account_name | json }},
-    "country": "US",
-    "type": "express",
-    "capabilities": {
-      "card_payments": {
-        "requested": true
-      },
-      "transfers": {
-        "requested": true
-      }
-    },
-    "metadata": {{ metadata }}
-  }
-{%- endparse_json -%}
 {% liquid
-  return {"payload": payload, "request_type": 'POST', "to": "https://api.stripe.com/v1/accounts"}
+  assign payload = {"stripe_account_name": metadata.stripe_account_name, "country": "US", "type": "express", "capabilities": {"card_payments": {"requested": true}, "transfers": {"requested": true}}, "metadata": metadata}
+  assign data = {"payload": payload, "request_type": "POST", "to": "https://api.stripe.com/v1/accounts"}
+
+  return data
 %}

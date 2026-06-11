@@ -1,7 +1,9 @@
 {% capture url %}
 https://api.stripe.com//v1/accounts/{{ account_id }}/login_links
 {% endcapture %}
-{% assign payload = {"stripe_account_name": stripe_account_name} %}
 {% liquid
-  return {"payload": payload, "request_type": 'POST', "to": url}
+  assign payload = {"stripe_account_name": stripe_account_name}
+  assign data = {"payload": payload, "request_type": "POST", "to": url}
+
+  return data
 %}

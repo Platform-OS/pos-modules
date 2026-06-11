@@ -1,0 +1,29 @@
+---
+layout: ''
+slug: test/payments/gateway-requests/receive
+method: post
+---
+{% liquid
+  assign external_id = context.params.external_id | default: 'test-external-id'
+  assign name = context.params.name | default: 'test_webhook'
+  assign request_url = context.params.request_url | default: 'https://example.com/payments/webhook'
+  assign stripe_account_name = context.params.stripe_account_name | default: null
+  assign gateway_object_id = context.params.gateway_object_id | default: 'test-gateway-object'
+
+  assign payload = {
+    "id": gateway_object_id,
+    "object": "event",
+    "source": "payments-gateway-request-test"
+  }
+
+  function gateway_request = 'modules/payments/commands/gateway_requests/receive', object: payload, external_id: external_id, name: name, request_url: request_url, stripe_account_name: stripe_account_name
+  function gateway_requests = 'modules/payments/queries/gateway_requests/search', external_id: external_id, limit: 1, page: null, id: null, gateway_object_id: null, gateway_object_ids: null, gateway: null, response_status: null, api_call_name: null, name: null, stripe_account_name: null
+  assign persisted = gateway_requests.results.first
+
+  assign response = {
+    "gateway_request": gateway_request,
+    "persisted": persisted
+  }
+
+  echo response | json
+%}

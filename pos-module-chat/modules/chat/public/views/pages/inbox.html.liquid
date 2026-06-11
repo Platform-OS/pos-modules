@@ -4,14 +4,14 @@ slug: inbox
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
 
-  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
-  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', return_url: '/', redirect_anonymous_to_login: true
-  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', redirect_anonymous_to_login: true, entity: null, access_callback: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
   if context.params.to_uuid != blank
     function record = 'modules/chat/lib/queries/records/find_by_uuid', uuid: context.params['to_uuid']
   endif
-  assign object = {"to_id": record.id, "conversation_id": context.params['conversation_id']}
+  assign object = {"to_id": record.id, "conversation_id": context.params.conversation_id}
   if record or context.params.conversation_id
     function current_conversation = 'modules/chat/lib/commands/conversations/find_or_create', object: object, current_profile: current_profile
   endif

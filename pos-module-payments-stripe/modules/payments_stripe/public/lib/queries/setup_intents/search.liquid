@@ -4,7 +4,9 @@
   assign id = id | default: null
   assign reference_id = reference_id | default: null
   assign gateway_id = gateway_id | default: null
+  # platformos-check-disable VariableName
   assign c__status = c__status | default: null
+  # platformos-check-enable VariableName
   assign stripe_account_name = stripe_account_name | default: null
 
   graphql g = "modules/payments_stripe/setup_intents/search", page: page, limit: limit, id: id, reference_id: reference_id, gateway_id: gateway_id, c__status: c__status, stripe_account_name: stripe_account_name

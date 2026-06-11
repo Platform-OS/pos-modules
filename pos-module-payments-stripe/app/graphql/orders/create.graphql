@@ -1,0 +1,28 @@
+mutation create_transaction(
+  $amount: Int!
+  $currency: String!
+  $profile_id: String
+  $idempotency_key: String
+) {
+  record: record_create(
+    record: {
+      table: "order"
+      properties: [
+        { name: "amount", value_int: $amount }
+        { name: "currency", value: $currency }
+        { name: "profile_id", value: $profile_id }
+        { name: "idempotency_key", value: $idempotency_key}
+      ]
+    }
+  ) {
+    id
+    type: table
+    created_at
+    deleted_at
+
+    amount: property_int(name: "amount")
+    currency: property(name: "currency")
+    profile_id: property(name: "profile_id")
+    idempotency_key: property(name: "idempotency_key")
+  }
+}

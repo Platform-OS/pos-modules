@@ -1,16 +1,17 @@
 ---
-path: /payments/stripe/webhooks_connect(/:stripe_account_name)
+slug: payments/stripe/webhooks_connect(/:stripe_account_name)
 method: post
 layout: null
 ---
 {% liquid
-  function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: context.location.pathname, context: context, stripe_account_name: context.params.stripe_account_name
+  # platformos-check-disable MetadataParamsCheck
+  function valid_webhook = 'modules/payments_stripe/commands/webhooks/is_valid', webhook_path: context.location.pathname, stripe_account_name: context.params.stripe_account_name
   if valid_webhook
     case context.params.type
     when 'payout.paid'
-      function response = 'modules/payments_stripe/commands/webhooks/payout', params: context.params, request_url: context.location.url, stripe_account_name: context.params.stripe_account_name
+      function response = 'modules/payments_stripe/commands/webhooks/payout', params: context.params, request_url: context.location.url
     when 'account.updated'
-      function response = 'modules/payments_stripe/commands/webhooks/connected_account', params: context.params, stripe_account_name: context.params.stripe_account_name
+      function response = 'modules/payments_stripe/commands/webhooks/connected_account', params: context.params
     endcase
 
     response_status response.status
@@ -20,4 +21,5 @@ layout: null
     response_status 403
     break
   endif
+  # platformos-check-enable MetadataParamsCheck
 %}

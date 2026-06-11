@@ -1,8 +1,0 @@
-mutation ($id: ID!) {
-  user: user_delete(id: $id) {
-    created_at
-    deleted_at
-    id
-    email
-  }
-}

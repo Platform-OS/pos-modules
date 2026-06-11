@@ -1,0 +1,37 @@
+
+<main class="app-user-page">
+<nav class="app-user-navigation">
+    <a href="/">Home</a>
+    <a href="/orders">Orders</a>
+</nav>
+<section class="app-user-info pos-card pos-card-highlighted">
+    <header>
+        <h1 class="pos-heading-3">Welcome {{ current_profile.name }}</h1>
+        <form action="/sessions" method="post">
+            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+            <input type="hidden" name="_method" value="delete">
+            <button type="submit" class="pos-button">
+                {{ 'modules/user/users.logout' | t }}
+            </button>
+        </form>
+    </header>
+
+    <section class="app-order">
+        <h1 class="pos-heading-2">Orders</h1>
+        
+        {% if orders.results.size == 0 %}
+        <p class="app-order-empty">There are no orders to show</p>
+        {% endif %}
+
+        <section class="app-order-items">
+        {% for order in orders.results %}
+            <article class="app-order-item">
+                <div>ID: {{ order.id }}</div>
+                <div>Paid: {{ order.amount | divided_by: 100.00 }} {{ order.currency }}</div>
+                <div><a href="/orders/{{ order.id }}">Transactions</a></div>
+            </article>
+        {% endfor %}
+    </section>
+    </section>
+</section>
+</main>

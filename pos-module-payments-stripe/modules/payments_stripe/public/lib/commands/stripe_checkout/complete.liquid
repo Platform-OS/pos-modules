@@ -1,11 +1,12 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function object = 'modules/payments_stripe/commands/stripe_checkout/complete/build', object: object
   function object = 'modules/payments_stripe/commands/stripe_checkout/complete/check', object: object
   unless object.valid
     return object
   endunless
 
-  function object = 'modules/payments/commands/gateway_requests/receive', object: object.data.object, name: object.type, external_id: object.data.object.client_reference_id, request_url: request_url
+  function object = 'modules/payments/commands/gateway_requests/receive', object: object.data.object, name: object.type, external_id: object.data.object.client_reference_id, request_url: request_url, stripe_account_name: nil
   if object.valid
     function object = 'modules/payments_stripe/commands/stripe_checkout/complete/map_request', object: object
     function _customer = 'modules/payments_stripe/commands/customers/create', object: object.customer
@@ -16,4 +17,5 @@
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

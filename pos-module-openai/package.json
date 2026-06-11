@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "description": "Integration between platformOS and openai embeddings",
   "scripts": {
-    "version": "(cd ../../ && pos-cli modules version pos-module-openai -p) && git add template-values.json && auto-changelog -p && git add CHANGELOG.md"
+    "version": "(cd ../../ && pos-cli modules version pos-module-openai -p) && git add template-values.json && auto-changelog -p && git add CHANGELOG.md",
+    "pw-tests": "playwright test --project=e2e"
   },
   "repository": {
     "type": "git",
@@ -16,6 +17,8 @@
   },
   "homepage": "https://github.com/Platform-OS/pos-module-openai#readme",
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^22.0.0",
     "auto-changelog": "^2.4.0"
   },
   "auto-changelog": {

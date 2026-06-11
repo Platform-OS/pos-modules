@@ -20,3 +20,4 @@ To configure the Facebook OAuth2 module, please set the following constants in y
 | OAUTH2_FACEBOOK_PROVIDER | `facebook` |
 | OAUTH2_FACEBOOK_CLIENT_ID | Client ID of the OAuth 2 application. |
 | OAUTH2_FACEBOOK_SECRET_VALUE| Client Secret of the OAuth 2 application. |
+

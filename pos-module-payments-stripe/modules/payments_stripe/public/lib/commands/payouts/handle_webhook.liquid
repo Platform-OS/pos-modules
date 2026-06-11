@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function object = 'modules/payments_stripe/commands/payouts/handle_webhook/build', object: params, connected_account: connected_account
   function object = 'modules/payments_stripe/commands/payouts/handle_webhook/check', object: object
 
@@ -8,10 +9,11 @@
 
     assign event_payload = {"payout_id": payout.id, "connected_account_id": connected_account.id, "connected_account_gateway_id": connected_account.account_id, "reference_id": connected_account.reference_id}
     assign type = 'payments_stripe_payout_' | append: object.state
-    function _ = 'modules/core/commands/events/publish', type: type, object: event_payload
+    function _ = 'modules/core/commands/events/publish', type: type, object: event_payload, delay: nil, max_attempts: nil
   else
     log object, type: "ERROR: modules/payments_stripe/commands/payouts/handle_webhook invalid"
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

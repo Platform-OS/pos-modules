@@ -1,0 +1,44 @@
+---
+layout: ''
+slug: test/payments/transactions/lifecycle
+method: post
+---
+{% liquid
+  assign payable_ids = context.params.payable_ids | default: context.params.payable_id | split: ','
+  assign amount_cents = context.params.amount_cents | default: 1200 | plus: 0
+  assign currency = context.params.currency | default: 'USD'
+  assign gateway = context.params.gateway | default: 'test_gateway'
+  assign payer_id = context.params.payer_id | default: 'test-payer'
+  assign gateway_transaction_id = context.params.gateway_transaction_id | default: 'test-gateway-transaction'
+
+  assign create_object = {
+    "gateway": gateway,
+    "payable_ids": payable_ids,
+    "currency": currency,
+    "amount_cents": amount_cents,
+    "payer_id": payer_id
+  }
+  function created = 'modules/payments/commands/transactions/create', object: create_object
+
+  function after_create = 'modules/payments/queries/transactions/find', id: created.id, with_statuses: true
+
+  assign pending_input = {"payment_status": "pending", "gateway_transaction_id": gateway_transaction_id}
+  assign pending_payload = {"source": "payments-lifecycle-test", "step": "pending"} | json
+  function pending = 'modules/payments/commands/transactions/update_status', object: pending_input, transaction: after_create, requester_id: 'payments-lifecycle-test', request_payload: pending_payload
+  function after_pending = 'modules/payments/queries/transactions/find', id: created.id, with_statuses: true
+
+  assign duplicate_pending_payload = {"source": "payments-lifecycle-test", "step": "duplicate_pending"} | json
+  function duplicate_pending = 'modules/payments/commands/transactions/update_status', object: pending_input, transaction: after_pending, requester_id: 'payments-lifecycle-test', request_payload: duplicate_pending_payload
+  function after_duplicate_pending = 'modules/payments/queries/transactions/find', id: created.id, with_statuses: true
+
+  assign response = {
+    "created": created,
+    "after_create": after_create,
+    "pending": pending,
+    "after_pending": after_pending,
+    "duplicate_pending": duplicate_pending,
+    "after_duplicate_pending": after_duplicate_pending
+  }
+
+  echo response | json
+%}

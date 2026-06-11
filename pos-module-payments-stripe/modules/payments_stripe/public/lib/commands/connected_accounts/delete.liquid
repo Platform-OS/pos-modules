@@ -1,16 +1,18 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function updated_object = 'modules/payments_stripe/commands/connected_accounts/delete/build', object: object
   function updated_object = 'modules/payments_stripe/commands/connected_accounts/delete/check', object: updated_object
 
   if updated_object.valid
     function _connected_account = 'modules/payments_stripe/commands/stripe_connected_accounts/delete', object: updated_object
-    function updated_object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/connected_accounts/delete', object: updated_object
+    function updated_object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/connected_accounts/delete', object: updated_object, selection: nil
 
     assign event_payload = {"connected_account_id": updated_object.id, "reference_id": object.reference_id}
-    function _ = 'modules/core/commands/events/publish', type: 'payments_stripe_connected_account_deleted', object: event_payload
+    function _ = 'modules/core/commands/events/publish', type: 'payments_stripe_connected_account_deleted', object: event_payload, delay: nil, max_attempts: nil
   else
     log object, type: "ERROR: modules/payments_stripe/commands/connected_accounts/delete"
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

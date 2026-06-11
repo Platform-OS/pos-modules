@@ -32,7 +32,9 @@
   assign id = id | default: null
   assign gateway_transaction_id = gateway_transaction_id | default: null
   assign gateway_transaction_ids = gateway_transaction_ids | default: null
+  # platformos-check-disable VariableName
   assign c__status = c__status | default: null
+  # platformos-check-enable VariableName
 
   graphql r = 'modules/payments/transactions/search', limit: limit, page: page, payable_ids: payable_ids, amount_cents: amount_cents, currency: currency, gateway: gateway, with_gateway_requests: with_gateway_requests, with_statuses: with_statuses, payer_id: payer_id, id: id, gateway_transaction_id: gateway_transaction_id, gateway_transaction_ids: gateway_transaction_ids, c__status: c__status, stripe_account_name: stripe_account_name
   return r.transactions

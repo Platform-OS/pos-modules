@@ -9,9 +9,10 @@ method: post
 
   function object = 'modules/user/commands/passwords/create', object: input
   if object.valid
+    assign user_id = context.session.reset_password_session_user_id
     session reset_password_session_user_id = null
 
-    function _ = 'modules/user/commands/session/create', validate_password: false, email: null, password: null, hook_params: null, skip_otp: null, user_id: context.session.reset_password_session_user_id
+    function _ = 'modules/user/commands/session/create', validate_password: false, email: null, password: null, hook_params: null, skip_otp: null, user_id: user_id
     redirect_to redirect_url
   else
     render 'modules/user/passwords/new', context: context, errors: object.errors

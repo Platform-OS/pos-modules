@@ -1,0 +1,13 @@
+{
+  "machine_name": "user",
+  "version": "5.2.11",
+  "name": "User",
+  "dependencies": {
+    "core": "^2.1.9",
+    "common-styling": "^1.11.0"
+  },
+  "devDependencies": {
+    "oauth_github": "^0.0.13",
+    "tests": "^1.3.4"
+  }
+}

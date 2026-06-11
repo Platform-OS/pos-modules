@@ -22,22 +22,22 @@
     assign allow_blank = true
   endif
   if allow_blank != true
-    function c = 'modules/core/validations/presence', c: c, object: object, field_name: field_name, key: null
+    function c = 'modules/core/validations/presence', c: c, object: object, field_name: field_name
   endif
 
   if minimum != null and size < minimum
     assign message = message_minimum | default: 'modules/core/validation.length.minimum' | t: count: minimum, value: size
-    function c = 'modules/core/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   if maximum != null and size > maximum
     assign message = message_maximum | default: 'modules/core/validation.length.maximum' | t: count: maximum, value: size
-    function c = 'modules/core/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   if is != null and size != is
     assign message = message_is | default: 'modules/core/validation.length.is' | t: count: is, value: size
-    function c = 'modules/core/helpers/register_error', contract: c, field_name: field_name, message: message, key: null
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: field_name, message: message
   endif
 
   return c

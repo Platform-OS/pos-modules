@@ -20,3 +20,4 @@ To configure the GitHub OAuth2 module, please set the following constants in you
 | OAUTH2_GITHUB_PROVIDER | `github` |
 | OAUTH2_GITHUB_CLIENT_ID | Client ID of the OAuth 2 application. |
 | OAUTH2_GITHUB_SECRET_VALUE| Client Secret of the OAuth 2 application. |
+

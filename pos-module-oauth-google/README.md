@@ -20,3 +20,4 @@ To configure the Google OAuth2 module, please set the following constants in you
 | OAUTH2_GOOGLE_PROVIDER | `google` |
 | OAUTH2_GOOGLE_CLIENT_ID | Client ID of the OAuth 2 application. |
 | OAUTH2_GOOGLE_SECRET_VALUE| Client Secret of the OAuth 2 application. |
+

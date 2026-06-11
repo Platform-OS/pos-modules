@@ -69,3 +69,4 @@ For more details, see [Test README](tests/README.md).
 git fetch origin --tags
 npm version major | minor | patch
 ```
+

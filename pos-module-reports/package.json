@@ -4,9 +4,12 @@
     "build:dev": "npx cross-env NODE_ENV=development webpack-cli",
     "deploy": "npm run build && pos-cli deploy",
     "deploy:dev": "npm run build:dev && pos-cli deploy dev",
-    "predeploy": "npm run clean:assets"
+    "predeploy": "npm run clean:assets",
+    "pw-tests": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^22.0.0",
     "@tailwindcss/forms": "^0.3.3",
     "@tailwindcss/typography": "^0.4.1",
     "autoprefixer": "^10.4.2",

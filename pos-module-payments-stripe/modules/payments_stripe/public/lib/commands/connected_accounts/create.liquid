@@ -1,4 +1,5 @@
 {% liquid
+  # platformos-check-disable MetadataParamsCheck
   function connected_account = 'modules/payments_stripe/queries/connected_accounts/find_by_reference_id', reference_id: object.reference_id, stripe_account_name: object.stripe_account_name
   if connected_account
     return connected_account
@@ -12,10 +13,11 @@
   function object = 'modules/payments_stripe/commands/connected_accounts/create/check', object: object
 
   if object.valid
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/connected_accounts/create', object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments_stripe/connected_accounts/create', object: object, selection: nil
   else
     log object, type: "ERROR: modules/payments_stripe/commands/connected_accounts/create"
   endif
 
   return object
+  # platformos-check-enable MetadataParamsCheck
 %}

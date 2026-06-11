@@ -1,7 +1,0 @@
-{% liquid
-  if object.valid
-    assign object.url = 'https://{host}/passwords/new?token={token}&email={email}' | expand_url_template: object
-  endif
-
-  return object
-%}

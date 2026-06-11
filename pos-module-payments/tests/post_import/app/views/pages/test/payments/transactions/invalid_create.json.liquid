@@ -1,0 +1,30 @@
+---
+layout: ''
+slug: test/payments/transactions/invalid-create
+method: post
+---
+{% liquid
+  assign create_object = {}
+
+  if context.params.payable_ids != blank
+    assign payable_ids = context.params.payable_ids | split: ','
+    assign create_object = create_object | hash_merge: payable_ids: payable_ids
+  endif
+
+  if context.params.amount_cents != blank
+    assign amount_cents = context.params.amount_cents | plus: 0
+    assign create_object = create_object | hash_merge: amount_cents: amount_cents
+  endif
+
+  if context.params.currency != blank
+    assign create_object = create_object | hash_merge: currency: context.params.currency
+  endif
+
+  if context.params.gateway != blank
+    assign create_object = create_object | hash_merge: gateway: context.params.gateway
+  endif
+
+  function transaction = 'modules/payments/commands/transactions/create', object: create_object
+
+  echo transaction | json
+%}

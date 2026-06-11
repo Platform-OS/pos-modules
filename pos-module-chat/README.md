@@ -117,3 +117,4 @@ The table below outlines the [resourceful routes](https://documentation.platform
 ## Customizing the looks
 
 The chat module by default uses styling provided by the platformOS Common Styling module. It's built with the intention to easily overwrite the colors, fonts and spacings by overwriting the CSS variables stored in `modules/common-styling/style/pos-config.css`. You can create your own `.css` file and just overwrite any value of any variable. If you need more CSS customization you can obviously just use standard styling techniques and if you need to change the HTML structure even further, you can overwrite any liquid partial used in the chat.
+

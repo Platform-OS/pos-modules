@@ -6,7 +6,7 @@
 {% liquid
   assign contract.total = contract['total'] | plus: 1
   if object.valid
-    function contract = 'modules/tests/helpers/register_error', contract: contract, field_name: field_name, message: object.errors, key: null
+    function contract = 'modules/tests/helpers/register_error', contract: contract, field_name: field_name, message: object.errors
   endif
   return contract
 %}

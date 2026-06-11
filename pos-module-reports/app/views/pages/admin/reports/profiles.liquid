@@ -8,7 +8,7 @@ method: post
 
 {% liquid
   assign operation_uuid = '' | uuid
-  assign object = {"uuid": operation_uuid, "creator_id": admin_user_profile.id, "user_id": admin_user_profile.user_id, "operation_type": 'export_profiles', "operation_model": 'profile', "options": '{}', "retrieve_all_command": 'commands/profiles/export_all'}
+  assign object = {"uuid": operation_uuid, "creator_id": admin_user_profile.id, "user_id": admin_user_profile.user_id, "operation_type": "export_profiles", "operation_model": "profile", "options": {}, "retrieve_all_command": "commands/profiles/export_all"}
   function object = 'modules/reports/commands/reports/create', object: object
 
   if object.valid

@@ -3,7 +3,7 @@
   function object = 'modules/payments/commands/transactions/set_status_cache/check', object: object
 
   if object.valid
-    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments/transactions/update' object: object
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/payments/transactions/update', object: object, selection: null
   endif
 
   return object

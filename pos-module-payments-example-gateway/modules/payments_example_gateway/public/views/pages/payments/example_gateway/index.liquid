@@ -2,7 +2,7 @@
 layout: null
 ---
 {% liquid
-  function transaction = 'modules/payments/queries/transactions/find', id: context.params.transaction_id
+  function transaction = 'modules/payments/queries/transactions/find', id: context.params.transaction_id, with_gateway_requests: false, with_statuses: false
   if transaction == blank
     response_status 404
     break

@@ -327,3 +327,4 @@ pos-cli test run staging test/user_test
 ## Versioning
 
 This module follows [Semantic Versioning](https://semver.org/).
+

@@ -1,5 +1,5 @@
 {% liquid
-  assign url = 'https://api.stripe.com/v1/checkout/sessions'
+  assign url = "https://api.stripe.com/v1/checkout/sessions"
   assign url = url | append: '/' | append: transaction.gateway_transaction_id
 
   assign payload = {}
@@ -7,7 +7,7 @@
     assign expand = ["payment_intent"]
     assign payload.expand = expand
   endif
-  assign data = {"payload": payload, "request_type": 'GET', "to": url}
+  assign data = {"payload": payload, "request_type": "GET", "to": url}
 
   return data
  %}

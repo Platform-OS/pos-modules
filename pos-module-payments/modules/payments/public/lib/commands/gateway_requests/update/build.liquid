@@ -1,3 +1,7 @@
+{% doc %}
+  @param {object} object - The response object to process
+  @param {object} gateway_request - The gateway request to update
+{% enddoc %}
 {% parse_json object %}
   {
     "id": {{ gateway_request.id | json }},
