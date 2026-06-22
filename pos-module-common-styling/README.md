@@ -50,6 +50,41 @@ After installation, visit `/style-guide` on your instance. (Make sure you deploy
 - Find the complete list of CSS variables you can override.
 
 
+### Quick start with the `install` generator
+
+The fastest way to wire up common-styling is the bundled `install` generator. It scaffolds a default layout that is already configured with the module, a starter overrides stylesheet, and ensures the required instance setting — covering the manual steps described in [Setup](#setup) below.
+
+```bash
+pos-cli generate run modules/common-styling/generators/install
+```
+
+This generates:
+
+- `app/views/layouts/application.liquid` — a layout with `class="pos-app"` on `<html>`, the `init` partial in the `<head>`, your overrides stylesheet loaded after it, and the toast notifications container near the bottom of `<body>`.
+- `app/assets/config-overrides.css` — a starter stylesheet (loaded after common-styling) where you can override CSS variables. See [Customizing CSS](#customizing-css).
+- `app/config.yml` — ensures `escape_output_instead_of_sanitize: true` is set (merged into an existing config without touching your other settings).
+
+After running it, deploy with `pos-cli deploy <env>` and set `layout: application` in your pages.
+
+#### Options
+
+| argument / option | default       | description                                                        |
+|-------------------|---------------|--------------------------------------------------------------------|
+| `<layoutName>`    | `application` | name of the layout file to generate                                |
+| `--reset`         | `true`        | enable the [CSS reset](https://github.com/Platform-OS/pos-modules/blob/master/pos-module-common-styling/modules/common-styling/public/assets/style/pos-reset.css) |
+| `--dark-mode`     | `false`       | enable [automatic dark mode](#automatic-dark-mode) (adds `pos-theme-darkEnabled`) |
+| `--title`         | `platformOS`  | default `<title>` used by the layout                               |
+
+```bash
+# Generate a layout named "marketing" with the reset disabled and dark mode on
+pos-cli generate run modules/common-styling/generators/install marketing --reset=false --dark-mode=true --title="My App"
+
+# Show all available options
+pos-cli generate run modules/common-styling/generators/install --generator-help
+```
+
+Prefer to wire things up by hand? Follow the manual steps below.
+
 ### Setup
 
 1. **Install the module** using the [pos-cli](https://github.com/Platform-OS/pos-cli).

@@ -1,5 +1,11 @@
 {
-"machine_name": "common-styling",
+  "machine_name": "common-styling",
   "version": "1.37.33",
-  "name": "platformOS common styling"
+  "name": "platformOS common styling",
+  "dependencies": {
+    "core": "^2.1.9"
+  },
+  "postInstall": {
+    "message": "common-styling installed.\n\nScaffold a configured layout, a starter overrides stylesheet, and the required\ninstance setting in one step with the bundled install generator:\n\n  pos-cli generate run modules/common-styling/generators/install\n\nPrefer to wire things up by hand? See the module README for the manual steps:\nhttps://github.com/Platform-OS/pos-modules/blob/master/pos-module-common-styling/README.md"
+  }
 }
