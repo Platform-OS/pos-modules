@@ -35,6 +35,12 @@ window.pos.modules.markdown = function(settings){
 
   // easymde instance (object)
   module.settings.easyMde = null;
+  // async function(query) => [{ id, name }] — provided by consumer, enables @mentions (optional)
+  module.settings.mentionSearch = settings.mentionSearch || async function(query){ return Promise.resolve([{"name": "john doe", "c__names": "john doe johndoe@gmail.com","id": "11"},{"name": "łukasz krysiewicz", "c__names": "łukasz krysiewicz zx@secondgate.com","id": "15"},{"name": "jj bragg", "c__names": "jj bragg jjbragg@platformos.com","id": "18"}]); };
+  // mention popup DOM node
+  module.settings.mentionPopup = null;
+  // active @mention state { query, line, atCh } or null
+  module.settings.mentionState = null;
 
 
 
@@ -101,8 +107,160 @@ window.pos.modules.markdown = function(settings){
     }, true); // capture phase — fires before codemirror's listener on the inner textarea
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'EasyMDE instance created', module.settings.easyMde);
+
+    module.startAtMentions();
   };
 
+
+
+  // purpose:   sets up @mention detection and popup on the CodeMirror instance
+  // ------------------------------------------------------------------------
+  module.startAtMentions = () => {
+    if (!module.settings.mentionSearch) return;
+
+    const popup = document.createElement('ul');
+    popup.className = 'pos-mention-popup';
+    document.body.appendChild(popup);
+    module.settings.mentionPopup = popup;
+
+    const cm = module.settings.easyMde.codemirror;
+
+    cm.on('change', async () => {
+      const cursor = cm.getCursor();
+      const textBefore = cm.getLine(cursor.line).slice(0, cursor.ch);
+      const atIdx = textBefore.lastIndexOf('@');
+
+      if (atIdx === -1) { module.hideMentionPopup(); return; }
+
+      const charBefore = atIdx > 0 ? textBefore[atIdx - 1] : ' ';
+      const query = textBefore.slice(atIdx + 1);
+
+      if (!/\s/.test(charBefore) && atIdx > 0) { module.hideMentionPopup(); return; }
+      if (query.length < 1 || /\s/.test(query))  { module.hideMentionPopup(); return; }
+
+      module.settings.mentionState = { query, line: cursor.line, atCh: atIdx };
+      const results = await module.settings.mentionSearch(query);
+      module.renderMentionPopup(results);
+    });
+
+    document.addEventListener('click', e => {
+      if (!popup.contains(e.target)) module.hideMentionPopup();
+    });
+
+    cm.addKeyMap({
+      'Esc': () => module.hideMentionPopup(),
+      'Up':  () => module.moveMentionSelection(-1),
+      'Down': () => module.moveMentionSelection(1),
+      'Enter': () => {
+        const active = module.settings.mentionPopup?.querySelector('li.pos-mention-active');
+        if (active) { active.dispatchEvent(new MouseEvent('mousedown')); return true; }
+      }
+    });
+
+    module.reapplyMentionMarks();
+  };
+
+
+  // purpose:   renders mention results in the popup, positioned at the cursor
+  // ------------------------------------------------------------------------
+  module.renderMentionPopup = (results) => {
+    const popup = module.settings.mentionPopup;
+    const cm = module.settings.easyMde.codemirror;
+    popup.innerHTML = '';
+
+    if (!results?.length) { module.hideMentionPopup(); return; }
+
+    results.forEach(person => {
+      const li = document.createElement('li');
+      li.textContent = person.name;
+      li.addEventListener('mouseenter', () => {
+        popup.querySelectorAll('li').forEach(el => el.classList.remove('pos-mention-active'));
+        li.classList.add('pos-mention-active');
+      });
+      li.addEventListener('mousedown', e => { e.preventDefault(); module.insertMention(person); });
+      popup.appendChild(li);
+    });
+
+    const coords = cm.cursorCoords(true, 'window');
+    popup.style.left = coords.left + 'px';
+    popup.style.top = (coords.bottom + 4) + 'px';
+    popup.style.display = 'block';
+  };
+
+
+  // purpose:   moves keyboard selection up/down within the mention popup
+  // ------------------------------------------------------------------------
+  module.moveMentionSelection = (direction) => {
+    const popup = module.settings.mentionPopup;
+    if (!popup || popup.style.display === 'none') return;
+    const items = Array.from(popup.querySelectorAll('li'));
+    if (!items.length) return;
+    const current = items.findIndex(li => li.classList.contains('pos-mention-active'));
+    const next = Math.max(0, Math.min(items.length - 1, current + direction));
+    items.forEach(li => li.classList.remove('pos-mention-active'));
+    items[next].classList.add('pos-mention-active');
+  };
+
+
+  // purpose:   hides the mention popup and clears state
+  // ------------------------------------------------------------------------
+  module.hideMentionPopup = () => {
+    if (module.settings.mentionPopup) module.settings.mentionPopup.style.display = 'none';
+    module.settings.mentionState = null;
+  };
+
+
+  // purpose:   collapses "[" and "](id)" in a single mention so only "@Name" is visible
+  // ------------------------------------------------------------------------
+  module.applyMentionMark = (line, atCh, name, id) => {
+    const cm = module.settings.easyMde.codemirror;
+    // @[Name](id) — collapse "[" (1 char) so "@Name" is visible
+    cm.markText(
+      { line, ch: atCh + 1 },
+      { line, ch: atCh + 2 },
+      { collapsed: true, atomic: true }
+    );
+    // collapse "](id)" (id.length + 3 chars) so nothing after the name is visible
+    cm.markText(
+      { line, ch: atCh + 2 + name.length },
+      { line, ch: atCh + 2 + name.length + id.length + 3 },
+      { collapsed: true, atomic: true }
+    );
+  };
+
+
+  // purpose:   re-applies mention marks on existing content (init or programmatic value set)
+  // ------------------------------------------------------------------------
+  module.reapplyMentionMarks = () => {
+    if (!module.settings.mentionSearch) return;
+    const cm = module.settings.easyMde.codemirror;
+    const regex = /@\[([^\]]+)\]\(([^)]+)\)/g;
+    for (let line = 0; line < cm.lineCount(); line++) {
+      regex.lastIndex = 0;
+      let match;
+      while ((match = regex.exec(cm.getLine(line))) !== null) {
+        module.applyMentionMark(line, match.index, match[1], match[2]);
+      }
+    }
+  };
+
+
+  // purpose:   replaces the @query text with the selected mention
+  // ------------------------------------------------------------------------
+  module.insertMention = (person) => {
+    const cm = module.settings.easyMde.codemirror;
+    const s = module.settings.mentionState;
+    if (!s) return;
+    const cursor = cm.getCursor();
+    cm.replaceRange(
+      `@[${person.name}](${person.id}) `,
+      { line: s.line, ch: s.atCh },
+      { line: cursor.line, ch: cursor.ch }
+    );
+    module.applyMentionMark(s.line, s.atCh, person.name, person.id);
+    module.hideMentionPopup();
+    cm.focus();
+  };
 
 
   // purpose:		uploads images in the editor
@@ -191,6 +349,7 @@ window.pos.modules.markdown = function(settings){
   module.value = (value) => {
     if(value){
       module.settings.easyMde.value(value);
+      module.reapplyMentionMarks();
 
       pos.modules.debug(module.settings.debug, module.settings.id, 'Changed editor content', value);
       // dispatch custom event
