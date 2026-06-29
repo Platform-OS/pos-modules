@@ -1,0 +1,6 @@
+[2026-06-29T14:44:41.183Z] [platformos-tools] lsp-mcp-server started: ROOT=X:\2026, platformos, modules\pos-modules\pos-module-common-styling
+[2026-06-29T14:44:41.191Z] [platformos-tools] LSP init failed: spawn pos-cli ENOENT
+[2026-06-29T14:44:41.448Z] session started: cwd=X:\2026, platformos, modules\pos-modules\pos-module-common-styling
+[2026-06-29T15:04:45.697Z] [platformos-tools] lsp-mcp-server started: ROOT=X:\2026, platformos, modules\pos-modules\pos-module-common-styling
+[2026-06-29T15:04:45.705Z] [platformos-tools] LSP init failed: spawn pos-cli ENOENT
+[2026-06-29T15:04:45.964Z] session started: cwd=X:\2026, platformos, modules\pos-modules\pos-module-common-styling

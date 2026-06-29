@@ -73,34 +73,9 @@
 
   /* @mention popup
   ============================================================================ */
-  .pos-mention-popup {
+  .pos-markdown-mention [popover] {
     position: fixed;
     z-index: 9999;
-    display: none;
-    list-style: none;
-    margin: 0;
-    padding: var(--pos-spacing-1, 4px) 0;
-    min-width: 200px;
-    max-height: 220px;
-    overflow-y: auto;
-    background: var(--pos-color-card-background, #fff);
-    border: 1px solid var(--pos-color-input-frame, #ccc);
-    border-radius: var(--pos-radius-input, 4px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
-  }
-
-  .pos-mention-popup li {
-    padding: 7px 14px;
-    cursor: pointer;
-    font-size: .875rem;
-    color: var(--pos-color-input-text, #1a1a1a);
-    line-height: 1.4;
-  }
-
-  .pos-mention-popup li:hover,
-  .pos-mention-popup li.pos-mention-active {
-    background: var(--pos-color-highlight-background, #f0f4ff);
-    color: var(--pos-color-link, inherit);
   }
 
 

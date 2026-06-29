@@ -30,15 +30,21 @@ window.pos.modules.markdown = function(settings){
   module.settings.errorsContainer = module.settings.container.querySelector('.pos-form-errors');
   // class name that hides error on the list (string)
   module.settings.errorDisabledClass = 'pos-markdown-error-disabled';
+  
+  // @mention settings (object)
+  module.settings.mention = {};
+  // instance of the popover with @mentions (object)
+  module.settings.mention.popover = pos.modules.active[`${module.settings.id}-mention-popover`];
+  // list with @mention results (dom node)
+  module.settings.mention.results = module.settings.container.querySelector(`#${module.settings.id}-mention-popover`);
+
   // debug mode enabled (bool)
-  module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : true;
+  module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : false;
 
   // easymde instance (object)
   module.settings.easyMde = null;
   // async function(query) => [{ id, name }] — provided by consumer, enables @mentions (optional)
   module.settings.mentionSearch = settings.mentionSearch || async function(query){ return Promise.resolve([{"name": "john doe", "c__names": "john doe johndoe@gmail.com","id": "11"},{"name": "łukasz krysiewicz", "c__names": "łukasz krysiewicz zx@secondgate.com","id": "15"},{"name": "jj bragg", "c__names": "jj bragg jjbragg@platformos.com","id": "18"}]); };
-  // mention popup DOM node
-  module.settings.mentionPopup = null;
   // active @mention state { query, line, atCh } or null
   module.settings.mentionState = null;
 
@@ -85,25 +91,25 @@ window.pos.modules.markdown = function(settings){
       previewClass: ['pos-prose', 'editor-preview']
     });
 
-    // accessibility: escape releases the Tab trap so keyboard users can navigate out
+    // purpose: escape releases the TAB trap so keyboard users can navigate out
     // pressing Esc sets a flag; the capture-phase listener on the wrapper intercepts the next tab before codemirror can call preventDefault, letting the browser move focus naturally; any other key cancels the released state
-    const cmWrapper = module.settings.easyMde.codemirror.getWrapperElement();
-
     module.settings.easyMde.codemirror.addKeyMap({
       'Esc': function(){
-        module.settings.easyMde.codemirror.state.tabTrapReleased = true;
-      },
-      'Escape': function(){
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Escape pressed, releasing tab trap', module.settings.easyMde);
         module.settings.easyMde.codemirror.state.tabTrapReleased = true;
       }
     });
     
+    const cmWrapper = module.settings.easyMde.codemirror.getWrapperElement();
+
     cmWrapper.addEventListener('keydown', function(event){
       if(module.settings.easyMde.codemirror.state.tabTrapReleased){
         if(event.key === 'Tab'){
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Tab trap was released, navigating focus outside of the editor', module.settings.easyMde);
           module.settings.easyMde.codemirror.state.tabTrapReleased = false;
           event.stopPropagation(); // codemirror never sees it → never calls preventDefault → browser navigates
-        } else if(event.key !== 'Escape') {
+        } else if(event.key !== 'Escape'){
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Re-engaging tab trap as the user resumed editing', module.settings.easyMde);
           module.settings.easyMde.codemirror.state.tabTrapReleased = false; // user resumed editing, re-engage tab trap
         }
       }
@@ -116,21 +122,14 @@ window.pos.modules.markdown = function(settings){
 
 
 
-  // purpose:   sets up @mention detection and popup on the CodeMirror instance
+  // purpose:   sets up @mention detection and popup
   // ------------------------------------------------------------------------
   module.startAtMentions = () => {
-    if (!module.settings.mentionSearch) return;
+    if(!module.settings.mentionSearch) return;
 
-    const popup = document.createElement('ul');
-    popup.className = 'pos-mention-popup';
-    document.body.appendChild(popup);
-    module.settings.mentionPopup = popup;
-
-    const cm = module.settings.easyMde.codemirror;
-
-    cm.on('change', async () => {
-      const cursor = cm.getCursor();
-      const textBefore = cm.getLine(cursor.line).slice(0, cursor.ch);
+    module.settings.easyMde.codemirror.on('change', async () => {
+      const cursor = module.settings.easyMde.codemirror.getCursor();
+      const textBefore = module.settings.easyMde.codemirror.getLine(cursor.line).slice(0, cursor.ch);
       const atIdx = textBefore.lastIndexOf('@');
 
       if (atIdx === -1) { module.hideMentionPopup(); return; }
@@ -147,22 +146,33 @@ window.pos.modules.markdown = function(settings){
     });
 
     document.addEventListener('click', e => {
-      if (!popup.contains(e.target)) module.hideMentionPopup();
+      if (!module.settings.mention.results.contains(e.target)) module.hideMentionPopup();
     });
 
-    cm.addKeyMap({
+    module.settings.easyMde.codemirror.addKeyMap({
       'Esc': () => {
-        if (module.settings.mentionPopup?.style.display === 'block') {
-          module.hideMentionPopup();
-        } else {
-          return cm.constructor.Pass; // fall through to tab-trap keymap
+        if(!module.settings.mention.popover.settings.opened){
+          return module.settings.easyMde.codemirror.constructor.Pass;
         }
       },
-      'Up':  () => module.moveMentionSelection(-1),
-      'Down': () => module.moveMentionSelection(1),
+      'Up':  () => {
+        if(!module.settings.mention.popover.settings.opened){
+          return module.settings.easyMde.codemirror.constructor.Pass;
+        }
+      },
+      'Down': () => {
+        if(!module.settings.mention.popover.settings.opened){
+          return module.settings.easyMde.codemirror.constructor.Pass;
+        }
+      },
       'Enter': () => {
-        const active = module.settings.mentionPopup?.querySelector('li.pos-mention-active');
-        if (active) { active.dispatchEvent(new MouseEvent('mousedown')); return true; }
+        if(module.settings.mention.popover.settings.opened){
+          if(module.settings.mention.menu.contains(document.activeElement)){
+            document.activeElement.click();
+          }
+        } else {
+          return module.settings.easyMde.codemirror.constructor.Pass;
+        }
       }
     });
 
@@ -173,7 +183,7 @@ window.pos.modules.markdown = function(settings){
   // purpose:   renders mention results in the popup, positioned at the cursor
   // ------------------------------------------------------------------------
   module.renderMentionPopup = (results) => {
-    const popup = module.settings.mentionPopup;
+    const popup = module.settings.mention.results;
     const cm = module.settings.easyMde.codemirror;
     popup.innerHTML = '';
 
@@ -181,40 +191,28 @@ window.pos.modules.markdown = function(settings){
 
     results.forEach(person => {
       const li = document.createElement('li');
-      li.textContent = person.name;
-      li.addEventListener('mouseenter', () => {
-        popup.querySelectorAll('li').forEach(el => el.classList.remove('pos-mention-active'));
-        li.classList.add('pos-mention-active');
-      });
-      li.addEventListener('mousedown', e => { e.preventDefault(); module.insertMention(person); });
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = person.name;
+      li.appendChild(button);
+      button.addEventListener('click', e => { e.preventDefault(); module.insertMention(person); });
       popup.appendChild(li);
     });
 
     const coords = cm.cursorCoords(true, 'window');
     popup.style.left = coords.left + 'px';
     popup.style.top = (coords.bottom + 4) + 'px';
-    popup.style.display = 'block';
-  };
 
+    module.settings.mention.popover.buildFocusableMenuItems();
 
-  // purpose:   moves keyboard selection up/down within the mention popup
-  // ------------------------------------------------------------------------
-  module.moveMentionSelection = (direction) => {
-    const popup = module.settings.mentionPopup;
-    if (!popup || popup.style.display === 'none') return;
-    const items = Array.from(popup.querySelectorAll('li'));
-    if (!items.length) return;
-    const current = items.findIndex(li => li.classList.contains('pos-mention-active'));
-    const next = Math.max(0, Math.min(items.length - 1, current + direction));
-    items.forEach(li => li.classList.remove('pos-mention-active'));
-    items[next].classList.add('pos-mention-active');
+    module.settings.mention.popover.open();
   };
 
 
   // purpose:   hides the mention popup and clears state
   // ------------------------------------------------------------------------
   module.hideMentionPopup = () => {
-    if (module.settings.mentionPopup) module.settings.mentionPopup.style.display = 'none';
+    if(module.settings.mentionPopup) module.settings.mention.popover.close();
     module.settings.mentionState = null;
   };
 

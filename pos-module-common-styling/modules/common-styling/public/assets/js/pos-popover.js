@@ -22,7 +22,7 @@ window.pos.modules.popover = function(container, userSettings = {}){
   // popover trigger (dom node)
   module.settings.trigger = module.settings.container.querySelector('[popovertarget]');
   // id used to mark the module (string)
-  module.settings.id = module.settings.trigger.getAttribute('popovertarget');
+  module.settings.id = module.settings.trigger?.getAttribute('popovertarget') || 'pos-popover-' + Math.floor(Math.random() * 1000000);
   // popover content (dom node)
   module.settings.popover = module.settings.container.querySelector('[popover]');
   // if the popover is opened (bool)
@@ -45,7 +45,7 @@ window.pos.modules.popover = function(container, userSettings = {}){
       if(event.newState == 'open'){
         // set all the focusable menu items
         if(module.settings.menu){
-          module.settings.focusable = Array.from(module.settings.menu.querySelectorAll('li a, li button')).filter(element => element.checkVisibility())
+          module.buildFocusableMenuItems();
         }
 
         // set state
@@ -77,7 +77,7 @@ window.pos.modules.popover = function(container, userSettings = {}){
     });
 
     // if the popover is triggered by keyboard navigation, focus the first element
-    if(module.settings.menu){
+    if(module.settings.menu && module.settings.trigger){
       module.settings.trigger.addEventListener('keyup', event => {
         if(event.keyCode === 32 || event.key === 'Enter'){
           if(!module.settings.opened){
@@ -181,6 +181,33 @@ window.pos.modules.popover = function(container, userSettings = {}){
       module.focusLastMenuItem();
     }
   };
+
+
+  // purpose:		opens the popover menu
+  // ------------------------------------------------------------------------
+  module.open = () => {
+    module.settings.popover.showPopover();
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Programatically opening popover', module.settings.container);
+  };
+
+
+  // purpose:		closes the popover menu
+  // ------------------------------------------------------------------------
+  module.close = () => {
+    module.settings.popover.hidePopover();
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Programatically closing popover', module.settings.container);
+  };
+
+
+  // purpose:		builds an array of all the focusable menu items
+  // ------------------------------------------------------------------------
+  module.buildFocusableMenuItems = () => {
+    return module.settings.focusable = Array.from(module.settings.menu.querySelectorAll('li a, li button')).filter(element => element.checkVisibility())
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Built focusable menu items list', module.settings.focusable);
+  }
 
 
   // purpose:		focuses first visible menu item
