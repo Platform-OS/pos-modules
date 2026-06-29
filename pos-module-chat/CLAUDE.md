@@ -12,21 +12,21 @@ The distributed part is `modules/chat/` only. `app/` is a non-distributed exampl
 
 ## Distinctive architecture (read before editing)
 
-### Business logic lives under `views/partials/lib/`, not `public/lib/`
+### Business logic lives under `public/lib/`
 
-Unlike the generic layout described in the root CLAUDE.md, this module's commands and queries are **partials**:
+Commands, queries, events, and consumers all follow the conventional layout described in the root CLAUDE.md:
 
-- Commands: `modules/chat/public/views/partials/lib/commands/<resource>/<action>.liquid` (+ `build.liquid`/`check.liquid` subdirs)
-- Queries: `modules/chat/public/views/partials/lib/queries/<resource>/<...>.liquid`
+- Commands: `modules/chat/public/lib/commands/<resource>/<action>.liquid` (+ `build.liquid`/`check.liquid` subdirs)
+- Queries: `modules/chat/public/lib/queries/<resource>/<...>.liquid`
+- Events: `modules/chat/public/lib/events/`
+- Consumers: `modules/chat/public/lib/consumers/`
 
-But they are still invoked with the logical `lib/` path (the `views/partials/` prefix is dropped):
+They are invoked with the path relative to `public/lib/` (the `lib/` prefix is dropped):
 
 ```liquid
-function conversation = 'modules/chat/lib/commands/conversations/find_or_create', object: object, current_profile: current_profile
-function conversations = 'modules/chat/lib/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 20, page: 1
+function conversation = 'modules/chat/commands/conversations/find_or_create', object: object, current_profile: current_profile
+function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 20, page: 1
 ```
-
-Only `lib/events/` and `lib/consumers/` live under the conventional `public/lib/` path.
 
 ### WebSocket channel handlers
 
