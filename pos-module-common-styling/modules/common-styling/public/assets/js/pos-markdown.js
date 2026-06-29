@@ -31,7 +31,7 @@ window.pos.modules.markdown = function(settings){
   // class name that hides error on the list (string)
   module.settings.errorDisabledClass = 'pos-markdown-error-disabled';
   // debug mode enabled (bool)
-  module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : false;
+  module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : true;
 
   // easymde instance (object)
   module.settings.easyMde = null;
@@ -88,16 +88,19 @@ window.pos.modules.markdown = function(settings){
     // accessibility: escape releases the Tab trap so keyboard users can navigate out
     // pressing Esc sets a flag; the capture-phase listener on the wrapper intercepts the next tab before codemirror can call preventDefault, letting the browser move focus naturally; any other key cancels the released state
     const cmWrapper = module.settings.easyMde.codemirror.getWrapperElement();
-    
+
     module.settings.easyMde.codemirror.addKeyMap({
       'Esc': function(){
+        module.settings.easyMde.codemirror.state.tabTrapReleased = true;
+      },
+      'Escape': function(){
         module.settings.easyMde.codemirror.state.tabTrapReleased = true;
       }
     });
     
-    cmWrapper.addEventListener('keydown', function(event) {
-      if (module.settings.easyMde.codemirror.state.tabTrapReleased) {
-        if(event.key === 'Tab') {
+    cmWrapper.addEventListener('keydown', function(event){
+      if(module.settings.easyMde.codemirror.state.tabTrapReleased){
+        if(event.key === 'Tab'){
           module.settings.easyMde.codemirror.state.tabTrapReleased = false;
           event.stopPropagation(); // codemirror never sees it → never calls preventDefault → browser navigates
         } else if(event.key !== 'Escape') {
@@ -148,7 +151,13 @@ window.pos.modules.markdown = function(settings){
     });
 
     cm.addKeyMap({
-      'Esc': () => module.hideMentionPopup(),
+      'Esc': () => {
+        if (module.settings.mentionPopup?.style.display === 'block') {
+          module.hideMentionPopup();
+        } else {
+          return cm.constructor.Pass; // fall through to tab-trap keymap
+        }
+      },
       'Up':  () => module.moveMentionSelection(-1),
       'Down': () => module.moveMentionSelection(1),
       'Enter': () => {
