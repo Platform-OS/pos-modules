@@ -1,0 +1,3 @@
+mutation broadcast($room_id: String!, $payload: JSONPayload!) {
+  channel_send_message(channel_name: "notifications", room_id: $room_id, payload: $payload)
+}

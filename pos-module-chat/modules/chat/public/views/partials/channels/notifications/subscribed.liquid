@@ -1,0 +1,19 @@
+{% liquid
+  # Authorization gate for the `notifications` Action Cable channel.
+  #
+  # The room id is `notifications-<profile id>` (see assets/js/pos-chat-notifications.js).
+  # Without this partial the platform falls back to a permissive default for
+  # same-origin connections, which would let any authenticated user subscribe to
+  # another user's notification stream (IDOR / CWE-639). Tie the requested room
+  # back to the authenticated profile and reject anything else.
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  assign room_id = context.params.room_id
+  assign expected_room_id = 'notifications-' | append: current_profile.id
+
+  if current_profile.id != blank and room_id == expected_room_id
+    echo 'true'
+  else
+    echo 'false'
+  endif
+%}

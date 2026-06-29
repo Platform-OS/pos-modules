@@ -38,6 +38,9 @@ query search(
       message: property(name: "message")
       autor_id: property(name: "autor_id")
       conversation_id: property(name: "conversation_id")
+      conversation: related_record(table: "modules/chat/conversation", join_on_property: "conversation_id", foreign_property: "id") {
+        participant_ids: property_array(name: "participant_ids")
+      }
     }
   }
 }
