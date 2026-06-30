@@ -1,0 +1,19 @@
+{% doc %}
+  @description Renders a captcha widget for the active provider into a form.
+  @param {string} site_key - The provider's public site key.
+  @param {string} [provider] - Provider name; defaults to the CAPTCHA_DEFAULT_PROVIDER constant, else 'turnstile'.
+  @param {object} [options] - Provider widget options, passed through to the provider partial.
+{% enddoc %}
+{%- liquid
+  function active_provider = 'modules/captcha/helpers/default_provider', provider: provider
+  case active_provider
+    when 'turnstile'
+      render 'modules/captcha/providers/turnstile/widget', site_key: site_key, options: options
+    when 'hcaptcha'
+      render 'modules/captcha/providers/hcaptcha/widget', site_key: site_key, options: options
+    when 'recaptcha'
+      render 'modules/captcha/providers/recaptcha/widget', site_key: site_key, options: options
+    when 'recaptcha_v3'
+      render 'modules/captcha/providers/recaptcha_v3/widget', site_key: site_key, options: options
+  endcase
+-%}

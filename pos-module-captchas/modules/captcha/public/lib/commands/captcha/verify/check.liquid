@@ -1,0 +1,32 @@
+{% doc %}
+  @description Check phase for captcha verify: require a token + secret and a supported provider.
+  @param {object} object - normalized object from the build phase.
+  @returns {object} object with errors populated and valid set.
+{% enddoc %}
+{% liquid
+  assign c = object.errors | default: empty
+  assign supported_providers = 'turnstile,hcaptcha,recaptcha,recaptcha_v3' | split: ','
+
+  if object.token == blank
+    assign messages = 'captcha.errors.token_missing' | split: '|'
+    assign c = c | hash_merge: token: messages
+  endif
+
+  if object.secret == blank
+    assign messages = 'captcha.errors.secret_missing' | split: '|'
+    assign c = c | hash_merge: secret: messages
+  endif
+
+  unless supported_providers contains object.provider
+    assign messages = 'captcha.errors.unsupported_provider' | split: '|'
+    assign c = c | hash_merge: provider: messages
+  endunless
+
+  assign object.errors = c
+  if c == empty
+    assign object.valid = true
+  else
+    assign object.valid = false
+  endif
+  return object
+%}

@@ -1,0 +1,78 @@
+{% comment %}
+  Example-app demo for pos-module-captcha (NOT part of the distributed module).
+  GET /captcha-demo[?provider=turnstile|hcaptcha|recaptcha|recaptcha_v3] — renders a form with the
+  chosen provider's widget. Turnstile / hCaptcha / reCAPTCHA v2 use each provider's public TEST
+  keys (always pass). reCAPTCHA v3 has NO public test keys, so it reads real keys from constants
+  (CAPTCHA_RECAPTCHA_V3_SITE_KEY / _SECRET) — set those to try it. Submitting POSTs to
+  /captcha-verify, which verifies the token and shows the normalized result.
+{% endcomment %}
+{% liquid
+  assign provider = context.params.provider | default: 'turnstile'
+  assign widget_options = '{}' | parse_json
+  assign uses_test_key = true
+
+  case provider
+    when 'hcaptcha'
+      assign site_key = '10000000-ffff-ffff-ffff-000000000001'
+      assign provider_label = 'hCaptcha'
+    when 'recaptcha'
+      assign site_key = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+      assign provider_label = 'Google reCAPTCHA v2'
+    when 'recaptcha_v3'
+      assign site_key = context.constants.CAPTCHA_RECAPTCHA_V3_SITE_KEY
+      assign provider_label = 'Google reCAPTCHA v3 (score-based)'
+      assign widget_options = widget_options | hash_merge: action: 'demo_submit'
+      assign uses_test_key = false
+    else
+      assign provider = 'turnstile'
+      assign site_key = '1x00000000000000000000AA'
+      assign provider_label = 'Cloudflare Turnstile'
+  endcase
+%}
+<h1>Captcha demo — {{ provider_label }}</h1>
+
+<p>
+  Provider:
+  <a href="/captcha-demo?provider=turnstile">Turnstile</a> ·
+  <a href="/captcha-demo?provider=hcaptcha">hCaptcha</a> ·
+  <a href="/captcha-demo?provider=recaptcha">reCAPTCHA v2</a> ·
+  <a href="/captcha-demo?provider=recaptcha_v3">reCAPTCHA v3</a>
+</p>
+
+{% if uses_test_key %}
+  <p>
+    This form uses {{ provider_label }}'s public <strong>test</strong> site key, which always passes.
+    Submitting posts the token to <code>/captcha-verify</code>, which verifies it server-side and
+    shows the result.
+  </p>
+{% else %}
+  <p>
+    reCAPTCHA v3 has <strong>no public test keys</strong> — it needs real keys from the reCAPTCHA
+    admin console, tied to your domain. This demo reads them from the
+    <code>CAPTCHA_RECAPTCHA_V3_SITE_KEY</code> / <code>CAPTCHA_RECAPTCHA_V3_SECRET</code> constants.
+    v3 is invisible and score-based: the verifier requires a score ≥ 0.5 and action
+    <code>demo_submit</code>.
+  </p>
+{% endif %}
+
+{% if site_key == blank %}
+  <p>⚠️ <code>CAPTCHA_RECAPTCHA_V3_SITE_KEY</code> is not set. Set both constants to try reCAPTCHA v3:</p>
+  <pre>pos-cli constants set &lt;env&gt; CAPTCHA_RECAPTCHA_V3_SITE_KEY "6Le..."
+pos-cli constants set &lt;env&gt; CAPTCHA_RECAPTCHA_V3_SECRET "6Le..."</pre>
+{% else %}
+  <form action="/captcha-verify" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <input type="hidden" name="provider" value="{{ provider }}">
+    <p>
+      <label for="message">Message</label><br>
+      <textarea id="message" name="message" rows="4" cols="40"></textarea>
+    </p>
+
+    {% render 'modules/captcha/widget',
+         provider: provider,
+         site_key: site_key,
+         options: widget_options %}
+
+    <p><button type="submit">Submit</button></p>
+  </form>
+{% endif %}

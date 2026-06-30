@@ -79,3 +79,6 @@ pos-module-user/modules/*
 
 pos-module-user-invites/modules/*
 !pos-module-user-invites/modules/user_invites/
+
+**/.pos-supervisor/**
+**/pos-supervisor.jsonl

@@ -1,0 +1,15 @@
+---
+to: 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+request_type: POST
+format: http
+enabled: true
+trigger_condition: true
+request_headers: '{
+  "Content-Type": "application/json"
+}'
+---
+{
+  "secret": {{ data.secret | json }},
+  "response": {{ data.token | json }}{% if data.remote_ip != blank %},
+  "remoteip": {{ data.remote_ip | json }}{% endif %}
+}

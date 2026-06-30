@@ -1,0 +1,61 @@
+---
+slug: captcha-verify
+method: post
+---
+{% comment %}
+  Example-app POST handler for the captcha demo (NOT part of the distributed module).
+  Picks the matching provider secret. Turnstile / hCaptcha / reCAPTCHA v2 use public TEST secrets
+  (always pass); reCAPTCHA v3 reads a real secret from CAPTCHA_RECAPTCHA_V3_SECRET. A real
+  integration always reads secrets from constants, e.g. context.constants.CAPTCHA_TURNSTILE_SECRET.
+
+  SECURITY (demo only): this picks the provider — and therefore the secret — from a
+  client-submitted field (context.params.provider, set by a hidden input in captcha-demo.liquid).
+  That is safe HERE only because every branch uses an always-pass TEST secret. DO NOT copy this
+  shape into production: an attacker who controls `provider` could steer verification to a weaker
+  or test path and bypass the captcha. In real code, fix the provider server-side and read its
+  secret from a constant — never branch on client input to choose the secret:
+
+    function result = 'modules/captcha/commands/captcha/verify',
+      provider: 'turnstile',
+      secret: context.constants.CAPTCHA_TURNSTILE_SECRET
+{% endcomment %}
+{% liquid
+  assign provider = context.params.provider | default: 'turnstile'
+  case provider
+    when 'hcaptcha'
+      assign secret = '0x0000000000000000000000000000000000000000'
+    when 'recaptcha'
+      assign secret = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+    when 'recaptcha_v3'
+      assign secret = context.constants.CAPTCHA_RECAPTCHA_V3_SECRET
+    else
+      assign provider = 'turnstile'
+      assign secret = '1x0000000000000000000000000000000AA'
+  endcase
+
+  if provider == 'recaptcha_v3'
+    function result = 'modules/captcha/commands/captcha/verify', provider: provider, secret: secret, min_score: 0.5, expected_action: 'demo_submit'
+  else
+    function result = 'modules/captcha/commands/captcha/verify', provider: provider, secret: secret
+  endif
+%}
+{% if result.valid %}
+  <h1>✅ Captcha passed ({{ provider }})</h1>
+  <p>Submitted message: {{ context.params.message }}</p>
+{% else %}
+  <h1>❌ Captcha failed ({{ provider }})</h1>
+  <ul>
+    {% for error in result.errors %}
+      <li>{{ error[1] | join: ', ' | t }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if result.score != blank %}
+  <p>reCAPTCHA v3 score: <strong>{{ result.score }}</strong> (action: {{ result.action }})</p>
+{% endif %}
+
+<p><a href="/captcha-demo?provider={{ provider }}">← Back to the form</a></p>
+
+<h2>Raw provider response</h2>
+<pre>{{ result.response | json }}</pre>

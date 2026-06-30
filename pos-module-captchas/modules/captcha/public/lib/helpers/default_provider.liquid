@@ -1,0 +1,10 @@
+{% doc %}
+  @description Resolve the active captcha provider name.
+  @param {string} [provider] Explicit provider name; used as-is when present.
+  @returns {string} provider — explicit value, else the CAPTCHA_DEFAULT_PROVIDER constant, else 'turnstile'.
+{% enddoc %}
+{% liquid
+  assign resolved = provider | default: context.constants.CAPTCHA_DEFAULT_PROVIDER
+  assign resolved = resolved | default: 'turnstile'
+  return resolved
+%}
