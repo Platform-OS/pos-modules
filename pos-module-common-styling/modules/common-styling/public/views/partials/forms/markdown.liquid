@@ -1,4 +1,6 @@
 {% doc %}
+  Renders an rich-text markdown editor with optional @mention support and file uploads.
+
   @param {string} id - unique id for the module
   @param {string} name - name for the textarea
   @param {string} value - pre-filled content for the textarea
@@ -8,7 +10,15 @@
   @param {number} minlength - minimum number of characters allowed
   @param {number} maxlength - maximum number of characters allowed
 
-  @param {mention_search_url} mention_search_url - URL to search for @mentions, e.g. `/api/v1/users/search?query=`
+  @param {string} mention_search_url - URL to search for @mentions, e.g. `/api/v1/users/search?query=`
+
+
+  @example
+  {% render 'modules/common-styling/forms/markdown',
+    id: 'markdown-editor',
+    name: 'markdown-editor',
+    presigned_upload: presigned_upload
+  %}
 {% enddoc %}
 
 {% liquid
@@ -37,7 +47,7 @@
   >{{ value }}</textarea>
 
   {% if mention_search_url %}
-    <div class="pos-popover pos-markdown-mention" data-url="{{ mention_search_url }}">
+    <div class="pos-popover pos-markdown-mention" {% if mention_search_url %}data-url="{{ mention_search_url }}"{% endif %}>
       <template>
         <li>
           <button type="button">
