@@ -352,6 +352,15 @@ window.pos.modules.markdown = function(settings){
       }
     });
 
+    // reposition popup when the page or the editor itself scrolls
+    window.addEventListener('scroll', () => {
+      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+    }, { passive: true });
+
+    module.settings.easyMde.codemirror.on('scroll', () => {
+      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+    });
+
     module.mention.reapplyMarks();
   };
 
@@ -387,14 +396,24 @@ window.pos.modules.markdown = function(settings){
       module.settings.mention.results.appendChild(template);
     });
 
-    const atPos = { line: module.settings.mention.state.line, ch: module.settings.mention.state.atCh };
-    const coords = module.settings.easyMde.codemirror.charCoords(atPos, 'window');
-    module.settings.mention.results.style.left = coords.left + 'px';
-    module.settings.mention.results.style.top = (coords.bottom + 4) + 'px';
+    module.mention.updatePopupPosition();
 
     module.settings.mention.popover.buildFocusableMenuItems();
 
     module.settings.mention.popover.open();
+  };
+
+
+  // purpose:   recalculates popup position anchored to the @ character (fixed to viewport)
+  // ------------------------------------------------------------------------
+  module.mention.updatePopupPosition = () => {
+    if(!module.settings.mention.state){
+      return;
+    }
+    const atPos = { line: module.settings.mention.state.line, ch: module.settings.mention.state.atCh };
+    const coords = module.settings.easyMde.codemirror.charCoords(atPos, 'window');
+    module.settings.mention.results.style.left = coords.left + 'px';
+    module.settings.mention.results.style.top = (coords.bottom + 4) + 'px';
   };
 
 
