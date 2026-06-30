@@ -1,0 +1,22 @@
+/*
+ * common-styling overrides
+ * -------------------------
+ * Copy ONLY the variables you want to change from `pos-config.css` into the
+ * blocks below and redefine them here. This file is loaded after common-styling,
+ * so anything you set here takes precedence.
+ *
+ * Discover available variables and components at /style-guide.
+ */
+
+:root {
+  /* Example — give primary buttons a green theme:
+  --pos-color-button-primary-background: #008000;
+  --pos-color-button-primary-hover-background: #00a000;
+  */
+}
+
+/* Dark mode overrides (only needed if your app supports dark mode):
+:root {
+  --pos-color-dark-button-primary-background: #004d00;
+}
+*/

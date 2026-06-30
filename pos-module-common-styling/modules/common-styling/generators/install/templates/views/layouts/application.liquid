@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" class="pos-app<% if (darkMode) { %> pos-theme-darkEnabled<% } %>">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
+    <title>{% if context.page.metadata.title %}{{ context.page.metadata.title }}{% else %}<%= title %>{% endif %}</title>
+
+    {% comment %} platformOS common-styling: loads the design system CSS/JS into the page head {% endcomment %}
+    {% render 'modules/common-styling/init'<% if (reset) { %>, reset: true<% } %> %}
+
+    {% comment %} Your overrides — must load AFTER common-styling so they take precedence {% endcomment %}
+    <link rel="stylesheet" href="{{ '<%= configCss %>' | asset_url }}">
+  </head>
+  <body>
+    {{ content_for_layout }}
+
+    {% comment %} Toast notifications — keep near the bottom of <body>. Reads the server-side flash. {% endcomment %}
+    {% liquid
+      function flash = 'modules/core/commands/session/get', key: 'sflash'
+      if context.location.pathname != flash.from or flash.force_clear
+        function _ = 'modules/core/commands/session/clear', key: 'sflash'
+      endif
+      render 'modules/common-styling/toasts', params: flash
+    %}
+  </body>
+</html>
