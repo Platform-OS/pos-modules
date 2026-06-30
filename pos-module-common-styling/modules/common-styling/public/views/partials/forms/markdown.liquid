@@ -1,29 +1,28 @@
 {% doc %}
+  Renders an rich-text markdown editor with optional @mention support and file uploads.
+
   @param {string} id - unique id for the module
-  @param {string} value - pre-filled content for the textarea
-  @param {number} minlength - minimum number of characters allowed
-  @param {number} maxlength - maximum number of characters allowed
   @param {string} name - name for the textarea
-  @param {object} presigned_upload - presigned upload data for file uploads
+  @param {string} [value] - pre-filled content for the textarea
+
+  @param {object} [presigned_upload] - presigned upload data for file uploads
+
+  @param {number} [minlength] - minimum number of characters allowed
+  @param {number} [maxlength] - maximum number of characters allowed
+
+  @param {string} [mention_search_url] - URL to search for @mentions, e.g. `/api/v1/users/search?query=`
+
+
+  @example
+  {% render 'modules/common-styling/forms/markdown',
+    id: 'markdown-editor',
+    name: 'markdown-editor',
+    presigned_upload: presigned_upload
+  %}
 {% enddoc %}
-{% comment %}
-
-  Rich text editor
-
-  Arguments:
-    - id                    (string) unique id for the module
-    - name                  (string, required) name for the <textarea> with the content
-    - presigned_upload      (object, required) presigned upload data (upload url and payload) returned from a `property_upload_presigned_url` query
-    - value                 (string) pre-filled content for the textarea
-    - minlength             (number) minimum number of characters allowed in the textarea
-    - maxlength             (number) maximum number of characters allowed in the textarea
-
-{% endcomment %}
-
 
 {% liquid
   assign id = id | default: 'pos-rte'
-  assign value = value | default: ''
 
   assign minlength = minlength | default: 0
   assign maxlength = maxlength | default: 10000
@@ -41,6 +40,24 @@
         data-request-{{ field[0] }}="{{ field[1] }}"
     {% endfor %}
   >{{ value }}</textarea>
+
+  {% if mention_search_url %}
+    <div class="pos-popover pos-markdown-mention" {% if mention_search_url %}data-url="{{ mention_search_url }}"{% endif %}>
+      <template>
+        <li>
+          <button type="button">
+            <div class="pos-avatar pos-avatar-sm pos-markdown-mention-avatar">
+              <img width="24" height="24" loading="lazy" class="pos-avatar">
+              <div class="pos-markdown-mention-avatar-initials"></div>
+            </div>
+            <span class="pos-markdown-mention-name"></span>
+          </button>
+        </li>
+      </template>
+      <menu popover id="{{ id }}-mention-popover">
+      </menu>
+    </div>
+  {% endif %}
 
   <small id="{{ id }}-instructions" class="pos-tip">
     {% render 'modules/common-styling/icon', icon: 'info' %}

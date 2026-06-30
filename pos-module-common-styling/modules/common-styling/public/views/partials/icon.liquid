@@ -1,21 +1,14 @@
 {% doc %}
+  Renders an SVG icon with the default attributes from the predefined set.
+
   @param {string} icon - name of the icon to render
-  @param {string} class - CSS class to apply to the icon
+  @param {string} [class] - CSS class to apply to the icon
+
+  @example 
+  {% render 'modules/common-styling/icon', icon: 'plus' %}
 {% enddoc %}
-{% comment %}
-
-  List of icons in SVG format
-
-  Params:
-    - icon name (string)
-    - class (string, optional)
-
-{% endcomment %}
 
 
-{% liquid
-  assign class = class | default: ''
-%}
 
 {% capture attrs %}
   viewBox="0 0 24 24"

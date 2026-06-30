@@ -332,7 +332,11 @@
 
 
   <h3 class="pos-heading-4 styleguide-heading-4">Markdown editor</h3>
-  {% render 'modules/common-styling/forms/markdown', id: 'styleguide-markdown-editor', name: 'styleguide-markdown-editor', value: null, minlength: null, maxlength: null, presigned_upload: null %}
+  {% render 'modules/common-styling/forms/markdown',
+    id: 'styleguide-markdown-editor',
+    name: 'styleguide-markdown-editor',
+    mention_search_url: '/api/users/search?query='
+  %}
 
 {% capture code %}{% raw %}
 {% render 'modules/common-styling/forms/markdown',

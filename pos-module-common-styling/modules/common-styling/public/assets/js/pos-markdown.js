@@ -30,11 +30,30 @@ window.pos.modules.markdown = function(settings){
   module.settings.errorsContainer = module.settings.container.querySelector('.pos-form-errors');
   // class name that hides error on the list (string)
   module.settings.errorDisabledClass = 'pos-markdown-error-disabled';
+  
+  // @mention object (object)
+  module.mention = {};
+  // @mention settings (object)
+  module.settings.mention = {};
+  // instance of the popover with @mentions (object)
+  module.settings.mention.popover = pos.modules.active[`${module.settings.id}-mention-popover`];
+  // list with @mention results (dom node)
+  module.settings.mention.results = module.settings.container.querySelector(`#${module.settings.id}-mention-popover`);
+  // url of the api to fetch mention results (string)
+  module.settings.mention.url = module.settings.mention.popover?.settings.container.dataset.url || null;
+  // active @mention state { query, line, atCh } or null
+  module.settings.mention.state = null;
+  // template for @mention result (dom node)
+  module.settings.mention.template = module.settings.mention.popover?.settings.container.querySelector('template');
+  // async function(query) => [{ id, name }] — function to fetch mention results, returns array of objects with id, name and avatar
+  module.settings.mention.search = async function(query){ return fetch(module.settings.mention.url + '?query=' + encodeURIComponent(query)).then(response => response.json()).then(data => data.results) };
+
   // debug mode enabled (bool)
   module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : false;
 
   // easymde instance (object)
   module.settings.easyMde = null;
+
 
 
 
@@ -79,30 +98,37 @@ window.pos.modules.markdown = function(settings){
       previewClass: ['pos-prose', 'editor-preview']
     });
 
-    // accessibility: escape releases the Tab trap so keyboard users can navigate out
+    // purpose: escape releases the TAB trap so keyboard users can navigate out
     // pressing Esc sets a flag; the capture-phase listener on the wrapper intercepts the next tab before codemirror can call preventDefault, letting the browser move focus naturally; any other key cancels the released state
-    const cmWrapper = module.settings.easyMde.codemirror.getWrapperElement();
-    
     module.settings.easyMde.codemirror.addKeyMap({
       'Esc': function(){
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Escape pressed, releasing tab trap', module.settings.easyMde);
         module.settings.easyMde.codemirror.state.tabTrapReleased = true;
       }
     });
     
-    cmWrapper.addEventListener('keydown', function(event) {
-      if (module.settings.easyMde.codemirror.state.tabTrapReleased) {
-        if(event.key === 'Tab') {
+    const cmWrapper = module.settings.easyMde.codemirror.getWrapperElement();
+
+    cmWrapper.addEventListener('keydown', function(event){
+      if(module.settings.easyMde.codemirror.state.tabTrapReleased){
+        if(event.key === 'Tab'){
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Tab trap was released, navigating focus outside of the editor', module.settings.easyMde);
           module.settings.easyMde.codemirror.state.tabTrapReleased = false;
           event.stopPropagation(); // codemirror never sees it → never calls preventDefault → browser navigates
-        } else if(event.key !== 'Escape') {
+        } else if(event.key !== 'Escape'){
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Re-engaging tab trap as the user resumed editing', module.settings.easyMde);
           module.settings.easyMde.codemirror.state.tabTrapReleased = false; // user resumed editing, re-engage tab trap
         }
       }
     }, true); // capture phase — fires before codemirror's listener on the inner textarea
 
+    // purpose: sets up @mention detection and popup
+    if(module.settings.mention.url){
+      module.mention.start();
+    }
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'EasyMDE instance created', module.settings.easyMde);
   };
-
 
 
   // purpose:		uploads images in the editor
@@ -191,6 +217,7 @@ window.pos.modules.markdown = function(settings){
   module.value = (value) => {
     if(value){
       module.settings.easyMde.value(value);
+      module.mention.reapplyMarks();
 
       pos.modules.debug(module.settings.debug, module.settings.id, 'Changed editor content', value);
       // dispatch custom event
@@ -222,7 +249,6 @@ window.pos.modules.markdown = function(settings){
   module.refresh = () => {
     module.settings.easyMde.codemirror.refresh();
   };
-
 
 
   // purpose:   validates the value
@@ -261,6 +287,287 @@ window.pos.modules.markdown = function(settings){
       return false
     }
   };
+
+
+  // purpose:   sets up @mention detection and popup
+  // ------------------------------------------------------------------------
+  module.mention.start = () => {
+    module.settings.easyMde.codemirror.on('change', () => {
+      if (module.mention.cleaningUp) return;
+
+      module.mention.cleanupIfEditingMark();
+
+      const cursor = module.settings.easyMde.codemirror.getCursor();
+      const textBefore = module.settings.easyMde.codemirror.getLine(cursor.line).slice(0, cursor.ch);
+      const atIdx = textBefore.lastIndexOf('@');
+
+      if(atIdx === -1){
+        module.mention.hide();
+        return;
+      }
+
+      const charBefore = atIdx > 0 ? textBefore[atIdx - 1] : ' ';
+      const query = textBefore.slice(atIdx + 1);
+
+      if(!/\s/.test(charBefore) && atIdx > 0){
+        module.mention.hide();
+        return;
+      }
+      if(query.length < 1 || /\s/.test(query)){
+        module.mention.hide();
+        return;
+      }
+
+      module.settings.mention.state = { query, line: cursor.line, atCh: atIdx };
+      clearTimeout(module.mention.searchTimeout);
+      module.mention.searchTimeout = setTimeout(async () => {
+        const results = await module.settings.mention.search(query);
+        module.mention.renderPopup(results);
+      }, 300);
+    });
+
+    document.addEventListener('click', e => {
+      if(!module.settings.mention.results.contains(e.target)){
+        module.mention.hide();
+      }
+    });
+
+    module.settings.easyMde.codemirror.addKeyMap({
+      'Esc': () => {
+        if(!module.settings.mention.popover.settings.opened){
+          return module.settings.easyMde.codemirror.constructor.Pass;
+        }
+      },
+      'Up':  () => {
+        if(!module.settings.mention.popover.settings.opened){
+          return module.settings.easyMde.codemirror.constructor.Pass;
+        }
+      },
+      'Down': () => {
+        if(!module.settings.mention.popover.settings.opened){
+          return module.settings.easyMde.codemirror.constructor.Pass;
+        }
+      },
+      'Enter': () => {
+        if(module.settings.mention.popover.settings.opened){
+          if(module.settings.mention.menu.contains(document.activeElement)){
+            document.activeElement.click();
+          }
+        } else {
+          return module.settings.easyMde.codemirror.constructor.Pass;
+        }
+      }
+    });
+
+    // reposition popup when the page or the editor itself scrolls
+    window.addEventListener('scroll', () => {
+      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+    }, { passive: true });
+
+    module.settings.easyMde.codemirror.on('scroll', () => {
+      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+    });
+
+    module.mention.reapplyMarks();
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Activated @mentions', module.settings.mention);
+  };
+
+
+  // purpose:   renders mention results in the popup, positioned at the cursor
+  // ------------------------------------------------------------------------
+  module.mention.renderPopup = (results) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Rendering @mention results in the popover', results);
+
+    module.settings.mention.results.innerHTML = '';
+
+    if(!results?.length){
+      module.mention.hide();
+      return;
+    }
+
+    results.forEach(person => {
+      const template = module.settings.mention.template.content.cloneNode(true);
+
+      if(person.avatar.photo){
+        template.querySelector('img').src = person.avatar.photo.versions.sm;
+        template.querySelector('.pos-markdown-mention-avatar-initials').remove();
+      } else {
+        template.querySelector('img').remove();
+        const names = person.name.split(' ');
+        template.querySelector('.pos-markdown-mention-avatar-initials').textContent = names[0][0] + names[1][0];
+      }
+      template.querySelector('.pos-markdown-mention-name').textContent = person.name;
+
+      template.querySelector('button').addEventListener('click', e => {
+        e.preventDefault();
+        module.mention.insert(person);
+      });
+
+      module.settings.mention.results.appendChild(template);
+    });
+
+    module.mention.updatePopupPosition();
+
+    module.settings.mention.popover.buildFocusableMenuItems();
+
+    module.settings.mention.popover.open();
+  };
+
+
+  // purpose:   recalculates popup position anchored to the @ character (fixed to viewport)
+  // ------------------------------------------------------------------------
+  module.mention.updatePopupPosition = () => {
+    if(!module.settings.mention.state){
+      return;
+    }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Updating @mention popover position', module.settings.mention.state);
+
+    const atPos = { line: module.settings.mention.state.line, ch: module.settings.mention.state.atCh };
+    const coords = module.settings.easyMde.codemirror.charCoords(atPos, 'window');
+    module.settings.mention.results.style.left = coords.left + 'px';
+    module.settings.mention.results.style.top = (coords.bottom + 4) + 'px';
+  };
+
+
+  // purpose:   hides the mention popup and clears state
+  // ------------------------------------------------------------------------
+  module.mention.hide = () => {
+    if(module.settings.mention.popover && module.settings.mention.popover.settings.opened){
+      module.settings.mention.popover.close();
+    }
+    module.settings.mention.state = null;
+  };
+
+
+  // purpose:   when a change lands inside an existing mention mark, strips @[name](id) to plain @name
+  //            so backspacing or typing within the visible "@name" doesn't leave hidden markdown syntax
+  // ------------------------------------------------------------------------
+  module.mention.cleanupIfEditingMark = () => {
+    const cm = module.settings.easyMde.codemirror;
+    const cursor = cm.getCursor();
+
+    // findMarksAt uses exclusive right boundary, so also check one char left to catch right-edge deletions
+    const positions = [cursor];
+    if (cursor.ch > 0) positions.push({ line: cursor.line, ch: cursor.ch - 1 });
+
+    let mentionMark = null;
+    for (const pos of positions) {
+      mentionMark = cm.findMarksAt(pos).find(m => m.className === 'pos-markdown-mention-mark');
+      if (mentionMark) break;
+    }
+    if (!mentionMark) return;
+
+    const range = mentionMark.find();
+    if (!range) return;
+
+    const underlyingText = cm.getRange(range.from, range.to);
+    if (!underlyingText.startsWith('@')) return;
+
+    // extract the visible name from @[Name (collapse removes [, but it's still in underlying text)
+    const displayName = underlyingText.startsWith('@[') ? underlyingText.slice(2) : underlyingText.slice(1);
+
+    // find and clear the closing ](id) collapsed mark (starts exactly where the styling mark ends)
+    let endPos = range.to;
+    const allMarks = cm.getAllMarks();
+    for (const m of allMarks) {
+      if (m === mentionMark || m.className) continue;
+      const mRange = m.find();
+      if (!mRange || !m.collapsed) continue;
+      if (mRange.from.line === range.to.line && mRange.from.ch === range.to.ch) {
+        endPos = mRange.to;
+        m.clear();
+        break;
+      }
+    }
+
+    // find and clear the opening [ collapsed mark (one char after the @ )
+    for (const m of cm.getAllMarks()) {
+      if (m === mentionMark || m.className) continue;
+      const mRange = m.find();
+      if (!mRange || !m.collapsed) continue;
+      if (mRange.from.line === range.from.line && mRange.from.ch === range.from.ch + 1) {
+        m.clear();
+        break;
+      }
+    }
+
+    mentionMark.clear();
+
+    // replace @[name](id) with plain @name; guard flag prevents re-entry on the change this fires
+    const origCh = cursor.ch;
+    module.mention.cleaningUp = true;
+    cm.replaceRange('@' + displayName, range.from, endPos);
+    module.mention.cleaningUp = false;
+
+    // restore cursor: removing the hidden '[' shifts positions after it back by one
+    const newCh = origCh > range.from.ch + 1 ? origCh - 1 : origCh;
+    cm.setCursor({ line: range.from.line, ch: newCh });
+  };
+
+
+  // purpose:   collapses "[" and "](id)" in a single mention so only "@Name" is visible
+  // ------------------------------------------------------------------------
+  module.mention.applyMark = (line, atCh, name, id) => {
+    const cm = module.settings.easyMde.codemirror;
+    // @[Name](id) — collapse "[" (1 char) so "@Name" is visible
+    cm.markText(
+      { line, ch: atCh + 1 },
+      { line, ch: atCh + 2 },
+      { collapsed: true, atomic: true }
+    );
+    // collapse "](id)" (id.length + 3 chars) so nothing after the name is visible
+    cm.markText(
+      { line, ch: atCh + 2 + name.length },
+      { line, ch: atCh + 2 + name.length + id.length + 3 },
+      { collapsed: true, atomic: true }
+    );
+    // style the visible "@Name" span
+    cm.markText(
+      { line, ch: atCh },
+      { line, ch: atCh + 2 + name.length },
+      { className: 'pos-markdown-mention-mark' }
+    );
+  };
+
+
+  // purpose:   re-applies mention marks on existing content (init or programmatic value set)
+  // ------------------------------------------------------------------------
+  module.mention.reapplyMarks = () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Re-applying @mention marks', module.settings.mention);
+
+    const cm = module.settings.easyMde.codemirror;
+    const regex = /@\[([^\]]+)\]\(([^)]+)\)/g;
+    for (let line = 0; line < cm.lineCount(); line++) {
+      regex.lastIndex = 0;
+      let match;
+      while ((match = regex.exec(cm.getLine(line))) !== null) {
+        module.mention.applyMark(line, match.index, match[1], match[2]);
+      }
+    }
+  };
+
+
+  // purpose:   replaces the @query text with the selected mention
+  // ------------------------------------------------------------------------
+  module.mention.insert = (person) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Inserting @mention to the editor', person);
+
+    const cm = module.settings.easyMde.codemirror;
+    const s = module.settings.mention.state;
+    if (!s) return;
+    const cursor = cm.getCursor();
+    cm.replaceRange(
+      `@[${person.name}](${person.id}) `,
+      { line: s.line, ch: s.atCh },
+      { line: cursor.line, ch: cursor.ch }
+    );
+    module.mention.applyMark(s.line, s.atCh, person.name, person.id);
+    module.mention.hide();
+    cm.focus();
+  };
+
 
 
   module.init();
