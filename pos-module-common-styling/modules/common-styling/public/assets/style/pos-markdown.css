@@ -108,6 +108,13 @@
     border-end-end-radius: var(--pos-radius-card);
   }
 
+  /* @mention mark inside the editor */
+  .EasyMDEContainer .CodeMirror .pos-markdown-mention-mark {
+    font-weight: 600 !important;
+    color: var(--pos-color-interactive-active) !important;
+    text-decoration: none !important;
+  }
+
 
   /* content
   ============================================================================ */

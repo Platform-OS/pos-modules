@@ -292,7 +292,7 @@ window.pos.modules.markdown = function(settings){
   // purpose:   sets up @mention detection and popup
   // ------------------------------------------------------------------------
   module.mention.start = () => {
-    module.settings.easyMde.codemirror.on('change', async () => {
+    module.settings.easyMde.codemirror.on('change', () => {
       const cursor = module.settings.easyMde.codemirror.getCursor();
       const textBefore = module.settings.easyMde.codemirror.getLine(cursor.line).slice(0, cursor.ch);
       const atIdx = textBefore.lastIndexOf('@');
@@ -315,8 +315,11 @@ window.pos.modules.markdown = function(settings){
       }
 
       module.settings.mention.state = { query, line: cursor.line, atCh: atIdx };
-      const results = await module.settings.mention.search(query);
-      module.mention.renderPopup(results);
+      clearTimeout(module.mention.searchTimeout);
+      module.mention.searchTimeout = setTimeout(async () => {
+        const results = await module.settings.mention.search(query);
+        module.mention.renderPopup(results);
+      }, 300);
     });
 
     document.addEventListener('click', e => {
@@ -362,12 +365,16 @@ window.pos.modules.markdown = function(settings){
     });
 
     module.mention.reapplyMarks();
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Activated @mentions', module.settings.mention);
   };
 
 
   // purpose:   renders mention results in the popup, positioned at the cursor
   // ------------------------------------------------------------------------
   module.mention.renderPopup = (results) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Rendering @mention results in the popover', results);
+
     module.settings.mention.results.innerHTML = '';
 
     if(!results?.length){
@@ -410,6 +417,9 @@ window.pos.modules.markdown = function(settings){
     if(!module.settings.mention.state){
       return;
     }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Updating @mention popover position', module.settings.mention.state);
+
     const atPos = { line: module.settings.mention.state.line, ch: module.settings.mention.state.atCh };
     const coords = module.settings.easyMde.codemirror.charCoords(atPos, 'window');
     module.settings.mention.results.style.left = coords.left + 'px';
@@ -420,7 +430,7 @@ window.pos.modules.markdown = function(settings){
   // purpose:   hides the mention popup and clears state
   // ------------------------------------------------------------------------
   module.mention.hide = () => {
-    if(module.settings.mention.popover){
+    if(module.settings.mention.popover && module.settings.mention.popover.settings.opened){
       module.settings.mention.popover.close();
     }
     module.settings.mention.state = null;
@@ -443,12 +453,20 @@ window.pos.modules.markdown = function(settings){
       { line, ch: atCh + 2 + name.length + id.length + 3 },
       { collapsed: true, atomic: true }
     );
+    // style the visible "@Name" span
+    cm.markText(
+      { line, ch: atCh },
+      { line, ch: atCh + 2 + name.length },
+      { className: 'pos-markdown-mention-mark' }
+    );
   };
 
 
   // purpose:   re-applies mention marks on existing content (init or programmatic value set)
   // ------------------------------------------------------------------------
   module.mention.reapplyMarks = () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Re-applying @mention marks', module.settings.mention);
+
     const cm = module.settings.easyMde.codemirror;
     const regex = /@\[([^\]]+)\]\(([^)]+)\)/g;
     for (let line = 0; line < cm.lineCount(); line++) {
@@ -464,6 +482,8 @@ window.pos.modules.markdown = function(settings){
   // purpose:   replaces the @query text with the selected mention
   // ------------------------------------------------------------------------
   module.mention.insert = (person) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Inserting @mention to the editor', person);
+
     const cm = module.settings.easyMde.codemirror;
     const s = module.settings.mention.state;
     if (!s) return;
