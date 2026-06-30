@@ -293,6 +293,10 @@ window.pos.modules.markdown = function(settings){
   // ------------------------------------------------------------------------
   module.mention.start = () => {
     module.settings.easyMde.codemirror.on('change', () => {
+      if (module.mention.cleaningUp) return;
+
+      module.mention.cleanupIfEditingMark();
+
       const cursor = module.settings.easyMde.codemirror.getCursor();
       const textBefore = module.settings.easyMde.codemirror.getLine(cursor.line).slice(0, cursor.ch);
       const atIdx = textBefore.lastIndexOf('@');
@@ -434,6 +438,72 @@ window.pos.modules.markdown = function(settings){
       module.settings.mention.popover.close();
     }
     module.settings.mention.state = null;
+  };
+
+
+  // purpose:   when a change lands inside an existing mention mark, strips @[name](id) to plain @name
+  //            so backspacing or typing within the visible "@name" doesn't leave hidden markdown syntax
+  // ------------------------------------------------------------------------
+  module.mention.cleanupIfEditingMark = () => {
+    const cm = module.settings.easyMde.codemirror;
+    const cursor = cm.getCursor();
+
+    // findMarksAt uses exclusive right boundary, so also check one char left to catch right-edge deletions
+    const positions = [cursor];
+    if (cursor.ch > 0) positions.push({ line: cursor.line, ch: cursor.ch - 1 });
+
+    let mentionMark = null;
+    for (const pos of positions) {
+      mentionMark = cm.findMarksAt(pos).find(m => m.className === 'pos-markdown-mention-mark');
+      if (mentionMark) break;
+    }
+    if (!mentionMark) return;
+
+    const range = mentionMark.find();
+    if (!range) return;
+
+    const underlyingText = cm.getRange(range.from, range.to);
+    if (!underlyingText.startsWith('@')) return;
+
+    // extract the visible name from @[Name (collapse removes [, but it's still in underlying text)
+    const displayName = underlyingText.startsWith('@[') ? underlyingText.slice(2) : underlyingText.slice(1);
+
+    // find and clear the closing ](id) collapsed mark (starts exactly where the styling mark ends)
+    let endPos = range.to;
+    const allMarks = cm.getAllMarks();
+    for (const m of allMarks) {
+      if (m === mentionMark || m.className) continue;
+      const mRange = m.find();
+      if (!mRange || !m.collapsed) continue;
+      if (mRange.from.line === range.to.line && mRange.from.ch === range.to.ch) {
+        endPos = mRange.to;
+        m.clear();
+        break;
+      }
+    }
+
+    // find and clear the opening [ collapsed mark (one char after the @ )
+    for (const m of cm.getAllMarks()) {
+      if (m === mentionMark || m.className) continue;
+      const mRange = m.find();
+      if (!mRange || !m.collapsed) continue;
+      if (mRange.from.line === range.from.line && mRange.from.ch === range.from.ch + 1) {
+        m.clear();
+        break;
+      }
+    }
+
+    mentionMark.clear();
+
+    // replace @[name](id) with plain @name; guard flag prevents re-entry on the change this fires
+    const origCh = cursor.ch;
+    module.mention.cleaningUp = true;
+    cm.replaceRange('@' + displayName, range.from, endPos);
+    module.mention.cleaningUp = false;
+
+    // restore cursor: removing the hidden '[' shifts positions after it back by one
+    const newCh = origCh > range.from.ch + 1 ? origCh - 1 : origCh;
+    cm.setCursor({ line: range.from.line, ch: newCh });
   };
 
 
