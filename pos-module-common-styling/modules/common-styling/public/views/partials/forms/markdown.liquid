@@ -37,7 +37,18 @@
   >{{ value }}</textarea>
 
   {% if mention_search_url %}
-    <div class="pos-popover pos-markdown-mention">
+    <div class="pos-popover pos-markdown-mention" data-url="{{ mention_search_url }}">
+      <template>
+        <li>
+          <button type="button">
+            <div class="pos-avatar pos-avatar-sm pos-markdown-mention-avatar">
+              <img width="24" height="24" loading="lazy" class="pos-avatar">
+              <div class="pos-markdown-mention-avatar-initials"></div>
+            </div>
+            <span class="pos-markdown-mention-name"></span>
+          </button>
+        </li>
+      </template>
       <menu popover id="{{ id }}-mention-popover">
       </menu>
     </div>

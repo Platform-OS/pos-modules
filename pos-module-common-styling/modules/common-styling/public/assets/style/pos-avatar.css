@@ -25,6 +25,7 @@
   background-color: var(--pos-color-frame);
 
   line-height: 0;
+  text-transform: uppercase;
   font-weight: 500;
   color: var(--pos-color-content-text-supplementary);
 }

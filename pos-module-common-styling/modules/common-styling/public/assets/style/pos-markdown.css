@@ -14,6 +14,7 @@
   ============================================================================ */
   .pos-markdown {
       width: 100%;
+      position: relative;
   }
 
   .EasyMDEContainer .editor-toolbar {
@@ -74,8 +75,27 @@
   /* @mention popup
   ============================================================================ */
   .pos-markdown-mention [popover] {
+    overflow: visible;
+  
     position: fixed;
     z-index: 9999;
+  }
+
+  .pos-markdown-mention [popover]:after {
+    width: 16px;
+    height: 11px;
+    position: absolute;
+    top: -11px;
+    left: 0;
+
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    background-color: var(--pos-color-interactive);
+
+    content: '';
+  }
+
+  .pos-markdown-mention menu li button {
+    padding: .5rem .75rem;
   }
 
 
