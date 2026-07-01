@@ -1,0 +1,4 @@
+configuration:
+  escape_output_instead_of_sanitize: true
+  safe_translate: true
+  slug_exact_match: true

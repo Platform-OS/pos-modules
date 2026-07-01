@@ -1,0 +1,21 @@
+{% comment %}
+  Unit test (no network): the top-level verify command must FAIL CLOSED.
+  Each case is rejected in the check phase BEFORE any provider branch runs, so
+  no siteverify HTTP call is made. This locks in the security property that
+  verify never returns valid=true without a real verification (see the
+  fail-closed 'else' branch in commands/captcha/verify.liquid).
+{% endcomment %}
+{% liquid
+  # no token (secret present) -> invalid, no network call
+  function r_no_token = 'modules/captcha/commands/captcha/verify', provider: 'turnstile', secret: 'sk_test'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'no_token', object: r_no_token
+
+  # blank secret (e.g. an unset secret constant) + token present -> invalid, no network call
+  function r_no_secret = 'modules/captcha/commands/captcha/verify', provider: 'turnstile', secret: '', token: 'dummy-token'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'no_secret', object: r_no_secret
+
+  # unsupported provider (token + secret present) -> invalid + provider error, no network call
+  function r_bad = 'modules/captcha/commands/captcha/verify', provider: 'bogus', secret: 'sk_test', token: 'dummy-token'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'bad_provider', object: r_bad
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'provider', object: r_bad.errors
+%}

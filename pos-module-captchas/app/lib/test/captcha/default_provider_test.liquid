@@ -1,0 +1,15 @@
+{% comment %}
+  Unit test (no network): captcha provider-resolution helper.
+  Deterministic — does not call any siteverify endpoint.
+  Assumes CAPTCHA_DEFAULT_PROVIDER is not set in the test environment, so the
+  no-argument case falls back to 'turnstile'.
+{% endcomment %}
+{% liquid
+  # an explicit provider is returned as-is
+  function explicit = 'modules/captcha/helpers/default_provider', provider: 'hcaptcha'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: explicit, expected: 'hcaptcha', field_name: 'explicit_provider'
+
+  # no provider + no constant -> falls back to 'turnstile'
+  function fallback = 'modules/captcha/helpers/default_provider'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: fallback, expected: 'turnstile', field_name: 'fallback_provider'
+%}

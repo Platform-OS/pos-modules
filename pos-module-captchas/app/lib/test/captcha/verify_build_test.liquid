@@ -1,0 +1,21 @@
+{% comment %}
+  Unit test (no network): captcha verify BUILD phase.
+  Deterministic — build only normalizes inputs; it never calls a provider.
+{% endcomment %}
+{% liquid
+  # provider defaults to 'turnstile' when none is passed (CAPTCHA_DEFAULT_PROVIDER unset in test env)
+  assign o1 = '{}' | parse_json
+  function b1 = 'modules/captcha/commands/captcha/verify/build', object: o1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: b1.provider, expected: 'turnstile', field_name: 'default_provider'
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: b1, field_name: 'build_sets_valid'
+
+  # an explicit provider is preserved
+  assign o2 = '{}' | parse_json | hash_merge: provider: 'hcaptcha'
+  function b2 = 'modules/captcha/commands/captcha/verify/build', object: o2
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: b2.provider, expected: 'hcaptcha', field_name: 'explicit_provider'
+
+  # an explicit token is honoured (used instead of reading context.params)
+  assign o3 = '{}' | parse_json | hash_merge: provider: 'turnstile', token: 'explicit-token-123'
+  function b3 = 'modules/captcha/commands/captcha/verify/build', object: o3
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: b3.token, expected: 'explicit-token-123', field_name: 'explicit_token'
+%}
