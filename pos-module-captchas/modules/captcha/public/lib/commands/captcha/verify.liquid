@@ -33,6 +33,17 @@
       function object = 'modules/captcha/commands/captcha/providers/recaptcha/verify', object: object
     when 'recaptcha_v3'
       function object = 'modules/captcha/commands/captcha/providers/recaptcha_v3/verify', object: object
+    else
+      # Fail closed: no provider branch ran, so the token was never verified against any
+      # siteverify endpoint. Never leave object.valid true here — that would pass the captcha
+      # without a verification call. Guards against the supported-provider list in check.liquid
+      # drifting out of sync with these branches.
+      assign c = object.errors | default: empty
+      assign messages = 'captcha.errors.unsupported_provider' | split: '|'
+      assign object.errors = c | hash_merge: provider: messages
+      assign object.success = false
+      assign object.valid = false
+      return object
   endcase
 
   if object.valid
