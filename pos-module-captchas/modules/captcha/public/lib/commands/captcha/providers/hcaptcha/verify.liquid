@@ -10,7 +10,7 @@
   graphql result = 'modules/captcha/api_call/send', data: payload, name: 'modules/captcha/hcaptcha_siteverify'
 
   assign call = result.api_call_send
-  assign c = object.errors | default: empty
+  function c = 'modules/captcha/helpers/errors_hash', errors: object.errors
 
   if call.errors != blank
     assign messages = 'captcha.errors.request_failed' | split: '|'

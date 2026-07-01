@@ -4,7 +4,7 @@
   @returns {object} object with errors populated and valid set.
 {% enddoc %}
 {% liquid
-  assign c = object.errors | default: empty
+  function c = 'modules/captcha/helpers/errors_hash', errors: object.errors
   assign supported_providers = 'turnstile,hcaptcha,recaptcha,recaptcha_v3' | split: ','
 
   if object.token == blank

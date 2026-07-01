@@ -20,6 +20,7 @@
   assign token_field = object.response_field_name | default: default_field
   assign token = object.token | default: context.params[token_field]
 
-  assign object = object | hash_merge: provider: provider, token: token, valid: true, errors: empty
+  assign empty_errors = '{}' | parse_json
+  assign object = object | hash_merge: provider: provider, token: token, valid: true, errors: empty_errors
   return object
 %}
