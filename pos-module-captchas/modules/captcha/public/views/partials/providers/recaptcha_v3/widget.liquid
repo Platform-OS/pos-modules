@@ -4,8 +4,9 @@
     input, and resubmits the form. If the loader script has not finished loading yet, submission is
     held (not sent token-less) until grecaptcha is ready. The server-side verify thresholds the
     returned score and (optionally) checks the action — see the recaptcha_v3 verify command. The
-    loader script is injected once per site key, so multiple widgets / multiple keys on one page are
-    supported.
+    loader script is injected once per site key, so several widgets using the same key on one page
+    are fine; avoid mixing different v3 site keys on one page — Google's api.js loader does not
+    support being loaded twice.
   @param {string} site_key - reCAPTCHA v3 public site key (a v3 key from the reCAPTCHA admin console;
     v3 has no universal test keys).
   @param {object} [options] - action (the v3 action name, default 'submit'; must match the
@@ -47,6 +48,10 @@
   function submitForm() {
     done = true;
     if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
+    // The submit event dispatches synchronously above. Clear the flag afterwards so that if
+    // another submit handler blocked that submission, a later attempt re-runs the challenge
+    // and gets a fresh token instead of reusing a stale (possibly consumed) one.
+    done = false;
   }
 
   function runChallenge() {

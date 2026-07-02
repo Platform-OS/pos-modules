@@ -1,4 +1,4 @@
-# pos-module-captcha
+# pos-module-captchas
 
 A generic, swappable **captcha abstraction** for platformOS, with **Cloudflare Turnstile**,
 **hCaptcha**, **reCAPTCHA v2**, and **reCAPTCHA v3** provider implementations. It mirrors the
@@ -197,7 +197,9 @@ Rendering errors:
 
 ```liquid
 {% for error in captcha.errors %}
-  <p class="error">{{ error[1] | join: ', ' | t }}</p>
+  {% for key in error[1] %}
+    <p class="error">{{ key | t }}</p>
+  {% endfor %}
 {% endfor %}
 ```
 

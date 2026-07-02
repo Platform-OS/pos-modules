@@ -15,5 +15,14 @@
       render 'modules/captcha/providers/recaptcha/widget', site_key: site_key, options: options
     when 'recaptcha_v3'
       render 'modules/captcha/providers/recaptcha_v3/widget', site_key: site_key, options: options
+    else
+      # Unknown provider (typo in the provider argument or in CAPTCHA_DEFAULT_PROVIDER): surface
+      # it instead of silently rendering no widget — otherwise the first symptom is a confusing
+      # token_missing failure at submit time. Verification still fails closed either way.
+      assign warning = 'modules/captcha/widget: unsupported provider ' | append: active_provider | append: ' - no widget rendered'
+      log warning, type: 'error'
+      echo '<!-- '
+      echo warning | escape
+      echo ' -->'
   endcase
 -%}

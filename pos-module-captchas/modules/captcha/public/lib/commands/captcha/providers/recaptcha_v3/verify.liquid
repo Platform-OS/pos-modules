@@ -25,8 +25,6 @@
   endif
 
   assign status = call.response.status
-  assign body = call.response.body | parse_json
-
   if status != 200
     assign messages = 'captcha.errors.request_failed' | split: '|'
     assign object.errors = c | hash_merge: captcha: messages
@@ -34,6 +32,20 @@
     assign object.valid = false
     return object
   endif
+
+  # A 200 with a non-JSON body (provider outage, proxy error page) must fail closed as
+  # request_failed rather than blow up in parse_json or turn into a misleading
+  # verification_failed on a nil body.
+  assign raw_body = call.response.body | strip
+  assign first_char = raw_body | slice: 0, 1
+  if first_char != '{'
+    assign messages = 'captcha.errors.request_failed' | split: '|'
+    assign object.errors = c | hash_merge: captcha: messages
+    assign object.success = false
+    assign object.valid = false
+    return object
+  endif
+  assign body = raw_body | parse_json
 
   assign object.response = body
   assign object.success = body.success

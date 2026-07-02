@@ -46,7 +46,9 @@ method: post
   <h1>❌ Captcha failed ({{ provider }})</h1>
   <ul>
     {% for error in result.errors %}
-      <li>{{ error[1] | join: ', ' | t }}</li>
+      {% for key in error[1] %}
+        <li>{{ key | t }}</li>
+      {% endfor %}
     {% endfor %}
   </ul>
 {% endif %}
