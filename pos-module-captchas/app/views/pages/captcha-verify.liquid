@@ -15,7 +15,7 @@ method: post
   or test path and bypass the captcha. In real code, fix the provider server-side and read its
   secret from a constant — never branch on client input to choose the secret:
 
-    function result = 'modules/captcha/commands/captcha/verify',
+    function result = 'modules/captchas/commands/captcha/verify',
       provider: 'turnstile',
       secret: context.constants.CAPTCHA_TURNSTILE_SECRET
 {% endcomment %}
@@ -24,6 +24,9 @@ method: post
   case provider
     when 'hcaptcha'
       assign secret = '0x0000000000000000000000000000000000000000'
+      # hCaptcha secrets are account-wide, so bind the token to this form's sitekey.
+      # Always pass expected_sitekey when the account has more than one hCaptcha sitekey.
+      assign expected_sitekey = '10000000-ffff-ffff-ffff-000000000001'
     when 'recaptcha'
       assign secret = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
     when 'recaptcha_v3'
@@ -34,9 +37,10 @@ method: post
   endcase
 
   if provider == 'recaptcha_v3'
-    function result = 'modules/captcha/commands/captcha/verify', provider: provider, secret: secret, min_score: 0.5, expected_action: 'demo_submit'
+    function result = 'modules/captchas/commands/captcha/verify', provider: provider, secret: secret, min_score: 0.5, expected_action: 'demo_submit'
   else
-    function result = 'modules/captcha/commands/captcha/verify', provider: provider, secret: secret
+    # expected_sitekey is only set for hCaptcha; it is nil for the others, which ignore it
+    function result = 'modules/captchas/commands/captcha/verify', provider: provider, secret: secret, expected_sitekey: expected_sitekey
   endif
 %}
 {% if result.valid %}
