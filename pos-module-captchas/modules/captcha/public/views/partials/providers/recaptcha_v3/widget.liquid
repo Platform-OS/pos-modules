@@ -2,11 +2,13 @@
   @description Renders Google reCAPTCHA v3 (invisible, score-based) into a form. v3 has no visible
     widget: on form submit it runs grecaptcha.execute(), injects the resulting token into a hidden
     input, and resubmits the form. If the loader script has not finished loading yet, submission is
-    held (not sent token-less) until grecaptcha is ready. The server-side verify thresholds the
-    returned score and (optionally) checks the action — see the recaptcha_v3 verify command. The
-    loader script is injected once per site key, so several widgets using the same key on one page
-    are fine; avoid mixing different v3 site keys on one page — Google's api.js loader does not
-    support being loaded twice.
+    held (not sent token-less) until grecaptcha is ready. If the challenge itself fails (bad site
+    key, network error), the form is submitted without a token so the server-side verify fails
+    closed with the friendly error instead of leaving the form silently stuck. The server-side
+    verify thresholds the returned score and (optionally) checks the action — see the recaptcha_v3
+    verify command. The loader script is injected once per site key, so several widgets using the
+    same key on one page are fine; avoid mixing different v3 site keys on one page — Google's
+    api.js loader does not support being loaded twice.
   @param {string} site_key - reCAPTCHA v3 public site key (a v3 key from the reCAPTCHA admin console;
     v3 has no universal test keys).
   @param {object} [options] - action (the v3 action name, default 'submit'; must match the
@@ -24,7 +26,12 @@
   var action = {{ action_value | json }};
   var fieldName = {{ response_field | json }};
   var form = thisScript && thisScript.closest ? thisScript.closest('form') : null;
-  if (!form) { return; }
+  if (!form) {
+    if (window.console && console.warn) {
+      console.warn('captcha: reCAPTCHA v3 widget rendered outside a <form>; no token will be injected.');
+    }
+    return;
+  }
 
   var input = form.querySelector('input[name="' + fieldName + '"]');
   if (!input) {
@@ -56,8 +63,13 @@
 
   function runChallenge() {
     grecaptcha.ready(function () {
+      // Two-arg then() instead of catch(): execute() may return a bare thenable in older
+      // api.js builds. On rejection (invalid site key, network error) submit without a token
+      // so the server-side verify fails closed instead of the form being silently stuck.
       grecaptcha.execute(siteKey, { action: action }).then(function (token) {
         input.value = token;
+        submitForm();
+      }, function () {
         submitForm();
       });
     });

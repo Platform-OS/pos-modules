@@ -12,4 +12,8 @@
   # no provider + no constant -> falls back to 'turnstile'
   function fallback = 'modules/captcha/helpers/default_provider'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: fallback, expected: 'turnstile', field_name: 'fallback_provider'
+
+  # provider strings are normalized: trimmed + lowercased
+  function normalized = 'modules/captcha/helpers/default_provider', provider: ' Turnstile '
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: normalized, expected: 'turnstile', field_name: 'normalized_provider'
 %}

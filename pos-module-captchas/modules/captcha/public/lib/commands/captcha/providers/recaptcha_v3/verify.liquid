@@ -52,7 +52,10 @@
   assign object.score = body.score
   assign object.action = body.action
 
-  if body.success == false
+  # `!= true` (not `== false`): a nil/missing success field must fail closed too — otherwise a
+  # 200 JSON body without `success` would fall through to the score check and, with min_score 0,
+  # pass without any provider verdict.
+  if body.success != true
     assign messages = 'captcha.errors.verification_failed' | split: '|'
     assign object.errors = c | hash_merge: captcha: messages
     assign object.valid = false

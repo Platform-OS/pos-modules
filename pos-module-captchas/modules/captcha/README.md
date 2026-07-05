@@ -117,7 +117,9 @@ Just pass the pair you want for a given form:
 ### Provider selection
 
 `provider` may be passed explicitly (`turnstile`, `hcaptcha`, `recaptcha`, or `recaptcha_v3`). If
-omitted, it resolves to the `CAPTCHA_DEFAULT_PROVIDER` constant, then falls back to `turnstile`:
+omitted, it resolves to the `CAPTCHA_DEFAULT_PROVIDER` constant, then falls back to `turnstile`.
+Values are normalized (trimmed, lowercased), so `"Turnstile"` or a constant saved with stray
+whitespace still resolves; anything that doesn't match a supported provider fails closed:
 
 ```bash
 pos-cli constants set <env> CAPTCHA_DEFAULT_PROVIDER "turnstile"
@@ -153,6 +155,14 @@ pos-cli constants set <env> CAPTCHA_DEFAULT_PROVIDER "turnstile"
 (`normal`/`compact`/`invisible`), `tabindex`, `callback` (JS function name), `expired_callback`,
 `error_callback`, `badge` (`bottomright`/`bottomleft`/`inline`, invisible only), `language` (sets
 the loader script's `hl` param on first load), `class_name`, `html_id`.
+
+> ⚠️ **`size: invisible` needs your own JS.** The partial only renders the widget element — it does
+> not auto-execute it. Invisible v2 requires you to trigger the challenge yourself (call
+> `grecaptcha.execute()` on submit, or bind the widget to your submit button per Google's invisible
+> reCAPTCHA docs) and handle the token via `callback`. Without that wiring the form submits without
+> a token and `verify` rejects it with `token_missing` (it fails closed, but the captcha never
+> runs). For an invisible flow with no custom JS, use provider `recaptcha_v3` or `turnstile`
+> (`appearance: interaction-only`) instead.
 
 **reCAPTCHA v3 `options` keys:** `action` (the v3 action name, default `submit`),
 `response_field_name` (hidden input name, default `g-recaptcha-response`). v3 is invisible — there
