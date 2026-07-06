@@ -243,10 +243,12 @@ Rendering errors:
   Turnstile, `h-captcha-response` for hCaptcha, `g-recaptcha-response` for reCAPTCHA v2/v3), and
   pulls the token from `context.params`.
 - **check** — requires a token + secret and a supported provider.
-- **execute** (per provider) — POSTs `secret`, `response`, and optional `remoteip` to the
-  provider's `siteverify` endpoint via the `api_call_send` GraphQL mutation (synchronous), parses
-  the JSON response, and sets `valid` from the provider's `success` field.
-- **hostname (optional)** — if `expected_hostname` is passed, the response `hostname` must match one
+- **execute** — dispatches to the active provider's verify command
+  (`lib/commands/captcha/providers/<name>/verify.liquid`), which POSTs `secret`, `response`, and
+  optional `remoteip` to the provider's `siteverify` endpoint via the `api_call_send` GraphQL
+  mutation (synchronous), parses the JSON response, and sets `valid` from the provider's
+  `success` field.
+- **hostname (optional, part of execute)** — if `expected_hostname` is passed, the response `hostname` must match one
   of the listed hosts (exact, case-insensitive) or `valid` is set to `false` (with
   `captcha.errors.hostname_mismatch`). Off by default: the providers already bind keys to registered
   domains, so this is defense-in-depth against a token solved on a different domain and replayed to
@@ -285,7 +287,7 @@ partial + a verify command. To add another provider `<name>`:
    normalize `success`.
 4. Register the provider:
    - add a `when '<name>'` in `public/views/partials/widget.liquid`,
-   - add a `when '<name>'` in `public/lib/commands/captcha/verify.liquid`,
+   - add a `when '<name>'` in `public/lib/commands/captcha/verify/execute.liquid`,
    - map its token field in `public/lib/commands/captcha/verify/build.liquid`,
    - add `<name>` to the `supported_providers` list in
      `public/lib/commands/captcha/verify/check.liquid`.

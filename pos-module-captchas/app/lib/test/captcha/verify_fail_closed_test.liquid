@@ -3,7 +3,7 @@
   Each case is rejected in the check phase BEFORE any provider branch runs, so
   no siteverify HTTP call is made. This locks in the security property that
   verify never returns valid=true without a real verification (see the
-  fail-closed 'else' branch in commands/captcha/verify.liquid).
+  fail-closed 'else' branch in commands/captcha/verify/execute.liquid).
 {% endcomment %}
 {% liquid
   # no token (secret present) -> invalid, no network call
