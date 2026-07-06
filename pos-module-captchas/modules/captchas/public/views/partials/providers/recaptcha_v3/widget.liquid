@@ -6,9 +6,11 @@
     key, network error), the form is submitted without a token so the server-side verify fails
     closed with the friendly error instead of leaving the form silently stuck. The server-side
     verify thresholds the returned score and (optionally) checks the action — see the recaptcha_v3
-    verify command. The loader script is injected once per site key, so several widgets using the
-    same key on one page are fine; avoid mixing different v3 site keys on one page — Google's
-    api.js loader does not support being loaded twice.
+    verify command. The loader script is injected once per site key, so widgets in several forms
+    on one page are fine — but render at most ONE v3 widget per form: a duplicate render in the
+    same form is detected and ignored (console warning), because two active instances would keep
+    re-triggering each other's challenges and the form would never submit. Avoid mixing different
+    v3 site keys on one page — Google's api.js loader does not support being loaded twice.
   @param {string} site_key - reCAPTCHA v3 public site key (a v3 key from the reCAPTCHA admin console;
     v3 has no universal test keys).
   @param {object} [options] - action (the v3 action name, default 'submit'; must match the
@@ -32,6 +34,16 @@
     }
     return;
   }
+
+  // One v3 widget per form: two active instances would each re-preventDefault the other's
+  // resubmit and re-run the challenge, so the form would never submit. First render wins.
+  if (form.hasAttribute('data-captcha-v3-wired')) {
+    if (window.console && console.warn) {
+      console.warn('captcha: reCAPTCHA v3 widget rendered more than once in the same <form>; ignoring the duplicate.');
+    }
+    return;
+  }
+  form.setAttribute('data-captcha-v3-wired', '');
 
   var input = form.querySelector('input[name="' + fieldName + '"]');
   if (!input) {

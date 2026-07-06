@@ -1,0 +1,26 @@
+{% comment %}
+  Unit test (no network): hostname allow-list helper (pure logic used by the verify dispatcher
+  after the provider call — extracted so the matching rules are testable without a siteverify
+  request).
+{% endcomment %}
+{% liquid
+  # no allow-list configured -> unrestricted
+  function unrestricted = 'modules/captchas/helpers/hostname_allowed', hostname: 'example.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unrestricted, expected: true, field_name: 'no_allowlist'
+
+  # exact match passes
+  function exact = 'modules/captchas/helpers/hostname_allowed', hostname: 'example.com', expected_hostname: 'example.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: exact, expected: true, field_name: 'exact_match'
+
+  # case-insensitive, comma-separated allow-list with spaces
+  function listed = 'modules/captchas/helpers/hostname_allowed', hostname: 'WWW.Example.com', expected_hostname: 'example.com, www.example.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: listed, expected: true, field_name: 'list_case_insensitive'
+
+  # subdomains are not implied
+  function subdomain = 'modules/captchas/helpers/hostname_allowed', hostname: 'www.example.com', expected_hostname: 'example.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: subdomain, expected: false, field_name: 'subdomain_not_implied'
+
+  # blank hostname fails closed when an allow-list is set
+  function no_host = 'modules/captchas/helpers/hostname_allowed', expected_hostname: 'example.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: no_host, expected: false, field_name: 'blank_hostname_fails_closed'
+%}

@@ -1,11 +1,25 @@
 {% doc %}
   @description Renders a captcha widget for the active provider into a form.
-  @param {string} site_key - The provider's public site key.
+  @param {string} site_key - The provider's public site key. A blank value (e.g. an unset
+    constant) logs an error and emits an HTML comment; the widget is still rendered and fails
+    visibly in the provider's client-side script.
   @param {string} [provider] - Provider name; defaults to the CAPTCHA_DEFAULT_PROVIDER constant, else 'turnstile'.
   @param {object} [options] - Provider widget options, passed through to the provider partial.
 {% enddoc %}
 {%- liquid
   function active_provider = 'modules/captchas/helpers/default_provider', provider: provider
+
+  if site_key == blank
+    # The most common misconfiguration: an unset site-key constant. Surface it like the
+    # unsupported-provider case below — otherwise the only symptom is the provider script
+    # failing client-side with an opaque error inside the widget.
+    assign warning = 'modules/captchas/widget: blank site_key for provider ' | append: active_provider | append: ' - is the site-key constant set?'
+    log warning, type: 'error'
+    echo '<!-- '
+    echo warning | escape
+    echo ' -->'
+  endif
+
   case active_provider
     when 'turnstile'
       render 'modules/captchas/providers/turnstile/widget', site_key: site_key, options: options

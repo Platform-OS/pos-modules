@@ -184,7 +184,8 @@ the loader script's `hl` param on first load), `class_name`, `html_id`.
 `response_field_name` (hidden input name, default `g-recaptcha-response`). v3 is invisible — there
 is no theme/size: on submit it runs `grecaptcha.execute()`, fills a hidden input, and resubmits the
 form. Use provider `recaptcha_v3`, and pair the widget's `action` with the verify command's
-`expected_action` if you check it.
+`expected_action` if you check it. Render at most **one v3 widget per form** — a duplicate render
+in the same form is ignored (with a console warning); widgets in several forms on one page are fine.
 
 ```liquid
 {% render 'modules/captchas/widget',
@@ -193,6 +194,10 @@ form. Use provider `recaptcha_v3`, and pair the widget's `action` with the verif
 ```
 
 The loader script is emitted only once per page even if the widget is rendered multiple times.
+
+If `site_key` is blank (typically an unset constant), the widget logs an error and emits an HTML
+comment naming the provider, so the misconfiguration shows up in `pos-cli logs` and in the page
+source instead of only as an opaque client-side widget error.
 
 ### Command: `modules/captchas/commands/captcha/verify`
 

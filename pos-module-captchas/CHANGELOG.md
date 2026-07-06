@@ -9,6 +9,11 @@ Initial release.
 - Keys are caller-supplied per call — multiple keys for the same provider on one instance.
 - Optional `expected_sitekey` param (hCaptcha) — forwarded to siteverify so tokens issued for
   another sitekey of the same account are rejected (hCaptcha secrets are account-wide).
-- Optional `expected_hostname` allow-list check as defense-in-depth.
+- Optional `expected_hostname` allow-list check as defense-in-depth (exact, case-insensitive
+  matching via the unit-tested `helpers/hostname_allowed` function).
 - Widget attribute values (site key, options) are HTML-escaped.
-- English and Polish translations, runnable example app demo, and unit tests for the build/check/fail-closed paths.
+- A blank `site_key` logs an error and emits an HTML comment instead of failing silently client-side.
+- reCAPTCHA v3: a duplicate widget render in the same form is detected and ignored (one active
+  instance per form).
+- English and Polish translations, runnable example app demo, and unit tests for the
+  build/check/fail-closed paths and the hostname allow-list helper.
