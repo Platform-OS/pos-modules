@@ -1,5 +1,9 @@
 {
-  "dependencies": {
+  "name": "Pos Module Captchas",
+  "machine_name": "captchas",
+  "version": "1.0.0",
+  "dependencies": {},
+  "devDependencies": {
     "tests": "^1.3.4"
   }
 }
