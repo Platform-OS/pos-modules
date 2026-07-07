@@ -32,24 +32,24 @@ different forms simply pass different keys.
 
 ```bash
 # Public site keys may be exposed to the browser; secret keys must stay server-side.
-pos-cli constants set <env> CAPTCHA_TURNSTILE_SITE_KEY   "0x4AAA..."
-pos-cli constants set <env> CAPTCHA_TURNSTILE_SECRET     "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SITE_KEY --value "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SECRET --value "0x4AAA..."
 
 # hCaptcha keys live in their own constants:
-pos-cli constants set <env> CAPTCHA_HCAPTCHA_SITE_KEY    "10000000-ffff-..."
-pos-cli constants set <env> CAPTCHA_HCAPTCHA_SECRET      "0x0000..."
+pos-cli constants set <env> --name CAPTCHA_HCAPTCHA_SITE_KEY --value "10000000-ffff-..."
+pos-cli constants set <env> --name CAPTCHA_HCAPTCHA_SECRET --value "0x0000..."
 
 # reCAPTCHA v2 keys:
-pos-cli constants set <env> CAPTCHA_RECAPTCHA_SITE_KEY   "6Le..."
-pos-cli constants set <env> CAPTCHA_RECAPTCHA_SECRET     "6Le..."
+pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_SITE_KEY --value "6Le..."
+pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_SECRET --value "6Le..."
 
 # reCAPTCHA v3 keys (separate provider; v3 has no public test keys):
-pos-cli constants set <env> CAPTCHA_RECAPTCHA_V3_SITE_KEY "6Le..."
-pos-cli constants set <env> CAPTCHA_RECAPTCHA_V3_SECRET   "6Le..."
+pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_V3_SITE_KEY --value "6Le..."
+pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_V3_SECRET --value "6Le..."
 
 # A second widget/site on the same instance — just another pair of constants:
-pos-cli constants set <env> CAPTCHA_TURNSTILE_MKTG_SITE_KEY "0x4AAA..."
-pos-cli constants set <env> CAPTCHA_TURNSTILE_MKTG_SECRET   "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_TURNSTILE_MKTG_SITE_KEY --value "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_TURNSTILE_MKTG_SECRET --value "0x4AAA..."
 ```
 
 > ⚠️ **Never hardcode a secret key** in templates or commit it. Site keys are public by design;
@@ -138,7 +138,7 @@ Values are normalized (trimmed, lowercased), so `"Turnstile"` or a constant save
 whitespace still resolves; anything that doesn't match a supported provider fails closed:
 
 ```bash
-pos-cli constants set <env> CAPTCHA_DEFAULT_PROVIDER "turnstile"
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "turnstile"
 ```
 
 ```liquid

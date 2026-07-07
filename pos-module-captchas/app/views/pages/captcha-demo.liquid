@@ -57,8 +57,8 @@
 
 {% if site_key == blank %}
   <p>⚠️ <code>CAPTCHA_RECAPTCHA_V3_SITE_KEY</code> is not set. Set both constants to try reCAPTCHA v3:</p>
-  <pre>pos-cli constants set &lt;env&gt; CAPTCHA_RECAPTCHA_V3_SITE_KEY "6Le..."
-pos-cli constants set &lt;env&gt; CAPTCHA_RECAPTCHA_V3_SECRET "6Le..."</pre>
+  <pre>pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA_V3_SITE_KEY --value "6Le..."
+pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA_V3_SECRET --value "6Le..."</pre>
 {% else %}
   <form action="/captcha-verify" method="post" accept-charset="UTF-8">
     <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
