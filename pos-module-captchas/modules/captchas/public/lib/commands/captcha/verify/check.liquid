@@ -8,17 +8,17 @@
   assign supported_providers = 'turnstile,hcaptcha,recaptcha,recaptcha_v3' | split: ','
 
   if object.token == blank
-    assign messages = 'captcha.errors.token_missing' | split: '|'
+    assign messages = 'modules/captchas/errors.token_missing' | split: '|'
     assign c = c | hash_merge: token: messages
   endif
 
   if object.secret == blank
-    assign messages = 'captcha.errors.secret_missing' | split: '|'
+    assign messages = 'modules/captchas/errors.secret_missing' | split: '|'
     assign c = c | hash_merge: secret: messages
   endif
 
   unless supported_providers contains object.provider
-    assign messages = 'captcha.errors.unsupported_provider' | split: '|'
+    assign messages = 'modules/captchas/errors.unsupported_provider' | split: '|'
     assign c = c | hash_merge: provider: messages
   endunless
 

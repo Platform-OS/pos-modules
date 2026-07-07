@@ -223,7 +223,7 @@ source instead of only as an opaque client-side widget error.
 | `response` | The parsed provider response (e.g. `challenge_ts`, `hostname`, `action`, `error-codes`). |
 | `score`    | **reCAPTCHA v3 only** — the returned score (`0.0`–`1.0`). |
 | `action`   | **reCAPTCHA v3 only** — the returned action name. |
-| `errors`   | Hash keyed by field → array of translation keys (e.g. `captcha.errors.verification_failed`). |
+| `errors`   | Hash keyed by field → array of translation keys (e.g. `modules/captchas/errors.verification_failed`). |
 
 Rendering errors:
 
@@ -250,7 +250,7 @@ Rendering errors:
   `success` field.
 - **hostname (optional, part of execute)** — if `expected_hostname` is passed, the response `hostname` must match one
   of the listed hosts (exact, case-insensitive) or `valid` is set to `false` (with
-  `captcha.errors.hostname_mismatch`). Off by default: the providers already bind keys to registered
+  `modules/captchas/errors.hostname_mismatch`). Off by default: the providers already bind keys to registered
   domains, so this is defense-in-depth against a token solved on a different domain and replayed to
   your server. `success` still reflects the provider's raw verdict.
 

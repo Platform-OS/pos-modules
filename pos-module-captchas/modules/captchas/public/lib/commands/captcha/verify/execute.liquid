@@ -23,7 +23,7 @@
       # without a verification call. Guards against the supported-provider list in check.liquid
       # drifting out of sync with these branches.
       function c = 'modules/captchas/helpers/errors_hash', errors: object.errors
-      assign messages = 'captcha.errors.unsupported_provider' | split: '|'
+      assign messages = 'modules/captchas/errors.unsupported_provider' | split: '|'
       assign object.errors = c | hash_merge: provider: messages
       assign object.success = false
       assign object.valid = false
@@ -34,7 +34,7 @@
     function hostname_allowed = 'modules/captchas/helpers/hostname_allowed', hostname: object.response.hostname, expected_hostname: object.expected_hostname
     unless hostname_allowed
       function c = 'modules/captchas/helpers/errors_hash', errors: object.errors
-      assign messages = 'captcha.errors.hostname_mismatch' | split: '|'
+      assign messages = 'modules/captchas/errors.hostname_mismatch' | split: '|'
       assign object.errors = c | hash_merge: captcha: messages
       assign object.valid = false
     endunless
