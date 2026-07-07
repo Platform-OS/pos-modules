@@ -20,13 +20,15 @@
 {%- liquid
   assign action_value = options['action'] | default: 'submit'
   assign response_field = options['response_field_name'] | default: 'g-recaptcha-response'
+  # The json outputs below need html_safe: on instances with escape_output_instead_of_sanitize
+  # the quotes would render as &quot; inside the <script>, which is a JS syntax error.
 -%}
 <script>
 (function () {
   var thisScript = document.currentScript;
-  var siteKey = {{ site_key | json }};
-  var action = {{ action_value | json }};
-  var fieldName = {{ response_field | json }};
+  var siteKey = {{ site_key | json | html_safe }};
+  var action = {{ action_value | json | html_safe }};
+  var fieldName = {{ response_field | json | html_safe }};
   var form = thisScript && thisScript.closest ? thisScript.closest('form') : null;
   if (!form) {
     if (window.console && console.warn) {
