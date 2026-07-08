@@ -1,9 +1,7 @@
 # pos-module-captchas
 
 A generic, swappable **captcha abstraction** for platformOS, with **Cloudflare Turnstile**,
-**hCaptcha**, **reCAPTCHA v2**, and **reCAPTCHA v3** provider implementations. It mirrors the
-`payments` ⇄ `payments-stripe` split: a thin generic interface (`modules/captchas/...`) plus
-per-provider implementations behind it, so you can "bolt in" or swap captcha providers in one place.
+**hCaptcha**, **reCAPTCHA v2**, and **reCAPTCHA v3** provider implementations.
 
 The module does two jobs:
 
