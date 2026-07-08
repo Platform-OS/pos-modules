@@ -63,5 +63,7 @@ method: post
 
 <p><a href="/captcha-demo?provider={{ provider }}">← Back to the form</a></p>
 
-<h2>Raw provider response</h2>
-<pre>{{ result.response | json }}</pre>
+{% if result.response %}
+  <h2>Raw provider response</h2>
+  <pre>{{ result.response | json }}</pre>
+{% endif %}
