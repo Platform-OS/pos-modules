@@ -1,0 +1,17 @@
+{% comment %}
+  Unit test (no network): the EXECUTE phase dispatcher must FAIL CLOSED when no provider
+  branch matches. The check phase normally rejects unsupported providers first, so this
+  calls execute directly with an object that claims to be valid — locking in the drift
+  guard: if the supported-provider list in check.liquid ever gets out of sync with the
+  case branches in execute.liquid, an unknown provider must never verify. The 'else'
+  branch makes no siteverify HTTP call, so this test is deterministic.
+{% endcomment %}
+{% liquid
+  # simulate an object that slipped past check: unknown provider, yet valid: true
+  assign slipped = '{}' | parse_json | hash_merge: provider: 'bogus', secret: 'sk_test', token: 'tok_test', valid: true
+  function result = 'modules/captchas/commands/captcha/verify/execute', object: slipped
+
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'execute_fails_closed', object: result
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.success, expected: false, field_name: 'success_is_false'
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'provider', object: result.errors
+%}

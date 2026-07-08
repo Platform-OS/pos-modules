@@ -1,0 +1,26 @@
+{% comment %}
+  Unit test (no network): errors_hash helper. platformOS's `empty` literal and nil are NOT
+  hashes, so `... | default: empty | hash_merge: ...` raises "first argument must be a hash"
+  at runtime — linters do not catch it. The helper normalizes nil/blank input to a real,
+  mergeable hash while preserving an already-populated one; this locks that contract in.
+{% endcomment %}
+{% liquid
+  # nil input -> a real hash, safe for hash_merge (a nil return would raise here)
+  function from_nil = 'modules/captchas/helpers/errors_hash'
+  assign merged = from_nil | hash_merge: token: 'x'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: merged.token, expected: 'x', field_name: 'nil_becomes_mergeable_hash'
+
+  # an empty hash input stays mergeable
+  assign empty_hash = '{}' | parse_json
+  function from_empty = 'modules/captchas/helpers/errors_hash', errors: empty_hash
+  assign merged_empty = from_empty | hash_merge: secret: 'y'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: merged_empty.secret, expected: 'y', field_name: 'empty_hash_mergeable'
+
+  # a populated hash passes through: existing keys survive a subsequent merge
+  assign existing = '{"token":["modules/captchas/errors.token_missing"]}' | parse_json
+  function preserved = 'modules/captchas/helpers/errors_hash', errors: existing
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'token', object: preserved
+  assign merged_more = preserved | hash_merge: secret: 'z'
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'token', object: merged_more
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: merged_more.secret, expected: 'z', field_name: 'populated_hash_merge_adds'
+%}
