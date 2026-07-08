@@ -18,16 +18,20 @@
 
   assign room_id = context.params.room_id
 
-  function conversation = 'modules/chat/lib/queries/conversations/find_by_participant', id: room_id, participant_id: current_profile.id, include_messages: null
+  function conversation = 'modules/chat/queries/conversations/find_by_participant', id: room_id, participant_id: current_profile.id, include_messages: null
   if conversation
     assign message_safe = context.params.message | raw_escape_string
     assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": message_safe }
-    function message = 'modules/chat/lib/commands/messages/create', object: object
+    function message = 'modules/chat/commands/messages/create', object: object
     if message.valid != true
       log message, 'ERROR receive message'
       echo "false"
     else
-      function _res = 'modules/chat/lib/commands/conversations/mark_unread', conversation: conversation, current_profile: current_profile
+      function _res = 'modules/chat/commands/conversations/mark_unread', conversation: conversation, current_profile: current_profile
+
+      # Recipients are notified of the new message by the chat_message_created consumer
+      # (lib/consumers/chat_message_created/broadcast_new_message), which runs in a
+      # retryable background job. messages/create publishes that event on persist.
     endif
   else
     log "Skippind. Message will be persisted on sender side", 'channel_actions/conversate skip_message'

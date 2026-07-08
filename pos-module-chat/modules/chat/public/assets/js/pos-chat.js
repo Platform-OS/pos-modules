@@ -98,9 +98,31 @@ const chat = function(){
 
 
   // purpose:		scrolls the chat window to the bottom
+  // arguments:	scroll behavior - 'auto' (instant) or 'smooth' (string, default: 'auto')
   // ------------------------------------------------------------------------
-  const scrollBottom = () => {
-    module.settings.messagesListContainer.scrollTo(0, module.settings.messagesList.scrollHeight);
+  const scrollBottom = (behavior = 'auto') => {
+    const container = module.settings.messagesListContainer;
+
+    // When the tab is hidden (the usual case for the *recipient* of a message - the sender
+    // is focused on their own tab) the browser pauses requestAnimationFrame and won't run
+    // smooth-scroll animations, so a deferred/smooth scroll silently never happens. Jump
+    // instantly instead, so the latest message is already in view once the tab is focused.
+    if(document.hidden){
+      container.scrollTop = container.scrollHeight - container.clientHeight;
+      return;
+    }
+
+    // Visible tab: defer to the next frame so the scroll runs after the newly inserted
+    // message has been laid out. This also lets the browser's scroll anchoring settle
+    // first - when a message is inserted above the bottom (e.g. an out-of-order burst),
+    // anchoring would otherwise fight a scroll issued in the same frame.
+    requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight - container.clientHeight,
+        left: 0,
+        behavior: behavior
+      });
+    });
   };
 
 
@@ -210,14 +232,32 @@ const chat = function(){
     messageHtml.querySelector(module.settings.messageTemplate.dateSelector).textContent = module.settings.timezonedDate(new Date(messageData.created_at));
     messageHtml.querySelector(module.settings.messageTemplate.dateSelector).dateTime = messageData.created_at;
     messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
-    // append the message to the chat
-    module.settings.messagesList.append(messageHtml);
-    // scroll into the view
-    module.settings.messagesListContainer.scrollTo({
-      top: module.settings.messagesListContainer.scrollHeight - module.settings.messagesListContainer.clientHeight,
-      left: 0,
-      behavior: 'smooth'
-    });
+
+    // Insert in chronological order (by created_at) rather than by arrival order, so a
+    // burst of messages renders correctly even if channel delivery arrives out of order.
+    // Falls back to appending at the end (the common case: the newest message).
+    const messageDate = new Date(messageData.created_at);
+    let appendedAtEnd = true;
+    for(const li of module.settings.messagesList.querySelectorAll(':scope > li')){
+      const time = li.querySelector(module.settings.messageTemplate.dateSelector);
+      const liDate = (time && time.dateTime) ? new Date(time.dateTime) : null;
+      if(liDate && liDate > messageDate){
+        module.settings.messagesList.insertBefore(messageHtml, li);
+        appendedAtEnd = false;
+        break;
+      }
+    }
+
+    if(appendedAtEnd){
+      // append the message to the chat
+      module.settings.messagesList.append(messageHtml);
+    }
+
+    // showMessage only ever runs for a freshly-arrived realtime message (pagination
+    // renders its own markup), so always scroll to the bottom to reveal it - even when
+    // an out-of-order burst inserted this node above a later one, the newest message
+    // still sits at the bottom.
+    scrollBottom('smooth');
 
     if(module.settings.debug){
       console.log('[pos-module-chat] Message shown in chat');
@@ -365,15 +405,9 @@ const chat = function(){
       }
     });
 
-    // what will happen when new message appears in channel
-    document.addEventListener('message', event => {
-      module.showMessage(event.detail);
-      scrollBottom();
-
-      // if(event.detail.status === 'sent'){
-      //   document.chatNotifications.send(event.detail.to_id, event.detail);
-      // }
-    });
+    // Incoming messages are rendered directly from the channel's `received` callback
+    // (see createSubscription -> showMessage). Recipients are notified of messages in
+    // other conversations server-side, so there is no client-side notification send here.
 
     // load previous messages when user scrolls to top
     let messagesListTimeout = '';
