@@ -80,7 +80,7 @@ The module is self-contained — it has **no module dependencies** (no `core` re
 </form>
 ```
 
-On submit, Turnstile injects a hidden input named `cf-turnstile-response` into the form.
+Once the challenge completes, Turnstile injects a hidden input named `cf-turnstile-response` into the form.
 
 ### 2. Verify on the server (in your POST page / command)
 
@@ -188,10 +188,18 @@ form. Use provider `recaptcha_v3`, and pair the widget's `action` with the verif
 in the same form is ignored (with a console warning); widgets in several forms on one page are fine.
 
 ```liquid
-{% render 'modules/captchas/widget',
-     site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY,
-     options: { "theme": "dark", "size": "flexible", "action": "contact" } %}
+{% liquid
+  assign captcha_options = '{ "theme": "dark", "size": "flexible", "action": "contact" }' | parse_json
+  render 'modules/captchas/widget',
+    site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY,
+    options: captcha_options
+%}
 ```
+
+> ⚠️ Build the `options` hash with `parse_json` (or `hash_merge`) and pass the variable, as above.
+> An inline hash literal in the tag arguments (`options: { "theme": "dark" }`) parses and deploys
+> without errors but evaluates to nil at runtime — the widget renders with all options silently
+> ignored.
 
 The loader script is emitted only once per page even if the widget is rendered multiple times.
 
