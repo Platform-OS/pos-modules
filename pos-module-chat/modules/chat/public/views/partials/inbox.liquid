@@ -100,6 +100,8 @@
             for message in list
               if message.autor_id == current_profile.id
                 assign authored = true
+              else
+                assign authored = false
               endif
 
               render 'modules/chat/message', message: message, authored: authored, timezone: current_profile.timezone
