@@ -117,7 +117,7 @@
       transition: all .2s ease-in-out;
     }
 
-    .pos-chat-conversations:not(:has(.pos-chat-conversationCard:hover)) .pos-chat-conversationCard.active {
+    .pos-chat-conversations:not(:has(.pos-chat-conversationCard:hover)) .pos-chat-conversationCard-active {
       anchor-name: --pos-chat-conversation-active;
     }
 
@@ -164,6 +164,14 @@
     font-size: inherit;
     white-space: nowrap;
   }
+
+/* load more button */
+.pos-chat-conversations-more {
+  padding-block-start: var(--pos-padding-card);
+  display: none;
+
+  text-align: center;
+}
 
 
 /* conversation

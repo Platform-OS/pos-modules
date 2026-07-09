@@ -1,0 +1,7 @@
+{% liquid
+  if conversations.results.size == 0
+    assign conversations['message'] = 'No conversations found'
+  endif
+%}
+
+{{ conversations }}
