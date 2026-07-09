@@ -28,7 +28,7 @@ slug: inbox
       endfor
     endif
   endif
-  function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 20, page: 1
+  function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 30, page: 1
 
   if conversations.total_entries > 0
     if current_conversation and current_conversation.participants == blank

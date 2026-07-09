@@ -21,6 +21,8 @@ query search(
     sort: { updated_at: { order: DESC } }
   ) {
     total_entries
+    current_page
+    has_next_page
     results {
       id
       created_at

@@ -60,29 +60,7 @@
 >
 
   <ul class="pos-chat-conversations" id="pos-chat-conversations">
-    {% for conversation in conversations.results %}
-      {% liquid
-        assign participants = conversation.participants
-        assign current_participants = participants | select: id: current_profile.id
-        assign other_participants = participants | subtract_array: current_participants
-        assign from_profile = other_participants | first
-
-        if conversation.id == current_conversation.id
-          assign current = true
-        else
-          assign current = false
-        endif
-
-        assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | default: from_profile.name
-        assign image_src = from_profile.avatar.photo.versions.sm
-        assign last_message = conversation.last_message.message
-      %}
-      {% if conversation.last_message %}
-        <li>
-          {% render 'modules/chat/conversation', id: conversation.id, current: current, name: name, image_src: image_src, last_message: last_message, timezone: current_profile.timezone %}
-        </li>
-      {% endif %}
-    {% endfor %}
+    {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
   </ul>
 
   {% if current_conversation %}

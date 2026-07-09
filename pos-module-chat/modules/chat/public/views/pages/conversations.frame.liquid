@@ -1,15 +1,14 @@
 ---
-slug: api/chat/messages
-method: get
+layout: ''
 ---
 
 {% doc %}
-  Get messages for given conversation
+  Get conversations for given participant and return them in HTML
 
-  @param {string} conversation_id - the ID of the conversation
   @param {string} page - page number for pagination
-  @param {number} [per_page] - items per page (default: 30)
+  @param {number} [per_page] - items per page (default: 20)
 {% enddoc %}
+
 
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
@@ -18,11 +17,10 @@ method: get
   include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
-  assign conversation_id = context.params.conversation_id
-  assign page = context.params.page | to_positive_integer: 1
+  assign page = context.params.page | to_positive_integer: 0
   assign per_page = context.params.per_page | to_positive_integer: 30
 
-  function messages = 'modules/chat/queries/messages/search_by_participant', conversation_id: conversation_id, page: page, limit: per_page, participant_id: current_profile.id
+  function conversations = 'modules/chat/queries/conversations/search_by_participant', page: page, limit: per_page, participant_id: current_profile.id
 
-  render 'modules/chat/json/messages/show', messages: messages
+  render 'modules/chat/conversations', conversations: conversations, current: null, current_profile: current_profile
 %}

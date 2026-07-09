@@ -16,7 +16,7 @@ import consumer from 'pos-chat-consumer.js';
 
 // purpose:		handles sending and receiving messages as well as the inbox page
 // ************************************************************************
-const chat = function(){
+window.pos.modules.chat = function(userSettings = {}){
 
   // cache 'this' value not to be overwritten later
   const module = this;
@@ -24,10 +24,11 @@ const chat = function(){
   // purpose:		settings that are being used across the module
   // ------------------------------------------------------------------------
   module.settings = {};
-  // do you want to enable debug mode that logs to console (bool)
-  module.settings.debug = false;
+  // unique id for the modules (string)
+  module.settings.id = 'pos-module-chat';
+
   // the main container with the chat inbox (dom node)
-  module.settings.inbox = document.querySelector('#pos-chat-inbox');
+  module.settings.inbox = userSettings.inbox || document.querySelector('#pos-chat-inbox');
   // the input for typing new message (dom node)
   module.settings.messageInput = document.querySelector('#chat-messageInput');
   // the send button for new message (dom node)
@@ -73,7 +74,19 @@ const chat = function(){
   // current page of messages (int)
   module.settings.currentPage = 1;
   // are there more pages (bool)
-  module.settings.morePages = true
+  module.settings.morePages = true;
+
+  // stores all the conversation list related stuff (object)
+  module.settings.conversations = {};
+  // container for the conversations list (dom node)
+  module.settings.conversations.container = document.querySelector('#pos-chat-conversations');
+  // selctor for the button to load more conversations (string)
+  module.settings.conversations.loadMoreButtonSelector = '.pos-chat-conversations-more';
+  // current page of conversations (int)
+  module.settings.conversations.currentPage = 1;
+  // are there more pages of conversations (bool)
+  module.settings.conversations.morePages = document.querySelector(module.settings.conversations.loadMoreButtonSelector) ? true : false;
+
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
 
@@ -83,6 +96,98 @@ const chat = function(){
   module.conversationId = module.settings.inbox.getAttribute('data-conversation-id');
   // instance of the toast notification shown when something fails
   module.errorNotification = null;
+
+  // to enable debug mode (bool)
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+
+
+
+  // purpose:		initializes the module
+  // ------------------------------------------------------------------------
+  module.init = () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing chat', module.settings.inbox);
+
+    // create subscription for the channel
+    module.createSubscription();
+
+    // scroll to bottom after loading the messages
+    scrollBottom();
+
+    // parse dates from BE to be in the same format as browser locale
+    module.parseDates();
+
+    let is_desktop = true;
+
+    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+      is_desktop = false;
+    }
+
+    // handling what will happen on pressing enter in the input
+    module.settings.messageInput.addEventListener('keypress', (event) => {
+      if(event.which == 13 && is_desktop && !event.shiftKey && module.settings.messageInput.value.trim()){
+        event.preventDefault();
+
+        module.sendMessage(module.settings.messageInput.value.trim());
+        setTimeout(() => {
+          module.settings.messageInput.value = '';
+        }, 100);
+      }
+    });
+
+    module.settings.messageInput.addEventListener("paste", (event) => {
+      event.preventDefault();
+      const text = event.clipboardData.getData("text/plain");
+      document.execCommand("insertHTML", false, text);
+    });
+
+    // handling send button click
+    module.settings.sendButton.addEventListener('click', () => {
+      if(module.settings.messageInput.value.trim()) {
+        module.sendMessage(module.settings.messageInput.value.trim());
+        setTimeout(() => {
+          module.settings.messageInput.value = '';
+        }, 100);
+      }
+    });
+
+    // load previous messages when user scrolls to top
+    let messagesListTimeout = '';
+    module.settings.messagesListContainer.addEventListener('scroll', () => {
+      if(module.settings.morePages === true){
+        clearTimeout(messagesListTimeout);
+        messagesListTimeout = setTimeout(() => {
+          if(module.settings.messagesListContainer.scrollTop === 0){
+            module.settings.currentPage = module.settings.currentPage + 1;
+            module.loadPage(module.settings.currentPage);
+          }
+        }, 300);
+      }
+    });
+
+    // load nex page of conversations when user scrolls to bottom
+    let conversationsListTimeout = '';
+    module.settings.conversations.container.addEventListener('scroll', () => {
+      if(module.settings.conversations.morePages === true){
+        clearTimeout(conversationsListTimeout);
+        conversationsListTimeout = setTimeout(() => {
+          if(module.settings.conversations.container.scrollTop === module.settings.conversations.container.scrollHeight - module.settings.conversations.container.clientHeight){
+            module.settings.conversations.currentPage = module.settings.conversations.currentPage + 1;
+            module.conversations.load(module.settings.conversations.currentPage);
+          }
+        }, 300);
+      }
+    });
+
+    if(module.settings.conversations.morePages){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'More conversations available');
+    } else {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Showing all conversations, no more pages available');
+    }
+    
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Chat initialized', module.settings.inbox);
+
+  };
+
 
 
   // purpose:		escapes the html to a browser-safe string
@@ -131,6 +236,8 @@ const chat = function(){
   //				    appears on the channel (send or received), passess the message details
   // ------------------------------------------------------------------------
   module.createSubscription = () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Creating subscription');
+
     module.channel = consumer.subscriptions.create(
       {
         channel: 'conversate',
@@ -146,55 +253,43 @@ const chat = function(){
               status: (module.settings.currentUserId == data.autor_id) ? 'sent' : 'received'
             })
           );
-          //document.dispatchEvent(new CustomEvent('message', {detail: Object.assign(data, { status: (module.settings.currentUserId == data.autor_id) ? 'sent' : 'received'})}));
 
           if(module.settings.debug){
             if(data.status === 'received'){
-              console.log('[pos-module-chat] Message received', data);
+              pos.modules.debug(module.settings.debug, module.settings.id, 'Message received', data);
             }
           }
         },
 
         initialized: function(){
           if(module.settings.debug){
-            console.log('[pos-module-chat] Initialized');
+            pos.modules.debug(module.settings.debug, module.settings.id, 'Subscription initialized');
           }
         },  
 
         connected: function(){
-          if(module.settings.debug){
-            console.log('[pos-module-chat] Connected')
-          }
+          pos.modules.debug(module.settings.debug, module.settings.id, `Connected to channel and joined the room ${module.conversationId}`);
 
           module.settings.messageInput.disabled = false;
           module.settings.messageInput.focus();
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Unlocked message input');
 
           // remove the error notification when connected
           if(module.errorNotification){
             module.errorNotification.hide();
           }
-
-          if(module.settings.debug){
-            console.log(`[pos-module-chat] Connected to channel and joined room ${module.conversationId}`);
-          }
         },
 
         rejected: function(){
-          console.log('rejected');
           module.blocked();
 
-          if(module.settings.debug){
-            console.log('[pos-module-chat] The connection was rejected by the server');
-          }
+          pos.modules.debug(module.settings.debug, module.settings.id, `The connection was rejected by the server`);
         },
 
         disconnected: function(){
-          console.log('disconnected')
           module.blocked();
 
-          if(module.settings.debug){
-            console.log(`[pos-module-chat] You've been disconnected from the server`);
-          }
+          pos.modules.debug(module.settings.debug, module.settings.id, `Disconnected from the server`);
         }
       }
     );
@@ -214,9 +309,7 @@ const chat = function(){
 
     module.channel.send(Object.assign(messageData, { create: true }));
 
-    if(module.settings.debug){
-      console.log('[pos-module-chat] Message sent', messageData);
-    }
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Message sent', messageData);
   };
 
 
@@ -253,15 +346,9 @@ const chat = function(){
       module.settings.messagesList.append(messageHtml);
     }
 
-    // showMessage only ever runs for a freshly-arrived realtime message (pagination
-    // renders its own markup), so always scroll to the bottom to reveal it - even when
-    // an out-of-order burst inserted this node above a later one, the newest message
-    // still sits at the bottom.
     scrollBottom('smooth');
 
-    if(module.settings.debug){
-      console.log('[pos-module-chat] Message shown in chat');
-    }
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Message shown on page', messageData);
   };
 
 
@@ -270,9 +357,7 @@ const chat = function(){
   //            items per page to get (int, default: 30)
   // ------------------------------------------------------------------------
   module.loadPage = (page = 1, perPage = 30) => {
-    if(module.settings.debug){
-      console.log('[pos-module-chat] Trying to load previous messages');
-    }
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load previous messages');
 
     let secondOldestMessage = module.settings.messagesList.querySelector('li:nth-of-type(2)');
 
@@ -315,9 +400,7 @@ const chat = function(){
         module.settings.morePages = false;
       }
 
-      if(module.settings.debug){
-        console.log('[pos-module-chat] Previous messages loaded');
-      }
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Previous messages loaded');
     })
     .catch((error) => {
       console.log(error);
@@ -331,9 +414,7 @@ const chat = function(){
         module.settings.messagesListContainer.scrollTop = secondOldestMessage.offsetTop - module.settings.messagesListContainer.clientHeight;
       }
 
-      if(module.settings.debug){
-        console.log('[pos-module-chat] Finished trying to load previous messages');
-      }
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous messages');
     });
   };
 
@@ -346,6 +427,8 @@ const chat = function(){
       'error',
       window.pos.translations.chat.connectionError
     );
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Blocked the chat due to error');
   };
 
 
@@ -359,124 +442,60 @@ const chat = function(){
   };
 
 
-  // purpose:		initializes the module
+  // conversations
   // ------------------------------------------------------------------------
-  module.init = () => {
-    // create subscription for the channel
-    module.createSubscription();
+  module.conversations = {};
 
-    // scroll to bottom after loading the messages
-    scrollBottom();
 
-    // parse dates from BE to be in the same format as browser locale
-    module.parseDates();
+  // purpose:   loads next page of conversations
+  // ------------------------------------------------------------------------
+  module.conversations.load = (page = 1) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load next page of conversations');
 
-    let is_desktop = true;
-
-    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-      is_desktop = false;
-    }
-
-    // handling what will happen on pressing enter in the input
-    module.settings.messageInput.addEventListener('keypress', (event) => {
-      if(event.which == 13 && is_desktop && !event.shiftKey && module.settings.messageInput.value.trim()){
-        event.preventDefault();
-
-        module.sendMessage(module.settings.messageInput.value.trim());
-        setTimeout(() => {
-          module.settings.messageInput.value = '';
-        }, 100);
+    // get the data
+    fetch(`/conversations.frame?page=${page}`)
+    .then(response => {
+      // parse it to JSON if valid
+      if(response.ok){
+        return response.text();
+      } else {
+        return Promise.reject(response);
       }
-    });
+    })
+    .then((data) => {
+      // remove the 'load more' button for previous page
+      document.querySelector(module.settings.conversations.loadMoreButtonSelector)?.remove();
 
-    module.settings.messageInput.addEventListener("paste", (event) => {
-      event.preventDefault();
-      const text = event.clipboardData.getData("text/plain");
-      document.execCommand("insertHTML", false, text);
-    });
+      module.settings.conversations.container.insertAdjacentHTML('beforeend', data);
 
-    // handling send button click
-    module.settings.sendButton.addEventListener('click', () => {
-      if(module.settings.messageInput.value.trim()) {
-        module.sendMessage(module.settings.messageInput.value.trim());
-        setTimeout(() => {
-          module.settings.messageInput.value = '';
-        }, 100);
+      pos.modules.debug(module.settings.debug, module.settings.id, `Conversations page ${page} loaded`, { data });
+
+      // disable loading next pages if there is nothing left
+      if(!document.querySelector(module.settings.conversations.loadMoreButtonSelector)){
+        module.settings.conversations.morePages = false;
+        pos.modules.debug(module.settings.debug, module.settings.id, 'There are no more conversations to load, disabling infinite scroll');
       }
+    })
+    .catch((error) => {
+      console.log(error);
+      error.json().then(data => console.log(data));
+    })
+    .finally(() => {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous conversations');
     });
-
-    // Incoming messages are rendered directly from the channel's `received` callback
-    // (see createSubscription -> showMessage). Recipients are notified of messages in
-    // other conversations server-side, so there is no client-side notification send here.
-
-    // load previous messages when user scrolls to top
-    let messagesListTimeout = '';
-    module.settings.messagesListContainer.addEventListener('scroll', () => {
-      if(module.settings.morePages === true){
-        clearTimeout(messagesListTimeout);
-        messagesListTimeout = setTimeout(() => {
-          if(module.settings.messagesListContainer.scrollTop === 0){
-            module.settings.currentPage = module.settings.currentPage + 1;
-            module.loadPage(module.settings.currentPage);
-          }
-        }, 300);
-      }
-    });
-
   };
+
+
+
 
   module.init();
 
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  if(document.querySelector('#chat-messagesList-container')){
-    window.pos.modules.chat = new chat();
+  if(document.querySelector('#pos-chat-inbox')){
+    window.pos.modules.active.chat = new window.pos.modules.chat({
+      inbox: document.querySelector('#pos-chat-inbox'),
+    });
   }
-});
-
-
-
-// purpose:		handles the behavior of 'send message' button
-// argumenst: configurable settings (object)
-// ************************************************************************
-const sendMessageButton = function(userSettings){
-
-	// cache 'this' value not to be overwritten later
-	const module = this;
-
-
-  // purpose:		settings that are being used across the module
-  // ------------------------------------------------------------------------
-	module.settings = {};
-	// the 'send message' button (dom node)
-  module.sendMessageButton = userSettings.sendMessageButton ? userSettings.sendMessageButton : document.querySelector('.chat-sendMessage');
-
-
-  // purpose:		blocks the button after first click to prevent
-  //            cloning the conversations to a single user
-  // ------------------------------------------------------------------------
-  module.preventDoubleClick = () => {
-    module.sendMessageButton.addEventListener('click', () => {
-      module.sendMessageButton.setAttribute('disabled', 'disabled');
-    });
-  };
-
-
-  // purpose:		initializes the module
-  // ------------------------------------------------------------------------
-  module.init = () => {
-    module.preventDoubleClick();
-  };
-
-  module.init();
-
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.chat-sendMessage').forEach((item) => {
-    new sendMessageButton({
-      sendMessageButton: item
-    });
-  });
 });
