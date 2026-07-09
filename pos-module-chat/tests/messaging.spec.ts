@@ -317,7 +317,7 @@ test.describe('Testing messaging', () => {
     // Deliver three messages to the client out of chronological order and read back the
     // rendered order. created_at, not arrival order, must determine the displayed order.
     const renderedOrder = await page.evaluate(() => {
-      const chat = (window as any).pos.modules.chat;
+      const chat = (window as any).pos.modules.active.chat;
       const base = Date.parse('2020-01-01T00:00:00Z');
       const make = (text: string, offsetSeconds: number) => ({
         message: text,
