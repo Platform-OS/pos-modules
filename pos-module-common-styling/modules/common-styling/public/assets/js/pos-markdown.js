@@ -389,7 +389,7 @@ window.pos.modules.markdown = function(settings){
     results.forEach(person => {
       const template = module.settings.mention.template.content.cloneNode(true);
 
-      if(person.avatar.photo){
+      if(person.avatar){
         template.querySelector('img').src = person.avatar.photo.versions.sm;
         template.querySelector('.pos-markdown-mention-avatar-initials').remove();
       } else {
