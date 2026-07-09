@@ -98,7 +98,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.errorNotification = null;
 
   // to enable debug mode (bool)
-  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
 
 
 
