@@ -100,6 +100,13 @@ export class InboxPage extends BasePage {
 
     return isAuthorHeaderVisible;
   }
+
+  // The id of the currently open conversation (the `conversate` channel's room id),
+  // exposed by the inbox as #pos-chat-inbox[data-conversation-id].
+  async currentConversationId() {
+    const id = await this.page.locator('#pos-chat-inbox').getAttribute('data-conversation-id');
+    return id ?? '';
+  }
 }
 
 class ChatCard {

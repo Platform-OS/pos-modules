@@ -1,0 +1,43 @@
+{% comment %}
+  Consumer for the `chat_message_created` event.
+
+  Pushes a real-time notification to every other conversation participant's own
+  notifications room (`notifications-<profile id>`) via the channel_send_message
+  mutation. Runs in a background job so delivery is retried on transient failure
+  and is decoupled from the WebSocket receive request that created the message.
+
+  Authorization for receiving these notifications is enforced by
+  views/partials/channels/notifications/subscribed.liquid (a user can only
+  subscribe to their own room), so broadcasting here cannot leak to other users.
+
+  Unlike notify_of_new_message (the debounced email path), this delivers every
+  message immediately, hence the un-delayed background job with retries
+  (max_attempts) so a transient broadcast failure does not silently drop a
+  notification.
+{% endcomment %}
+{% background message_id: event.message_id, max_attempts: 5 %}
+  {% liquid
+    graphql messages = 'modules/chat/messages/search', id: message_id
+    assign message = messages.messages.results.first
+
+    if message
+      function sender = 'modules/user/queries/profiles/find', id: message.autor_id, user_id: null, uuid: null, first_name: null, last_name: null
+      assign sender_name = sender.name | default: sender.first_name
+      # message_id + created_at make the payload self-describing: notifications are delivered
+      # by background jobs (no ordering guarantee), so a client can order/dedupe a burst by
+      # created_at instead of relying on arrival order.
+      assign notification_payload = { "message_id": message.id, "created_at": message.created_at, "conversation_id": message.conversation_id, "sender_id": message.autor_id, "sender_name": sender_name, "message": message.message }
+
+      for participant_id in message.conversation.participant_ids
+        unless participant_id == message.autor_id
+          assign notification_room = 'notifications-' | append: participant_id
+          # platformos-check-disable GraphqlInForLoop
+          graphql _notification = 'modules/chat/notifications/broadcast', room_id: notification_room, payload: notification_payload
+          # platformos-check-enable GraphqlInForLoop
+        endunless
+      endfor
+    endif
+  %}
+{% endbackground %}
+
+{% return 'scheduled' %}

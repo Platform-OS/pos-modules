@@ -16,7 +16,7 @@ import consumer from 'pos-chat-consumer.js';
 
 // purpose:		handles sending and receiving messages as well as the inbox page
 // ************************************************************************
-const chat = function(){
+window.pos.modules.chat = function(userSettings = {}){
 
   // cache 'this' value not to be overwritten later
   const module = this;
@@ -24,10 +24,11 @@ const chat = function(){
   // purpose:		settings that are being used across the module
   // ------------------------------------------------------------------------
   module.settings = {};
-  // do you want to enable debug mode that logs to console (bool)
-  module.settings.debug = false;
+  // unique id for the modules (string)
+  module.settings.id = 'pos-module-chat';
+
   // the main container with the chat inbox (dom node)
-  module.settings.inbox = document.querySelector('#pos-chat-inbox');
+  module.settings.inbox = userSettings.inbox || document.querySelector('#pos-chat-inbox');
   // the input for typing new message (dom node)
   module.settings.messageInput = document.querySelector('#chat-messageInput');
   // the send button for new message (dom node)
@@ -73,7 +74,19 @@ const chat = function(){
   // current page of messages (int)
   module.settings.currentPage = 1;
   // are there more pages (bool)
-  module.settings.morePages = true
+  module.settings.morePages = true;
+
+  // stores all the conversation list related stuff (object)
+  module.settings.conversations = {};
+  // container for the conversations list (dom node)
+  module.settings.conversations.container = document.querySelector('#pos-chat-conversations');
+  // selctor for the button to load more conversations (string)
+  module.settings.conversations.loadMoreButtonSelector = '.pos-chat-conversations-more';
+  // current page of conversations (int)
+  module.settings.conversations.currentPage = 1;
+  // are there more pages of conversations (bool)
+  module.settings.conversations.morePages = document.querySelector(module.settings.conversations.loadMoreButtonSelector) ? true : false;
+
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
 
@@ -84,244 +97,16 @@ const chat = function(){
   // instance of the toast notification shown when something fails
   module.errorNotification = null;
 
+  // to enable debug mode (bool)
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
 
-  // purpose:		escapes the html to a browser-safe string
-  // arguments:	a html string to be escaped (string/html)
-  // returns:		a browser-safe string
-  // ------------------------------------------------------------------------
-  function encodeHtml(string){
-    const element = document.createElement('div');
-    element.textContent = string;
-    string = element.textContent;
-    return string;
-  };
-
-
-  // purpose:		scrolls the chat window to the bottom
-  // ------------------------------------------------------------------------
-  const scrollBottom = () => {
-    module.settings.messagesListContainer.scrollTo(0, module.settings.messagesList.scrollHeight);
-  };
-
-
-  // purpose:		creates a subscription to a room between users
-  // returns:		triggers a 'message' event on document when new message
-  //				    appears on the channel (send or received), passess the message details
-  // ------------------------------------------------------------------------
-  module.createSubscription = () => {
-    module.channel = consumer.subscriptions.create(
-      {
-        channel: 'conversate',
-        room_id: module.conversationId,
-        sender_name: module.settings.messageInput.getAttribute('data-from-name'),
-        autor_id: module.settings.messageInput.getAttribute('data-current-profile-id'),
-        authenticity_token: window.pos.csrfToken
-      },
-      {
-        received: function(data){
-          module.showMessage(
-            Object.assign(data, {
-              status: (module.settings.currentUserId == data.autor_id) ? 'sent' : 'received'
-            })
-          );
-          //document.dispatchEvent(new CustomEvent('message', {detail: Object.assign(data, { status: (module.settings.currentUserId == data.autor_id) ? 'sent' : 'received'})}));
-
-          if(module.settings.debug){
-            if(data.status === 'received'){
-              console.log('[pos-module-chat] Message received', data);
-            }
-          }
-        },
-
-        initialized: function(){
-          if(module.settings.debug){
-            console.log('[pos-module-chat] Initialized');
-          }
-        },  
-
-        connected: function(){
-          if(module.settings.debug){
-            console.log('[pos-module-chat] Connected')
-          }
-
-          module.settings.messageInput.disabled = false;
-          module.settings.messageInput.focus();
-
-          // remove the error notification when connected
-          if(module.errorNotification){
-            module.errorNotification.hide();
-          }
-
-          if(module.settings.debug){
-            console.log(`[pos-module-chat] Connected to channel and joined room ${module.conversationId}`);
-          }
-        },
-
-        rejected: function(){
-          console.log('rejected');
-          module.blocked();
-
-          if(module.settings.debug){
-            console.log('[pos-module-chat] The connection was rejected by the server');
-          }
-        },
-
-        disconnected: function(){
-          console.log('disconnected')
-          module.blocked();
-
-          if(module.settings.debug){
-            console.log(`[pos-module-chat] You've been disconnected from the server`);
-          }
-        }
-      }
-    );
-  };
-
-
-  // purpose:		sends the message through the Action Cable
-  // arguments:	the message to send (string)
-  // ------------------------------------------------------------------------
-  module.sendMessage = (message) => {
-    let messageData = {
-      message: encodeHtml(message),
-      autor_id: module.settings.currentUserId,
-      sender_name: module.settings.currentUserName,
-      created_at: new Date()
-    };
-
-    module.channel.send(Object.assign(messageData, { create: true }));
-
-    if(module.settings.debug){
-      console.log('[pos-module-chat] Message sent', messageData);
-    }
-  };
-
-
-  // purpose:		appends a message to the chat box
-  // arguments:	all the message data that needs to be shown
-  //				    according to the template in messageTemplate (object)
-  // ------------------------------------------------------------------------
-  module.showMessage = (messageData) => {
-
-    // clone message template
-    const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
-    // fill template with data
-    messageHtml.querySelector(module.settings.messageTemplate.dateSelector).textContent = module.settings.timezonedDate(new Date(messageData.created_at));
-    messageHtml.querySelector(module.settings.messageTemplate.dateSelector).dateTime = messageData.created_at;
-    messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
-    // append the message to the chat
-    module.settings.messagesList.append(messageHtml);
-    // scroll into the view
-    module.settings.messagesListContainer.scrollTo({
-      top: module.settings.messagesListContainer.scrollHeight - module.settings.messagesListContainer.clientHeight,
-      left: 0,
-      behavior: 'smooth'
-    });
-
-    if(module.settings.debug){
-      console.log('[pos-module-chat] Message shown in chat');
-    }
-  };
-
-
-  // purpose:		loads messages from given page
-  // arguments:	the page number (int, default: 1)
-  //            items per page to get (int, default: 30)
-  // ------------------------------------------------------------------------
-  module.loadPage = (page = 1, perPage = 30) => {
-    if(module.settings.debug){
-      console.log('[pos-module-chat] Trying to load previous messages');
-    }
-
-    let secondOldestMessage = module.settings.messagesList.querySelector('li:nth-of-type(2)');
-
-    // show the loading indicator at start
-    module.settings.loadingIndicator.classList.add('active');
-
-    // get the data
-    fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&page=${page}&per_page=${perPage}`)
-    .then(response => {
-      // parse it to JSON if valid
-      if(response.ok){
-        return response.json();
-      } else {
-        return Promise.reject(response);
-      }
-    })
-    .then((data) => {
-      // construct HTML elements for messages
-      let html = document.createDocumentFragment();
-
-      Object.entries(data.results).reverse().forEach(([key, messageData]) => {
-        messageData = Object.assign(messageData, { status: (module.settings.currentUserId == messageData.autor_id) ? 'sent' : 'received'});
-
-        // clone message template
-        const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
-        // fill template with data
-        messageHtml.querySelector(module.settings.messageTemplate.dateSelector).textContent = module.settings.timezonedDate(new Date(messageData.created_at));
-        messageHtml.querySelector(module.settings.messageTemplate.dateSelector).dateTime = messageData.created_at;
-        messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
-
-        html.append(messageHtml);
-      });
-
-
-      // put the messages on top
-      module.settings.messagesList.prepend(html);
-
-      // disable loading next pages if there is nothing left
-      if(!data.has_next_page){
-        module.settings.morePages = false;
-      }
-
-      if(module.settings.debug){
-        console.log('[pos-module-chat] Previous messages loaded');
-      }
-    })
-    .catch((error) => {
-      console.log(error);
-      error.json().then(data => console.log(data));
-    })
-    .finally(() => {
-      // remove the loading indicator
-      module.settings.loadingIndicator.classList.remove('active');
-      // scroll to the last seen message
-      if(secondOldestMessage) {
-        module.settings.messagesListContainer.scrollTop = secondOldestMessage.offsetTop - module.settings.messagesListContainer.clientHeight;
-      }
-
-      if(module.settings.debug){
-        console.log('[pos-module-chat] Finished trying to load previous messages');
-      }
-    });
-  };
-
-
-  // purpose:		blocks the chat when there is a critical error
-  // ------------------------------------------------------------------------
-  module.blocked = () => {
-    module.settings.messageInput.disabled = true;
-    module.errorNotification = new window.pos.modules.toast(
-      'error',
-      window.pos.translations.chat.connectionError
-    );
-  };
-
-
-  // purpose:		parses the dates outputted from BE with JS so that everyting uses browser locale
-  // ------------------------------------------------------------------------
-  module.parseDates = () => {
-    document.querySelectorAll('.pos-chat-message time').forEach(date => {
-      let currentDate = new Date(date.dateTime);
-      date.innerText = module.settings.timezonedDate(currentDate);
-    });
-  };
 
 
   // purpose:		initializes the module
   // ------------------------------------------------------------------------
   module.init = () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing chat', module.settings.inbox);
+
     // create subscription for the channel
     module.createSubscription();
 
@@ -365,16 +150,6 @@ const chat = function(){
       }
     });
 
-    // what will happen when new message appears in channel
-    document.addEventListener('message', event => {
-      module.showMessage(event.detail);
-      scrollBottom();
-
-      // if(event.detail.status === 'sent'){
-      //   document.chatNotifications.send(event.detail.to_id, event.detail);
-      // }
-    });
-
     // load previous messages when user scrolls to top
     let messagesListTimeout = '';
     module.settings.messagesListContainer.addEventListener('scroll', () => {
@@ -389,60 +164,338 @@ const chat = function(){
       }
     });
 
+    // load nex page of conversations when user scrolls to bottom
+    let conversationsListTimeout = '';
+    module.settings.conversations.container.addEventListener('scroll', () => {
+      if(module.settings.conversations.morePages === true){
+        clearTimeout(conversationsListTimeout);
+        conversationsListTimeout = setTimeout(() => {
+          if(module.settings.conversations.container.scrollTop === module.settings.conversations.container.scrollHeight - module.settings.conversations.container.clientHeight){
+            module.settings.conversations.currentPage = module.settings.conversations.currentPage + 1;
+            module.conversations.load(module.settings.conversations.currentPage);
+          }
+        }, 300);
+      }
+    });
+
+    if(module.settings.conversations.morePages){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'More conversations available');
+    } else {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Showing all conversations, no more pages available');
+    }
+    
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Chat initialized', module.settings.inbox);
+
   };
+
+
+
+  // purpose:		escapes the html to a browser-safe string
+  // arguments:	a html string to be escaped (string/html)
+  // returns:		a browser-safe string
+  // ------------------------------------------------------------------------
+  function encodeHtml(string){
+    const element = document.createElement('div');
+    element.textContent = string;
+    string = element.textContent;
+    return string;
+  };
+
+
+  // purpose:		scrolls the chat window to the bottom
+  // arguments:	scroll behavior - 'auto' (instant) or 'smooth' (string, default: 'auto')
+  // ------------------------------------------------------------------------
+  const scrollBottom = (behavior = 'auto') => {
+    const container = module.settings.messagesListContainer;
+
+    // When the tab is hidden (the usual case for the *recipient* of a message - the sender
+    // is focused on their own tab) the browser pauses requestAnimationFrame and won't run
+    // smooth-scroll animations, so a deferred/smooth scroll silently never happens. Jump
+    // instantly instead, so the latest message is already in view once the tab is focused.
+    if(document.hidden){
+      container.scrollTop = container.scrollHeight - container.clientHeight;
+      return;
+    }
+
+    // Visible tab: defer to the next frame so the scroll runs after the newly inserted
+    // message has been laid out. This also lets the browser's scroll anchoring settle
+    // first - when a message is inserted above the bottom (e.g. an out-of-order burst),
+    // anchoring would otherwise fight a scroll issued in the same frame.
+    requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight - container.clientHeight,
+        left: 0,
+        behavior: behavior
+      });
+    });
+  };
+
+
+  // purpose:		creates a subscription to a room between users
+  // returns:		triggers a 'message' event on document when new message
+  //				    appears on the channel (send or received), passess the message details
+  // ------------------------------------------------------------------------
+  module.createSubscription = () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Creating subscription');
+
+    module.channel = consumer.subscriptions.create(
+      {
+        channel: 'conversate',
+        room_id: module.conversationId,
+        sender_name: module.settings.messageInput.getAttribute('data-from-name'),
+        autor_id: module.settings.messageInput.getAttribute('data-current-profile-id'),
+        authenticity_token: window.pos.csrfToken
+      },
+      {
+        received: function(data){
+          module.showMessage(
+            Object.assign(data, {
+              status: (module.settings.currentUserId == data.autor_id) ? 'sent' : 'received'
+            })
+          );
+
+          if(module.settings.debug){
+            if(data.status === 'received'){
+              pos.modules.debug(module.settings.debug, module.settings.id, 'Message received', data);
+            }
+          }
+        },
+
+        initialized: function(){
+          if(module.settings.debug){
+            pos.modules.debug(module.settings.debug, module.settings.id, 'Subscription initialized');
+          }
+        },  
+
+        connected: function(){
+          pos.modules.debug(module.settings.debug, module.settings.id, `Connected to channel and joined the room ${module.conversationId}`);
+
+          module.settings.messageInput.disabled = false;
+          module.settings.messageInput.focus();
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Unlocked message input');
+
+          // remove the error notification when connected
+          if(module.errorNotification){
+            module.errorNotification.hide();
+          }
+        },
+
+        rejected: function(){
+          module.blocked();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, `The connection was rejected by the server`);
+        },
+
+        disconnected: function(){
+          module.blocked();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, `Disconnected from the server`);
+        }
+      }
+    );
+  };
+
+
+  // purpose:		sends the message through the Action Cable
+  // arguments:	the message to send (string)
+  // ------------------------------------------------------------------------
+  module.sendMessage = (message) => {
+    let messageData = {
+      message: encodeHtml(message),
+      autor_id: module.settings.currentUserId,
+      sender_name: module.settings.currentUserName,
+      created_at: new Date()
+    };
+
+    module.channel.send(Object.assign(messageData, { create: true }));
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Message sent', messageData);
+  };
+
+
+  // purpose:		appends a message to the chat box
+  // arguments:	all the message data that needs to be shown
+  //				    according to the template in messageTemplate (object)
+  // ------------------------------------------------------------------------
+  module.showMessage = (messageData) => {
+
+    // clone message template
+    const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
+    // fill template with data
+    messageHtml.querySelector(module.settings.messageTemplate.dateSelector).textContent = module.settings.timezonedDate(new Date(messageData.created_at));
+    messageHtml.querySelector(module.settings.messageTemplate.dateSelector).dateTime = messageData.created_at;
+    messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+
+    // Insert in chronological order (by created_at) rather than by arrival order, so a
+    // burst of messages renders correctly even if channel delivery arrives out of order.
+    // Falls back to appending at the end (the common case: the newest message).
+    const messageDate = new Date(messageData.created_at);
+    let appendedAtEnd = true;
+    for(const li of module.settings.messagesList.querySelectorAll(':scope > li')){
+      const time = li.querySelector(module.settings.messageTemplate.dateSelector);
+      const liDate = (time && time.dateTime) ? new Date(time.dateTime) : null;
+      if(liDate && liDate > messageDate){
+        module.settings.messagesList.insertBefore(messageHtml, li);
+        appendedAtEnd = false;
+        break;
+      }
+    }
+
+    if(appendedAtEnd){
+      // append the message to the chat
+      module.settings.messagesList.append(messageHtml);
+    }
+
+    scrollBottom('smooth');
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Message shown on page', messageData);
+  };
+
+
+  // purpose:		loads messages from given page
+  // arguments:	the page number (int, default: 1)
+  //            items per page to get (int, default: 30)
+  // ------------------------------------------------------------------------
+  module.loadPage = (page = 1, perPage = 30) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load previous messages');
+
+    let secondOldestMessage = module.settings.messagesList.querySelector('li:nth-of-type(2)');
+
+    // show the loading indicator at start
+    module.settings.loadingIndicator.classList.add('active');
+
+    // get the data
+    fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&page=${page}&per_page=${perPage}`)
+    .then(response => {
+      // parse it to JSON if valid
+      if(response.ok){
+        return response.json();
+      } else {
+        return Promise.reject(response);
+      }
+    })
+    .then((data) => {
+      // construct HTML elements for messages
+      let html = document.createDocumentFragment();
+
+      Object.entries(data.results).reverse().forEach(([key, messageData]) => {
+        messageData = Object.assign(messageData, { status: (module.settings.currentUserId == messageData.autor_id) ? 'sent' : 'received'});
+
+        // clone message template
+        const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
+        // fill template with data
+        messageHtml.querySelector(module.settings.messageTemplate.dateSelector).textContent = module.settings.timezonedDate(new Date(messageData.created_at));
+        messageHtml.querySelector(module.settings.messageTemplate.dateSelector).dateTime = messageData.created_at;
+        messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+
+        html.append(messageHtml);
+      });
+
+
+      // put the messages on top
+      module.settings.messagesList.prepend(html);
+
+      // disable loading next pages if there is nothing left
+      if(!data.has_next_page){
+        module.settings.morePages = false;
+      }
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Previous messages loaded');
+    })
+    .catch((error) => {
+      console.log(error);
+      error.json().then(data => console.log(data));
+    })
+    .finally(() => {
+      // remove the loading indicator
+      module.settings.loadingIndicator.classList.remove('active');
+      // scroll to the last seen message
+      if(secondOldestMessage) {
+        module.settings.messagesListContainer.scrollTop = secondOldestMessage.offsetTop - module.settings.messagesListContainer.clientHeight;
+      }
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous messages');
+    });
+  };
+
+
+  // purpose:		blocks the chat when there is a critical error
+  // ------------------------------------------------------------------------
+  module.blocked = () => {
+    module.settings.messageInput.disabled = true;
+    module.errorNotification = new window.pos.modules.toast(
+      'error',
+      window.pos.translations.chat.connectionError
+    );
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Blocked the chat due to error');
+  };
+
+
+  // purpose:		parses the dates outputted from BE with JS so that everyting uses browser locale
+  // ------------------------------------------------------------------------
+  module.parseDates = () => {
+    document.querySelectorAll('.pos-chat-message time').forEach(date => {
+      let currentDate = new Date(date.dateTime);
+      date.innerText = module.settings.timezonedDate(currentDate);
+    });
+  };
+
+
+  // conversations
+  // ------------------------------------------------------------------------
+  module.conversations = {};
+
+
+  // purpose:   loads next page of conversations
+  // ------------------------------------------------------------------------
+  module.conversations.load = (page = 1) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load next page of conversations');
+
+    // get the data
+    fetch(`/conversations.frame?page=${page}`)
+    .then(response => {
+      // parse it to JSON if valid
+      if(response.ok){
+        return response.text();
+      } else {
+        return Promise.reject(response);
+      }
+    })
+    .then((data) => {
+      // remove the 'load more' button for previous page
+      document.querySelector(module.settings.conversations.loadMoreButtonSelector)?.remove();
+
+      module.settings.conversations.container.insertAdjacentHTML('beforeend', data);
+
+      pos.modules.debug(module.settings.debug, module.settings.id, `Conversations page ${page} loaded`, { data });
+
+      // disable loading next pages if there is nothing left
+      if(!document.querySelector(module.settings.conversations.loadMoreButtonSelector)){
+        module.settings.conversations.morePages = false;
+        pos.modules.debug(module.settings.debug, module.settings.id, 'There are no more conversations to load, disabling infinite scroll');
+      }
+    })
+    .catch((error) => {
+      console.log(error);
+      error.json().then(data => console.log(data));
+    })
+    .finally(() => {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous conversations');
+    });
+  };
+
+
+
 
   module.init();
 
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  if(document.querySelector('#chat-messagesList-container')){
-    window.pos.modules.chat = new chat();
+  if(document.querySelector('#pos-chat-inbox')){
+    window.pos.modules.active.chat = new window.pos.modules.chat({
+      inbox: document.querySelector('#pos-chat-inbox'),
+    });
   }
-});
-
-
-
-// purpose:		handles the behavior of 'send message' button
-// argumenst: configurable settings (object)
-// ************************************************************************
-const sendMessageButton = function(userSettings){
-
-	// cache 'this' value not to be overwritten later
-	const module = this;
-
-
-  // purpose:		settings that are being used across the module
-  // ------------------------------------------------------------------------
-	module.settings = {};
-	// the 'send message' button (dom node)
-  module.sendMessageButton = userSettings.sendMessageButton ? userSettings.sendMessageButton : document.querySelector('.chat-sendMessage');
-
-
-  // purpose:		blocks the button after first click to prevent
-  //            cloning the conversations to a single user
-  // ------------------------------------------------------------------------
-  module.preventDoubleClick = () => {
-    module.sendMessageButton.addEventListener('click', () => {
-      module.sendMessageButton.setAttribute('disabled', 'disabled');
-    });
-  };
-
-
-  // purpose:		initializes the module
-  // ------------------------------------------------------------------------
-  module.init = () => {
-    module.preventDoubleClick();
-  };
-
-  module.init();
-
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.chat-sendMessage').forEach((item) => {
-    new sendMessageButton({
-      sendMessageButton: item
-    });
-  });
 });

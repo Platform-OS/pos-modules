@@ -1,0 +1,39 @@
+{% doc %}
+  lists all the conversations
+
+  @param {object} conversations - the conversations object returned from the conversations query
+  @param {object} current - the current conversation object
+
+  @param {object} current_profile - the current profile object
+{% enddoc %}
+
+
+{% for conversation in conversations.results %}
+  {% liquid
+    assign participants = conversation.participants
+    assign current_participants = participants | select: id: current_profile.id
+    assign other_participants = participants | subtract_array: current_participants
+    assign from_profile = other_participants | first
+    log current
+
+    if conversation.id == current.id
+      assign conversation['current'] = true
+    else
+      assign conversation['current'] = false
+    endif
+    assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | default: from_profile.name
+    assign image_src = from_profile.avatar.photo.versions.sm
+    assign last_message = conversation.last_message.message
+  %}
+  {% if conversation.last_message %}
+    <li>
+      {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, timezone: current_profile.timezone %}
+    </li>
+  {% endif %}
+{% endfor %}
+
+{% if conversations.has_next_page %}
+  <li class="pos-chat-conversations-more">
+    <button class="pos-button pos-button-small" data-page="{{ conversations.current_page | plus: 1 }}">Load more</button>
+  </li>
+{% endif %}
