@@ -93,6 +93,20 @@ response includes.
 > ⚠️ **Billing** — the server-side verify call is a normal, billable platformOS API call;
 > each `verify` performs one outbound `siteverify` request.
 
+## Troubleshooting
+
+**Every verification fails with `error-codes: ["browser-error"]`** in `result.response` —
+the token was minted (your key pair is valid) but Google rejected the browser-side
+assessment. By far the most common cause: **the page's domain is not in the site key's
+allowed domains**. v3 has no visible widget to surface "Invalid domain for site key" — the
+badge in the page's bottom-right corner shows it, but `grecaptcha.execute()` still yields a
+token that `siteverify` then rejects. Add the domain in the
+[admin console](https://www.google.com/recaptcha/admin) (a registered domain covers all its
+subdomains). If the key was created in the Google Cloud console (Enterprise-style), the
+domain list lives there instead, and classic `siteverify` needs that key's *legacy secret
+key* — creating a classic v3 key is simpler. Sporadic (not every-request) `browser-error`
+usually means the visitor's browser blocked reCAPTCHA (ad blocker, firewall).
+
 ## Testing
 
 v3 has no public test keys, so the network path needs real keys (the example app in `app/`
