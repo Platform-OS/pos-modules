@@ -132,15 +132,15 @@ function result = 'modules/push_notifications/commands/notifications/send',
 
 Pass an already-loaded `subscription: sub` alongside `subscription_id` to skip the redundant lookup — `broadcast` does this internally since it already has the record from its own search.
 
-### Broadcast to all subscriptions for a user
+### Broadcast to all subscriptions for one or more users
 
 ```liquid
 function result = 'modules/push_notifications/commands/notifications/broadcast',
-  user_id: user.id,
+  user_ids: ["1", "2", "3"],
   payload: { "title": "New message", "body": "You have a new message" }
 ```
 
-Returns `{sent, failed, expired}` counts across that user's active subscriptions. To fan out to several recipients, call it once per user ID and sum the results — see `app/views/pages/push_notifications/demo.liquid` for a working example that sends to a caller-chosen list of users via a multiselect.
+Returns `{sent, failed, expired}` counts across every active subscription belonging to any of the given users. Internally, `user_ids` is batched into groups of 50 for the underlying search (keeping each `value_in` query bounded), and every batch's results are paged through in full, so the recipient list can be arbitrarily large without silently dropping subscriptions past a fixed limit. See `app/views/pages/push_notifications/demo.liquid` for a working example that sends to a caller-chosen list of users via a multiselect.
 
 ## Events
 

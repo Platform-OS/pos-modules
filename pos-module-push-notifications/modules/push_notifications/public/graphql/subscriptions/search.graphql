@@ -1,6 +1,7 @@
 query (
   $id: ID
   $user_id: String
+  $user_ids: [String!]
   $endpoint: String
   $active: Boolean
   $limit: Int!
@@ -13,13 +14,14 @@ query (
       id: { value: $id }
       table: { value: "modules/push_notifications/subscription" }
       properties: [
-        { name: "user_id", value: $user_id }
+        { name: "user_id", value: $user_id, value_in: $user_ids }
         { name: "endpoint", value: $endpoint }
         { name: "active", value_boolean: $active }
       ]
     }
   ) {
     total_entries
+    total_pages
     results {
       id
       created_at
