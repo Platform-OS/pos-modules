@@ -1,0 +1,9 @@
+configuration:
+  escape_output_instead_of_sanitize: true
+  safe_translate: true
+  slug_exact_match: true
+
+# This repo is the source of truth for the captchas_recaptcha3 module: let deploys delete
+# files removed locally, so stale files on the instance can't mask breakage.
+modules_that_allow_delete_on_deploy:
+  - captchas_recaptcha3

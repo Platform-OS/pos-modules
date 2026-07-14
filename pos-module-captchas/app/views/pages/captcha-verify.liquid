@@ -4,50 +4,26 @@ method: post
 ---
 {% comment %}
   Example-app POST handler for the captcha demo (NOT part of the distributed module).
-  Picks the matching provider secret. Turnstile / hCaptcha / reCAPTCHA v2 use public TEST secrets
-  (always pass); reCAPTCHA v3 reads a real secret from CAPTCHA_RECAPTCHA_V3_SECRET. A real
-  integration always reads secrets from constants, e.g. context.constants.CAPTCHA_TURNSTILE_SECRET.
-
-  SECURITY (demo only): this picks the provider — and therefore the secret — from a
-  client-submitted field (context.params.provider, set by a hidden input in captcha-demo.liquid).
-  That is safe HERE only because every branch uses an always-pass TEST secret. DO NOT copy this
-  shape into production: an attacker who controls `provider` could steer verification to a weaker
-  or test path and bypass the captcha. In real code, fix the provider server-side and read its
-  secret from a constant — never branch on client input to choose the secret:
+  The provider is fixed SERVER-SIDE — never read the provider (and therefore the secret)
+  from client input: an attacker who controls `provider` could steer verification to a
+  weaker path and bypass the captcha. A real integration looks the same, with a real
+  provider module installed and the secret read from a constant:
 
     function result = 'modules/captchas/commands/captcha/verify',
       provider: 'turnstile',
       secret: context.constants.CAPTCHA_TURNSTILE_SECRET
+
+  Here the fake test provider verifies deterministically (token 'pass' passes, anything
+  else fails), so any non-blank secret works and no network call is made.
 {% endcomment %}
 {% liquid
-  assign provider = context.params.provider | default: 'turnstile'
-  case provider
-    when 'hcaptcha'
-      assign secret = '0x0000000000000000000000000000000000000000'
-      # hCaptcha secrets are account-wide, so bind the token to this form's sitekey.
-      # Always pass expected_sitekey when the account has more than one hCaptcha sitekey.
-      assign expected_sitekey = '10000000-ffff-ffff-ffff-000000000001'
-    when 'recaptcha'
-      assign secret = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
-    when 'recaptcha_v3'
-      assign secret = context.constants.CAPTCHA_RECAPTCHA_V3_SECRET
-    else
-      assign provider = 'turnstile'
-      assign secret = '1x0000000000000000000000000000000AA'
-  endcase
-
-  if provider == 'recaptcha_v3'
-    function result = 'modules/captchas/commands/captcha/verify', provider: provider, secret: secret, min_score: 0.5, expected_action: 'demo_submit'
-  else
-    # expected_sitekey is only set for hCaptcha; it is nil for the others, which ignore it
-    function result = 'modules/captchas/commands/captcha/verify', provider: provider, secret: secret, expected_sitekey: expected_sitekey
-  endif
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'test', secret: 'demo-secret'
 %}
 {% if result.valid %}
-  <h1>✅ Captcha passed ({{ provider }})</h1>
+  <h1>✅ Captcha passed ({{ result.provider }})</h1>
   <p>Submitted message: {{ context.params.message }}</p>
 {% else %}
-  <h1>❌ Captcha failed ({{ provider }})</h1>
+  <h1>❌ Captcha failed ({{ result.provider }})</h1>
   <ul>
     {% for error in result.errors %}
       {% for key in error[1] %}
@@ -58,10 +34,10 @@ method: post
 {% endif %}
 
 {% if result.score != blank %}
-  <p>reCAPTCHA v3 score: <strong>{{ result.score }}</strong> (action: {{ result.action }})</p>
+  <p>Score: <strong>{{ result.score }}</strong> (action: {{ result.action }})</p>
 {% endif %}
 
-<p><a href="/captcha-demo?provider={{ provider }}">← Back to the form</a></p>
+<p><a href="/captcha-demo">← Back to the form</a></p>
 
 {% if result.response %}
   <h2>Raw provider response</h2>

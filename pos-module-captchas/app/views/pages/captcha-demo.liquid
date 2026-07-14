@@ -1,78 +1,36 @@
 {% comment %}
-  Example-app demo for pos-module-captcha (NOT part of the distributed module).
-  GET /captcha-demo[?provider=turnstile|hcaptcha|recaptcha|recaptcha_v3] — renders a form with the
-  chosen provider's widget. Turnstile / hCaptcha / reCAPTCHA v2 use each provider's public TEST
-  keys (always pass). reCAPTCHA v3 has NO public test keys, so it reads real keys from constants
-  (CAPTCHA_RECAPTCHA_V3_SITE_KEY / _SECRET) — set those to try it. Submitting POSTs to
-  /captcha-verify, which verifies the token and shows the normalized result.
+  Example-app demo for pos-module-captchas (NOT part of the distributed module).
+  GET /captcha-demo — renders a form protected by the FAKE test provider that ships with this
+  repo's test app (app/modules/captchas_test): its widget injects a deterministic token and its
+  verify command passes token 'pass' and fails anything else, without any network call. This
+  demonstrates the abstraction only — widget dispatch, verify dispatch, normalized results.
+  Real providers are separate modules (captchas_turnstile, captchas_hcaptcha,
+  captchas_recaptcha, captchas_recaptcha3), each with its own demo app in its own repo.
 {% endcomment %}
-{% liquid
-  assign provider = context.params.provider | default: 'turnstile'
-  assign widget_options = '{}' | parse_json
-  assign uses_test_key = true
-
-  case provider
-    when 'hcaptcha'
-      assign site_key = '10000000-ffff-ffff-ffff-000000000001'
-      assign provider_label = 'hCaptcha'
-    when 'recaptcha'
-      assign site_key = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-      assign provider_label = 'Google reCAPTCHA v2'
-    when 'recaptcha_v3'
-      assign site_key = context.constants.CAPTCHA_RECAPTCHA_V3_SITE_KEY
-      assign provider_label = 'Google reCAPTCHA v3 (score-based)'
-      assign widget_options = widget_options | hash_merge: action: 'demo_submit'
-      assign uses_test_key = false
-    else
-      assign provider = 'turnstile'
-      assign site_key = '1x00000000000000000000AA'
-      assign provider_label = 'Cloudflare Turnstile'
-  endcase
-%}
-<h1>Captcha demo — {{ provider_label }}</h1>
+<h1>Captcha demo — Test provider</h1>
 
 <p>
-  Provider:
-  <a href="/captcha-demo?provider=turnstile">Turnstile</a> ·
-  <a href="/captcha-demo?provider=hcaptcha">hCaptcha</a> ·
-  <a href="/captcha-demo?provider=recaptcha">reCAPTCHA v2</a> ·
-  <a href="/captcha-demo?provider=recaptcha_v3">reCAPTCHA v3</a>
+  This form uses the repo's <strong>fake test provider</strong> (<code>app/modules/captchas_test</code>):
+  the widget below injects a token that always verifies, with no network call. Submitting posts
+  to <code>/captcha-verify</code>, which dispatches to the provider module server-side and shows
+  the normalized result. Install a real provider module (e.g. <code>captchas_turnstile</code>)
+  and use its demo app to see a real challenge.
 </p>
 
-{% if uses_test_key %}
+<form action="/captcha-verify" method="post" accept-charset="UTF-8">
+  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
   <p>
-    This form uses {{ provider_label }}'s public <strong>test</strong> site key, which always passes.
-    Submitting posts the token to <code>/captcha-verify</code>, which verifies it server-side and
-    shows the result.
+    <label for="message">Message</label><br>
+    <textarea id="message" name="message" rows="4" cols="40"></textarea>
   </p>
-{% else %}
-  <p>
-    reCAPTCHA v3 has <strong>no public test keys</strong> — it needs real keys from the reCAPTCHA
-    admin console, tied to your domain. This demo reads them from the
-    <code>CAPTCHA_RECAPTCHA_V3_SITE_KEY</code> / <code>CAPTCHA_RECAPTCHA_V3_SECRET</code> constants.
-    v3 is invisible and score-based: the verifier requires a score ≥ 0.5 and action
-    <code>demo_submit</code>.
-  </p>
-{% endif %}
 
-{% if site_key == blank %}
-  <p>⚠️ <code>CAPTCHA_RECAPTCHA_V3_SITE_KEY</code> is not set. Set both constants to try reCAPTCHA v3:</p>
-  <pre>pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA_V3_SITE_KEY --value "6Le..."
-pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA_V3_SECRET --value "6Le..."</pre>
-{% else %}
-  <form action="/captcha-verify" method="post" accept-charset="UTF-8">
-    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-    <input type="hidden" name="provider" value="{{ provider }}">
-    <p>
-      <label for="message">Message</label><br>
-      <textarea id="message" name="message" rows="4" cols="40"></textarea>
-    </p>
+  {% render 'modules/captchas/widget', provider: 'test', site_key: 'demo-site-key' %}
 
-    {% render 'modules/captchas/widget',
-         provider: provider,
-         site_key: site_key,
-         options: widget_options %}
+  <p><button type="submit">Submit (valid token)</button></p>
+</form>
 
-    <p><button type="submit">Submit</button></p>
-  </form>
-{% endif %}
+<form action="/captcha-verify" method="post" accept-charset="UTF-8">
+  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+  <input type="hidden" name="x-test-captcha-response" value="tampered">
+  <p><button type="submit">Submit with a tampered token (fails)</button></p>
+</form>

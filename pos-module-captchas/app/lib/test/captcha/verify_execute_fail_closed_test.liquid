@@ -1,10 +1,10 @@
 {% comment %}
-  Unit test (no network): the EXECUTE phase dispatcher must FAIL CLOSED when no provider
-  branch matches. The check phase normally rejects unsupported providers first, so this
-  calls execute directly with an object that claims to be valid — locking in the drift
-  guard: if the supported-provider list in check.liquid ever gets out of sync with the
-  case branches in execute.liquid, an unknown provider must never verify. The 'else'
-  branch makes no siteverify HTTP call, so this test is deterministic.
+  Unit test (no network): the EXECUTE phase must FAIL CLOSED when the provider is not
+  available. The check phase normally rejects unavailable providers first, but execute is
+  callable directly, so it re-checks availability before building the dynamic dispatch path —
+  both to keep the security property (an unknown provider must never verify) and because
+  dispatching into a module that is not installed would raise a hard error instead of a
+  graceful invalid result. No siteverify HTTP call is made, so this test is deterministic.
 {% endcomment %}
 {% liquid
   # simulate an object that slipped past check: unknown provider, yet valid: true

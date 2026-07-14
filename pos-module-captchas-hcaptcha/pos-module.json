@@ -1,0 +1,11 @@
+{
+  "name": "pOS Captchas hCaptcha",
+  "machine_name": "captchas_hcaptcha",
+  "version": "1.0.0",
+  "dependencies": {
+    "captchas": "^1.0.0"
+  },
+  "devDependencies": {
+    "tests": "^1.3.4"
+  }
+}

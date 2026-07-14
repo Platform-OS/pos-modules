@@ -1,0 +1,10 @@
+{% doc %}
+  @description Provider config for the fake test captcha provider (abstraction test suite only).
+    Implements the captchas provider contract: returns a hash with at least response_field —
+    the form field the widget writes the token into.
+  @returns {object} config hash: { response_field }
+{% enddoc %}
+{% liquid
+  assign config = '{"response_field": "x-test-captcha-response"}' | parse_json
+  return config
+%}

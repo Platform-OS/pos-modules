@@ -1,0 +1,15 @@
+{% comment %}
+  Unit test (no network): the provider contract surface of captchas_recaptcha3.
+  config must expose the v3 response field, and the provider.name translation (the
+  abstraction's installation probe) must resolve.
+{% endcomment %}
+{% liquid
+  function config = 'modules/captchas_recaptcha3/helpers/config'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: config.response_field, expected: 'g-recaptcha-response', field_name: 'response_field'
+
+  assign probe = 'modules/captchas_recaptcha3/provider.name' | t: default: ''
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: probe, expected: 'Google reCAPTCHA v3', field_name: 'provider_name_probe'
+
+  function available = 'modules/captchas/helpers/provider_available', provider: 'recaptcha3'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: available, expected: true, field_name: 'provider_available'
+%}

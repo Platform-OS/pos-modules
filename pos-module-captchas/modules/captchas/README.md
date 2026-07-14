@@ -1,334 +1,224 @@
 # pos-module-captchas
 
-A generic, swappable **captcha abstraction** for platformOS, with **Cloudflare Turnstile**,
-**hCaptcha**, **reCAPTCHA v2**, and **reCAPTCHA v3** provider implementations.
+A generic, swappable **captcha abstraction** for platformOS. It does two jobs, the same way
+for every provider:
 
-The module does two jobs:
-
-1. **Render** the active provider's widget into a form (client-side loader script + widget element).
+1. **Render** the active provider's widget into a form — `modules/captchas/widget`.
 2. **Verify** the token the widget injects on submit, by calling the provider's `siteverify`
-   endpoint server-side and returning a **normalized pass/fail** — regardless of provider.
+   endpoint server-side and returning a **normalized pass/fail** —
+   `modules/captchas/commands/captcha/verify`.
 
-> **Ships Turnstile, hCaptcha, reCAPTCHA v2, and reCAPTCHA v3.** All follow the same shape
-> (see [Adding a provider](#adding-a-provider)). None relies on the built-in platformOS
-> `spam_protection` tag — every provider is verified through a plain server-side `siteverify` API
-> call, keeping the abstraction uniform (and covering Turnstile, which has no built-in tag).
-> reCAPTCHA v2 and v3 are exposed as **separate providers** (`recaptcha` and `recaptcha_v3`): v2
-> returns a binary pass/fail; v3 is invisible and score-based, so its verify additionally thresholds
-> the returned score and can require a matching action.
+This module knows **nothing about any provider**. Each provider is a separate module named
+`captchas_<key>` that this module dispatches to by naming convention — the same pattern the
+[user module's oauth](https://github.com/Platform-OS/pos-module-user) uses for
+`oauth_google`/`oauth_github`. Installing a provider module is all it takes to enable it;
+adding a new provider requires no changes here (see
+[Writing a provider module](#writing-a-provider-module)).
+
+Official provider modules:
+
+| Provider key | Module | Notes |
+|---|---|---|
+| `turnstile` | `captchas_turnstile` | Cloudflare Turnstile — passive/invisible, public test keys |
+| `hcaptcha` | `captchas_hcaptcha` | hCaptcha — pass `expected_sitekey` (account-wide secrets) |
+| `recaptcha` | `captchas_recaptcha` | Google reCAPTCHA v2 (checkbox / invisible) |
+| `recaptcha3` | `captchas_recaptcha3` | Google reCAPTCHA v3 — invisible, score-based |
+
+> None relies on the built-in platformOS `spam_protection` tag — every provider verifies
+> through a plain server-side `siteverify` API call. The value of this module is one uniform,
+> swappable interface, and support for providers the built-in tag doesn't cover (Turnstile).
+
+## Install
+
+Install one (or more) provider modules — each pulls in `captchas` as a dependency:
+
+```bash
+pos-cli modules install captchas_turnstile   # or captchas_hcaptcha / captchas_recaptcha / captchas_recaptcha3
+pos-cli deploy <env>
+```
 
 ## Keys are caller-supplied
 
-The module **stores no keys**. You pass:
-
-- the **public site key** to the widget (rendered client-side), and
-- the **secret key** to `verify` (used server-side only).
-
-Read both from wherever you keep them — typically **platformOS constants**. Because keys are
-passed per call, supporting **multiple keys for the same provider on one instance** is trivial:
-different forms simply pass different keys.
+The module **stores no keys**. You pass the **public site key** to the widget (rendered
+client-side) and the **secret key** to `verify` (server-side only), typically read from
+**platformOS constants**. Because keys are passed per call, **multiple keys for the same
+provider on one instance** is trivial — different forms simply pass different keys:
 
 ```bash
-# Public site keys may be exposed to the browser; secret keys must stay server-side.
 pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SITE_KEY --value "0x4AAA..."
 pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SECRET --value "0x4AAA..."
-
-# hCaptcha keys live in their own constants:
-pos-cli constants set <env> --name CAPTCHA_HCAPTCHA_SITE_KEY --value "10000000-ffff-..."
-pos-cli constants set <env> --name CAPTCHA_HCAPTCHA_SECRET --value "0x0000..."
-
-# reCAPTCHA v2 keys:
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_SITE_KEY --value "6Le..."
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_SECRET --value "6Le..."
-
-# reCAPTCHA v3 keys (separate provider; v3 has no public test keys):
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_V3_SITE_KEY --value "6Le..."
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_V3_SECRET --value "6Le..."
 
 # A second widget/site on the same instance — just another pair of constants:
 pos-cli constants set <env> --name CAPTCHA_TURNSTILE_MKTG_SITE_KEY --value "0x4AAA..."
 pos-cli constants set <env> --name CAPTCHA_TURNSTILE_MKTG_SECRET --value "0x4AAA..."
 ```
 
-> ⚠️ **Never hardcode a secret key** in templates or commit it. Site keys are public by design;
-> secret keys are not. Don't `log` the secret or echo it into HTML.
+Each provider module's README documents its constant-name convention and where to get keys.
 
-## Install
-
-```bash
-pos-cli modules install captchas
-```
-
-The module is self-contained — it has **no module dependencies** (no `core` required).
+> ⚠️ **Never hardcode a secret key** in templates or commit it. Site keys are public by
+> design; secret keys are not. Don't `log` the secret or echo it into HTML.
 
 ## Usage
 
-### 1. Render the widget in your form
-
 ```liquid
-<form action="/contact" method="post">
-  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-  <!-- your fields -->
+{# 1. in your form #}
+{% render 'modules/captchas/widget',
+     provider: 'turnstile',
+     site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY %}
 
-  {% render 'modules/captchas/widget',
-       provider: 'turnstile',
-       site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY %}
-
-  <button type="submit">Send</button>
-</form>
-```
-
-Once the challenge completes, Turnstile injects a hidden input named `cf-turnstile-response` into the form.
-
-### 2. Verify on the server (in your POST page / command)
-
-```liquid
+{# 2. in your POST handler #}
 {% liquid
-  function captcha = 'modules/captchas/commands/captcha/verify',
-    provider: 'turnstile',
-    secret: context.constants.CAPTCHA_TURNSTILE_SECRET
-
-  if captcha.valid
-    # ...continue handling the submission...
-  else
-    # reject; render captcha.errors (translation keys)
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'turnstile', secret: context.constants.CAPTCHA_TURNSTILE_SECRET
+  if result.valid
+    # proceed
   endif
 %}
 ```
 
-`verify` reads the token from `context.params` automatically (`cf-turnstile-response` for
-Turnstile). If you renamed the widget's response field via its `response_field_name` option, pass
-the same `response_field_name:` to `verify` so it reads the right field; or pass the token directly
-with `token:`.
-
-### Multiple keys per provider
-
-Just pass the pair you want for a given form:
+Render errors with `| t` — `result.errors` maps fields to arrays of translation keys:
 
 ```liquid
-{# marketing site form #}
-{% render 'modules/captchas/widget', site_key: context.constants.CAPTCHA_TURNSTILE_MKTG_SITE_KEY %}
-...
-{% function r = 'modules/captchas/commands/captcha/verify', secret: context.constants.CAPTCHA_TURNSTILE_MKTG_SECRET %}
+{% for error in result.errors %}
+  {% for key in error[1] %}<p>{{ key | t }}</p>{% endfor %}
+{% endfor %}
 ```
 
-> ⚠️ **hCaptcha + multiple sitekeys: pass `expected_sitekey`.** hCaptcha secrets are
-> **account-wide** — the same secret verifies tokens from *every* sitekey in the account. Without
-> binding, a token solved against one of your widgets (e.g. a passive/low-friction one) can be
-> redeemed on another form. Pass `expected_sitekey:` to `verify` (forwarded as hCaptcha's `sitekey`
-> siteverify param, which hCaptcha itself recommends) so such tokens are rejected:
->
-> ```liquid
-> {% function r = 'modules/captchas/commands/captcha/verify',
->      provider: 'hcaptcha',
->      secret: context.constants.CAPTCHA_HCAPTCHA_SECRET,
->      expected_sitekey: context.constants.CAPTCHA_HCAPTCHA_SITE_KEY %}
-> ```
->
-> Turnstile and reCAPTCHA don't need this — their secrets are already scoped to a single
-> widget/site, so the secret you pass does the binding.
+> 🔒 **Never choose the secret from client input.** Fix the provider server-side and read its
+> secret from a constant. If an attacker controls which provider — and therefore which
+> secret — verifies a request, they can steer verification to a weaker path.
 
 ### Provider selection
 
-`provider` may be passed explicitly (`turnstile`, `hcaptcha`, `recaptcha`, or `recaptcha_v3`). If
-omitted, it resolves to the `CAPTCHA_DEFAULT_PROVIDER` constant, then falls back to `turnstile`.
-Values are normalized (trimmed, lowercased), so `"Turnstile"` or a constant saved with stray
-whitespace still resolves; anything that doesn't match a supported provider fails closed:
+`provider` may be passed explicitly. If omitted, it resolves to the
+`CAPTCHA_DEFAULT_PROVIDER` constant. There is no built-in fallback — with neither set, the
+widget renders only an HTML comment and verify fails with `unsupported_provider`. Values are
+normalized (trimmed, lowercased).
 
 ```bash
 pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "turnstile"
 ```
 
-```liquid
-{# provider omitted → uses CAPTCHA_DEFAULT_PROVIDER or 'turnstile' #}
-{% render 'modules/captchas/widget', site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY %}
-{% function r = 'modules/captchas/commands/captcha/verify', secret: context.constants.CAPTCHA_TURNSTILE_SECRET %}
-```
+A provider is **available** when its module (`captchas_<key>`) is installed — detected via
+the `provider.name` translation every provider module ships. Optionally,
+`CAPTCHA_ENABLED_PROVIDERS` (CSV, e.g. `turnstile,hcaptcha`) pins an allow-list: when set,
+only listed keys dispatch, even if more provider modules are installed; when unset, any
+installed provider works. An unavailable provider never hard-errors: the widget degrades to
+a logged HTML comment, and verify returns `valid: false` with
+`modules/captchas/errors.unsupported_provider`.
 
 ## API reference
 
 ### Partial: `modules/captchas/widget`
 
-| Param      | Required | Description |
-|------------|----------|-------------|
-| `site_key` | yes      | The provider's **public** site key. |
-| `provider` | no       | `turnstile`, `hcaptcha`, `recaptcha`, or `recaptcha_v3` (default via `CAPTCHA_DEFAULT_PROVIDER`, else `turnstile`). |
-| `options`  | no       | Hash of provider widget options (see below). |
+**Render this partial (don't `include` it)** — it pulls the provider widget in via
+`include`, which shares scope; rendering the dispatcher keeps that contained.
 
-**Turnstile `options` keys:** `theme` (`light`/`dark`/`auto`), `size`
-(`normal`/`flexible`/`compact`), `action`, `cdata`, `appearance`
-(`always`/`execute`/`interaction-only`), `language`, `tabindex`, `callback` (JS function name),
-`response_field_name` (default `cf-turnstile-response`), `class_name`, `html_id`.
-
-**hCaptcha `options` keys:** `theme` (`light`/`dark`), `size` (`normal`/`compact`), `tabindex`,
-`callback` (JS function name), `expired_callback`, `chalexpired_callback`, `error_callback`,
-`open_callback`, `close_callback`, `language` (sets the loader script's `hl` param on first load),
-`class_name`, `html_id`.
-
-**reCAPTCHA v2 `options` keys:** `theme` (`light`/`dark`), `size`
-(`normal`/`compact`/`invisible`), `tabindex`, `callback` (JS function name), `expired_callback`,
-`error_callback`, `badge` (`bottomright`/`bottomleft`/`inline`, invisible only), `language` (sets
-the loader script's `hl` param on first load), `class_name`, `html_id`.
-
-> ⚠️ **`size: invisible` needs your own JS.** The partial only renders the widget element — it does
-> not auto-execute it. Invisible v2 requires you to trigger the challenge yourself (call
-> `grecaptcha.execute()` on submit, or bind the widget to your submit button per Google's invisible
-> reCAPTCHA docs) and handle the token via `callback`. Without that wiring the form submits without
-> a token and `verify` rejects it with `token_missing` (it fails closed, but the captcha never
-> runs). For an invisible flow with no custom JS, use provider `recaptcha_v3` or `turnstile`
-> (`appearance: interaction-only`) instead.
-
-**reCAPTCHA v3 `options` keys:** `action` (the v3 action name, default `submit`),
-`response_field_name` (hidden input name, default `g-recaptcha-response`). v3 is invisible — there
-is no theme/size: on submit it runs `grecaptcha.execute()`, fills a hidden input, and resubmits the
-form. Use provider `recaptcha_v3`, and pair the widget's `action` with the verify command's
-`expected_action` if you check it. Render at most **one v3 widget per form** — a duplicate render
-in the same form is ignored (with a console warning); widgets in several forms on one page are fine.
-
-```liquid
-{% liquid
-  assign captcha_options = '{ "theme": "dark", "size": "flexible", "action": "contact" }' | parse_json
-  render 'modules/captchas/widget',
-    site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY,
-    options: captcha_options
-%}
-```
-
-> ⚠️ Build the `options` hash with `parse_json` (or `hash_merge`) and pass the variable, as above.
-> An inline hash literal in the tag arguments (`options: { "theme": "dark" }`) parses and deploys
-> without errors but evaluates to nil at runtime — the widget renders with all options silently
-> ignored.
-
-The loader script is emitted only once per page even if the widget is rendered multiple times.
-
-If `site_key` is blank (typically an unset constant), the widget logs an error and emits an HTML
-comment naming the provider, so the misconfiguration shows up in `pos-cli logs` and in the page
-source instead of only as an opaque client-side widget error.
+| Param | Required | Description |
+|---|---|---|
+| `site_key` | yes | The provider's public site key. Blank logs an error + emits an HTML comment (the widget is still rendered and fails visibly client-side). |
+| `provider` | no | Provider key; defaults to `CAPTCHA_DEFAULT_PROVIDER`. |
+| `options` | no | Hash of provider-specific widget options — see the provider module's README. Build it with `parse_json`/`hash_merge`; inline hash literals are nil at runtime. |
 
 ### Command: `modules/captchas/commands/captcha/verify`
 
-| Param       | Required | Description |
-|-------------|----------|-------------|
-| `secret`    | yes      | The provider's **secret** key (server-side only). |
-| `provider`  | no       | `turnstile`, `hcaptcha`, `recaptcha`, or `recaptcha_v3`. Defaults to `CAPTCHA_DEFAULT_PROVIDER`, else `turnstile`. |
-| `token`     | no       | The widget token; defaults to the provider's field in `context.params`. |
-| `response_field_name` | no | Form field the token is read from; overrides the provider default. Set this to match the widget's `response_field_name` option if you customized it. |
-| `remote_ip` | no       | Optional visitor IP forwarded to the provider. |
-| `expected_sitekey` | no | **hCaptcha only** — the sitekey the token must have been issued for, forwarded as hCaptcha's `sitekey` siteverify param. hCaptcha secrets are account-wide, so set this whenever the account has more than one sitekey (it stops tokens issued for another widget from being redeemed here). Ignored by other providers. |
-| `expected_hostname` | no | Optional hostname allow-list — a single host or comma-separated (e.g. `'example.com,www.example.com'`). When set, the response `hostname` must match one of them (exact, case-insensitive) or `valid` is `false`. Off by default. |
-| `min_score` | no       | **reCAPTCHA v3 only** — minimum score (`0.0`–`1.0`) required to pass. Default `0.5`. |
-| `expected_action` | no | **reCAPTCHA v3 only** — if set, the response `action` must equal it. |
+| Param | Required | Description |
+|---|---|---|
+| `provider` | no | Provider key; defaults to `CAPTCHA_DEFAULT_PROVIDER`. |
+| `secret` | yes | Provider secret key (server-side; read from a constant by the caller). |
+| `token` | no | The widget token; defaults to the provider's response field in `context.params`. |
+| `response_field_name` | no | Form field the widget wrote the token to; overrides the provider default (only needed if you set the widget's `response_field_name` option). |
+| `remote_ip` | no | Optional visitor IP forwarded to the provider. |
+| `expected_sitekey` | no | For providers whose secrets are account-wide rather than per-widget: the sitekey the token must have been issued for (see the provider README for whether it applies). |
+| `expected_hostname` | no | Hostname allow-list (single host or CSV, e.g. `example.com,www.example.com`). The provider-reported hostname must match one exactly (case-insensitive) or verification fails. Defends against tokens solved on another domain. |
+| `min_score` | no | Score-based providers only: minimum score required to pass (see the provider README for the default). |
+| `expected_action` | no | Score-based providers only: required action name. |
 
-**Returns** an object:
+Returns:
 
-| Field      | Description |
-|------------|-------------|
-| `valid`    | Boolean — overall pass/fail. Branch on this. |
-| `success`  | Boolean — the provider's raw `success` value (set once the call is made). |
-| `provider` | The resolved provider. |
-| `response` | The parsed provider response (e.g. `challenge_ts`, `hostname`, `action`, `error-codes`). |
-| `score`    | **reCAPTCHA v3 only** — the returned score (`0.0`–`1.0`). |
-| `action`   | **reCAPTCHA v3 only** — the returned action name. |
-| `errors`   | Hash keyed by field → array of translation keys (e.g. `modules/captchas/errors.verification_failed`). |
+| Field | Description |
+|---|---|
+| `valid` | **The** result — `true` only after a successful, policy-passing verification. Branch on this. |
+| `success` | The provider's raw verdict (before hostname/score/action checks). |
+| `provider` | Resolved provider key. |
+| `token_field` | The form field the token was read from. |
+| `response` | Parsed provider response (hash). |
+| `score` / `action` | Score-based providers only. |
+| `errors` | Hash of field → array of translation keys (`modules/captchas/errors.*`). |
 
-Rendering errors:
-
-```liquid
-{% for error in captcha.errors %}
-  {% for key in error[1] %}
-    <p class="error">{{ key | t }}</p>
-  {% endfor %}
-{% endfor %}
-```
+Error keys — all shipped by this module (en + pl), so callers deal with one namespace
+regardless of provider: `token_missing`, `secret_missing`, `unsupported_provider`,
+`request_failed`, `verification_failed`, `hostname_mismatch`, `low_score`, `action_mismatch`.
 
 ## How verification works
 
-`verify` runs the standard **build → check → execute** command pattern:
+`verify` runs a Build → Check → Execute chain:
 
-- **build** — resolves the provider, finds the right token field (`cf-turnstile-response` for
-  Turnstile, `h-captcha-response` for hCaptcha, `g-recaptcha-response` for reCAPTCHA v2/v3), and
-  pulls the token from `context.params`.
-- **check** — requires a token + secret and a supported provider.
-- **execute** — dispatches to the active provider's verify command
-  (`lib/commands/captcha/providers/<name>/verify.liquid`), which POSTs `secret`, `response`, and
-  optional `remoteip` to the provider's `siteverify` endpoint via the `api_call_send` GraphQL
-  mutation (synchronous), parses the JSON response, and sets `valid` from the provider's
-  `success` field.
-- **hostname (optional, part of execute)** — if `expected_hostname` is passed, the response `hostname` must match one
-  of the listed hosts (exact, case-insensitive) or `valid` is set to `false` (with
-  `modules/captchas/errors.hostname_mismatch`). Off by default: the providers already bind keys to registered
-  domains, so this is defense-in-depth against a token solved on a different domain and replayed to
-  your server. `success` still reflects the provider's raw verdict.
+- **build** — resolves the provider; when it's available, asks the provider module's
+  `helpers/config` for the default token field and reads the token from `context.params`.
+- **check** — fails closed (no network call) when the token or secret is missing or the
+  provider is unavailable.
+- **execute** — re-checks availability (defense in depth: a missing provider module must
+  yield a graceful error, never a hard one), dispatches to
+  `modules/captchas_<key>/commands/verify` (one siteverify HTTP call), then applies the
+  generic `expected_hostname` allow-list to the provider response.
 
-Endpoints (each provider's `public/api_calls/*_siteverify.liquid`):
-
-- **Turnstile** — `https://challenges.cloudflare.com/turnstile/v0/siteverify` (JSON body).
-- **hCaptcha** — `https://api.hcaptcha.com/siteverify` (`application/x-www-form-urlencoded` body;
-  hCaptcha does not accept JSON, so values are URL-encoded). When `expected_sitekey` is passed to
-  `verify`, it is sent as the optional `sitekey` param and hCaptcha rejects tokens issued for a
-  different sitekey.
-- **reCAPTCHA** (v2 and v3) — `https://www.google.com/recaptcha/api/siteverify`
-  (`application/x-www-form-urlencoded` body; values URL-encoded).
-
-**reCAPTCHA v3** reuses v2's endpoint and the same `recaptcha_siteverify.liquid` api_call template,
-but its verify step passes only when `success` is true **and** `score >= min_score` (default `0.5`)
-**and** — if `expected_action` is given — the response `action` matches. The `score` and `action`
-are returned on the result object so callers can log or tune them.
+Every failure path leaves `valid: false` — the module **fails closed**: no verification
+call, no pass.
 
 ## ⚠️ Billing
 
 The server-side verify call is a **normal, billable platformOS API call** — it is **not
 exempt** from API usage billing. Each `verify` performs one outbound `siteverify` request.
 
-## Adding a provider
+## Writing a provider module
 
-Turnstile, hCaptcha, and reCAPTCHA are worked examples of the shape. Each provider is a widget
-partial + a verify command. To add another provider `<name>`:
+A provider is a separate platformOS module named `captchas_<key>` (`<key>`: lowercase
+`a-z0-9_`), with `"dependencies": { "captchas": "^1.0.0" }`. The abstraction dispatches to
+it purely by naming convention — no registration anywhere. It must expose:
 
-1. `public/views/partials/providers/<name>/widget.liquid` — emit the provider's script + element.
-2. `public/api_calls/<name>_siteverify.liquid` — the POST to the provider's siteverify URL
-   (every provider except Turnstile here expects `application/x-www-form-urlencoded`; URL-encode
-   the values).
-3. `public/lib/commands/captcha/providers/<name>/verify.liquid` — call `api_call_send` and
-   normalize `success`.
-4. Register the provider:
-   - add a `when '<name>'` in `public/views/partials/widget.liquid`,
-   - add a `when '<name>'` in `public/lib/commands/captcha/verify/execute.liquid`,
-   - map its token field in `public/lib/commands/captcha/verify/build.liquid`,
-   - add `<name>` to the `supported_providers` list in
-     `public/lib/commands/captcha/verify/check.liquid`.
+1. **`modules/captchas_<key>/widget`** (`public/views/partials/widget.liquid`) — receives
+   `site_key` (string) and `options` (hash). It is pulled in via `include` (shared scope):
+   prefix internal variables (`captcha_...`) and use `context.exports.captcha.*` for
+   load-once script guards (that namespace is reserved for captcha providers; pick a key
+   unique to your provider, e.g. `myprovider_script_loaded`).
+2. **`modules/captchas_<key>/helpers/config`** (`public/lib/helpers/config.liquid`) — a
+   function returning a hash with at least `response_field`: the form field your widget
+   writes the token into.
+3. **`modules/captchas_<key>/commands/verify`** (`public/lib/commands/verify.liquid`) — a
+   function taking `object:` and returning it with:
+   - `response` — the parsed provider response (include `hostname` when your provider
+     reports it, so `expected_hostname` works),
+   - `success` — the provider's raw verdict,
+   - `valid` — the final boolean; **fail closed** on transport errors, non-200 responses,
+     non-JSON bodies, and a missing success field,
+   - `errors` — merged via `modules/captchas/helpers/errors_hash`, using
+     `modules/captchas/errors.*` keys (`request_failed`, `verification_failed`, and for
+     score-based providers `low_score` / `action_mismatch`).
+
+   The incoming `object` carries `secret`, `token`, `remote_ip`, `expected_sitekey`,
+   `min_score`, `expected_action`, and the current `errors` — read what applies.
+4. **`public/translations/en/provider.yml`** (and one per locale you support — at minimum
+   also `pl/`) with `provider: { name: "..." }` — **required**: the abstraction probes
+   `modules/captchas_<key>/provider.name` to detect that your module is installed.
+
+Ship your own `api_calls/` template and `graphql/api_call/send.graphql` for the HTTP call —
+providers are self-contained; any official provider module is a ready template. To activate:
+install the module (and list `<key>` in `CAPTCHA_ENABLED_PROVIDERS` if you use the
+allow-list).
 
 ## Testing
 
-Turnstile, hCaptcha, and reCAPTCHA v2 publish dummy keys that work without a real account.
-reCAPTCHA **v3** has **no public test keys** — it requires real keys registered in the reCAPTCHA
-admin console and tied to your domain.
+This repo's example app (`app/`, not distributed) contains the module's unit tests
+(`app/lib/test/captcha/`) plus a **fake provider** (`app/modules/captchas_test/`) that
+implements the contract deterministically without network — that's what the dispatch,
+availability, fail-closed, and hostname tests run against, and what `/captcha-demo` demos.
 
-**Turnstile** (Cloudflare):
+```bash
+pos-cli deploy <env>
+pos-cli test run <env>
+```
 
-| Outcome         | Site key                     | Secret key                            |
-|-----------------|------------------------------|---------------------------------------|
-| always pass     | `1x00000000000000000000AA`   | `1x0000000000000000000000000000000AA` |
-| always fail     | `2x00000000000000000000AB`   | `2x0000000000000000000000000000000AA` |
-| force challenge | `3x00000000000000000000FF`   | (use a pass/fail secret)              |
-
-**hCaptcha:**
-
-| Outcome     | Site key                               | Secret key                                   |
-|-------------|----------------------------------------|----------------------------------------------|
-| always pass | `10000000-ffff-ffff-ffff-000000000001` | `0x0000000000000000000000000000000000000000` |
-
-**reCAPTCHA** (v2; Google's automated-testing keys — always pass, widget shows a warning banner):
-
-| Outcome     | Site key                                   | Secret key                                 |
-|-------------|--------------------------------------------|--------------------------------------------|
-| always pass | `6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI` | `6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe` |
-
-The example app pages `app/views/pages/captcha-demo.liquid` (form) and
-`app/views/pages/captcha-verify.liquid` (verification result) are a runnable end-to-end demo:
-deploy the app, then open `/captcha-demo` (Turnstile), `/captcha-demo?provider=hcaptcha`,
-`/captcha-demo?provider=recaptcha` (v2), or `/captcha-demo?provider=recaptcha_v3`, submit, and
-you'll see a pass result (the raw provider response is shown for transparency). For Turnstile, swap
-to the `2x…` keys to see a failing verification. The v3 page reads the
-`CAPTCHA_RECAPTCHA_V3_SITE_KEY` / `CAPTCHA_RECAPTCHA_V3_SECRET` constants (it shows setup
-instructions until they're set) and displays the returned score.
+The suite assumes `CAPTCHA_DEFAULT_PROVIDER` is unset and `CAPTCHA_ENABLED_PROVIDERS` is
+unset (or contains `test`) on the test instance. Provider-specific tests — real siteverify
+round-trips against public test keys, score thresholds — live in each provider module's
+repo.

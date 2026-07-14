@@ -1,19 +1,19 @@
 {% comment %}
   Unit test (no network): captcha provider-resolution helper.
   Deterministic — does not call any siteverify endpoint.
-  Assumes CAPTCHA_DEFAULT_PROVIDER is not set in the test environment, so the
-  no-argument case falls back to 'turnstile'.
+  Assumes CAPTCHA_DEFAULT_PROVIDER is not set in the test environment: the abstraction ships
+  no provider of its own, so the no-argument case resolves to blank.
 {% endcomment %}
 {% liquid
   # an explicit provider is returned as-is
-  function explicit = 'modules/captchas/helpers/default_provider', provider: 'hcaptcha'
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: explicit, expected: 'hcaptcha', field_name: 'explicit_provider'
+  function explicit = 'modules/captchas/helpers/default_provider', provider: 'test'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: explicit, expected: 'test', field_name: 'explicit_provider'
 
-  # no provider + no constant -> falls back to 'turnstile'
+  # no provider + no constant -> blank (no hardcoded provider fallback in the abstraction)
   function fallback = 'modules/captchas/helpers/default_provider'
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: fallback, expected: 'turnstile', field_name: 'fallback_provider'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: fallback, expected: '', field_name: 'fallback_is_blank'
 
   # provider strings are normalized: trimmed + lowercased
-  function normalized = 'modules/captchas/helpers/default_provider', provider: ' Turnstile '
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: normalized, expected: 'turnstile', field_name: 'normalized_provider'
+  function normalized = 'modules/captchas/helpers/default_provider', provider: ' Test '
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: normalized, expected: 'test', field_name: 'normalized_provider'
 %}

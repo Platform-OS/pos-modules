@@ -1,11 +1,12 @@
 {% doc %}
-  @description Check phase for captcha verify: require a token + secret and a supported provider.
+  @description Check phase for captcha verify: require a token + secret and an available
+    provider (installed provider module, permitted by the optional allow-list).
   @param {object} object - normalized object from the build phase.
   @returns {object} object with errors populated and valid set.
 {% enddoc %}
 {% liquid
   function c = 'modules/captchas/helpers/errors_hash', errors: object.errors
-  assign supported_providers = 'turnstile,hcaptcha,recaptcha,recaptcha_v3' | split: ','
+  function provider_supported = 'modules/captchas/helpers/provider_available', provider: object.provider
 
   if object.token == blank
     assign messages = 'modules/captchas/errors.token_missing' | split: '|'
@@ -17,7 +18,7 @@
     assign c = c | hash_merge: secret: messages
   endif
 
-  unless supported_providers contains object.provider
+  unless provider_supported
     assign messages = 'modules/captchas/errors.unsupported_provider' | split: '|'
     assign c = c | hash_merge: provider: messages
   endunless

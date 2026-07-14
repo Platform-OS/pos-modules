@@ -1,0 +1,10 @@
+{% doc %}
+  @description Provider config for hCaptcha. Part of the captchas provider contract:
+    returns a hash with at least response_field — the form field the widget writes the
+    token into (hCaptcha's default hidden input).
+  @returns {object} config hash: { response_field }
+{% enddoc %}
+{% liquid
+  assign config = '{"response_field": "h-captcha-response"}' | parse_json
+  return config
+%}

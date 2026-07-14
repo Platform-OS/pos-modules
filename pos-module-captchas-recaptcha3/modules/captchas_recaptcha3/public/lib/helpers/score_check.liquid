@@ -1,0 +1,46 @@
+{% doc %}
+  @description Pure score/action gate for a reCAPTCHA v3 siteverify response body. Extracted
+    from the verify command so the thresholding logic is unit-testable without network.
+    Fails closed: a missing/nil success field is treated as failed verification.
+  @param {object} body - parsed siteverify JSON: { success, score, action, ... }
+  @param {number} [min_score] - minimum score required to pass (default 0.5)
+  @param {string} [expected_action] - when present, body.action must equal it
+  @param {object} [errors] - existing errors hash to merge into
+  @returns {object} { valid (boolean), errors (hash) }
+{% enddoc %}
+{% liquid
+  function c = 'modules/captchas/helpers/errors_hash', errors: errors
+  assign result = '{}' | parse_json
+
+  # `!= true` (not `== false`): a nil/missing success field must fail closed too — otherwise a
+  # 200 JSON body without `success` would fall through to the score check and, with min_score 0,
+  # pass without any provider verdict.
+  if body.success != true
+    assign messages = 'modules/captchas/errors.verification_failed' | split: '|'
+    assign merged = c | hash_merge: captcha: messages
+    assign result = result | hash_merge: valid: false, errors: merged
+    return result
+  endif
+
+  if expected_action != blank
+    if body.action != expected_action
+      assign messages = 'modules/captchas/errors.action_mismatch' | split: '|'
+      assign merged = c | hash_merge: captcha: messages
+      assign result = result | hash_merge: valid: false, errors: merged
+      return result
+    endif
+  endif
+
+  assign threshold = min_score | default: 0.5 | plus: 0.0
+  assign score = body.score | default: 0.0 | plus: 0.0
+
+  if score >= threshold
+    assign result = result | hash_merge: valid: true, errors: c
+  else
+    assign messages = 'modules/captchas/errors.low_score' | split: '|'
+    assign merged = c | hash_merge: captcha: messages
+    assign result = result | hash_merge: valid: false, errors: merged
+  endif
+
+  return result
+%}

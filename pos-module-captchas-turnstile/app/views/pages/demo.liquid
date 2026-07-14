@@ -1,0 +1,25 @@
+{% comment %}
+  Example-app demo for the captchas_turnstile provider (NOT part of the distributed module).
+  GET /demo — renders a form with the Turnstile widget using Cloudflare's public always-pass
+  TEST keys. Submitting POSTs to /verify, which verifies the token server-side and shows the
+  normalized result. Swap the keys for real ones (constants) to see a live challenge.
+{% endcomment %}
+<h1>Captcha demo — Cloudflare Turnstile</h1>
+
+<p>
+  This form uses Turnstile's public <strong>test</strong> site key, which always passes.
+  Submitting posts the token to <code>/verify</code>, which calls Cloudflare's siteverify
+  endpoint server-side and shows the result.
+</p>
+
+<form action="/verify" method="post" accept-charset="UTF-8">
+  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+  <p>
+    <label for="message">Message</label><br>
+    <textarea id="message" name="message" rows="4" cols="40"></textarea>
+  </p>
+
+  {% render 'modules/captchas/widget', provider: 'turnstile', site_key: '1x00000000000000000000AA' %}
+
+  <p><button type="submit">Submit</button></p>
+</form>

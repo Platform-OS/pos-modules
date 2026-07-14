@@ -1,0 +1,18 @@
+{% doc %}
+  @description Renders the Cloudflare Turnstile widget (loader script + widget div) into a form.
+    Part of the captchas provider contract: dispatched via include by modules/captchas/widget,
+    so internal variables are prefixed captcha_ to avoid clobbering the dispatcher's scope.
+  @param {string} site_key - Turnstile public site key.
+  @param {object} [options] - Widget options: theme (light|dark|auto), size (normal|flexible|compact),
+    action, cdata, appearance (always|execute|interaction-only), language, tabindex, callback (JS fn name),
+    response_field_name (default cf-turnstile-response), class_name (extra CSS classes), html_id (id attribute).
+{% enddoc %}
+{%- liquid
+  assign captcha_response_field = options['response_field_name'] | default: 'cf-turnstile-response'
+-%}
+{%- unless context.exports.captcha.turnstile_script_loaded -%}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{%- assign turnstile_script_loaded = true -%}
+{%- export turnstile_script_loaded, namespace: 'captcha' -%}
+{%- endunless -%}
+<div class="cf-turnstile{% if options['class_name'] != blank %} {{ options['class_name'] | escape }}{% endif %}"{% if options['html_id'] != blank %} id="{{ options['html_id'] | escape }}"{% endif %} data-sitekey="{{ site_key | escape }}"{% if options['theme'] != blank %} data-theme="{{ options['theme'] | escape }}"{% endif %}{% if options['size'] != blank %} data-size="{{ options['size'] | escape }}"{% endif %}{% if options['action'] != blank %} data-action="{{ options['action'] | escape }}"{% endif %}{% if options['cdata'] != blank %} data-cdata="{{ options['cdata'] | escape }}"{% endif %}{% if options['appearance'] != blank %} data-appearance="{{ options['appearance'] | escape }}"{% endif %}{% if options['language'] != blank %} data-language="{{ options['language'] | escape }}"{% endif %}{% if options['tabindex'] != blank %} data-tabindex="{{ options['tabindex'] | escape }}"{% endif %}{% if options['callback'] != blank %} data-callback="{{ options['callback'] | escape }}"{% endif %} data-response-field-name="{{ captcha_response_field | escape }}"></div>

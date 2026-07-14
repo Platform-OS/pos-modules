@@ -1,0 +1,36 @@
+{% comment %}
+  Example-app demo for the captchas_recaptcha3 provider (NOT part of the distributed module).
+  GET /demo — reCAPTCHA v3 has NO public test keys, so this reads real keys from the
+  CAPTCHA_RECAPTCHA3_SITE_KEY / CAPTCHA_RECAPTCHA3_SECRET constants and shows setup
+  instructions when they are unset. v3 is invisible: submitting runs the challenge, injects
+  the token, and POSTs to /verify, which thresholds the returned score.
+{% endcomment %}
+{% liquid
+  assign site_key = context.constants.CAPTCHA_RECAPTCHA3_SITE_KEY
+  assign widget_options = '{"action": "demo_submit"}' | parse_json
+%}
+<h1>Captcha demo — Google reCAPTCHA v3</h1>
+
+<p>
+  reCAPTCHA v3 is <strong>invisible and score-based</strong>: no checkbox, every submit gets
+  a score. The verifier here requires a score ≥ 0.5 and action <code>demo_submit</code>.
+</p>
+
+{% if site_key == blank %}
+  <p>⚠️ <code>CAPTCHA_RECAPTCHA3_SITE_KEY</code> is not set. v3 has no public test keys —
+  register a v3 site in the reCAPTCHA admin console (tied to this domain) and set both constants:</p>
+  <pre>pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA3_SITE_KEY --value "6Le..."
+pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA3_SECRET --value "6Le..."</pre>
+{% else %}
+  <form action="/verify" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <p>
+      <label for="message">Message</label><br>
+      <textarea id="message" name="message" rows="4" cols="40"></textarea>
+    </p>
+
+    {% render 'modules/captchas/widget', provider: 'recaptcha3', site_key: site_key, options: widget_options %}
+
+    <p><button type="submit">Submit</button></p>
+  </form>
+{% endif %}

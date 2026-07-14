@@ -1,0 +1,25 @@
+{% comment %}
+  Example-app demo for the captchas_recaptcha provider (NOT part of the distributed module).
+  GET /demo — renders a form with the reCAPTCHA v2 widget using Google's public always-pass
+  automated-testing keys (the widget shows a warning banner). Submitting POSTs to /verify,
+  which verifies the token server-side and shows the normalized result.
+{% endcomment %}
+<h1>Captcha demo — Google reCAPTCHA v2</h1>
+
+<p>
+  This form uses Google's automated-testing site key, which always passes (the widget shows
+  a warning banner). Submitting posts the token to <code>/verify</code>, which calls Google's
+  siteverify endpoint server-side and shows the result.
+</p>
+
+<form action="/verify" method="post" accept-charset="UTF-8">
+  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+  <p>
+    <label for="message">Message</label><br>
+    <textarea id="message" name="message" rows="4" cols="40"></textarea>
+  </p>
+
+  {% render 'modules/captchas/widget', provider: 'recaptcha', site_key: '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI' %}
+
+  <p><button type="submit">Submit</button></p>
+</form>

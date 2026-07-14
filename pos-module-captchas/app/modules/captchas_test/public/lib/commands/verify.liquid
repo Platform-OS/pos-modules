@@ -1,0 +1,23 @@
+{% doc %}
+  @description Verify command for the fake test captcha provider (abstraction test suite only).
+    Implements the captchas provider contract deterministically, without network:
+    token 'pass' verifies successfully; any other token fails with verification_failed.
+    Mirrors the fail-closed shape real providers must follow.
+  @param {object} object - normalized verify object: { token, secret, remote_ip, errors, ... }
+  @returns {object} object with response, success, valid and errors set
+{% enddoc %}
+{% liquid
+  function c = 'modules/captchas/helpers/errors_hash', errors: object.errors
+
+  if object.token == 'pass'
+    assign response = '{"success": true, "hostname": "test.example.com"}' | parse_json
+    assign object = object | hash_merge: response: response, success: true, valid: true
+    return object
+  endif
+
+  assign response = '{"success": false}' | parse_json
+  assign messages = 'modules/captchas/errors.verification_failed' | split: '|'
+  assign errors = c | hash_merge: captcha: messages
+  assign object = object | hash_merge: response: response, success: false, valid: false, errors: errors
+  return object
+%}

@@ -4,16 +4,23 @@
 
 Initial release.
 
-- Generic captcha abstraction: `modules/captchas/widget` partial + `modules/captchas/commands/captcha/verify` command (build → check → execute, fail-closed).
-- Providers: Cloudflare Turnstile, hCaptcha, reCAPTCHA v2, and reCAPTCHA v3 (score threshold + optional action check).
+- Generic, provider-agnostic captcha abstraction: `modules/captchas/widget` partial +
+  `modules/captchas/commands/captcha/verify` command (build → check → execute, fail-closed).
+- Providers are separate modules (`captchas_<key>`) dispatched by naming convention — the
+  abstraction contains no provider code. Official providers: `captchas_turnstile`,
+  `captchas_hcaptcha`, `captchas_recaptcha` (v2), `captchas_recaptcha3` (v3, score-based).
+- Provider availability gate (`helpers/provider_available`): key charset validation,
+  optional `CAPTCHA_ENABLED_PROVIDERS` allow-list (CSV, exact match), and an
+  installed-module probe via the provider's required `provider.name` translation — an
+  unavailable provider degrades gracefully (logged HTML comment / `unsupported_provider`
+  error), never a hard error.
+- Provider selection: explicit `provider:` argument, else the `CAPTCHA_DEFAULT_PROVIDER`
+  constant; no built-in fallback.
 - Keys are caller-supplied per call — multiple keys for the same provider on one instance.
-- Optional `expected_sitekey` param (hCaptcha) — forwarded to siteverify so tokens issued for
-  another sitekey of the same account are rejected (hCaptcha secrets are account-wide).
-- Optional `expected_hostname` allow-list check as defense-in-depth (exact, case-insensitive
-  matching via the unit-tested `helpers/hostname_allowed` function).
-- Widget attribute values (site key, options) are HTML-escaped.
-- A blank `site_key` logs an error and emits an HTML comment instead of failing silently client-side.
-- reCAPTCHA v3: a duplicate widget render in the same form is detected and ignored (one active
-  instance per form).
-- English and Polish translations, runnable example app demo, and unit tests for the
-  build/check/fail-closed paths and the hostname allow-list helper.
+- Generic policy checks in the abstraction: `expected_hostname` allow-list
+  (exact, case-insensitive), fail-closed build/check phases; provider-specific params
+  (`expected_sitekey`, `min_score`, `expected_action`) are passed through.
+- Documented provider contract (widget partial + `helpers/config` + `commands/verify` +
+  `provider.name` translation) for third-party provider modules.
+- English and Polish translations for all error keys, a deterministic fake provider
+  (`app/modules/captchas_test`) powering the unit-test suite and the example-app demo.

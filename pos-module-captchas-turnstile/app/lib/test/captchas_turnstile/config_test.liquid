@@ -1,0 +1,15 @@
+{% comment %}
+  Unit test (no network): the provider contract surface of captchas_turnstile.
+  config must expose Turnstile's default response field, and the provider.name translation
+  (the abstraction's installation probe) must resolve.
+{% endcomment %}
+{% liquid
+  function config = 'modules/captchas_turnstile/helpers/config'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: config.response_field, expected: 'cf-turnstile-response', field_name: 'response_field'
+
+  assign probe = 'modules/captchas_turnstile/provider.name' | t: default: ''
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: probe, expected: 'Cloudflare Turnstile', field_name: 'provider_name_probe'
+
+  function available = 'modules/captchas/helpers/provider_available', provider: 'turnstile'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: available, expected: true, field_name: 'provider_available'
+%}

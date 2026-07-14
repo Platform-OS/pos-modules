@@ -1,0 +1,8 @@
+{% comment %}
+  @prompt: Widget for the fake test captcha provider (abstraction test suite only).
+           Renders a marker div and a hidden token input pre-filled with the passing token.
+           Params: site_key (string), options (hash, optional: class_name).
+{% endcomment %}
+<div class="captcha-test-widget {{ options.class_name }}" data-captcha-test data-sitekey="{{ site_key }}">
+  <input type="hidden" name="x-test-captcha-response" value="pass">
+</div>

@@ -1,0 +1,39 @@
+{% comment %}
+  Unit test (no network): the availability gate that guards every dynamic dispatch to a
+  provider module. Uses the fake provider (app/modules/captchas_test) as the installed
+  provider. The enabled_providers param injects an allow-list per call, so these cases are
+  deterministic regardless of the instance's CAPTCHA_ENABLED_PROVIDERS constant; the first
+  case assumes that constant is either unset or contains 'test' in the test environment.
+{% endcomment %}
+{% liquid
+  # installed provider, no injected allow-list -> available
+  function a1 = 'modules/captchas/helpers/provider_available', provider: 'test'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a1, expected: true, field_name: 'installed_default_mode'
+
+  # installed + listed -> available (list is normalized: spaces stripped, lowercased)
+  function a2 = 'modules/captchas/helpers/provider_available', provider: 'test', enabled_providers: ' TEST , other'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a2, expected: true, field_name: 'installed_and_listed'
+
+  # installed but NOT listed -> blocked by the allow-list
+  function a3 = 'modules/captchas/helpers/provider_available', provider: 'test', enabled_providers: 'other'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a3, expected: false, field_name: 'installed_not_listed'
+
+  # listed but NOT installed -> blocked by the installation probe
+  function a4 = 'modules/captchas/helpers/provider_available', provider: 'ghost', enabled_providers: 'ghost'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a4, expected: false, field_name: 'listed_not_installed'
+
+  # blank provider -> never available
+  function a5 = 'modules/captchas/helpers/provider_available', provider: ''
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a5, expected: false, field_name: 'blank_provider'
+
+  # keys are spliced into partial paths: path metacharacters must be rejected outright
+  function a6 = 'modules/captchas/helpers/provider_available', provider: 'test/../../evil'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a6, expected: false, field_name: 'path_traversal_key'
+
+  function a7 = 'modules/captchas/helpers/provider_available', provider: 'test/widget'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a7, expected: false, field_name: 'path_segment_key'
+
+  # allow-list matching is exact per entry, not substring: 'test' must not pass via 'testing'
+  function a8 = 'modules/captchas/helpers/provider_available', provider: 'test', enabled_providers: 'testing'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a8, expected: false, field_name: 'no_substring_match'
+%}

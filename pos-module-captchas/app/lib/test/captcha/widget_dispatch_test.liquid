@@ -1,0 +1,39 @@
+{% comment %}
+  Unit test (no network): the widget partial dispatches dynamically to the provider module's
+  widget (fake provider at app/modules/captchas_test) and degrades to a logged HTML comment —
+  never a hard error — when the provider is unavailable or the site key is blank.
+{% endcomment %}
+{% liquid
+  # available provider -> provider widget rendered with the passed site_key
+  capture rendered
+    render 'modules/captchas/widget', provider: 'test', site_key: 'sk-widget-123'
+  endcapture
+  assign widget_ok = false
+  if rendered contains 'data-captcha-test' and rendered contains 'sk-widget-123'
+    assign widget_ok = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: widget_ok, expected: true, field_name: 'widget_dispatched'
+
+  # unavailable provider -> HTML comment fallback, no provider widget
+  capture rendered_bogus
+    render 'modules/captchas/widget', provider: 'bogus', site_key: 'sk-widget-123'
+  endcapture
+  assign bogus_degraded = false
+  if rendered_bogus contains 'not available' and rendered_bogus contains '<!--'
+    assign bogus_degraded = true
+  endif
+  if rendered_bogus contains 'data-captcha-test'
+    assign bogus_degraded = false
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bogus_degraded, expected: true, field_name: 'unavailable_degrades'
+
+  # blank site_key -> warning comment emitted, widget still rendered
+  capture rendered_blank
+    render 'modules/captchas/widget', provider: 'test', site_key: ''
+  endcapture
+  assign blank_warned = false
+  if rendered_blank contains 'blank site_key' and rendered_blank contains 'data-captcha-test'
+    assign blank_warned = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: blank_warned, expected: true, field_name: 'blank_site_key_warns'
+%}

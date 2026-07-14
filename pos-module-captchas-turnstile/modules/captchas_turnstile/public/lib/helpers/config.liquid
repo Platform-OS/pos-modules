@@ -1,0 +1,10 @@
+{% doc %}
+  @description Provider config for Cloudflare Turnstile. Part of the captchas provider
+    contract: returns a hash with at least response_field — the form field the widget
+    writes the token into (Turnstile's default hidden input).
+  @returns {object} config hash: { response_field }
+{% enddoc %}
+{% liquid
+  assign config = '{"response_field": "cf-turnstile-response"}' | parse_json
+  return config
+%}
