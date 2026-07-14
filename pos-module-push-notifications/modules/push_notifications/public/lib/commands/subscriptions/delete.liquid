@@ -1,0 +1,26 @@
+{% doc %}
+  Deletes a push subscription. Accepts either record id or endpoint URL.
+
+  @param {string} [id]       - Record ID of the subscription
+  @param {string} [endpoint] - Push endpoint URL (used to look up the record if id is blank)
+  @returns {object} Deleted record or error object
+{% enddoc %}
+{% liquid
+  if id == blank
+    function sub = 'modules/push_notifications/queries/subscriptions/find', endpoint: endpoint
+  else
+    function sub = 'modules/push_notifications/queries/subscriptions/find', id: id
+  endif
+
+  if sub == blank
+    assign result = { "valid": false, "errors": { "id": ["Subscription not found"] } }
+    return result
+  endif
+
+  graphql r = 'modules/push_notifications/subscriptions/delete', id: sub.id
+
+  assign event_payload = { "subscription_id": sub.id, "user_id": sub.user_id }
+  function _ = 'modules/core/commands/events/publish', type: 'push_subscription_deleted', object: event_payload, delay: null, max_attempts: null
+
+  return r.record
+%}

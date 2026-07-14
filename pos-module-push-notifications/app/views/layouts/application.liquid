@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="pos-app" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Push Notifications Demo</title>
+  {% render 'modules/common-styling/init', reset: true %}
+  <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
+  <link rel="stylesheet" href="{{ 'style/app.css' | asset_url }}">
+  {% liquid
+    assign sw_path = '/sw-1.js'
+  %}
+  {% render 'modules/push_notifications/init', service_worker_path: sw_path %}
+</head>
+<body>
+  {% if context.current_user %}
+    <main class="app-page">
+      <nav class="app-nav">
+        <a href="/" class="app-nav-brand">Push Notifications Demo</a>
+        <div class="app-nav-user">
+          {% render 'modules/common-styling/user/avatar', size: 'xs', name: context.current_user.email, image_src: '' %}
+          <span class="pos-supplementary">{{ context.current_user.email }}</span>
+        </div>
+        <a href="/settings" class="app-nav-link">Settings</a>
+        <form method="post" action="/sessions" style="display:inline">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="_method" value="delete">
+          <button type="submit" class="pos-button pos-button-small">Log out</button>
+        </form>
+      </nav>
+      {{ content_for_layout }}
+    </main>
+  {% else %}
+    <main class="app-intro">
+      {{ content_for_layout }}
+    </main>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,43 @@
+{% doc %}
+  Creates a new push subscription record and publishes a creation event.
+  Idempotent per (user_id, endpoint): the browser reuses the same
+  PushSubscription endpoint across repeated subscribe() calls, so if this
+  same user already has a record for it, that record is returned as-is
+  instead of inserting a duplicate row. A different user subscribing with
+  the same browser (shared device) gets their own separate record with the
+  same endpoint — both users legitimately receive pushes sent to either
+  subscription, since it's the same physical browser channel; ownership is
+  never transferred or deleted out from under the other user.
+
+  @param {string} user_id   - User ID to associate the subscription with
+  @param {string} endpoint  - Push service endpoint URL
+  @param {string} p256dh    - Client EC public key (base64url, from browser PushSubscription)
+  @param {string} auth      - Client auth secret (base64url, from browser PushSubscription)
+  @returns {object} Created (or existing) subscription record (with .valid and .errors on failure)
+{% enddoc %}
+{% liquid
+  function object = 'modules/push_notifications/commands/subscriptions/create/build',
+    user_id: user_id, endpoint: endpoint, p256dh: p256dh, auth: auth
+
+  function object = 'modules/push_notifications/commands/subscriptions/create/check', object: object
+
+  if object.valid
+    function existing = 'modules/push_notifications/queries/subscriptions/find', endpoint: object.endpoint, user_id: object.user_id
+
+    if existing != blank
+      assign existing.valid = true
+      return existing
+    endif
+
+    graphql sub = 'modules/push_notifications/subscriptions/create', user_id: object.user_id, endpoint: object.endpoint, p256dh: object.p256dh, auth: object.auth, browser: object.browser, active: object.active
+
+    assign sub = sub.record
+    assign object = object | hash_merge: sub
+    assign event_payload = { "subscription_id": object.id, "user_id": object.user_id, "endpoint": object.endpoint, "browser": object.browser }
+    function _ = 'modules/core/commands/events/publish', type: 'push_subscription_created', object: event_payload, delay: null, max_attempts: null
+
+    return object
+  endif
+
+  return object
+%}

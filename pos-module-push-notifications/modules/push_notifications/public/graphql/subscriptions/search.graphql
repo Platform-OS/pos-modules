@@ -1,0 +1,34 @@
+query (
+  $id: ID
+  $user_id: String
+  $endpoint: String
+  $active: Boolean
+  $limit: Int!
+  $page: Int
+) {
+  records(
+    per_page: $limit
+    page: $page
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/push_notifications/subscription" }
+      properties: [
+        { name: "user_id", value: $user_id }
+        { name: "endpoint", value: $endpoint }
+        { name: "active", value_boolean: $active }
+      ]
+    }
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      user_id: property(name: "user_id")
+      endpoint: property(name: "endpoint")
+      p256dh: property(name: "p256dh")
+      auth: property(name: "auth")
+      browser: property(name: "browser")
+      active: property_boolean(name: "active")
+    }
+  }
+}

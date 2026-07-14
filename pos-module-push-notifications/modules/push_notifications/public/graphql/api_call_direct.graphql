@@ -1,0 +1,21 @@
+mutation api_call_direct(
+  $url: String!
+  $method: String!
+  $headers: HashObject!
+  $body: String!
+  $body_encoding: String
+  $timeout: Int = 30
+) {
+  api_call_send(
+    api_call: { url: $url, method: $method, headers: $headers, body: $body, body_encoding: $body_encoding }
+    options: { timeout: $timeout }
+  ) {
+    response {
+      status
+      body
+    }
+    errors {
+      message
+    }
+  }
+}

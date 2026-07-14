@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "core": "2.1.9",
+    "common-styling": "1.38.1",
+    "user": "5.2.11"
+  },
+  "devDependencies": {},
+  "registries": {
+    "core": "https://partners.platformos.com",
+    "common-styling": "https://partners.platformos.com",
+    "user": "https://partners.platformos.com"
+  }
+}

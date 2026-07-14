@@ -1,0 +1,20 @@
+---
+slug: push_notifications/subscriptions
+method: post
+format: json
+layout: ''
+---
+{% liquid
+  if context.current_user == blank
+    print '{"ok":false,"error":"unauthorized"}'
+    return
+  endif
+
+  assign sub_params = context.params.subscription
+  function result = 'modules/push_notifications/commands/subscriptions/create',
+    user_id: context.current_user.id,
+    endpoint: sub_params.endpoint,
+    p256dh: sub_params.keys.p256dh,
+    auth: sub_params.keys.auth
+%}
+{% if result.valid %}{"ok":true,"id":"{{ result.id }}"}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}

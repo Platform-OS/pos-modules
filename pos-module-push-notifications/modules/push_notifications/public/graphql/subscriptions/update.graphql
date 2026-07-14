@@ -1,0 +1,28 @@
+mutation (
+  $id: ID!
+  $active: Boolean
+  $endpoint: String
+  $p256dh: String
+  $auth: String
+) {
+  record: record_update(
+    id: $id
+    record: {
+      table: "modules/push_notifications/subscription"
+      properties: [
+        { name: "active", value_boolean: $active }
+        { name: "endpoint", value: $endpoint }
+        { name: "p256dh", value: $p256dh }
+        { name: "auth", value: $auth }
+      ]
+    }
+  ) {
+    id
+    user_id: property(name: "user_id")
+    endpoint: property(name: "endpoint")
+    p256dh: property(name: "p256dh")
+    auth: property(name: "auth")
+    browser: property(name: "browser")
+    active: property_boolean(name: "active")
+  }
+}

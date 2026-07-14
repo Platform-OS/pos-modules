@@ -1,0 +1,23 @@
+---
+slug: push_notifications/subscriptions/destroy
+method: post
+---
+{% liquid
+  assign return_to = context.params.return_to | default: '/'
+
+  if context.current_user == blank
+    redirect_to '/sessions/new'
+    return
+  endif
+
+  function sub = 'modules/push_notifications/queries/subscriptions/find', id: context.params.id
+
+  if sub == blank or sub.user_id != context.current_user.id
+    redirect_to return_to
+    return
+  endif
+
+  function _ = 'modules/push_notifications/commands/subscriptions/delete', id: context.params.id
+
+  redirect_to return_to
+%}

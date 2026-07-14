@@ -1,0 +1,12 @@
+{% doc %}
+  Finds a single push subscription by id or endpoint (optionally narrowed to one user).
+  @param {string} [id]       - Record ID
+  @param {string} [endpoint] - Push endpoint URL
+  @param {string} [user_id]  - Only match a record owned by this user
+  @returns {object|null} Subscription record or null
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/push_notifications/subscriptions/search', id: id, endpoint: endpoint, user_id: user_id, limit: 1, page: 1
+
+  return r.records.results.first
+%}

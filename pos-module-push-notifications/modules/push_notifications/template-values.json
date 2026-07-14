@@ -1,0 +1,11 @@
+{
+  "name": "Push Notifications",
+  "machine_name": "push_notifications",
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "core": "^2.1.9",
+    "common-styling": "^1.38.0",
+    "user": "^5.2.11"
+  }
+}

@@ -1,0 +1,56 @@
+{% doc %}
+  Encrypts a web push payload per RFC 8291 (message encryption) and RFC 8188 (aes128gcm content encoding).
+
+  Encryption pipeline:
+    1. ECDH(sender_private_key, subscriber_p256dh) → shared secret       [ecdh_compute]
+    2. HKDF-SHA256 (WebPush info) → IKM                                  [hkdf]
+    3. HKDF-SHA256 (per-message salt, direct from IKM) → CEK (16B) + nonce (12B) [hkdf]
+    4. AES-128-GCM encrypt with the derived nonce as explicit IV         [encrypt]
+    5. base64url-decode (not base64_decode — encrypt's output is URL-safe), strip the
+       leading IV, pack the RFC 8188 frame                              [binary string ops]
+
+  Note: RFC 8291 wants a fresh sender EC keypair per message for forward secrecy.
+  There is no ec_generate filter, so this reuses one static sender keypair
+  (sender_private_key / sender_public_key) for every message — see the module
+  README for the security tradeoff.
+
+  @param {string} message            - Plaintext payload (JSON string recommended)
+  @param {string} p256dh             - Subscriber's p256dh key (base64url, from browser PushSubscription)
+  @param {string} auth               - Subscriber's auth secret (base64url, from browser PushSubscription)
+  @param {string} sender_private_key - Sender EC private key, PEM-encoded
+  @param {string} sender_public_key  - Sender EC public key (base64url, 65-byte uncompressed P-256)
+  @returns {string} Base64-encoded aes128gcm push body: salt | header | keyid | ciphertext+tag.
+                     Base64-encoded (not raw binary) so it survives transit as a GraphQL/JSON
+                     variable; decode with `| base64_decode` at the point it becomes an HTTP body.
+{% enddoc %}
+{% liquid
+  function p256dh_raw = 'modules/push_notifications/helpers/base64url_decode', input: p256dh
+  function auth_raw = 'modules/push_notifications/helpers/base64url_decode', input: auth
+  function sender_public_key_raw = 'modules/push_notifications/helpers/base64url_decode', input: sender_public_key
+
+  assign null_byte = 'AA==' | base64_decode
+  assign padding_delimiter = 'Ag==' | base64_decode
+  assign header_prefix = 'AAAQAEE=' | base64_decode
+
+  assign ecdh_secret = sender_private_key | ecdh_compute: p256dh
+  assign key_info = 'WebPush: info' | append: null_byte | append: p256dh_raw | append: sender_public_key_raw
+  assign ikm = ecdh_secret | hkdf: auth_raw, key_info, 32, 'sha256'
+
+  assign entropy = 32 | random_string
+  assign message_salt = entropy | digest: 'sha256', 'none' | slice: 0, 16
+
+  assign cek_info = 'Content-Encoding: aes128gcm' | append: null_byte
+  assign nonce_info = 'Content-Encoding: nonce' | append: null_byte
+  assign cek = ikm | hkdf: message_salt, cek_info, 16, 'sha256'
+  assign nonce = ikm | hkdf: message_salt, nonce_info, 12, 'sha256'
+
+  assign padded_plaintext = message | append: padding_delimiter
+  assign encrypted_with_iv = padded_plaintext | encrypt: 'aes-128-gcm', cek, nonce
+  function encrypted_bytes = 'modules/push_notifications/helpers/base64url_decode', input: encrypted_with_iv
+  assign ciphertext_len = encrypted_bytes | size | minus: 12
+  assign ciphertext_with_tag = encrypted_bytes | slice: 12, ciphertext_len
+
+  assign result = message_salt | append: header_prefix | append: sender_public_key_raw | append: ciphertext_with_tag
+  assign result_b64 = result | base64_encode
+  return result_b64
+%}

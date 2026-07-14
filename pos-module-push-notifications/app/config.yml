@@ -1,0 +1,5 @@
+modules_that_allow_delete_on_deploy:
+  - push_notifications
+  - core
+  - common-styling
+  - user

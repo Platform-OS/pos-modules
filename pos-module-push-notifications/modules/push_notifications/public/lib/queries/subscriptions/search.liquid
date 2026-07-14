@@ -1,0 +1,16 @@
+{% doc %}
+  Searches push subscriptions with optional filters.
+  @param {string} user_id  - Filter by user ID
+  @param {boolean} active  - Filter by active status
+  @param {number} [limit]  - Results per page (default: 20)
+  @param {number} [page]   - Page number (default: 1)
+  @returns {object} Paginated results: {total_entries, results}
+{% enddoc %}
+{% liquid
+  assign limit = limit | default: 20
+  assign page = page | default: 1
+
+  graphql r = 'modules/push_notifications/subscriptions/search', user_id: user_id, active: active, limit: limit, page: page
+
+  return r.records
+%}

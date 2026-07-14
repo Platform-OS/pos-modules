@@ -1,0 +1,39 @@
+{% doc %}
+  Sends a push notification to all active subscriptions for a user.
+
+  @param {string} user_id  - Target user ID
+  @param {object} payload  - Notification payload {title, body, icon, url, data}
+  @param {number} ttl      - Time-to-live in seconds (default: 86400)
+  @param {string} urgency  - Urgency: very-low, low, normal, high (default: normal)
+  @returns {object} Summary {sent, failed, expired}
+{% enddoc %}
+{% liquid
+  function subs = 'modules/push_notifications/queries/subscriptions/search',
+    user_id: user_id,
+    active: true,
+    limit: 100
+
+  assign sent = 0
+  assign failed = 0
+  assign expired = 0
+
+  for sub in subs.results
+    function r = 'modules/push_notifications/commands/notifications/send',
+      subscription_id: sub.id,
+      subscription: sub,
+      payload: payload,
+      ttl: ttl,
+      urgency: urgency
+
+    if r.valid
+      assign sent = sent | plus: 1
+    elsif r.status_code == 404 or r.status_code == 410
+      assign expired = expired | plus: 1
+    else
+      assign failed = failed | plus: 1
+    endif
+  endfor
+
+  assign summary = {"sent": sent, "failed": failed, "expired": expired}
+  return summary
+%}

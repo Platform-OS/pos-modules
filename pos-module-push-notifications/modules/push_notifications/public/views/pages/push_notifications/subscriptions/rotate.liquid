@@ -1,0 +1,16 @@
+---
+slug: push_notifications/subscriptions/rotate
+method: post
+format: json
+layout: ''
+---
+{% liquid
+  function result = 'modules/push_notifications/commands/subscriptions/rotate',
+    old_endpoint: context.params.old_endpoint,
+    old_p256dh: context.params.old_p256dh,
+    old_auth: context.params.old_auth,
+    endpoint: context.params.endpoint,
+    p256dh: context.params.p256dh,
+    auth: context.params.auth
+%}
+{% if result.valid %}{"ok":true,"id":"{{ result.id }}"}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}

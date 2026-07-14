@@ -1,0 +1,47 @@
+---
+slug: push_notifications/demo
+method: post
+layout: application
+---
+{% liquid
+  if context.current_user == blank
+    redirect_to '/sessions/new'
+    return
+  endif
+
+  assign title = context.params.title | default: 'Test Notification'
+  assign body = context.params.body | default: 'Hello from push_notifications demo!'
+  assign payload = {"title": title, "body": body, "url": "/"}
+
+  assign user_ids = context.params.user_ids
+  if user_ids == blank
+    assign user_ids = '' | split: ''
+    assign user_ids << context.current_user.id
+  endif
+
+  assign sent = 0
+  assign failed = 0
+  assign expired = 0
+
+  for user_id in user_ids
+    function result = 'modules/push_notifications/commands/notifications/broadcast',
+      user_id: user_id,
+      payload: payload,
+      ttl: null,
+      urgency: null
+
+    assign sent = sent | plus: result.sent
+    assign failed = failed | plus: result.failed
+    assign expired = expired | plus: result.expired
+  endfor
+%}
+<section class="pos-card">
+  <h1 class="pos-heading-3">Test Notification Result</h1>
+  <dl>
+    <dt>Recipients</dt><dd>{{ user_ids | size }}</dd>
+    <dt>Sent</dt><dd>{{ sent }}</dd>
+    <dt>Failed</dt><dd>{{ failed }}</dd>
+    <dt>Expired</dt><dd>{{ expired }}</dd>
+  </dl>
+  <a href="/">Back</a>
+</section>
