@@ -63,13 +63,13 @@
 
 .pos-chat-search-input {
   width: 100%;
-  padding-inline-start: calc(var(--pos-padding-input) + 1rem);
+  padding-inline-start: calc(.8rem + 1.3rem + .4rem);
 }
 
 /* search icon */
 .pos-chat-search-input-container [data-icon="search"] {
   width: 1.3rem;
-  margin-block-start: 2px;
+  margin-block-start: 1px;
   margin-inline-start: .8rem;
   position: absolute;
   z-index: 3;
@@ -79,7 +79,7 @@
 .pos-chat-search-clear {
   width: calc(var(--pos-height-input) - 8px);
   height: calc(var(--pos-height-input) - 8px);
-  padding: calc(var(--pos-padding-input) / 2.5);
+  padding: calc(var(--pos-height-input) / 4);
   z-index: 3;
   position: absolute;
   inset-inline-end: 2px;
