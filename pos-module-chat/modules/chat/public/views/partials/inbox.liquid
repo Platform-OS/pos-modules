@@ -59,9 +59,13 @@
   class="pos-app {% if current_conversation %} pos-chat-inbox-conversation-active {% endif %}"
 >
 
-  <ul class="pos-chat-conversations" id="pos-chat-conversations">
-    {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
-  </ul>
+  <aside class="pos-chat-sidebar">
+    {% render 'modules/chat/search' %}
+
+    <ul class="pos-chat-conversations" id="pos-chat-conversations">
+      {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
+    </ul>
+  </aside>
 
   {% if current_conversation %}
     <div class="pos-chat-conversation" id="pos-chat-conversation">

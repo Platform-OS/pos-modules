@@ -1,9 +1,9 @@
 {% doc %}
   @param {number} id - conversation ID
-  @param {boolean} current - whether this is the active conversation
+  @param {boolean} [current] - whether this is the active conversation
   @param {string} name - display name of the participant
   @param {string} image_src - avatar image URL
-  @param {string} last_message - last message text
+  @param {string} [last_message] - last message text
   @param {string} [timezone] - timezone for date formatting
 {% enddoc %}
 
@@ -16,14 +16,16 @@
         <span class="pos-chat-conversationCard-name">
           {{ name }}
         </span>
-        <div class="pos-chat-conversationCard-lastMessage">
-          {% if last_message %}
-            <small>{{ last_message }}</small>
-            <time datetime="{{ last_message.created_at }}">
-              {{ last_message.created_at | strftime: "%b %d", timezone }}
-            </time>
-          {% endif %}
-        </div>
+        {% if last_message %}
+          <div class="pos-chat-conversationCard-lastMessage">
+            {% if last_message %}
+              <small>{{ last_message }}</small>
+              <time datetime="{{ last_message.created_at }}">
+                {{ last_message.created_at | strftime: "%b %d", timezone }}
+              </time>
+            {% endif %}
+          </div>
+        {% endif %}
     </div>
 {% if current == false %}
   </a>

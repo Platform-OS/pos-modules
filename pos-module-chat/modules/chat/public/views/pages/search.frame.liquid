@@ -1,0 +1,23 @@
+---
+layout: ''
+---
+
+{% doc %}
+  Get conversations for given participant and return them in HTML
+
+  @param {string} page - page number for pagination
+  @param {number} [per_page] - items per page (default: 20)
+{% enddoc %}
+
+
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+
+  function profiles = 'modules/user/queries/profiles/search', limit: 7, page: 1, not_ids: current_profile.id, uuid: null, id: null, ids: null, first_name: null, last_name: null, user_id: null, query: context.params.q, emails: null, sort: null
+
+  render 'modules/chat/users', users: profiles, current_profile: current_profile
+%}

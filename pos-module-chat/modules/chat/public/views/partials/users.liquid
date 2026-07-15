@@ -1,0 +1,14 @@
+{% doc %}
+  lists all users
+
+  @param {object} users - the users object returned from the query
+{% enddoc %}
+
+
+{% for user in users.results %}
+  <li>
+    <a href="/inbox/?to_uuid={{ user.uuid }}">
+      {% render 'modules/chat/conversation', id: user.id, name: user.name, image_src: user.avatar.photo.versions.sm %}
+    </a>
+  </li>
+{% endfor %}
