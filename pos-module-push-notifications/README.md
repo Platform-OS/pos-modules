@@ -80,9 +80,7 @@ Both partials style entirely with real `common-styling` classes (`pos-button`/`p
 
 ### 6. Get site-wide scope for the service worker
 
-By default the worker is served at `/modules/push_notifications/sw.js`, and a service worker's scope defaults to the directory it's served from — good enough to receive and display pushes anywhere, but `notificationclick`'s `clients.matchAll()` will only find/focus tabs under `/modules/push_notifications/`.
-
-To get real site-wide scope (so `notificationclick` can focus an already-open tab on any page), copy the file to your own app's **top-level** `assets/` directory — not a subfolder, keeping the `sw.js`/`sw-X.js` naming — then pass its root-served path as `service_worker_path`:
+Copy the file to your own app's **top-level** `assets/` directory — not a subfolder, keeping the `sw.js`/`sw-X.js` naming — then pass its root-served path as `service_worker_path`:
 
 ```bash
 cp modules/push_notifications/public/assets/sw.js app/assets/sw.js
