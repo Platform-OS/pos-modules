@@ -49,7 +49,7 @@
 
   if vapid_public_key == blank or vapid_private_key == blank or sender_private_key == blank or sender_public_key == blank
     assign object.valid = false
-    assign object.errors = { "configuration": ["VAPID and sender keys are not configured — run the push_notifications setup migration"] }
+    assign object.errors = { "configuration": ["VAPID and sender keys are not configured — set the required constants (see module README)"] }
     log object, type: 'ERROR: modules/push_notifications/commands/notifications/send configuration missing'
     return object
   endif
