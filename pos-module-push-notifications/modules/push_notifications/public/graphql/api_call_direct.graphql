@@ -3,11 +3,10 @@ mutation api_call_direct(
   $method: String!
   $headers: HashObject!
   $body: String!
-  $body_encoding: String
   $timeout: Int = 30
 ) {
   api_call_send(
-    api_call: { url: $url, method: $method, headers: $headers, body: $body, body_encoding: $body_encoding }
+    api_call: { url: $url, method: $method, headers: $headers, body: $body }
     options: { timeout: $timeout }
   ) {
     response {
