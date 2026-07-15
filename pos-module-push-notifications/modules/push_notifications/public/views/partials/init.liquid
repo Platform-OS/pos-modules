@@ -4,14 +4,14 @@ metadata:
   params:
     subscribe_url: "/push_notifications/subscriptions"
     destroy_url: "/push_notifications/subscriptions/destroy"
-    service_worker_path: "" # defaults to /sw-1.js (root scope; platformOS serves assets/sw-X.js at the domain root)
+    service_worker_path: "" # defaults to /sw.js (root scope; platformOS serves assets/sw-X.js at the domain root)
     rotate_url: "" # defaults to /push_notifications/subscriptions/rotate
 ---
 {% liquid
   assign subscribe_url = subscribe_url | default: '/push_notifications/subscriptions'
   assign destroy_url = destroy_url | default: '/push_notifications/subscriptions/destroy'
   assign rotate_url = rotate_url | default: '/push_notifications/subscriptions/rotate'
-  assign default_service_worker_path = '/sw-1.js'
+  assign default_service_worker_path = '/sw.js'
   assign service_worker_path = service_worker_path | default: default_service_worker_path
   assign vapid_public_key = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
 %}
