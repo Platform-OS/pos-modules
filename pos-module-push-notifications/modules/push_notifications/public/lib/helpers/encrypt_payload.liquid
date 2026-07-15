@@ -51,6 +51,6 @@
   assign ciphertext_with_tag = encrypted_bytes | slice: 12, ciphertext_len
 
   assign result = message_salt | append: header_prefix | append: sender_public_key_raw | append: ciphertext_with_tag
-  assign result_b64 = result | base64_encode
-  return result_b64
+  return result
 %}
+

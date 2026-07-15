@@ -78,7 +78,7 @@
     "Urgency": push_urgency
   }
 
-  graphql r = 'modules/push_notifications/api_call_direct', url: sub.endpoint, method: 'POST', headers: push_headers, body: encrypted_payload, body_encoding: 'base64', timeout: 30
+  graphql r = 'modules/push_notifications/api_call_direct', url: sub.endpoint, method: 'POST', headers: push_headers, body: encrypted_payload, timeout: 30
 
   assign response = r.api_call_send.response
   if response == blank
@@ -119,3 +119,4 @@
 
   return object
 %}
+
