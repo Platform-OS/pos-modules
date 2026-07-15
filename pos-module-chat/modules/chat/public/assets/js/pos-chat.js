@@ -87,6 +87,15 @@ window.pos.modules.chat = function(userSettings = {}){
   // are there more pages of conversations (bool)
   module.settings.conversations.morePages = document.querySelector(module.settings.conversations.loadMoreButtonSelector) ? true : false;
 
+  // stores all the search related stuff (object)
+  module.settings.search = {};
+  // search input for searching users (dom node)
+  module.settings.search.input = document.querySelector('.pos-chat-search-input');
+  // search results container (dom node)
+  module.settings.search.results = document.querySelector('.pos-chat-search-results');
+  // clearing the search results button (dom node)
+  module.settings.search.clear = document.querySelector('.pos-chat-search-clear');
+
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
 
@@ -108,13 +117,19 @@ window.pos.modules.chat = function(userSettings = {}){
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing chat', module.settings.inbox);
 
     // create subscription for the channel
-    module.createSubscription();
+    if(module.conversationId){
+      module.createSubscription();
+    }
 
     // scroll to bottom after loading the messages
-    scrollBottom();
+    if(module.conversationId){
+      scrollBottom();
+    }
 
     // parse dates from BE to be in the same format as browser locale
-    module.parseDates();
+    if(module.conversationId){
+      module.parseDates();
+    }
 
     let is_desktop = true;
 
@@ -123,7 +138,7 @@ window.pos.modules.chat = function(userSettings = {}){
     }
 
     // handling what will happen on pressing enter in the input
-    module.settings.messageInput.addEventListener('keypress', (event) => {
+    module.settings.messageInput?.addEventListener('keypress', (event) => {
       if(event.which == 13 && is_desktop && !event.shiftKey && module.settings.messageInput.value.trim()){
         event.preventDefault();
 
@@ -134,14 +149,14 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     });
 
-    module.settings.messageInput.addEventListener("paste", (event) => {
+    module.settings.messageInput?.addEventListener("paste", (event) => {
       event.preventDefault();
       const text = event.clipboardData.getData("text/plain");
       document.execCommand("insertHTML", false, text);
     });
 
     // handling send button click
-    module.settings.sendButton.addEventListener('click', () => {
+    module.settings.sendButton?.addEventListener('click', () => {
       if(module.settings.messageInput.value.trim()) {
         module.sendMessage(module.settings.messageInput.value.trim());
         setTimeout(() => {
@@ -152,7 +167,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // load previous messages when user scrolls to top
     let messagesListTimeout = '';
-    module.settings.messagesListContainer.addEventListener('scroll', () => {
+    module.settings.messagesListContainer?.addEventListener('scroll', () => {
       if(module.settings.morePages === true){
         clearTimeout(messagesListTimeout);
         messagesListTimeout = setTimeout(() => {
@@ -183,7 +198,26 @@ window.pos.modules.chat = function(userSettings = {}){
     } else {
       pos.modules.debug(module.settings.debug, module.settings.id, 'Showing all conversations, no more pages available');
     }
-    
+
+    // search for users
+    let searchTimeout = '';
+    module.settings.search.input?.addEventListener('input', event => {
+      searchTimeout = setTimeout(() => {
+        clearTimeout(searchTimeout);
+        if(event.target.value.trim().length > 0){
+          module.search.run(event.target.value.trim());
+        } else {
+          module.search.clear();
+        }
+      }, 300);
+    });
+
+    // clear search results
+    module.settings.search.clear?.addEventListener('click', () => {
+      module.search.clear();
+    });
+
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'Chat initialized', module.settings.inbox);
 
   };
@@ -232,7 +266,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
 
   // purpose:		creates a subscription to a room between users
-  // returns:		triggers a 'message' event on document when new message
+  // returns:		triggers a 'message' event on document when new    message
   //				    appears on the channel (send or received), passess the message details
   // ------------------------------------------------------------------------
   module.createSubscription = () => {
@@ -455,14 +489,13 @@ window.pos.modules.chat = function(userSettings = {}){
     // get the data
     fetch(`/conversations.frame?page=${page}`)
     .then(response => {
-      // parse it to JSON if valid
       if(response.ok){
         return response.text();
       } else {
         return Promise.reject(response);
       }
     })
-    .then((data) => {
+    .then(data => {
       // remove the 'load more' button for previous page
       document.querySelector(module.settings.conversations.loadMoreButtonSelector)?.remove();
 
@@ -485,6 +518,38 @@ window.pos.modules.chat = function(userSettings = {}){
     });
   };
 
+
+
+  // search
+  // ------------------------------------------------------------------------
+  module.search = {};
+
+
+  // purpose:		loads people search results
+  // arguments:	the search query (string)
+  // ------------------------------------------------------------------------
+  module.search.run = (query) => {
+    // get the data
+    fetch(`/search.frame?q=${query}`)
+    .then(response => {
+      if(response.ok){
+        return response.text();
+      } else {
+        return Promise.reject(response);
+      }
+    })
+    .then(data => {
+      module.settings.search.results.innerHTML = data;
+    })
+  };
+
+
+  // purpose:		clears search results
+  // ------------------------------------------------------------------------
+  module.search.clear = () => {
+    module.settings.search.input.value = '';
+    module.settings.search.results.innerHTML = '';
+  };
 
 
 

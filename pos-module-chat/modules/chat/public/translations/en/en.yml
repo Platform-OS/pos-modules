@@ -11,3 +11,5 @@ en:
   send: Send
   back: Back
   error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.
+  search:
+    placeholder: Search for a person
