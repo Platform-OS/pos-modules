@@ -80,22 +80,22 @@ Both partials style entirely with real `common-styling` classes (`pos-button`/`p
 
 ### 6. Get site-wide scope for the service worker
 
-By default the worker is served at `/modules/push_notifications/sw-1.js`, and a service worker's scope defaults to the directory it's served from — good enough to receive and display pushes anywhere, but `notificationclick`'s `clients.matchAll()` will only find/focus tabs under `/modules/push_notifications/`.
+By default the worker is served at `/modules/push_notifications/sw.js`, and a service worker's scope defaults to the directory it's served from — good enough to receive and display pushes anywhere, but `notificationclick`'s `clients.matchAll()` will only find/focus tabs under `/modules/push_notifications/`.
 
 To get real site-wide scope (so `notificationclick` can focus an already-open tab on any page), copy the file to your own app's **top-level** `assets/` directory — not a subfolder, keeping the `sw.js`/`sw-X.js` naming — then pass its root-served path as `service_worker_path`:
 
 ```bash
-cp modules/push_notifications/public/assets/sw-1.js app/assets/sw-1.js
+cp modules/push_notifications/public/assets/sw.js app/assets/sw.js
 ```
 
 ```liquid
 {% liquid
-  assign sw_path = '/sw-1.js'
+  assign sw_path = '/sw.js'
 %}
 {% render 'modules/push_notifications/init', service_worker_path: sw_path %}
 ```
 
-Note it's a hardcoded `/sw-1.js`, not `'sw-1.js' | asset_path`: platformOS serves top-level `assets/sw-X.js` at the domain root as a routing special case, but `asset_path` still resolves the same name to `/assets/sw-1.js` — a cross-scope URL that doesn't match where the file is actually reachable. `app/` in this repo does exactly this — see `app/assets/sw-1.js` and `app/views/layouts/application.liquid`.
+Note it's a hardcoded `/sw.js`, not `'sw.js' | asset_path`: platformOS serves top-level `assets/sw-X.js` at the domain root as a routing special case, but `asset_path` still resolves the same name to `/assets/sw.js` — a cross-scope URL that doesn't match where the file is actually reachable. `app/` in this repo does exactly this — see `app/assets/sw.js` and `app/views/layouts/application.liquid`.
 
 ### Subscription expiry & rotation
 
