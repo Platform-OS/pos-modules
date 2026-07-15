@@ -99,7 +99,7 @@ Note it's a hardcoded `/sw.js`, not `'sw.js' | asset_path`: platformOS serves to
 
 Two independent paths keep subscriptions from going stale:
 
-- **Server-driven**: `commands/notifications/send` and `broadcast` delete the subscription and publish `push_subscription_expired` when the push service responds `404`/`410` to a delivery attempt.
+- **Server-driven**: `commands/notifications/send` (called directly, or queued in the background by `broadcast`) deletes the subscription and publishes `push_subscription_expired` when the push service responds `404`/`410` to a delivery attempt.
 - **Client-driven**: the service worker listens for [`pushsubscriptionchange`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/pushsubscriptionchange_event), which the browser fires when it invalidates a subscription on its own (key rotation forced by the push service, expiry, etc.) — even with no tab open. It resubscribes with the original VAPID key and calls `POST /push_notifications/subscriptions/rotate` to swap the stored endpoint/keys in place, and publishes `push_subscription_rotated`.
 
 The rotate endpoint authenticates by requiring the *previous* subscription's full credentials (`old_endpoint` + `old_p256dh` + `old_auth`) to match a stored record — not the session/CSRF token — since this call can happen in the background with no page open to source a fresh `authenticity_token` from.
@@ -138,7 +138,7 @@ function result = 'modules/push_notifications/commands/notifications/broadcast',
   payload: { "title": "New message", "body": "You have a new message" }
 ```
 
-Returns `{sent, failed, expired}` counts across every active subscription belonging to any of the given users. Internally, `user_ids` is batched into groups of 50 for the underlying search (keeping each `value_in` query bounded), and every batch's results are paged through in full, so the recipient list can be arbitrarily large without silently dropping subscriptions past a fixed limit. See `app/views/pages/push_notifications/demo.liquid` for a working example that sends to a caller-chosen list of users via a multiselect.
+Returns `{queued}` — a count of subscriptions the notification was queued for, across every active subscription belonging to any of the given users. Each subscription's send is dispatched via `background`, not `function`, so a transient push-service failure gets retried automatically instead of counting as a permanent failure — this also means delivery outcomes aren't known synchronously. Consume the `push_notification_sent`/`push_notification_failed`/`push_subscription_expired` events (see below) to observe real results. Internally, `user_ids` is batched into groups of 50 for the underlying search (keeping each `value_in` query bounded), and every batch's results are paged through in full, so the recipient list can be arbitrarily large without silently dropping subscriptions past a fixed limit. See `app/views/pages/push_notifications/demo.liquid` for a working example that sends to a caller-chosen list of users via a multiselect.
 
 ## Events
 

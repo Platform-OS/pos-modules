@@ -26,6 +26,7 @@
   function object = 'modules/push_notifications/commands/notifications/send/check', object: object
 
   unless object.valid
+    log object, type: 'ERROR: modules/push_notifications/commands/notifications/send invalid'
     return object
   endunless
 
@@ -36,6 +37,7 @@
   if sub == blank
     assign object.valid = false
     assign object.errors = { "subscription_id": ["Subscription not found"] }
+    log object, type: 'ERROR: modules/push_notifications/commands/notifications/send subscription not found'
     return object
   endif
 
@@ -48,6 +50,7 @@
   if vapid_public_key == blank or vapid_private_key == blank or sender_private_key == blank or sender_public_key == blank
     assign object.valid = false
     assign object.errors = { "configuration": ["VAPID and sender keys are not configured — run the push_notifications setup migration"] }
+    log object, type: 'ERROR: modules/push_notifications/commands/notifications/send configuration missing'
     return object
   endif
 

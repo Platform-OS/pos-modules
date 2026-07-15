@@ -13,9 +13,8 @@ layout: application
   assign body = context.params.body | default: 'Hello from push_notifications demo!'
   assign payload = {"title": title, "body": body, "url": "/"}
 
-  assign user_ids = context.params.user_ids
+  assign user_ids = context.params.user_ids | default: []
   if user_ids == blank
-    assign user_ids = '' | split: ''
     assign user_ids << context.current_user.id
   endif
 
@@ -25,17 +24,14 @@ layout: application
     ttl: null,
     urgency: null
 
-  assign sent = result.sent
-  assign failed = result.failed
-  assign expired = result.expired
+  assign queued = result.queued
 %}
 <section class="pos-card">
   <h1 class="pos-heading-3">Test Notification Result</h1>
   <dl>
     <dt>Recipients</dt><dd>{{ user_ids | size }}</dd>
-    <dt>Sent</dt><dd>{{ sent }}</dd>
-    <dt>Failed</dt><dd>{{ failed }}</dd>
-    <dt>Expired</dt><dd>{{ expired }}</dd>
+    <dt>Queued</dt><dd>{{ queued }}</dd>
   </dl>
+  <p>Delivery happens asynchronously — check instance logs or the <code>push_notification_sent</code>/<code>push_notification_failed</code>/<code>push_subscription_expired</code> events for actual outcomes.</p>
   <a href="/">Back</a>
 </section>

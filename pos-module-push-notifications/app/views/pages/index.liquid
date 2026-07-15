@@ -12,12 +12,12 @@ layout: application
       limit: 100,
       page: null,
       sort: null
-    assign recipient_options = '' | split: ''
+    assign recipient_options = []
     for user in users.results
       assign recipient_option = {"value": user.id, "label": user.email}
       assign recipient_options << recipient_option
     endfor
-    assign default_recipients = '' | split: ''
+    assign default_recipients = []
     assign default_recipients << context.current_user.id
   %}
   <section class="pos-card pos-card-highlighted">

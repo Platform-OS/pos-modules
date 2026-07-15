@@ -1,20 +1,25 @@
 {% doc %}
-  Sends a push notification to all active subscriptions for one or more users.
+  Queues a push notification for all active subscriptions for one or more users.
 
   User IDs are batched (groups of 50) to keep each search query bounded, and
   every batch's results are paged through in full — no fixed cap on how many
   subscriptions can be reached, unlike a single unpaginated search.
 
+  Each subscription's send is dispatched via `background` (not `function`), so a
+  transient push-service failure gets retried automatically instead of counting
+  as a permanent failure. This means delivery outcomes aren't known synchronously
+  — consume the `push_notification_sent`/`push_notification_failed`/
+  `push_subscription_expired` events (published by `commands/notifications/send`)
+  to observe real results.
+
   @param {string[]} user_ids - Target user IDs
   @param {object} payload  - Notification payload {title, body, icon, url, data}
   @param {number} ttl      - Time-to-live in seconds (default: 86400)
   @param {string} urgency  - Urgency: very-low, low, normal, high (default: normal)
-  @returns {object} Summary {sent, failed, expired}
+  @returns {object} Summary {queued}
 {% enddoc %}
 {% liquid
-  assign sent = 0
-  assign failed = 0
-  assign expired = 0
+  assign queued = 0
 
   assign user_id_batches = user_ids | array_in_groups_of: 50
 
@@ -41,24 +46,13 @@
       endif
 
       for sub in subs.results
-        function r = 'modules/push_notifications/commands/notifications/send',
-          subscription_id: sub.id,
-          subscription: sub,
-          payload: payload,
-          ttl: ttl,
-          urgency: urgency
+        background _job_id = 'modules/push_notifications/commands/notifications/send', subscription_id: sub.id, subscription: sub, payload: payload, ttl: ttl, urgency: urgency
 
-        if r.valid
-          assign sent = sent | plus: 1
-        elsif r.status_code == 404 or r.status_code == 410
-          assign expired = expired | plus: 1
-        else
-          assign failed = failed | plus: 1
-        endif
+        assign queued = queued | plus: 1
       endfor
     endfor
   endfor
 
-  assign summary = {"sent": sent, "failed": failed, "expired": expired}
+  assign summary = {"queued": queued}
   return summary
 %}

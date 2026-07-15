@@ -8,9 +8,14 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'payload'
 
   assign allowed_urgency = 'very-low,low,normal,high' | split: ','
-  unless allowed_urgency contains object.urgency
+  if object.urgency == blank
     assign object.urgency = 'normal'
-  endunless
+  elsif allowed_urgency contains object.urgency
+    # already valid, leave as-is
+  else
+    assign c.valid = false
+    assign c.errors = c.errors | hash_merge: {"urgency": ["must be one of very-low, low, normal, high"]}
+  endif
 
   assign object.valid = c.valid
   assign object.errors = c.errors
