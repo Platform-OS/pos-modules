@@ -63,16 +63,32 @@
     {% render 'modules/chat/search' %}
 
     <ul class="pos-chat-conversations" id="pos-chat-conversations">
-      {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
+      {% if conversations.total_entries > 0 %}
+        {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
+      {% else %}
+        <div class="pos-chat-conversations-blank-desktop">
+          {% liquid
+            assign name = 'modules/chat/blank.title' | t
+            render 'modules/chat/conversation', id: 0, current: true, name: name
+          %}
+        </div>
+      {% endif %}
     </ul>
+    {% if conversations.total_entries == 0 %}
+      <div class="pos-chat-conversations-blank-mobile">
+        {% render 'modules/common-styling/icon', icon: 'messageBubblesDouble' %}
+        <h2 class="pos-heading-2">{{ 'modules/chat/blank.title' | t }}</h2>
+        {{ 'modules/chat/blank.description.mobile' | t }}
+      </div>
+    {% endif %}
   </aside>
 
   {% if current_conversation %}
     <div class="pos-chat-conversation" id="pos-chat-conversation">
       <header class="pos-chat-conversation-header">
-        <a href="/inbox" class="pos-chat-conversation-header-back">
-          <span class="label">Show conversations list</span>
-          ←
+        <a href="/inbox" class="pos-chat-conversation-header-back pos-button">
+          <span class="pos-label">Show conversations list</span>
+          {% render 'modules/common-styling/icon', icon: 'dashLeft' %}
         </a>
         {% liquid
           assign participants = current_conversation.participants
@@ -115,7 +131,7 @@
       </div>
       <footer class="pos-form pos-chat-conversation-new">
         <textarea
-          placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
+        placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
           class="pos-chat-conversation-input"
           id="chat-messageInput"
           disabled
@@ -124,8 +140,37 @@
       </footer>
     </div>
   {% else %}
-    <div class="pos-chat-inbox-empty">
-      {{ 'modules/chat/pick_conversation' | t }}
-    </div>
+    {% if conversations.total_entries > 0 %}
+      <div class="pos-chat-conversation-messages-blank">
+        {{ 'modules/chat/blank.pick_conversation' | t }}
+      </div>
+    {% endif %}
+
+    {% if conversations.total_entries == 0 %}
+      <div class="pos-chat-conversation" id="pos-chat-conversation">
+        <div class="pos-chat-conversation-messagesContainer" id="chat-messagesList-container">
+          <ul class="pos-chat-messages" id="chat-messagesList">
+            {% if conversations.total_entries == 0 %}
+              {% liquid
+                assign messages = [
+                  {
+                    "message": "{{ 'modules/chat/blank.title' | t }}",
+                    "created_at": "{{ 'now' | to_time }}"
+                  },
+                  {
+                    "message": "{{ 'modules/chat/blank.description.desktop' | t }}",
+                    "created_at": "{{ 'now' | to_time }}"
+                  }
+                ]
+              %}
+              {% for message in messages %}
+                {% render 'modules/chat/message', message: message, authored: false, timezone: current_profile.timezone %}
+              {% endfor %}
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+
   {% endif %}
 </div>
