@@ -1,0 +1,58 @@
+{% doc %}
+  Queues a push notification for all active subscriptions for one or more users.
+
+  User IDs are batched (groups of 50) to keep each search query bounded, and
+  every batch's results are paged through in full — no fixed cap on how many
+  subscriptions can be reached, unlike a single unpaginated search.
+
+  Each subscription's send is dispatched via `background` (not `function`), so a
+  transient push-service failure gets retried automatically instead of counting
+  as a permanent failure. This means delivery outcomes aren't known synchronously
+  — consume the `push_notification_sent`/`push_notification_failed`/
+  `push_subscription_expired` events (published by `commands/notifications/send`)
+  to observe real results.
+
+  @param {string[]} user_ids - Target user IDs
+  @param {object} payload  - Notification payload {title, body, icon, url, data}
+  @param {number} ttl      - Time-to-live in seconds (default: 86400)
+  @param {string} urgency  - Urgency: very-low, low, normal, high (default: normal)
+  @returns {object} Summary {queued}
+{% enddoc %}
+{% liquid
+  assign queued = 0
+
+  assign user_id_batches = user_ids | array_in_groups_of: 50
+
+  for batch in user_id_batches
+    assign clean_batch = batch | compact
+
+    function subs = 'modules/push_notifications/queries/subscriptions/search',
+      user_ids: clean_batch,
+      active: true,
+      limit: 100,
+      page: 1
+
+    assign total_pages = subs.total_pages | default: 1
+
+    for page in (1..total_pages)
+      if page > 1
+        # platformos-check-disable NestedGraphQLQuery
+        function subs = 'modules/push_notifications/queries/subscriptions/search',
+          user_ids: clean_batch,
+          active: true,
+          limit: 100,
+          page: page
+        # platformos-check-enable NestedGraphQLQuery
+      endif
+
+      for sub in subs.results
+        background _job_id = 'modules/push_notifications/commands/notifications/send', subscription_id: sub.id, subscription: sub, payload: payload, ttl: ttl, urgency: urgency
+
+        assign queued = queued | plus: 1
+      endfor
+    endfor
+  endfor
+
+  assign summary = {"queued": queued}
+  return summary
+%}

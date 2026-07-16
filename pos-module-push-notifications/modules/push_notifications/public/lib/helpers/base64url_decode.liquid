@@ -1,0 +1,16 @@
+{% doc %}
+  Decodes a Base64URL string (RFC 4648 §5) to its original value.
+  @param {string} input - Base64URL-encoded string (no padding, URL-safe chars)
+  @returns {string} Decoded string
+{% enddoc %}
+{% liquid
+  assign padded = input | replace: '-', '+' | replace: '_', '/'
+  assign mod = padded.size | modulo: 4
+  if mod == 2
+    assign padded = padded | append: '=='
+  elsif mod == 3
+    assign padded = padded | append: '='
+  endif
+  assign result = padded | base64_decode
+  return result
+%}

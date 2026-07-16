@@ -80,3 +80,6 @@ pos-module-user/modules/*
 
 pos-module-user-invites/modules/*
 !pos-module-user-invites/modules/user_invites/
+
+pos-module-push-notifications/modules/*
+!pos-module-push-notifications/modules/push_notifications/

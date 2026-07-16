@@ -1,0 +1,32 @@
+---
+slug: push_notifications/subscriptions
+method: get
+format: json
+layout: ''
+---
+{% doc %}
+  Returns the current user's active subscriptions as a JSON array of
+  {id, endpoint}. Used client-side (see views/partials/register.liquid) to
+  tell whether the browser's local PushSubscription still has a matching
+  record on the server — Notification.permission alone can't answer that,
+  since it stays "granted" even after the server-side subscription has been
+  deleted — and to get the record id needed to unsubscribe.
+{% enddoc %}
+{% liquid
+  if context.current_user == blank
+    print '[]'
+    return
+  endif
+
+  function subs = 'modules/push_notifications/queries/subscriptions/search',
+    user_id: context.current_user.id,
+    active: true,
+    limit: 100,
+    page: 1
+
+  assign result = []
+  for sub in subs.results
+    assign entry = { "id": sub.id, "endpoint": sub.endpoint }
+    assign result = result | array_add: entry
+  endfor
+%}{{ result | json }}

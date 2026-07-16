@@ -1,0 +1,128 @@
+/*
+  styling for the push notifications demo app, mirroring the layout
+  conventions used in pos-module-user/app (pos-app shell, centered intro
+  page for logged-out visitors, a fixed-width page area with a top nav
+  for logged-in users)
+
+  page background and font
+  intro page
+  logged in page
+*/
+
+
+
+/* page background and font
+============================================================================ */
+.pos-app body {
+  min-height: 100vh;
+  padding: 0;
+
+  background-color: var(--pos-color-page-background);
+}
+
+
+
+/* intro page
+============================================================================ */
+.app-intro {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+}
+
+.app-intro-content .pos-heading-2 {
+  margin-block-end: var(--pos-padding-page);
+}
+
+.app-intro-nav {
+  display: flex;
+  justify-content: center;
+
+  font-weight: 500;
+}
+
+  .app-intro-nav a {
+    height: var(--pos-height-button);
+    padding-inline: calc(var(--pos-padding-button) * 2);
+    display: flex;
+    align-items: center;
+  }
+
+  .app-intro-nav a:hover {
+    color: var(--pos-color-highlight-text);
+  }
+
+.app-intro-footer {
+  grid-row: 2;
+  padding: var(--pos-padding-page);
+
+  text-align: center;
+  color: var(--pos-color-content-text-supplementary);
+}
+
+
+
+/* logged in page
+============================================================================ */
+.app-page {
+  width: 640px;
+  max-width: 100%;
+  padding: var(--pos-padding-page);
+  margin-inline: auto;
+}
+
+.app-nav {
+  padding-block-end: var(--pos-padding-page);
+  display: flex;
+  align-items: center;
+  gap: var(--pos-gap-button-button);
+}
+
+.app-nav-brand {
+  margin-inline-end: auto;
+
+  font-weight: 600;
+}
+
+.app-nav-user {
+  display: flex;
+  align-items: center;
+  gap: .5em;
+}
+
+.app-nav-link {
+  height: var(--pos-height-button);
+  padding-inline: var(--pos-padding-button);
+  display: inline-flex;
+  align-items: center;
+
+  font-weight: 500;
+}
+
+.app-nav-link:hover {
+  color: var(--pos-color-highlight-text);
+}
+
+.app-page .pos-card + .pos-card {
+  margin-block-start: var(--pos-gap-section-section);
+}
+
+
+
+/* push notifications demo form
+============================================================================ */
+.pos-form-simple fieldset:has(label + .pos-form-multiselect) {
+  display: flex;
+  flex-direction: column;
+  gap: .2em;
+}
+
+.pos-form-simple fieldset:has(label + .pos-form-multiselect) label {
+  margin-inline-start: -.1ex;
+  margin-block-end: .1em;
+  align-self: start;
+}

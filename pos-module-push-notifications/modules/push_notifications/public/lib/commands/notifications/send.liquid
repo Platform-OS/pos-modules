@@ -1,0 +1,125 @@
+{% doc %}
+  Sends an encrypted web push notification to a single subscription.
+
+  Loads configuration from platformOS constants:
+    - modules/push_notifications/VAPID_PUBLIC_KEY
+    - modules/push_notifications/VAPID_PRIVATE_KEY
+    - modules/push_notifications/VAPID_SUBJECT
+    - modules/push_notifications/PUSH_SENDER_PRIVATE_KEY_PEM
+    - modules/push_notifications/PUSH_SENDER_PUBLIC_KEY
+
+  @param {string} subscription_id - ID of the push subscription record
+  @param {object} [subscription]  - Already-loaded subscription record, to skip the lookup
+                                    (e.g. when the caller — like broadcast — already has it)
+  @param {object} payload         - Notification payload {title, body, icon, badge, url, data}
+  @param {number} ttl             - Time-to-live in seconds (default: 86400)
+  @param {string} urgency         - Urgency level: very-low, low, normal, high (default: normal)
+  @returns {object} Result with .valid, .status_code, .errors
+{% enddoc %}
+{% liquid
+  function object = 'modules/push_notifications/commands/notifications/send/build',
+    subscription_id: subscription_id,
+    payload: payload,
+    ttl: ttl,
+    urgency: urgency
+
+  function object = 'modules/push_notifications/commands/notifications/send/check', object: object
+
+  unless object.valid
+    log object, type: 'ERROR: modules/push_notifications/commands/notifications/send invalid'
+    return object
+  endunless
+
+  assign sub = subscription
+  if sub == blank
+    function sub = 'modules/push_notifications/queries/subscriptions/find', id: object.subscription_id
+  endif
+  if sub == blank
+    assign object.valid = false
+    assign object.errors = { "subscription_id": ["Subscription not found"] }
+    log object, type: 'ERROR: modules/push_notifications/commands/notifications/send subscription not found'
+    return object
+  endif
+
+  assign vapid_public_key = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
+  assign vapid_private_key = context.constants['modules/push_notifications/VAPID_PRIVATE_KEY']
+  assign vapid_subject = context.constants['modules/push_notifications/VAPID_SUBJECT']
+  assign sender_private_key = context.constants['modules/push_notifications/PUSH_SENDER_PRIVATE_KEY_PEM']
+  assign sender_public_key = context.constants['modules/push_notifications/PUSH_SENDER_PUBLIC_KEY']
+
+  if vapid_public_key == blank or vapid_private_key == blank or sender_private_key == blank or sender_public_key == blank
+    assign object.valid = false
+    assign object.errors = { "configuration": ["VAPID and sender keys are not configured — set the required constants (see module README)"] }
+    log object, type: 'ERROR: modules/push_notifications/commands/notifications/send configuration missing'
+    return object
+  endif
+
+  # platformos-check-disable UnknownProperty
+  assign message = object.payload | json
+  function encrypted_payload = 'modules/push_notifications/helpers/encrypt_payload',
+    message: message,
+    p256dh: sub.p256dh,
+    auth: sub.auth,
+    sender_private_key: sender_private_key,
+    sender_public_key: sender_public_key
+
+  function jwt = 'modules/push_notifications/helpers/vapid_jwt',
+    endpoint: sub.endpoint,
+    subject: vapid_subject,
+    private_key: vapid_private_key
+
+  assign authorization = 'vapid t=' | append: jwt | append: ', k=' | append: vapid_public_key
+
+  assign push_ttl = object.ttl | default: 86400
+  assign push_urgency = object.urgency | default: 'normal'
+  # platformos-check-enable UnknownProperty
+  assign push_headers = {
+    "Authorization": authorization,
+    "Content-Type": "application/octet-stream",
+    "Content-Encoding": "aes128gcm",
+    "TTL": push_ttl,
+    "Urgency": push_urgency
+  }
+
+  graphql r = 'modules/push_notifications/api_call_direct', url: sub.endpoint, method: 'POST', headers: push_headers, body: encrypted_payload, timeout: 30
+
+  assign response = r.api_call_send.response
+  if response == blank
+    assign object.valid = false
+    assign object.status_code = 0
+    assign object.errors = { "push_service": ["Could not reach push service"] }
+    return object
+  endif
+
+  assign status = response.status | plus: 0
+
+  if status == 201 or status == 204
+    assign object.valid = true
+    assign object.status_code = status
+    assign event_payload = { "subscription_id": sub.id, "user_id": sub.user_id }
+    function _ = 'modules/core/commands/events/publish', type: 'push_notification_sent', object: event_payload, delay: null, max_attempts: null
+
+  elsif status == 404 or status == 410
+    function _ = 'modules/push_notifications/commands/subscriptions/delete', id: sub.id
+    assign event_payload = { "subscription_id": sub.id, "user_id": sub.user_id }
+    function _ = 'modules/core/commands/events/publish', type: 'push_subscription_expired', object: event_payload, delay: null, max_attempts: null
+    assign object.valid = false
+    assign object.status_code = status
+    assign object.errors = { "subscription": ["Subscription expired and has been removed"] }
+
+  elsif status == 429
+    assign object.valid = false
+    assign object.status_code = status
+    assign object.errors = { "rate_limit": ["Push service rate limit exceeded — retry later"] }
+
+  else
+    assign object.valid = false
+    assign object.status_code = status
+    assign object.errors = { "push_service": ["Push service returned an error"] }
+    assign event_payload = { "subscription_id": sub.id, "user_id": sub.user_id, "status_code": status }
+    function _ = 'modules/core/commands/events/publish', type: 'push_notification_failed', object: event_payload, delay: null, max_attempts: null
+  endif
+
+  return object
+%}
+

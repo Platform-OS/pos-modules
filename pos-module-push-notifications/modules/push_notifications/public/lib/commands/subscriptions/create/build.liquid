@@ -1,0 +1,21 @@
+{% doc %}
+  @param {string} user_id   - User ID to associate the subscription with
+  @param {string} endpoint  - Push service endpoint URL
+  @param {string} p256dh    - Client EC public key (base64url)
+  @param {string} auth      - Client auth secret (base64url)
+{% enddoc %}
+{% liquid
+  assign browser = 'Unknown'
+  if endpoint contains 'fcm.googleapis.com' or endpoint contains 'fcm.google.com'
+    assign browser = 'Chrome'
+  elsif endpoint contains 'mozilla.com' or endpoint contains 'push.services.mozilla'
+    assign browser = 'Firefox'
+  elsif endpoint contains 'apple.com' or endpoint contains 'push.apple'
+    assign browser = 'Safari'
+  elsif endpoint contains 'windows.com' or endpoint contains 'notify.windows'
+    assign browser = 'Edge'
+  endif
+
+  assign object = {"user_id": user_id, "endpoint": endpoint, "p256dh": p256dh, "auth": auth, "browser": browser, "active": true}
+  return object
+%}
