@@ -25,7 +25,7 @@
     assign image_src = from_profile.avatar.photo.versions.sm
     assign last_message = conversation.last_message.message
   %}
-  {% if conversation.last_message %}
+  {% if conversation.last_message or conversation['current'] %}
     <li>
       {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, timezone: current_profile.timezone %}
     </li>
