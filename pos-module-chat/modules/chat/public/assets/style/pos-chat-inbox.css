@@ -220,7 +220,7 @@
 }
 
 .pos-chat-conversationCard-name {
-  max-width: 230px;
+  max-width: 220px;
   overflow: hidden;
 
   white-space: nowrap;
@@ -244,6 +244,32 @@
     text-overflow: ellipsis;
     font-size: inherit;
     white-space: nowrap;
+  }
+
+  
+.pos-chat-conversationCard-unread .pos-chat-conversationCard-name {
+  max-width: 195px;
+  font-weight: 700;
+}
+
+.pos-chat-conversationCard-unread .pos-chat-conversationCard-lastMessage small {
+  color: var(--pos-color-content-text-prominent);
+}
+
+  .pos-chat-conversationCard-unread {
+    position: relative;
+  }
+
+  .pos-chat-conversationCard-unread:after {
+    width: 7px;
+    height: 7px;
+    position: absolute;
+    inset-inline-end: 1rem;
+
+    background-color: var(--pos-color-interactive);
+    border-radius: 50%;
+
+    content: '';
   }
 
 /* load more button */

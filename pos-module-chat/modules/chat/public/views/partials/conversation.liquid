@@ -5,13 +5,14 @@
   @param {string} [image_src] - avatar image URL
   @param {string} [last_message] - last message text
   @param {string} [timezone] - timezone for date formatting
+  @param {boolean} [unread] - whether this conversation has unread messages
 {% enddoc %}
 
 
 {% if current == false %}
   <a href="/inbox?conversation_id={{ id }}">
 {% endif %}
-    <div class="pos-chat-conversationCard {% if current %} pos-chat-conversationCard-active {% endif %}">
+    <div class="pos-chat-conversationCard {% if current %} pos-chat-conversationCard-active {% endif %} {% if unread %} pos-chat-conversationCard-unread {% endif %}">
       {% render 'modules/common-styling/user/avatar', size: 'l', name: name, image_src: image_src, class: null %}
         <span class="pos-chat-conversationCard-name">
           {{ name }}
