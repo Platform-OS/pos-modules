@@ -220,7 +220,7 @@
 }
 
 .pos-chat-conversationCard-name {
-  max-width: 230px;
+  max-width: 220px;
   overflow: hidden;
 
   white-space: nowrap;
@@ -248,6 +248,7 @@
 
   
 .pos-chat-conversationCard-unread .pos-chat-conversationCard-name {
+  max-width: 195px;
   font-weight: 700;
 }
 
