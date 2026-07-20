@@ -217,6 +217,10 @@ window.pos.modules.chat = function(userSettings = {}){
       module.search.clear();
     });
 
+    // keyboard navigation between the search input and its results
+    module.settings.search.input?.addEventListener('keydown', module.search.keyboard);
+    module.settings.search.results?.addEventListener('keydown', module.search.keyboard);
+
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Chat initialized', module.settings.inbox);
 
@@ -529,17 +533,24 @@ window.pos.modules.chat = function(userSettings = {}){
   // arguments:	the search query (string)
   // ------------------------------------------------------------------------
   module.search.run = (query) => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Running search query', query);
     // get the data
     fetch(`/search.frame?q=${query}`)
     .then(response => {
       if(response.ok){
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Query run successfull', response);
+
         return response.text();
       } else {
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Query run failed', response);
+
         return Promise.reject(response);
       }
     })
     .then(data => {
       module.settings.search.results.innerHTML = data;
+      
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Applied serach results HTML to the page', data);
     })
   };
 
@@ -549,6 +560,86 @@ window.pos.modules.chat = function(userSettings = {}){
   module.search.clear = () => {
     module.settings.search.input.value = '';
     module.settings.search.results.innerHTML = '';
+  };
+
+
+  // purpose:		gets the currently rendered search result links
+  // returns:		the result links, in DOM order (array of dom nodes)
+  // ------------------------------------------------------------------------
+  module.search.focusableResults = () => Array.from(module.settings.search.results.querySelectorAll('a'));
+
+
+  // purpose:		moves focus between the search input and its results with the keyboard,
+  //				    wrapping from the last link back to the first and vice versa
+  // arguments:	the keydown event fired on the search input or the results list (event)
+  // ------------------------------------------------------------------------
+  module.search.keyboard = (event) => {
+    const links = module.search.focusableResults();
+
+    if(!links.length){
+      return;
+    }
+
+    const currentIndex = links.indexOf(event.target);
+
+    switch(event.key){
+      case 'Escape':
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Clearing search results');
+
+        if(event.target === module.settings.search.input){
+          event.preventDefault();
+          module.search.clear();
+        } else if(currentIndex !== -1){
+          event.preventDefault();
+          module.search.clear();
+          module.settings.search.input?.focus();
+        }
+        break;
+      case 'ArrowDown':
+        if(event.target === module.settings.search.input){
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing first search result');
+
+          event.preventDefault();
+          links[0].focus();
+        } else if(currentIndex !== -1){
+          event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing next search result');
+          
+          links[(currentIndex + 1) % links.length].focus();
+        }
+        break;
+
+      case 'ArrowUp':
+        if(currentIndex !== -1){
+          event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing previous search result');
+
+          links[(currentIndex - 1 + links.length) % links.length].focus();
+        }
+        break;
+
+      case 'Home':
+        if(currentIndex !== -1){
+          event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing first search result');
+
+          links[0].focus();
+        }
+        break;
+
+      case 'End':
+        if(currentIndex !== -1){
+          event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing last search result');
+
+          links[links.length - 1].focus();
+        }
+        break;
+    }
   };
 
 
