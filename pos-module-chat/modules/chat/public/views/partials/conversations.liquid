@@ -24,10 +24,14 @@
     assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | default: from_profile.name
     assign image_src = from_profile.avatar.photo.versions.sm
     assign last_message = conversation.last_message.message
+    assign unread = true
+    if conversation.participant_read_ids contains current_profile.id
+      assign unread = false
+    endif
   %}
   {% if conversation.last_message or conversation['current'] %}
     <li>
-      {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, timezone: current_profile.timezone %}
+      {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, timezone: current_profile.timezone, unread: unread %}
     </li>
   {% endif %}
 {% endfor %}
