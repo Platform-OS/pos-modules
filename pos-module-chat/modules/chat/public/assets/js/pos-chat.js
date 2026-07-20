@@ -584,6 +584,8 @@ window.pos.modules.chat = function(userSettings = {}){
 
     switch(event.key){
       case 'Escape':
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Clearing search results');
+
         if(event.target === module.settings.search.input){
           event.preventDefault();
           module.search.clear();
@@ -595,10 +597,15 @@ window.pos.modules.chat = function(userSettings = {}){
         break;
       case 'ArrowDown':
         if(event.target === module.settings.search.input){
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing first search result');
+
           event.preventDefault();
           links[0].focus();
         } else if(currentIndex !== -1){
           event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing next search result');
+          
           links[(currentIndex + 1) % links.length].focus();
         }
         break;
@@ -606,6 +613,9 @@ window.pos.modules.chat = function(userSettings = {}){
       case 'ArrowUp':
         if(currentIndex !== -1){
           event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing previous search result');
+
           links[(currentIndex - 1 + links.length) % links.length].focus();
         }
         break;
@@ -613,6 +623,9 @@ window.pos.modules.chat = function(userSettings = {}){
       case 'Home':
         if(currentIndex !== -1){
           event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing first search result');
+
           links[0].focus();
         }
         break;
@@ -620,6 +633,9 @@ window.pos.modules.chat = function(userSettings = {}){
       case 'End':
         if(currentIndex !== -1){
           event.preventDefault();
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Focusing last search result');
+
           links[links.length - 1].focus();
         }
         break;
