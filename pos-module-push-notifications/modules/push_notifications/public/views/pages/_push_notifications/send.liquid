@@ -1,0 +1,29 @@
+---
+slug: _push_notifications
+method: post
+---
+{% doc %}
+  Handles the test-notification form from `_push_notifications/index.liquid`:
+  broadcasts a test push to the current user's own active subscriptions and
+  redirects back with the queued count.
+{% enddoc %}
+{% liquid
+  unless context.environment == 'staging' or context.environment == 'development'
+    return
+  endunless
+
+  if context.current_user == blank
+    redirect_to '/sessions/new'
+    return
+  endif
+
+  assign title = context.params.title | default: 'Test notification'
+  assign body = context.params.body | default: 'This is a test push notification.'
+  assign url = context.params.url | default: '/'
+  assign payload = { "title": title, "body": body, "url": url }
+
+  function result = 'modules/push_notifications/commands/notifications/broadcast', user_ids: [context.current_user.id], payload: payload, ttl: null, urgency: null
+
+  assign redirect_url = '/_push_notifications?queued=' | append: result.queued
+  redirect_to redirect_url
+%}

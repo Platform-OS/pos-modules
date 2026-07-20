@@ -1,0 +1,67 @@
+---
+slug: _push_notifications
+method: get
+layout: ''
+---
+{% doc %}
+  Dev/staging-only page to send a real test push notification to the current
+  user's own active subscriptions. Mirrors the `/_tests` convention used by
+  pos-module-tests (same env gate, same "blank outside dev/staging" behavior)
+  as its own independent namespace — this module has no dependency on the
+  tests module.
+{% enddoc %}
+{% if context.environment == 'staging' or context.environment == 'development' %}
+  {% assign queued = context.params.queued %}
+  {% if context.current_user != blank %}
+    {% function subs = 'modules/push_notifications/queries/subscriptions/search', user_id: context.current_user.id, active: true, limit: 1, page: 1 %}
+  {% endif %}
+<!DOCTYPE html>
+<html lang="{{ context.language }}">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Push Notifications — Test</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; color: #374151; }
+      h1 { font-size: 1.25rem; }
+      .notice { padding: .75rem 1rem; border-radius: .25rem; margin-bottom: 1rem; }
+      .notice-info { background: #eff6ff; border: 1px solid #bfdbfe; }
+      .notice-success { background: #ecfdf5; border: 1px solid #a7f3d0; }
+      label { display: block; margin-top: .75rem; font-weight: 600; }
+      input[type="text"] { width: 100%; padding: .5rem; margin-top: .25rem; border: 1px solid #d1d5db; border-radius: .25rem; }
+      button { margin-top: 1rem; padding: .5rem 1rem; border: 0; border-radius: .25rem; background: #111827; color: #fff; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>Push Notifications — Test</h1>
+
+    {% if context.current_user == blank %}
+      <p class="notice notice-info">Log in to send a test push notification.</p>
+    {% else %}
+      {% if queued != blank %}
+        <p class="notice notice-success">Queued for {{ queued }} subscription(s).</p>
+      {% endif %}
+
+      {% if subs.total_entries == 0 %}
+        <p class="notice notice-info">You have no active subscriptions yet — subscribe first, then come back here.</p>
+      {% else %}
+        <p>You have {{ subs.total_entries }} active subscription(s).</p>
+      {% endif %}
+
+      <form method="post" action="/_push_notifications">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+
+        <label for="pos-push-test-title">Title</label>
+        <input type="text" id="pos-push-test-title" name="title" value="Test notification">
+
+        <label for="pos-push-test-body">Body</label>
+        <input type="text" id="pos-push-test-body" name="body" value="This is a test push notification.">
+
+        <label for="pos-push-test-url">URL</label>
+        <input type="text" id="pos-push-test-url" name="url" value="/">
+
+        <button type="submit">Send test notification</button>
+      </form>
+    {% endif %}
+  </body>
+</html>
+{% endif %}
