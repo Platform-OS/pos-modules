@@ -5,10 +5,12 @@
   https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API
   https://www.npmjs.com/package/actioncable
 
-  please keep in mind that this simple implementation does not
-  verify if the user should get the notification in back-end and could
-  be easily abused as it is done in front-end only;
-  it's serves as an example
+  This client only subscribes to the current user's own notifications room
+  (notifications-<profile id>) to receive notifications; authorization is enforced
+  server-side, so a user can only subscribe to their own room.
+
+  Notifications are sent server-side when a message is created - never by a client
+  broadcasting into another user's room.
 */
 
 
@@ -66,37 +68,6 @@ const chatNotifications = function(){
         }
       }
     );
-  };
-
-
-  // purpose:		sends a notification to user of given id
-  // arguments:	target user id (int)
-  //				any data you want to pass to notification (object, required)
-  // ------------------------------------------------------------------------
-  module.send = (userId, notificationData) => {
-    let sendingChannel = consumer.subscriptions.create(
-      {
-        channel: 'notifications',
-        room_id: 'notifications-' + userId
-      },
-      {
-        received: function(data){
-          if(module.settings.debug){
-            console.log(`[Notifications] Notification for user ${userId} was send`);
-            console.log(data);
-          }
-
-        },
-
-        connected: function() {
-          if(module.settings.debug){
-            console.log(`[Notifications] Connected to channel with user ${userId}`);
-          }
-        }
-      }
-    );
-
-    sendingChannel.send(notificationData);
   };
 
 

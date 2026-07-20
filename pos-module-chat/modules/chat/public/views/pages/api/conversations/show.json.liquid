@@ -1,0 +1,26 @@
+---
+slug: api/chat/conversations
+method: get
+---
+
+{% doc %}
+  Get conversations for given participant
+
+  @param {string} page - page number for pagination
+  @param {number} [per_page] - items per page (default: 20)
+{% enddoc %}
+
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+
+  assign page = context.params.page | to_positive_integer: 0
+  assign per_page = context.params.per_page | to_positive_integer: 4
+
+  function conversations = 'modules/chat/queries/conversations/search_by_participant', page: page, limit: per_page, participant_id: current_profile.id
+
+  render 'modules/chat/json/conversations/show', conversations: conversations
+%}

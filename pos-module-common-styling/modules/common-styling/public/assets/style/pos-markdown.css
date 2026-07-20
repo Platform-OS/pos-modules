@@ -14,6 +14,7 @@
   ============================================================================ */
   .pos-markdown {
       width: 100%;
+      position: relative;
   }
 
   .EasyMDEContainer .editor-toolbar {
@@ -68,6 +69,50 @@
   ============================================================================ */
   .pos-markdown-error-disabled {
     display: none;
+  }
+
+
+  /* @mention popup
+  ============================================================================ */
+  .pos-markdown-mention [popover] {
+    margin-inline-start: calc(var(--pos-radius-card) * -2);
+    overflow: visible;
+  
+    position: fixed;
+  }
+
+  .pos-markdown-mention [popover]:after {
+    width: 16px;
+    height: 11px;
+    position: absolute;
+    top: -11px;
+    inset-inline-start: calc(var(--pos-radius-card) * 2);
+
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    background-color: var(--pos-color-interactive);
+
+    content: '';
+  }
+
+  .pos-markdown-mention menu li button {
+    padding: .5rem .75rem;
+  }
+
+  .pos-markdown-mention menu li:first-child button {
+    border-start-start-radius: var(--pos-radius-card);
+    border-start-end-radius: var(--pos-radius-card);
+  }
+
+  .pos-markdown-mention menu li:last-child button {
+    border-end-start-radius: var(--pos-radius-card);
+    border-end-end-radius: var(--pos-radius-card);
+  }
+
+  /* @mention mark inside the editor */
+  .EasyMDEContainer .CodeMirror .pos-markdown-mention-mark {
+    font-weight: 600 !important;
+    color: var(--pos-color-interactive-active) !important;
+    text-decoration: none !important;
   }
 
 

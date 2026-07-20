@@ -1,0 +1,10 @@
+{
+  "machine_name": "push_notifications",
+  "version": "1.0.0",
+  "name": "Push Notifications",
+  "dependencies": {
+    "core": "^2.1.9",
+    "common-styling": "^1.38.0",
+    "user": "^5.2.11"
+  }
+}

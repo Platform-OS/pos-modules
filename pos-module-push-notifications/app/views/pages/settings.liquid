@@ -1,0 +1,26 @@
+---
+slug: settings
+method: get
+layout: application
+---
+{% liquid
+  if context.current_user == blank
+    redirect_to '/sessions/new'
+    return
+  endif
+
+  function subs = 'modules/push_notifications/queries/subscriptions/search',
+    user_id: context.current_user.id,
+    active: true,
+    limit: 100,
+    page: 1
+%}
+<section class="pos-card pos-card-highlighted">
+  <h1 class="pos-heading-3">Push notifications</h1>
+  {% render 'modules/push_notifications/register' %}
+</section>
+
+<section class="pos-card">
+  <h2 class="pos-heading-3">Your subscriptions</h2>
+  {% render 'modules/push_notifications/subscriptions/index', subscriptions: subs.results %}
+</section>

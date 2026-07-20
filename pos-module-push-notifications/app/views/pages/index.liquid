@@ -1,0 +1,69 @@
+---
+slug: /
+method: get
+layout: application
+---
+{% if context.current_user %}
+  {% liquid
+    function users = 'modules/user/queries/user/search',
+      id: null,
+      not_ids: null,
+      email: null,
+      limit: 100,
+      page: null,
+      sort: null
+    assign recipient_options = []
+    for user in users.results
+      assign recipient_option = {"value": user.id, "label": user.email}
+      assign recipient_options << recipient_option
+    endfor
+    assign default_recipients = []
+    assign default_recipients << context.current_user.id
+  %}
+  <section class="pos-card pos-card-highlighted">
+    <h1 class="pos-heading-3">Send a notification</h1>
+    <form method="post" action="/push_notifications/demo" class="pos-form pos-form-simple">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <fieldset>
+        <label for="push-recipients">Send to</label>
+        {% render 'modules/common-styling/forms/multiselect',
+          id: 'push-recipients',
+          name: 'user_ids',
+          list: recipient_options,
+          selected: default_recipients,
+          view: null,
+          placeholder: null,
+          placeholder_filter: null,
+          placeholder_empty: null,
+          form: null,
+          showFilter: true,
+          combine_selected: true,
+          multiline: true,
+          required: false %}
+      </fieldset>
+      <fieldset>
+        <label for="push-title">Title</label>
+        <input type="text" id="push-title" name="title" value="Test Notification" class="pos-form-input">
+      </fieldset>
+      <fieldset>
+        <label for="push-body">Content</label>
+        <textarea id="push-body" name="body" class="pos-form-input">Hello from push_notifications demo!</textarea>
+      </fieldset>
+      <fieldset class="pos-form-actions">
+        <button type="submit" class="pos-button pos-button-primary">Send notification</button>
+      </fieldset>
+    </form>
+  </section>
+{% else %}
+  <section class="app-intro-content">
+    <h2 class="pos-heading-2">Push Notifications Demo</h2>
+    <nav>
+      <ul class="app-intro-nav">
+        <li><a href="/sessions/new">Log in</a></li>
+      </ul>
+    </nav>
+  </section>
+  <footer class="app-intro-footer">
+    Powered by <a href="https://platformos.com">platformOS</a>
+  </footer>
+{% endif %}

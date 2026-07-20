@@ -1,0 +1,22 @@
+{% doc %}
+  Builds and signs a VAPID JWT (RFC 8292) for the given push endpoint.
+
+  @param {string} endpoint     - Full push subscription endpoint URL
+  @param {string} subject      - Contact URI, e.g. "mailto:admin@example.com"
+  @param {string} private_key  - Base64url-encoded raw VAPID private key (P-256)
+  @param {number} [expiration] - Token lifetime in seconds (default: 43200 = 12 hours)
+  @returns {string} Signed JWT string
+{% enddoc %}
+{% liquid
+  assign parts = endpoint | split: '/'
+  assign aud = parts[0] | append: '//' | append: parts[2]
+
+  assign exp_seconds = expiration | default: 43200
+  assign now_ts = 'now' | date: '%s'
+  assign exp_ts = now_ts | plus: exp_seconds
+
+  assign vapid_claims = {"aud": aud, "exp": exp_ts, "sub": subject}
+  assign jwt = vapid_claims | jwt_encode: 'ES256', private_key
+
+  return jwt
+%}

@@ -3,14 +3,13 @@ slug: api/chat/messages
 method: get
 ---
 
-{% comment %}
+{% doc %}
   Get messages for given conversation
 
-  Params:
-  - conversation id (string, required)
-  - page number for pagination (int, default: 1)
-  - items per page (int, default: 30)
-{% endcomment %}
+  @param {string} conversation_id - the ID of the conversation
+  @param {string} page - page number for pagination
+  @param {number} [per_page] - items per page (default: 30)
+{% enddoc %}
 
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
@@ -20,10 +19,10 @@ method: get
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
   assign conversation_id = context.params.conversation_id
-  assign page = context.params.page | plus: 0 | default: 1
-  assign limit = context.params.per_page | plus: 0 | default: 30
+  assign page = context.params.page | to_positive_integer: 1
+  assign per_page = context.params.per_page | to_positive_integer: 30
 
-  function messages = 'modules/chat/lib/queries/messages/search_by_participant', conversation_id: conversation_id, page: page, limit: limit, participant_id: current_profile.id
+  function messages = 'modules/chat/queries/messages/search_by_participant', conversation_id: conversation_id, page: page, limit: per_page, participant_id: current_profile.id
 
-  render 'modules/chat/theme/json/messages/show', messages: messages
+  render 'modules/chat/json/messages/show', messages: messages
 %}

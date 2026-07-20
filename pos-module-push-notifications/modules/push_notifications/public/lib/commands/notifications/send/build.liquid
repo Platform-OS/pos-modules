@@ -1,0 +1,13 @@
+{% doc %}
+  @param {string} subscription_id - ID of the push subscription record
+  @param {object} payload         - Notification payload hash {title, body, icon, badge, url, data}
+  @param {number} ttl             - Time-to-live in seconds (default: 86400)
+  @param {string} urgency         - Urgency: very-low, low, normal, high (default: normal)
+{% enddoc %}
+{% liquid
+  assign ttl_val = ttl | default: 86400 | plus: 0
+  assign urgency_val = urgency | default: 'normal'
+
+  assign object = {"subscription_id": subscription_id, "payload": payload, "ttl": ttl_val, "urgency": urgency_val}
+  return object
+%}

@@ -1,0 +1,10 @@
+mutation (
+  $id: ID!
+) {
+  record: record_delete(
+    id: $id
+    table: "modules/push_notifications/subscription"
+  ) {
+    id
+  }
+}

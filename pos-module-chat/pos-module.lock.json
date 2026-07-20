@@ -2,7 +2,7 @@
   "dependencies": {
     "core": "2.1.9",
     "user": "5.2.11",
-    "common-styling": "1.37.30"
+    "common-styling": "1.38.1"
   },
   "devDependencies": {},
   "registries": {

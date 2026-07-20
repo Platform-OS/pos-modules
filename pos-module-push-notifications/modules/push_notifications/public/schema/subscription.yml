@@ -1,0 +1,14 @@
+name: subscription
+properties:
+  - name: user_id
+    type: string
+  - name: endpoint
+    type: string
+  - name: p256dh
+    type: string
+  - name: auth
+    type: string
+  - name: browser
+    type: string
+  - name: active
+    type: boolean
