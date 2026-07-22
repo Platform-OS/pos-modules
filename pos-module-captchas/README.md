@@ -19,10 +19,10 @@ Official provider modules:
 
 | Provider key | Module | Notes |
 |---|---|---|
-| `turnstile` | `captchas_turnstile` | Cloudflare Turnstile — passive/invisible, public test keys |
-| `hcaptcha` | `captchas_hcaptcha` | hCaptcha — pass `expected_sitekey` (account-wide secrets) |
-| `recaptcha` | `captchas_recaptcha` | Google reCAPTCHA v2 (checkbox / invisible) |
-| `recaptcha3` | `captchas_recaptcha3` | Google reCAPTCHA v3 — invisible, score-based |
+| `turnstile` | [`captchas_turnstile`](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-captchas-turnstile) | Cloudflare Turnstile — passive/invisible, public test keys |
+| `hcaptcha` | [`captchas_hcaptcha`](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-captchas-hcaptcha) | hCaptcha — pass `expected_sitekey` (account-wide secrets) |
+| `recaptcha` | [`captchas_recaptcha`](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-captchas-recaptcha) | Google reCAPTCHA v2 (checkbox / invisible) |
+| `recaptcha3` | [`captchas_recaptcha3`](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-captchas-recaptcha3) | Google reCAPTCHA v3 — invisible, score-based |
 
 > None relies on the built-in platformOS `spam_protection` tag — every provider verifies
 > through a plain server-side `siteverify` API call. The value of this module is one uniform,
