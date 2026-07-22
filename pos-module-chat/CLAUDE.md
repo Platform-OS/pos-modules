@@ -6,7 +6,7 @@ This is the **pos-module-chat** module. The monorepo-wide conventions (command p
 
 ## What this module does
 
-Real-time bi-directional chat over WebSockets (Rails Action Cable, via the `actioncable` npm client). Depends on `core`, `user`, `common-styling` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
+Real-time bi-directional chat over WebSockets (Rails Action Cable, via the `actioncable` npm client). Depends on `core`, `user`, `common-styling`, `push_notifications` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
 
 The distributed part is `modules/chat/` only. `app/` is a non-distributed example app (permissions overwrite, layout wiring, import map) and `tests/` is the E2E suite — neither ships when a consumer runs `pos-cli modules install chat`.
 
@@ -33,7 +33,9 @@ function conversations = 'modules/chat/queries/conversations/search_by_participa
 Action Cable channel actions are Liquid partials at `views/partials/channels/<channel>/<action>.liquid`. The channel is `conversate`:
 
 - `channels/conversate/subscribed.liquid` — authorization gate: echoes `'true'`/`'false'` depending on whether `current_profile` is a participant of `room_id` (the conversation id). Returning `false` makes Action Cable reject the subscription.
-- `channels/conversate/receive.liquid` — handles an incoming message: re-verifies participation, escapes the body with `raw_escape_string`, creates the message via the command, and marks the conversation unread for the recipient. **Sender-side persistence**: if the receiver is not a participant the message is skipped here and persisted on the sender's side instead (see the skip log).
+- `channels/conversate/receive.liquid` — handles an incoming message: re-verifies participation, escapes the body with `raw_escape_string`, creates the message via the command, and marks the conversation unread for the recipient. **Sender-side persistence**: if the receiver is not a participant the message is skipped here and persisted on the sender's side instead (see the skip log). It also doubles as the mark-read ping: when the payload carries `mark_read: true` (sent by `pos-chat.js` whenever it renders a live message while the tab is visible), it marks the current participant read instead of creating a message, and echoes `"false"` to suppress the default rebroadcast-to-room. This is what the debounced push notification (see Events below) checks against.
+
+  `receive` is the *only* action `WebNotificationsChannel` (the Ruby ActionCable channel backing this) dispatches to — `subscribed` is a lifecycle callback, not a `perform`-able action. A custom action name (e.g. a client calling `.perform('mark_read')`) is silently dropped server-side since no such method exists on the channel; that's why mark-read piggybacks on `receive` via a payload flag instead of being its own partial.
 
 Both handlers independently re-check participation — do not assume `subscribed` authorization carries into `receive`.
 
@@ -59,7 +61,14 @@ Access is gated by the `chat.inbox` permission via `modules/user/helpers/can_do_
 
 ## Events
 
-`messages/create/execute` publishes a `chat_message_created` event (`message_id`, `app_host`). Consumed by `lib/consumers/chat_message_created/notify_of_new_message.liquid` for email notification. Event payloads are validated by `lib/events/chat_message_created.liquid`.
+`messages/create/execute` publishes a `chat_message_created` event (`message_id`, `app_host`), validated by `lib/events/chat_message_created.liquid`. It has two consumers:
+
+- `lib/consumers/chat_message_created/broadcast_new_message.liquid` — broadcasts immediately to every other participant's `notifications-<profile_id>` WebSocket room (real-time in-app notification).
+- `lib/consumers/chat_message_created/notify_of_new_message.liquid` — debounces push notifications: waits 1 minute, then checks whether the message is still the last one in its conversation. If it was superseded by a newer message, it's a no-op (the newer message's own delayed check will fire instead). Otherwise it publishes `message_notification_to_send` (`message_id`, `app_host`), validated by `lib/events/message_notification_to_send.liquid`.
+
+`message_notification_to_send` has one consumer:
+
+- `lib/consumers/message_notification_to_send/send_push_notification.liquid` — sends a Web Push notification (via `pos-module-push-notifications`, a required dependency) to every other participant who hasn't already read the message (checked against `conversation.participant_read_ids`). Because it only fires 10 minutes after the last message in a burst, a rapid back-and-forth produces a single push, not one per message.
 
 ## Testing
 

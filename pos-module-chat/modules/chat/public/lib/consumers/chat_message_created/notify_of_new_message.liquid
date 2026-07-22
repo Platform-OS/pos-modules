@@ -1,4 +1,4 @@
-{% background delay: 10, message_id: event.message_id, max_attempts: 0, app_host: event.app_host %}
+{% background delay: 1, message_id: event.message_id, max_attempts: 0, app_host: event.app_host %}
   {% liquid
     graphql g = 'modules/chat/messages/search', id: message_id
     assign message = g.messages.results.first

@@ -1,0 +1,52 @@
+{% comment %}
+  Consumer for the `message_notification_to_send` event.
+
+  This event is only published by notify_of_new_message once a message has
+  sat unsuperseded as the last message in its conversation for the debounce
+  window, so a burst of messages results in a single push notification (for
+  the final message) rather than one per message.
+
+  Sends a Web Push notification (via pos-module-push-notifications) to every
+  other conversation participant who has not already read the message (i.e.
+  is not in conversation.participant_read_ids — see mark_read/mark_unread),
+  so a participant who was actively viewing the conversation during the
+  debounce window is not paged for something they've already seen.
+  Participant ids on a conversation are profile ids, but push_notifications'
+  broadcast command is keyed by platformOS user id, so each participant
+  profile is resolved to its `user_id` before calling broadcast. Runs as a
+  background job with retries, matching broadcast_new_message.liquid.
+{% endcomment %}
+{% background message_id: event.message_id, app_host: event.app_host, max_attempts: 5 %}
+  {% liquid
+    graphql messages = 'modules/chat/messages/search', id: message_id
+    assign message = messages.messages.results.first
+
+    if message
+      function sender = 'modules/user/queries/profiles/find', id: message.autor_id, user_id: null, uuid: null, first_name: null, last_name: null
+      assign sender_name = sender.name | default: sender.first_name
+
+      assign recipient_user_ids = []
+      for participant_id in message.conversation.participant_ids
+        unless participant_id == message.autor_id
+          unless message.conversation.participant_read_ids contains participant_id
+            function recipient = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+            if recipient.user_id
+              assign recipient_user_ids << recipient.user_id
+            endif
+          endunless
+        endunless
+      endfor
+
+      if recipient_user_ids.size > 0
+        assign title = 'New message from ' | append: sender_name
+        assign body = message.message | truncate: 120
+        assign url = 'https://' | append: app_host | append: '/inbox?conversation_id=' | append: message.conversation_id
+        assign payload = { "title": title, "body": body, "url": url }
+
+        function _result = 'modules/push_notifications/commands/notifications/broadcast', user_ids: recipient_user_ids, payload: payload, ttl: null, urgency: null
+      endif
+    endif
+  %}
+{% endbackground %}
+
+{% return 'scheduled' %}
