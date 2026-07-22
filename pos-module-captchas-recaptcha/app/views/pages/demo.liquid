@@ -1,25 +1,54 @@
 {% comment %}
   Example-app demo for the captchas_recaptcha provider (NOT part of the distributed module).
-  GET /demo — renders a form with the reCAPTCHA v2 widget using Google's public always-pass
-  automated-testing keys (the widget shows a warning banner). Submitting POSTs to /verify,
-  which verifies the token server-side and shows the normalized result.
+  GET /demo — demonstrates the DEFAULT-KEYS best practice: the site key is resolved from the
+  CAPTCHA_DEFAULT_SITE_KEY constant, so the widget is rendered with NO site_key argument (and
+  /verify reads the secret from CAPTCHA_DEFAULT_SECRET). This exercises the captchas
+  abstraction's helpers/default_site_key and helpers/default_secret. The provider is pinned to
+  'recaptcha' here; only the keys come from constants.
+
+  Google publishes public always-pass automated-testing keys (the widget shows a warning
+  banner), so set the two constants to those and reload (see the setup box). Swap in your real
+  keys the same way for a live challenge.
 {% endcomment %}
+{%- liquid
+  assign site_key = context.constants.CAPTCHA_DEFAULT_SITE_KEY
+  assign secret = context.constants.CAPTCHA_DEFAULT_SECRET
+  assign configured = false
+  if site_key != blank and secret != blank
+    assign configured = true
+  endif
+-%}
 <h1>Captcha demo — Google reCAPTCHA v2</h1>
 
-<p>
-  This form uses Google's automated-testing site key, which always passes (the widget shows
-  a warning banner). Submitting posts the token to <code>/verify</code>, which calls Google's
-  siteverify endpoint server-side and shows the result.
-</p>
-
-<form action="/verify" method="post" accept-charset="UTF-8">
-  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+{% unless configured %}
   <p>
-    <label for="message">Message</label><br>
-    <textarea id="message" name="message" rows="4" cols="40"></textarea>
+    ⚠️ This demo resolves the site key and secret from the <code>CAPTCHA_DEFAULT_SITE_KEY</code>
+    and <code>CAPTCHA_DEFAULT_SECRET</code> constants — set both, then reload. Google's public
+    automated-testing keys work out of the box (the widget shows a warning banner):
+  </p>
+  <pre>pos-cli constants set &lt;env&gt; --name CAPTCHA_DEFAULT_SITE_KEY --value "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+pos-cli constants set &lt;env&gt; --name CAPTCHA_DEFAULT_SECRET   --value "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"</pre>
+  <p>
+    Currently set — site key: <code>{{ site_key | default: '(unset)' }}</code>,
+    secret: <code>{% if secret != blank %}(set){% else %}(unset){% endif %}</code>.
+  </p>
+{% else %}
+  <p>
+    The site key comes from <code>CAPTCHA_DEFAULT_SITE_KEY</code>, so the widget below passes no
+    <code>site_key</code>. Submitting posts the token to <code>/verify</code>, which likewise
+    reads the secret from <code>CAPTCHA_DEFAULT_SECRET</code> — Google's siteverify is called
+    server-side and the normalized result shown.
   </p>
 
-  {% render 'modules/captchas/widget', provider: 'recaptcha', site_key: '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI' %}
+  <form action="/verify" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <p>
+      <label for="message">Message</label><br>
+      <textarea id="message" name="message" rows="4" cols="40"></textarea>
+    </p>
 
-  <p><button type="submit">Submit</button></p>
-</form>
+    {% render 'modules/captchas/widget', provider: 'recaptcha' %}
+
+    <p><button type="submit">Submit</button></p>
+  </form>
+{% endunless %}
