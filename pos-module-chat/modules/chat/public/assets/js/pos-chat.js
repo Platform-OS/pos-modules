@@ -293,6 +293,14 @@ window.pos.modules.chat = function(userSettings = {}){
             })
           );
 
+          // We're actively rendering this message on screen right now - tell the
+          // server so it doesn't count as unread and trigger a push notification.
+          // Skipped while the tab is hidden/backgrounded, since the message isn't
+          // actually being seen in that case.
+          if(data.status === 'received' && document.visibilityState === 'visible'){
+            module.channel.perform('mark_read');
+          }
+
           if(module.settings.debug){
             if(data.status === 'received'){
               pos.modules.debug(module.settings.debug, module.settings.id, 'Message received', data);

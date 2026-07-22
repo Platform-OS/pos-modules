@@ -34,8 +34,9 @@ Action Cable channel actions are Liquid partials at `views/partials/channels/<ch
 
 - `channels/conversate/subscribed.liquid` — authorization gate: echoes `'true'`/`'false'` depending on whether `current_profile` is a participant of `room_id` (the conversation id). Returning `false` makes Action Cable reject the subscription.
 - `channels/conversate/receive.liquid` — handles an incoming message: re-verifies participation, escapes the body with `raw_escape_string`, creates the message via the command, and marks the conversation unread for the recipient. **Sender-side persistence**: if the receiver is not a participant the message is skipped here and persisted on the sender's side instead (see the skip log).
+- `channels/conversate/mark_read.liquid` — called by the client (`pos-chat.js`, on `received`) whenever it renders a live message while the tab is visible, so a participant actively viewing the conversation doesn't stay flagged unread by `receive.liquid`'s mark-unread call. This is what the debounced push notification (see Events below) checks against.
 
-Both handlers independently re-check participation — do not assume `subscribed` authorization carries into `receive`.
+All three handlers independently re-check participation — do not assume `subscribed` authorization carries into `receive` or `mark_read`.
 
 ### Client JS and import map
 
