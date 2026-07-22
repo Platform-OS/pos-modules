@@ -215,6 +215,7 @@ window.pos.modules.chat = function(userSettings = {}){
     // clear search results
     module.settings.search.clear?.addEventListener('click', () => {
       module.search.clear();
+      module.settings.search.input?.focus();
     });
 
     // keyboard navigation between the search input and its results
@@ -576,20 +577,29 @@ window.pos.modules.chat = function(userSettings = {}){
   module.search.keyboard = (event) => {
     const links = module.search.focusableResults();
 
+    // handles the input
+    if(event.target === module.settings.search.input){
+      if(event.key === 'Escape'){
+        event.preventDefault();
+
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Clearing search results');
+        
+        module.search.clear();
+      }
+    }
+
     if(!links.length){
       return;
     }
 
     const currentIndex = links.indexOf(event.target);
 
+    // handles the results list
     switch(event.key){
       case 'Escape':
         pos.modules.debug(module.settings.debug, module.settings.id, 'Clearing search results');
 
-        if(event.target === module.settings.search.input){
-          event.preventDefault();
-          module.search.clear();
-        } else if(currentIndex !== -1){
+        if(currentIndex !== -1){
           event.preventDefault();
           module.search.clear();
           module.settings.search.input?.focus();

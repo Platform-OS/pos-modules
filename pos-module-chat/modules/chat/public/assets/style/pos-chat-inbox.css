@@ -83,13 +83,17 @@
   z-index: 3;
   position: absolute;
   inset-inline-end: 2px;
-  display: flex;
+  display: none;
 
   border-start-end-radius: var(--pos-radius-input);
   border-end-end-radius: var(--pos-radius-input);
 
   transition: color .1s linear;
 }
+
+  .pos-chat-search-input:not(:placeholder-shown) + .pos-chat-search-clear {
+    display: flex;
+  }
 
   .pos-chat-search-clear:hover {
     color: var(--pos-color-interactive-hover);
