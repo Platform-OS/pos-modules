@@ -4,11 +4,19 @@ method: post
 ---
 {% comment %}
   Example-app POST handler for the reCAPTCHA v3 demo (NOT part of the distributed module).
-  Reads the real secret from a constant (v3 has no public test keys) and pairs the widget's
-  action with expected_action.
+  Verifies with the secret resolved from CAPTCHA_DEFAULT_SECRET — no secret argument passed —
+  which exercises the abstraction's helpers/default_secret. min_score and expected_action are
+  still passed explicitly (v3 score policy, not keys) and expected_action pairs with the
+  widget's action. The provider is pinned server-side; a real integration is identical:
+
+    function result = 'modules/captchas/commands/captcha/verify',
+      provider: 'recaptcha3', min_score: 0.5, expected_action: 'demo_submit'
+
+  Set CAPTCHA_DEFAULT_SECRET to your v3 secret (v3 has no public test keys). With it unset,
+  verify fails closed with secret_missing and the error renders below.
 {% endcomment %}
 {% liquid
-  function result = 'modules/captchas/commands/captcha/verify', provider: 'recaptcha3', secret: context.constants.CAPTCHA_RECAPTCHA3_SECRET, min_score: 0.5, expected_action: 'demo_submit'
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'recaptcha3', min_score: 0.5, expected_action: 'demo_submit'
 %}
 {% if result.valid %}
   <h1>✅ Captcha passed ({{ result.provider }})</h1>

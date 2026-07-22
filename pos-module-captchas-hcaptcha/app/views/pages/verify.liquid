@@ -4,17 +4,21 @@ method: post
 ---
 {% comment %}
   Example-app POST handler for the hCaptcha demo (NOT part of the distributed module).
-  Uses hCaptcha's public TEST secret, and binds the token to the test sitekey via
-  expected_sitekey — hCaptcha secrets are account-wide, so a real integration should
-  always pass it:
+  Verifies with the secret resolved from CAPTCHA_DEFAULT_SECRET — no secret argument passed —
+  which exercises the abstraction's helpers/default_secret. expected_sitekey is still passed
+  explicitly (it is a policy param, not a key): hCaptcha secrets are account-wide, so the token
+  must be bound to the expected site key — here the same CAPTCHA_DEFAULT_SITE_KEY the widget
+  used. The provider is pinned server-side; a real integration is identical:
 
     function result = 'modules/captchas/commands/captcha/verify',
       provider: 'hcaptcha',
-      secret: context.constants.CAPTCHA_HCAPTCHA_SECRET,
-      expected_sitekey: context.constants.CAPTCHA_HCAPTCHA_SITE_KEY
+      expected_sitekey: context.constants.CAPTCHA_DEFAULT_SITE_KEY
+
+  Set CAPTCHA_DEFAULT_SECRET (hCaptcha's test secret 0x0000... works). With it unset, verify
+  fails closed with secret_missing and the error renders below.
 {% endcomment %}
 {% liquid
-  function result = 'modules/captchas/commands/captcha/verify', provider: 'hcaptcha', secret: '0x0000000000000000000000000000000000000000', expected_sitekey: '10000000-ffff-ffff-ffff-000000000001'
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'hcaptcha', expected_sitekey: context.constants.CAPTCHA_DEFAULT_SITE_KEY
 %}
 {% if result.valid %}
   <h1>✅ Captcha passed ({{ result.provider }})</h1>

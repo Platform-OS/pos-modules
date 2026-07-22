@@ -1,14 +1,23 @@
 {% comment %}
   Example-app demo for the captchas_recaptcha3 provider (NOT part of the distributed module).
-  GET /demo — reCAPTCHA v3 has NO public test keys, so this reads real keys from the
-  CAPTCHA_RECAPTCHA3_SITE_KEY / CAPTCHA_RECAPTCHA3_SECRET constants and shows setup
-  instructions when they are unset. v3 is invisible: submitting runs the challenge, injects
-  the token, and POSTs to /verify, which thresholds the returned score.
+  GET /demo — demonstrates the DEFAULT-KEYS best practice: the site key is resolved from the
+  CAPTCHA_DEFAULT_SITE_KEY constant, so the widget is rendered with NO site_key argument (and
+  /verify reads the secret from CAPTCHA_DEFAULT_SECRET). This exercises the captchas
+  abstraction's helpers/default_site_key and helpers/default_secret. The provider is pinned to
+  'recaptcha3', and the action/score policy is still passed explicitly (not part of the keys
+  feature). reCAPTCHA v3 has NO public test keys, so this shows setup instructions when the
+  constants are unset. v3 is invisible: submitting runs the challenge, injects the token, and
+  POSTs to /verify, which thresholds the returned score.
 {% endcomment %}
-{% liquid
-  assign site_key = context.constants.CAPTCHA_RECAPTCHA3_SITE_KEY
+{%- liquid
+  assign site_key = context.constants.CAPTCHA_DEFAULT_SITE_KEY
+  assign secret = context.constants.CAPTCHA_DEFAULT_SECRET
   assign widget_options = '{"action": "demo_submit"}' | parse_json
-%}
+  assign configured = false
+  if site_key != blank and secret != blank
+    assign configured = true
+  endif
+-%}
 <h1>Captcha demo — Google reCAPTCHA v3</h1>
 
 <p>
@@ -16,11 +25,14 @@
   a score. The verifier here requires a score ≥ 0.5 and action <code>demo_submit</code>.
 </p>
 
-{% if site_key == blank %}
-  <p>⚠️ <code>CAPTCHA_RECAPTCHA3_SITE_KEY</code> is not set. v3 has no public test keys —
-  register a v3 site in the reCAPTCHA admin console (tied to this domain) and set both constants:</p>
-  <pre>pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA3_SITE_KEY --value "6Le..."
-pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA3_SECRET --value "6Le..."</pre>
+{% unless configured %}
+  <p>
+    ⚠️ <code>CAPTCHA_DEFAULT_SITE_KEY</code> / <code>CAPTCHA_DEFAULT_SECRET</code> are not both
+    set. v3 has no public test keys — register a v3 site in the reCAPTCHA admin console (tied to
+    this domain) and set both constants, then reload:
+  </p>
+  <pre>pos-cli constants set &lt;env&gt; --name CAPTCHA_DEFAULT_SITE_KEY --value "6Le..."
+pos-cli constants set &lt;env&gt; --name CAPTCHA_DEFAULT_SECRET   --value "6Le..."</pre>
 {% else %}
   <form action="/verify" method="post" accept-charset="UTF-8">
     <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
@@ -29,8 +41,8 @@ pos-cli constants set &lt;env&gt; --name CAPTCHA_RECAPTCHA3_SECRET --value "6Le.
       <textarea id="message" name="message" rows="4" cols="40"></textarea>
     </p>
 
-    {% render 'modules/captchas/widget', provider: 'recaptcha3', site_key: site_key, options: widget_options %}
+    {% render 'modules/captchas/widget', provider: 'recaptcha3', options: widget_options %}
 
     <p><button type="submit">Submit</button></p>
   </form>
-{% endif %}
+{% endunless %}

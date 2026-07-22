@@ -4,20 +4,23 @@ method: post
 ---
 {% comment %}
   Example-app POST handler for the captcha demo (NOT part of the distributed module).
-  The provider is fixed SERVER-SIDE — never read the provider (and therefore the secret)
-  from client input: an attacker who controls `provider` could steer verification to a
-  weaker path and bypass the captcha. A real integration looks the same, with a real
-  provider module installed and the secret read from a constant:
+  Verifies with NO arguments: the provider resolves from CAPTCHA_DEFAULT_PROVIDER and the secret
+  from CAPTCHA_DEFAULT_SECRET (both server-side constants). This is the module README's
+  best-practice call shape and is what exercises helpers/default_secret.
 
-    function result = 'modules/captchas/commands/captcha/verify',
-      provider: 'turnstile',
-      secret: context.constants.CAPTCHA_TURNSTILE_SECRET
+  Keeping the provider in a server-side constant — never read from client input — is deliberate:
+  an attacker who controls `provider`, and therefore which secret verifies, could steer
+  verification to a weaker path and bypass the captcha. A real integration is identical; just set
+  the CAPTCHA_DEFAULT_* constants for your provider (see /captcha-demo) and call:
 
-  Here the fake test provider verifies deterministically (token 'pass' passes, anything
-  else fails), so any non-blank secret works and no network call is made.
+    function result = 'modules/captchas/commands/captcha/verify'
+
+  With the constants unset, verify fails closed (secret_missing / unsupported_provider) and those
+  errors render below — that is the fail-closed behavior, not a bug. Against the fake test
+  provider, token 'pass' passes and anything else fails, with no network call.
 {% endcomment %}
 {% liquid
-  function result = 'modules/captchas/commands/captcha/verify', provider: 'test', secret: 'demo-secret'
+  function result = 'modules/captchas/commands/captcha/verify'
 %}
 {% if result.valid %}
   <h1>✅ Captcha passed ({{ result.provider }})</h1>

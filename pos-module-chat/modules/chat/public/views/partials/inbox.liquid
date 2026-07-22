@@ -76,7 +76,7 @@
     </ul>
     {% if conversations.total_entries == 0 %}
       <div class="pos-chat-conversations-blank-mobile">
-        {% render 'modules/common-styling/icon', icon: 'messageBubblesDouble' %}
+        {% render 'modules/common-styling/icon', icon: 'messageBubblesDouble', class: null %}
         <h2 class="pos-heading-2">{{ 'modules/chat/blank.title' | t }}</h2>
         {{ 'modules/chat/blank.description.mobile' | t }}
       </div>
@@ -88,7 +88,7 @@
       <header class="pos-chat-conversation-header">
         <a href="/inbox" class="pos-chat-conversation-header-back pos-button">
           <span class="pos-label">Show conversations list</span>
-          {% render 'modules/common-styling/icon', icon: 'dashLeft' %}
+          {% render 'modules/common-styling/icon', icon: 'dashLeft', class: null %}
         </a>
         {% liquid
           assign participants = current_conversation.participants
@@ -152,13 +152,15 @@
           <ul class="pos-chat-messages" id="chat-messagesList">
             {% if conversations.total_entries == 0 %}
               {% liquid
+                assign title = 'modules/chat/blank.title' | t
+                assign description = 'modules/chat/blank.description.desktop' | t
                 assign messages = [
                   {
-                    "message": "{{ 'modules/chat/blank.title' | t }}",
+                    "message": title,
                     "created_at": "{{ 'now' | to_time }}"
                   },
                   {
-                    "message": "{{ 'modules/chat/blank.description.desktop' | t }}",
+                    "message": description,
                     "created_at": "{{ 'now' | to_time }}"
                   }
                 ]
