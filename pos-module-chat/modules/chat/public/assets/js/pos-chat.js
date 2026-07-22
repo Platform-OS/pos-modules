@@ -296,9 +296,11 @@ window.pos.modules.chat = function(userSettings = {}){
           // We're actively rendering this message on screen right now - tell the
           // server so it doesn't count as unread and trigger a push notification.
           // Skipped while the tab is hidden/backgrounded, since the message isn't
-          // actually being seen in that case.
+          // actually being seen in that case. Uses .send (-> the `receive` action,
+          // the only one ActionCable dispatches to here), not .perform - a custom
+          // action name would be silently dropped server-side.
           if(data.status === 'received' && document.visibilityState === 'visible'){
-            module.channel.perform('mark_read');
+            module.channel.send({ mark_read: true });
           }
 
           if(module.settings.debug){
