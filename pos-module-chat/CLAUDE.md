@@ -6,7 +6,7 @@ This is the **pos-module-chat** module. The monorepo-wide conventions (command p
 
 ## What this module does
 
-Real-time bi-directional chat over WebSockets (Rails Action Cable, via the `actioncable` npm client). Depends on `core`, `user`, `common-styling` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
+Real-time bi-directional chat over WebSockets (Rails Action Cable, via the `actioncable` npm client). Depends on `core`, `user`, `common-styling`, `push_notifications` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
 
 The distributed part is `modules/chat/` only. `app/` is a non-distributed example app (permissions overwrite, layout wiring, import map) and `tests/` is the E2E suite — neither ships when a consumer runs `pos-cli modules install chat`.
 
@@ -59,7 +59,10 @@ Access is gated by the `chat.inbox` permission via `modules/user/helpers/can_do_
 
 ## Events
 
-`messages/create/execute` publishes a `chat_message_created` event (`message_id`, `app_host`). Consumed by `lib/consumers/chat_message_created/notify_of_new_message.liquid` for email notification. Event payloads are validated by `lib/events/chat_message_created.liquid`.
+`messages/create/execute` publishes a `chat_message_created` event (`message_id`, `app_host`), validated by `lib/events/chat_message_created.liquid`. It has three consumers:
+
+- `lib/consumers/chat_message_created/broadcast_new_message.liquid` — broadcasts immediately to every other participant's `notifications-<profile_id>` WebSocket room (real-time in-app notification).
+- `lib/consumers/chat_message_created/send_push_notification.liquid` — sends a Web Push notification immediately (via `pos-module-push-notifications`, a required dependency) to every other participant, one per message (no debounce/batching by design).
 
 ## Testing
 
