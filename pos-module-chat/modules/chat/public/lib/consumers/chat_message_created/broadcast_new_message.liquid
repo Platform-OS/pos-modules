@@ -10,10 +10,10 @@
   views/partials/channels/notifications/subscribed.liquid (a user can only
   subscribe to their own room), so broadcasting here cannot leak to other users.
 
-  Unlike notify_of_new_message (the debounced email path), this delivers every
-  message immediately, hence the un-delayed background job with retries
-  (max_attempts) so a transient broadcast failure does not silently drop a
-  notification.
+  Unlike notify_of_new_message (the debounced push-notification path), this
+  delivers every message immediately, hence the un-delayed background job
+  with retries (max_attempts) so a transient broadcast failure does not
+  silently drop a notification.
 {% endcomment %}
 {% background message_id: event.message_id, max_attempts: 5 %}
   {% liquid

@@ -1,12 +1,20 @@
 {% comment %}
-  Consumer for the `chat_message_created` event.
+  Consumer for the `message_notification_to_send` event.
+
+  This event is only published by notify_of_new_message once a message has
+  sat unsuperseded as the last message in its conversation for the debounce
+  window, so a burst of messages results in a single push notification (for
+  the final message) rather than one per message.
 
   Sends a Web Push notification (via pos-module-push-notifications) to every
-  other conversation participant immediately, one per message. Participant
-  ids on a conversation are profile ids, but push_notifications' broadcast
-  command is keyed by platformOS user id, so each participant profile is
-  resolved to its `user_id` before calling broadcast. Runs as a background
-  job with retries, matching broadcast_new_message.liquid.
+  other conversation participant who has not already read the message (i.e.
+  is not in conversation.participant_read_ids — see mark_read/mark_unread),
+  so a participant who was actively viewing the conversation during the
+  debounce window is not paged for something they've already seen.
+  Participant ids on a conversation are profile ids, but push_notifications'
+  broadcast command is keyed by platformOS user id, so each participant
+  profile is resolved to its `user_id` before calling broadcast. Runs as a
+  background job with retries, matching broadcast_new_message.liquid.
 {% endcomment %}
 {% background message_id: event.message_id, app_host: event.app_host, max_attempts: 5 %}
   {% liquid
@@ -19,7 +27,7 @@
 
       assign recipient_user_ids = []
       for participant_id in message.conversation.participant_ids
-        unless participant_id == message.autor_id
+        unless participant_id == message.autor_id or message.conversation.participant_read_ids contains participant_id
           function recipient = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
           if recipient.user_id
             assign recipient_user_ids << recipient.user_id

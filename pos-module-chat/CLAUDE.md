@@ -59,10 +59,14 @@ Access is gated by the `chat.inbox` permission via `modules/user/helpers/can_do_
 
 ## Events
 
-`messages/create/execute` publishes a `chat_message_created` event (`message_id`, `app_host`), validated by `lib/events/chat_message_created.liquid`. It has three consumers:
+`messages/create/execute` publishes a `chat_message_created` event (`message_id`, `app_host`), validated by `lib/events/chat_message_created.liquid`. It has two consumers:
 
 - `lib/consumers/chat_message_created/broadcast_new_message.liquid` — broadcasts immediately to every other participant's `notifications-<profile_id>` WebSocket room (real-time in-app notification).
-- `lib/consumers/chat_message_created/send_push_notification.liquid` — sends a Web Push notification immediately (via `pos-module-push-notifications`, a required dependency) to every other participant, one per message (no debounce/batching by design).
+- `lib/consumers/chat_message_created/notify_of_new_message.liquid` — debounces push notifications: waits 1 minute, then checks whether the message is still the last one in its conversation. If it was superseded by a newer message, it's a no-op (the newer message's own delayed check will fire instead). Otherwise it publishes `message_notification_to_send` (`message_id`, `app_host`), validated by `lib/events/message_notification_to_send.liquid`.
+
+`message_notification_to_send` has one consumer:
+
+- `lib/consumers/message_notification_to_send/send_push_notification.liquid` — sends a Web Push notification (via `pos-module-push-notifications`, a required dependency) to every other participant who hasn't already read the message (checked against `conversation.participant_read_ids`). Because it only fires 10 minutes after the last message in a burst, a rapid back-and-forth produces a single push, not one per message.
 
 ## Testing
 
