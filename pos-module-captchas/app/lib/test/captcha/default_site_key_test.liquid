@@ -1,0 +1,19 @@
+{% comment %}
+  Unit test (no network): captcha site-key-resolution helper.
+  Deterministic — does not call any siteverify endpoint.
+  Assumes CAPTCHA_DEFAULT_SITE_KEY is not set in the test environment: the abstraction ships
+  no site key of its own, so the no-argument case resolves to blank.
+{% endcomment %}
+{% liquid
+  # an explicit site key is returned as-is
+  function explicit = 'modules/captchas/helpers/default_site_key', site_key: 'sk-explicit-123'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: explicit, expected: 'sk-explicit-123', field_name: 'explicit_site_key'
+
+  # no site key + no constant -> blank (no hardcoded site key fallback in the abstraction)
+  function fallback = 'modules/captchas/helpers/default_site_key'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: fallback, expected: '', field_name: 'fallback_is_blank'
+
+  # only whitespace is trimmed - unlike the provider key, site keys are case-sensitive
+  function trimmed = 'modules/captchas/helpers/default_site_key', site_key: ' Sk-Mixed-Case '
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: trimmed, expected: 'Sk-Mixed-Case', field_name: 'trimmed_not_downcased'
+%}

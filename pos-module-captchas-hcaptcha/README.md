@@ -18,31 +18,30 @@ This also installs the `captchas` dependency. `pos-cli deploy <env>` afterwards.
 
 ## Keys
 
-Create a site in the [hCaptcha dashboard](https://dashboard.hcaptcha.com/) and store the
-pair in constants:
+Create a site in the [hCaptcha dashboard](https://dashboard.hcaptcha.com/). **Best
+practice**: store the pair in the abstraction's default constants, so the generic
+widget/verify calls need neither `provider:`, `site_key:`, nor `secret:` at any call site:
 
 ```bash
-pos-cli constants set <env> --name CAPTCHA_HCAPTCHA_SITE_KEY --value "10000000-..."
-pos-cli constants set <env> --name CAPTCHA_HCAPTCHA_SECRET --value "0x0000..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "hcaptcha"
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SITE_KEY --value "10000000-..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SECRET --value "0x0000..."
 ```
 
 The site key is public (rendered client-side); the secret is server-side only — never output
-it in HTML. The constant names are a convention: keys are always passed by the caller, so
-multiple sitekeys per instance are just more constants.
+it in HTML. Keys are always passed by the caller (or resolved from the defaults above), so
+multiple sitekeys per instance are just another pair of constants, passed explicitly at that
+call site instead of relying on the default.
 
 ## Usage
 
 ```liquid
 {# in your form #}
-{% render 'modules/captchas/widget',
-     provider: 'hcaptcha',
-     site_key: context.constants.CAPTCHA_HCAPTCHA_SITE_KEY %}
+{% render 'modules/captchas/widget' %}
 
 {# in your POST handler #}
 {% function result = 'modules/captchas/commands/captcha/verify',
-     provider: 'hcaptcha',
-     secret: context.constants.CAPTCHA_HCAPTCHA_SECRET,
-     expected_sitekey: context.constants.CAPTCHA_HCAPTCHA_SITE_KEY %}
+     expected_sitekey: context.constants.CAPTCHA_DEFAULT_SITE_KEY %}
 {% if result.valid %}...{% endif %}
 ```
 
@@ -50,10 +49,24 @@ multiple sitekeys per instance are just more constants.
 > against any widget of your account verifies against your secret, so a token issued for one
 > form could be redeemed on another. `expected_sitekey` is forwarded as hCaptcha's `sitekey`
 > siteverify param (which hCaptcha itself recommends) so such tokens are rejected. Always set
-> it when the account has more than one sitekey.
+> it — even with a single default site key — since it costs nothing and future-proofs against
+> a second sitekey being added later.
 
-Set `CAPTCHA_DEFAULT_PROVIDER=hcaptcha` to omit the `provider:` argument. The token is read
-automatically from `h-captcha-response` in `context.params`.
+Pass `provider:`, `site_key:`, and/or `secret:` explicitly only when a call site needs to
+deviate from the instance default (see [Keys](#keys)):
+
+```liquid
+{% render 'modules/captchas/widget',
+     provider: 'hcaptcha',
+     site_key: context.constants.CAPTCHA_HCAPTCHA_MKTG_SITE_KEY %}
+
+{% function result = 'modules/captchas/commands/captcha/verify',
+     provider: 'hcaptcha',
+     secret: context.constants.CAPTCHA_HCAPTCHA_MKTG_SECRET,
+     expected_sitekey: context.constants.CAPTCHA_HCAPTCHA_MKTG_SITE_KEY %}
+```
+
+The token is read automatically from `h-captcha-response` in `context.params`.
 
 ## Widget options
 

@@ -26,41 +26,56 @@ This also installs the `captchas` dependency. `pos-cli deploy <env>` afterwards.
 ## Keys
 
 Register a **v3** site in the [reCAPTCHA admin console](https://www.google.com/recaptcha/admin)
-(your own Google account; v3 has **no public test keys** and keys are tied to your domain)
-and store the pair in constants:
+(your own Google account; v3 has **no public test keys** and keys are tied to your domain).
+**Best practice**: store the pair in the abstraction's default constants, so the generic
+widget/verify calls need neither `provider:`, `site_key:`, nor `secret:` at any call site:
 
 ```bash
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA3_SITE_KEY --value "6Le..."
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA3_SECRET --value "6Le..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "recaptcha3"
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SITE_KEY --value "6Le..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SECRET --value "6Le..."
 ```
 
 The site key is public (rendered client-side); the secret is server-side only — never output
-it in HTML.
+it in HTML. Keys are always passed by the caller (or resolved from the defaults above), so a
+second key pair on the same instance is just another pair of constants, passed explicitly at
+that call site instead of relying on the default.
 
 ## Usage
 
 ```liquid
 {# in your form — invisible: wires the form's submit, no visible widget #}
 {% parse_json widget_options %}{ "action": "signup_submit" }{% endparse_json %}
-{% render 'modules/captchas/widget',
-     provider: 'recaptcha3',
-     site_key: context.constants.CAPTCHA_RECAPTCHA3_SITE_KEY,
-     options: widget_options %}
+{% render 'modules/captchas/widget', options: widget_options %}
 
 {# in your POST handler #}
 {% function result = 'modules/captchas/commands/captcha/verify',
-     provider: 'recaptcha3',
-     secret: context.constants.CAPTCHA_RECAPTCHA3_SECRET,
      min_score: 0.5,
      expected_action: 'signup_submit' %}
 {% if result.valid %}...{% endif %}
+```
+
+Pass `provider:`, `site_key:`, and/or `secret:` explicitly only when a call site needs to
+deviate from the instance default (see [Keys](#keys)):
+
+```liquid
+{% render 'modules/captchas/widget',
+     provider: 'recaptcha3',
+     site_key: context.constants.CAPTCHA_RECAPTCHA3_MKTG_SITE_KEY,
+     options: widget_options %}
+
+{% function result = 'modules/captchas/commands/captcha/verify',
+     provider: 'recaptcha3',
+     secret: context.constants.CAPTCHA_RECAPTCHA3_MKTG_SECRET,
+     min_score: 0.5,
+     expected_action: 'signup_submit' %}
 ```
 
 v3 is **score-based**: every verification returns a score (`0.0` = likely bot, `1.0` =
 likely human) instead of a binary verdict. `verify` passes only when the provider reports
 success, `result.score >= min_score` (default `0.5`), and — when `expected_action` is set —
 the response action matches. `result.score` and `result.action` are returned for logging or
-custom thresholds. Set `CAPTCHA_DEFAULT_PROVIDER=recaptcha3` to omit the `provider:` argument.
+custom thresholds.
 
 ## Widget options
 

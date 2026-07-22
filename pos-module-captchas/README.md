@@ -41,14 +41,19 @@ pos-cli deploy <env>
 
 The module **stores no keys**. You pass the **public site key** to the widget (rendered
 client-side) and the **secret key** to `verify` (server-side only), typically read from
-**platformOS constants**. Because keys are passed per call, **multiple keys for the same
-provider on one instance** is trivial — different forms simply pass different keys:
+**platformOS constants**. For the common case of one widget/site per instance — **the best
+practice** — set `CAPTCHA_DEFAULT_SITE_KEY` and `CAPTCHA_DEFAULT_SECRET` once (see [Site key
+selection](#site-key-selection) and [Secret selection](#secret-selection)) and skip passing
+`site_key`/`secret` at every call site. Don't invent a per-provider constant name
+(`CAPTCHA_TURNSTILE_SITE_KEY` and friends) unless you actually need one — that naming exists
+only for the **multiple keys on one instance** case, where extra forms pass their own key
+explicitly instead of relying on the default:
 
 ```bash
-pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SITE_KEY --value "0x4AAA..."
-pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SECRET --value "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SITE_KEY --value "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SECRET --value "0x4AAA..."
 
-# A second widget/site on the same instance — just another pair of constants:
+# A second widget/site on the same instance — an extra pair of constants, passed explicitly:
 pos-cli constants set <env> --name CAPTCHA_TURNSTILE_MKTG_SITE_KEY --value "0x4AAA..."
 pos-cli constants set <env> --name CAPTCHA_TURNSTILE_MKTG_SECRET --value "0x4AAA..."
 ```
@@ -60,18 +65,43 @@ Each provider module's README documents its constant-name convention and where t
 
 ## Usage
 
+**Best practice**: set `CAPTCHA_DEFAULT_PROVIDER`, `CAPTCHA_DEFAULT_SITE_KEY`, and
+`CAPTCHA_DEFAULT_SECRET` once per instance, then invoke the widget and `verify` with none of
+`provider`, `site_key`, or `secret` — all three resolve from constants. No per-provider
+constant name to invent, and swapping providers later is a constant change, not a template
+change:
+
+```bash
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "turnstile"
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SITE_KEY --value "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SECRET --value "0x4AAA..."
+```
+
 ```liquid
 {# 1. in your form #}
-{% render 'modules/captchas/widget',
-     provider: 'turnstile',
-     site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY %}
+{% render 'modules/captchas/widget' %}
 
 {# 2. in your POST handler #}
 {% liquid
-  function result = 'modules/captchas/commands/captcha/verify', provider: 'turnstile', secret: context.constants.CAPTCHA_TURNSTILE_SECRET
+  function result = 'modules/captchas/commands/captcha/verify'
   if result.valid
     # proceed
   endif
+%}
+```
+
+Pass `provider`, `site_key`, and/or `secret` explicitly only when a call site needs to
+deviate from the instance default — e.g. a second widget on the same page using a different
+provider or key (see [Keys are caller-supplied](#keys-are-caller-supplied)):
+
+```liquid
+{% render 'modules/captchas/widget',
+     provider: 'turnstile',
+     site_key: context.constants.CAPTCHA_TURNSTILE_MKTG_SITE_KEY %}
+
+{% liquid
+  function result = 'modules/captchas/commands/captcha/verify',
+    provider: 'turnstile', secret: context.constants.CAPTCHA_TURNSTILE_MKTG_SECRET
 %}
 ```
 
@@ -98,6 +128,29 @@ normalized (trimmed, lowercased).
 pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "turnstile"
 ```
 
+### Site key selection
+
+`site_key` (widget only) may be passed explicitly. If omitted, it resolves to the
+`CAPTCHA_DEFAULT_SITE_KEY` constant. There is no built-in fallback — with neither set, the
+widget logs an error and emits an HTML comment instead (see [the widget
+reference](#partial-modulescaptchaswidget)). Only whitespace is trimmed — unlike the provider
+key, site keys are case-sensitive.
+
+```bash
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SITE_KEY --value "0x4AAA..."
+```
+
+### Secret selection
+
+`secret` (verify only) may be passed explicitly. If omitted, it resolves to the
+`CAPTCHA_DEFAULT_SECRET` constant. There is no built-in fallback — with neither set, `verify`
+fails closed with `secret_missing` (no network call). Only whitespace is trimmed — secrets
+are case-sensitive.
+
+```bash
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SECRET --value "0x4AAA..."
+```
+
 A provider is **available** when its module (`captchas_<key>`) is installed — detected via
 the `provider.name` translation every provider module ships. Optionally,
 `CAPTCHA_ENABLED_PROVIDERS` (CSV, e.g. `turnstile,hcaptcha`) pins an allow-list: when set,
@@ -115,7 +168,7 @@ a logged HTML comment, and verify returns `valid: false` with
 
 | Param | Required | Description |
 |---|---|---|
-| `site_key` | yes | The provider's public site key. Blank logs an error + emits an HTML comment (the widget is still rendered and fails visibly client-side). |
+| `site_key` | no | The provider's public site key; defaults to `CAPTCHA_DEFAULT_SITE_KEY`. A blank result (neither passed nor set) logs an error + emits an HTML comment (the widget is still rendered and fails visibly client-side). |
 | `provider` | no | Provider key; defaults to `CAPTCHA_DEFAULT_PROVIDER`. |
 | `options` | no | Hash of provider-specific widget options — see the provider module's README. Build it with `parse_json`/`hash_merge`; inline hash literals are nil at runtime. |
 
@@ -124,7 +177,7 @@ a logged HTML comment, and verify returns `valid: false` with
 | Param | Required | Description |
 |---|---|---|
 | `provider` | no | Provider key; defaults to `CAPTCHA_DEFAULT_PROVIDER`. |
-| `secret` | yes | Provider secret key (server-side; read from a constant by the caller). |
+| `secret` | no | Provider secret key (server-side); defaults to `CAPTCHA_DEFAULT_SECRET`. A blank result (neither passed nor set) fails closed with `secret_missing`. |
 | `token` | no | The widget token; defaults to the provider's response field in `context.params`. |
 | `response_field_name` | no | Form field the widget wrote the token to; overrides the provider default (only needed if you set the widget's `response_field_name` option). |
 | `remote_ip` | no | Optional visitor IP forwarded to the provider. |
@@ -218,7 +271,8 @@ pos-cli deploy <env>
 pos-cli test run <env>
 ```
 
-The suite assumes `CAPTCHA_DEFAULT_PROVIDER` is unset and `CAPTCHA_ENABLED_PROVIDERS` is
-unset (or contains `test`) on the test instance. Provider-specific tests — real siteverify
+The suite assumes `CAPTCHA_DEFAULT_PROVIDER`, `CAPTCHA_DEFAULT_SITE_KEY`, and
+`CAPTCHA_DEFAULT_SECRET` are unset, and `CAPTCHA_ENABLED_PROVIDERS` is unset (or contains
+`test`), on the test instance. Provider-specific tests — real siteverify
 round-trips against public test keys, score thresholds — live in each provider module's
 repo.
