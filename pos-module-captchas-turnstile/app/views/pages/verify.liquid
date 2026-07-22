@@ -4,15 +4,18 @@ method: post
 ---
 {% comment %}
   Example-app POST handler for the Turnstile demo (NOT part of the distributed module).
-  Uses Cloudflare's public always-pass TEST secret. A real integration is identical, with
-  the secret read from a constant:
+  Verifies with the secret resolved from CAPTCHA_DEFAULT_SECRET — no secret argument passed —
+  which exercises the abstraction's helpers/default_secret. The provider is pinned server-side
+  (never read from client input); a real integration is identical:
 
-    function result = 'modules/captchas/commands/captcha/verify',
-      provider: 'turnstile',
-      secret: context.constants.CAPTCHA_TURNSTILE_SECRET
+    function result = 'modules/captchas/commands/captcha/verify', provider: 'turnstile'
+
+  Set CAPTCHA_DEFAULT_SECRET (Cloudflare's always-pass test secret 1x0000...AA works). With it
+  unset, verify fails closed with secret_missing and the error renders below — that is the
+  fail-closed behavior, not a bug.
 {% endcomment %}
 {% liquid
-  function result = 'modules/captchas/commands/captcha/verify', provider: 'turnstile', secret: '1x0000000000000000000000000000000AA'
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'turnstile'
 %}
 {% if result.valid %}
   <h1>✅ Captcha passed ({{ result.provider }})</h1>
