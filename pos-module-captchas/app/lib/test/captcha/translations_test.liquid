@@ -1,0 +1,23 @@
+{% comment %}
+  Unit test (no network): every error message key the captcha commands store in
+  object.errors must resolve to a real translation. Module translation keys are
+  auto-prefixed (modules/captchas/<key>) and a missing key fails only at runtime — the
+  t filter silently returns the key itself — so a typo here would show a raw
+  'modules/captchas/errors.*' string to end users at display time.
+  Keep this list in sync with the keys used in commands/captcha and translations/en.yml.
+{% endcomment %}
+{% liquid
+  assign keys = 'token_missing,secret_missing,unsupported_provider,verification_failed,request_failed,low_score,action_mismatch,hostname_mismatch' | split: ','
+
+  for key in keys
+    assign full_key = 'modules/captchas/errors.' | append: key
+    assign translated = full_key | t
+
+    # a missing key comes back blank or as the key itself
+    assign resolved = true
+    if translated == blank or translated == full_key
+      assign resolved = false
+    endif
+    function contract = 'modules/tests/assertions/equal', contract: contract, given: resolved, expected: true, field_name: full_key
+  endfor
+%}

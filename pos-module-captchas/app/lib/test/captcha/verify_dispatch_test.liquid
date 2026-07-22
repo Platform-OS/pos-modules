@@ -1,0 +1,26 @@
+{% comment %}
+  Unit test (no network): full verify flow dispatched dynamically to a provider module —
+  the fake provider at app/modules/captchas_test, whose verify command is deterministic
+  (token 'pass' verifies, anything else fails). Also the first end-to-end coverage of the
+  expected_hostname allow-list applied to a provider response.
+{% endcomment %}
+{% liquid
+  # passing token -> valid, provider response exposed
+  function r_pass = 'modules/captchas/commands/captcha/verify', provider: 'test', secret: 'sk_test', token: 'pass'
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: r_pass, field_name: 'dispatch_pass'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r_pass.success, expected: true, field_name: 'success_true'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r_pass.response.hostname, expected: 'test.example.com', field_name: 'response_exposed'
+
+  # failing token -> invalid with a captcha error
+  function r_fail = 'modules/captchas/commands/captcha/verify', provider: 'test', secret: 'sk_test', token: 'wrong'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'dispatch_fail', object: r_fail
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r_fail.errors
+
+  # hostname allow-list: response hostname must match expected_hostname when set
+  function r_host_ok = 'modules/captchas/commands/captcha/verify', provider: 'test', secret: 'sk_test', token: 'pass', expected_hostname: 'test.example.com'
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: r_host_ok, field_name: 'hostname_match'
+
+  function r_host_bad = 'modules/captchas/commands/captcha/verify', provider: 'test', secret: 'sk_test', token: 'pass', expected_hostname: 'other.example.com'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'hostname_mismatch', object: r_host_bad
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r_host_bad.errors
+%}

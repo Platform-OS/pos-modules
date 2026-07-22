@@ -1,0 +1,120 @@
+{% doc %}
+  @description Renders Google reCAPTCHA v3 (invisible, score-based) into a form. v3 has no visible
+    widget: on form submit it runs grecaptcha.execute(), injects the resulting token into a hidden
+    input, and resubmits the form. If the loader script has not finished loading yet, submission is
+    held (not sent token-less) until grecaptcha is ready. If the challenge itself fails (bad site
+    key, network error), the form is submitted without a token so the server-side verify fails
+    closed with the friendly error instead of leaving the form silently stuck. The server-side
+    verify thresholds the returned score and (optionally) checks the action — see the
+    captchas_recaptcha3 verify command. The loader script is injected once per site key, so widgets
+    in several forms on one page are fine — but render at most ONE v3 widget per form: a duplicate
+    render in the same form is detected and ignored (console warning), because two active instances
+    would keep re-triggering each other's challenges and the form would never submit. Avoid mixing
+    different v3 site keys on one page — Google's api.js loader does not support being loaded
+    twice. Do NOT mix v2 (captchas_recaptcha) and v3 widgets on one page for the same reason.
+    Part of the captchas provider contract: dispatched via include by modules/captchas/widget,
+    so internal variables are prefixed captcha_ to avoid clobbering the dispatcher's scope.
+  @param {string} site_key - reCAPTCHA v3 public site key (a v3 key from the reCAPTCHA admin console;
+    v3 has no universal test keys).
+  @param {object} [options] - action (the v3 action name, default 'submit'; must match the
+    expected_action passed to verify if you check it), response_field_name (hidden input name,
+    default 'g-recaptcha-response').
+{% enddoc %}
+{%- liquid
+  assign captcha_action_value = options['action'] | default: 'submit'
+  assign captcha_response_field = options['response_field_name'] | default: 'g-recaptcha-response'
+  # The json outputs below need html_safe: on instances with escape_output_instead_of_sanitize
+  # the quotes would render as &quot; inside the <script>, which is a JS syntax error.
+-%}
+<script>
+(function () {
+  var thisScript = document.currentScript;
+  var siteKey = {{ site_key | json | html_safe }};
+  var action = {{ captcha_action_value | json | html_safe }};
+  var fieldName = {{ captcha_response_field | json | html_safe }};
+  var form = thisScript && thisScript.closest ? thisScript.closest('form') : null;
+  if (!form) {
+    if (window.console && console.warn) {
+      console.warn('captcha: reCAPTCHA v3 widget rendered outside a <form>; no token will be injected.');
+    }
+    return;
+  }
+
+  // One v3 widget per form: two active instances would each re-preventDefault the other's
+  // resubmit and re-run the challenge, so the form would never submit. First render wins.
+  if (form.hasAttribute('data-captcha-v3-wired')) {
+    if (window.console && console.warn) {
+      console.warn('captcha: reCAPTCHA v3 widget rendered more than once in the same <form>; ignoring the duplicate.');
+    }
+    return;
+  }
+  form.setAttribute('data-captcha-v3-wired', '');
+
+  var input = form.querySelector('input[name="' + fieldName + '"]');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = fieldName;
+    form.appendChild(input);
+  }
+
+  if (!document.querySelector('script[data-recaptcha-v3="' + siteKey + '"]')) {
+    var s = document.createElement('script');
+    s.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(siteKey);
+    s.async = true;
+    s.defer = true;
+    s.setAttribute('data-recaptcha-v3', siteKey);
+    document.head.appendChild(s);
+  }
+
+  var done = false;
+
+  function submitForm() {
+    done = true;
+    if (typeof form.requestSubmit === 'function') { form.requestSubmit(); } else { form.submit(); }
+    // The submit event dispatches synchronously above. Clear the flag afterwards so that if
+    // another submit handler blocked that submission, a later attempt re-runs the challenge
+    // and gets a fresh token instead of reusing a stale (possibly consumed) one.
+    done = false;
+  }
+
+  function runChallenge() {
+    grecaptcha.ready(function () {
+      // Two-arg then() instead of catch(): execute() may return a bare thenable in older
+      // api.js builds. On rejection (invalid site key, network error) submit without a token
+      // so the server-side verify fails closed instead of the form being silently stuck.
+      grecaptcha.execute(siteKey, { action: action }).then(function (token) {
+        input.value = token;
+        submitForm();
+      }, function () {
+        submitForm();
+      });
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    if (done) { return; }
+    e.preventDefault();
+
+    if (window.grecaptcha && window.grecaptcha.execute) {
+      runChallenge();
+      return;
+    }
+
+    // Loader script not ready yet: wait for it instead of submitting without a token.
+    var waited = 0;
+    var timer = setInterval(function () {
+      if (window.grecaptcha && window.grecaptcha.execute) {
+        clearInterval(timer);
+        runChallenge();
+      } else if (waited >= 10000) {
+        // Give up after 10s and submit anyway so the user is not stuck; the server-side
+        // verify then returns the friendly "challenge not completed" error.
+        clearInterval(timer);
+        submitForm();
+      }
+      waited += 200;
+    }, 200);
+  });
+})();
+</script>

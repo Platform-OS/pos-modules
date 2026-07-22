@@ -1,0 +1,17 @@
+{% comment %}
+  Unit test (no network): the EXECUTE phase must FAIL CLOSED when the provider is not
+  available. The check phase normally rejects unavailable providers first, but execute is
+  callable directly, so it re-checks availability before building the dynamic dispatch path —
+  both to keep the security property (an unknown provider must never verify) and because
+  dispatching into a module that is not installed would raise a hard error instead of a
+  graceful invalid result. No siteverify HTTP call is made, so this test is deterministic.
+{% endcomment %}
+{% liquid
+  # simulate an object that slipped past check: unknown provider, yet valid: true
+  assign slipped = '{}' | parse_json | hash_merge: provider: 'bogus', secret: 'sk_test', token: 'tok_test', valid: true
+  function result = 'modules/captchas/commands/captcha/verify/execute', object: slipped
+
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'execute_fails_closed', object: result
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.success, expected: false, field_name: 'success_is_false'
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'provider', object: result.errors
+%}

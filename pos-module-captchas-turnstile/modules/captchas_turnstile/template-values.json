@@ -1,0 +1,9 @@
+{
+  "name": "pOS Captchas Turnstile",
+  "machine_name": "captchas_turnstile",
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "captchas": "^1.0.0"
+  }
+}

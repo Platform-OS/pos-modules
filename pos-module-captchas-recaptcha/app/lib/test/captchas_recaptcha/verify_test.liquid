@@ -1,0 +1,16 @@
+{% comment %}
+  NETWORK test: full verify flow against Google's real siteverify endpoint using the public
+  automated-testing secret (accepts any token). Each case performs one real, billable
+  outbound API call and depends on www.google.com being reachable.
+{% endcomment %}
+{% liquid
+  # automated-testing secret -> valid with any token
+  function r_pass = 'modules/captchas/commands/captcha/verify', provider: 'recaptcha', secret: '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe', token: 'dummy-token-for-test-keys'
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: r_pass, field_name: 'testkey_pass'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r_pass.success, expected: true, field_name: 'testkey_pass_success'
+
+  # malformed secret -> Google answers success:false -> invalid with verification_failed
+  function r_fail = 'modules/captchas/commands/captcha/verify', provider: 'recaptcha', secret: 'not-a-real-secret', token: 'dummy-token-for-test-keys'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'bad_secret_fails', object: r_fail
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r_fail.errors
+%}

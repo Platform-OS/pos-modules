@@ -1,0 +1,36 @@
+---
+slug: verify
+method: post
+---
+{% comment %}
+  Example-app POST handler for the reCAPTCHA v2 demo (NOT part of the distributed module).
+  Uses Google's public automated-testing secret. A real integration is identical, with
+  the secret read from a constant:
+
+    function result = 'modules/captchas/commands/captcha/verify',
+      provider: 'recaptcha',
+      secret: context.constants.CAPTCHA_RECAPTCHA_SECRET
+{% endcomment %}
+{% liquid
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'recaptcha', secret: '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+%}
+{% if result.valid %}
+  <h1>✅ Captcha passed ({{ result.provider }})</h1>
+  <p>Submitted message: {{ context.params.message }}</p>
+{% else %}
+  <h1>❌ Captcha failed ({{ result.provider }})</h1>
+  <ul>
+    {% for error in result.errors %}
+      {% for key in error[1] %}
+        <li>{{ key | t }}</li>
+      {% endfor %}
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<p><a href="/demo">← Back to the form</a></p>
+
+{% if result.response %}
+  <h2>Raw provider response</h2>
+  <pre>{{ result.response | json }}</pre>
+{% endif %}

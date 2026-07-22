@@ -1,0 +1,16 @@
+{% comment %}
+  NETWORK test: full verify flow against hCaptcha's real siteverify endpoint using the
+  public TEST secret and the fixed dummy token the test widget yields. Each case performs
+  one real, billable outbound API call and depends on api.hcaptcha.com being reachable.
+{% endcomment %}
+{% liquid
+  # test secret + the documented test token (bound to the test sitekey) -> valid
+  function r_pass = 'modules/captchas/commands/captcha/verify', provider: 'hcaptcha', secret: '0x0000000000000000000000000000000000000000', token: '10000000-aaaa-bbbb-cccc-000000000001', expected_sitekey: '10000000-ffff-ffff-ffff-000000000001'
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: r_pass, field_name: 'testkey_pass'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r_pass.success, expected: true, field_name: 'testkey_pass_success'
+
+  # garbage token -> hCaptcha answers success:false -> invalid with verification_failed
+  function r_fail = 'modules/captchas/commands/captcha/verify', provider: 'hcaptcha', secret: '0x0000000000000000000000000000000000000000', token: 'not-a-real-token'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'garbage_token_fails', object: r_fail
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r_fail.errors
+%}

@@ -1,0 +1,38 @@
+---
+slug: verify
+method: post
+---
+{% comment %}
+  Example-app POST handler for the hCaptcha demo (NOT part of the distributed module).
+  Uses hCaptcha's public TEST secret, and binds the token to the test sitekey via
+  expected_sitekey — hCaptcha secrets are account-wide, so a real integration should
+  always pass it:
+
+    function result = 'modules/captchas/commands/captcha/verify',
+      provider: 'hcaptcha',
+      secret: context.constants.CAPTCHA_HCAPTCHA_SECRET,
+      expected_sitekey: context.constants.CAPTCHA_HCAPTCHA_SITE_KEY
+{% endcomment %}
+{% liquid
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'hcaptcha', secret: '0x0000000000000000000000000000000000000000', expected_sitekey: '10000000-ffff-ffff-ffff-000000000001'
+%}
+{% if result.valid %}
+  <h1>✅ Captcha passed ({{ result.provider }})</h1>
+  <p>Submitted message: {{ context.params.message }}</p>
+{% else %}
+  <h1>❌ Captcha failed ({{ result.provider }})</h1>
+  <ul>
+    {% for error in result.errors %}
+      {% for key in error[1] %}
+        <li>{{ key | t }}</li>
+      {% endfor %}
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<p><a href="/demo">← Back to the form</a></p>
+
+{% if result.response %}
+  <h2>Raw provider response</h2>
+  <pre>{{ result.response | json }}</pre>
+{% endif %}

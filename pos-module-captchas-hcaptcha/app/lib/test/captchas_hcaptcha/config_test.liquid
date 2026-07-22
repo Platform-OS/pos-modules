@@ -1,0 +1,15 @@
+{% comment %}
+  Unit test (no network): the provider contract surface of captchas_hcaptcha.
+  config must expose hCaptcha's default response field, and the provider.name translation
+  (the abstraction's installation probe) must resolve.
+{% endcomment %}
+{% liquid
+  function config = 'modules/captchas_hcaptcha/helpers/config'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: config.response_field, expected: 'h-captcha-response', field_name: 'response_field'
+
+  assign probe = 'modules/captchas_hcaptcha/provider.name' | t: default: ''
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: probe, expected: 'hCaptcha', field_name: 'provider_name_probe'
+
+  function available = 'modules/captchas/helpers/provider_available', provider: 'hcaptcha'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: available, expected: true, field_name: 'provider_available'
+%}

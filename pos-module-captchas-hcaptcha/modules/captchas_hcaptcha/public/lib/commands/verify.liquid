@@ -1,0 +1,62 @@
+{% doc %}
+  @description Verify command for hCaptcha: POST the token to siteverify via api_call_send
+    and normalize the result. Part of the captchas provider contract — dispatched by
+    modules/captchas/commands/captcha/verify/execute.
+  @param {object} object - validated object: { secret, token, remote_ip, expected_sitekey, errors }.
+    expected_sitekey (optional) is forwarded as hCaptcha's `sitekey` param — hCaptcha secrets are
+    account-wide, so this is what stops a token issued for another sitekey from being redeemed here.
+  @returns {object} object with success (boolean), response (hash), valid, and errors.
+{% enddoc %}
+{% liquid
+  assign payload = '{}' | parse_json
+  assign payload = payload | hash_merge: secret: object.secret, token: object.token, remote_ip: object.remote_ip, sitekey: object.expected_sitekey
+
+  graphql result = 'modules/captchas_hcaptcha/api_call/send', data: payload, name: 'modules/captchas_hcaptcha/siteverify'
+
+  assign call = result.api_call_send
+  function c = 'modules/captchas/helpers/errors_hash', errors: object.errors
+
+  if call.errors != blank
+    assign messages = 'modules/captchas/errors.request_failed' | split: '|'
+    assign object.errors = c | hash_merge: captcha: messages
+    assign object.success = false
+    assign object.valid = false
+    return object
+  endif
+
+  assign status = call.response.status
+  if status != 200
+    assign messages = 'modules/captchas/errors.request_failed' | split: '|'
+    assign object.errors = c | hash_merge: captcha: messages
+    assign object.success = false
+    assign object.valid = false
+    return object
+  endif
+
+  # A 200 with a non-JSON body (provider outage, proxy error page) must fail closed as
+  # request_failed rather than blow up in parse_json or turn into a misleading
+  # verification_failed on a nil body.
+  assign raw_body = call.response.body | strip
+  assign first_char = raw_body | slice: 0, 1
+  if first_char != '{'
+    assign messages = 'modules/captchas/errors.request_failed' | split: '|'
+    assign object.errors = c | hash_merge: captcha: messages
+    assign object.success = false
+    assign object.valid = false
+    return object
+  endif
+  assign body = raw_body | parse_json
+
+  assign object.response = body
+  assign object.success = body.success
+
+  if body.success
+    assign object.valid = true
+  else
+    assign messages = 'modules/captchas/errors.verification_failed' | split: '|'
+    assign object.errors = c | hash_merge: captcha: messages
+    assign object.valid = false
+  endif
+
+  return object
+%}

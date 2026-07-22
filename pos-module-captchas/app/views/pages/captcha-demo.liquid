@@ -1,0 +1,36 @@
+{% comment %}
+  Example-app demo for pos-module-captchas (NOT part of the distributed module).
+  GET /captcha-demo — renders a form protected by the FAKE test provider that ships with this
+  repo's test app (app/modules/captchas_test): its widget injects a deterministic token and its
+  verify command passes token 'pass' and fails anything else, without any network call. This
+  demonstrates the abstraction only — widget dispatch, verify dispatch, normalized results.
+  Real providers are separate modules (captchas_turnstile, captchas_hcaptcha,
+  captchas_recaptcha, captchas_recaptcha3), each with its own demo app in its own repo.
+{% endcomment %}
+<h1>Captcha demo — Test provider</h1>
+
+<p>
+  This form uses the repo's <strong>fake test provider</strong> (<code>app/modules/captchas_test</code>):
+  the widget below injects a token that always verifies, with no network call. Submitting posts
+  to <code>/captcha-verify</code>, which dispatches to the provider module server-side and shows
+  the normalized result. Install a real provider module (e.g. <code>captchas_turnstile</code>)
+  and use its demo app to see a real challenge.
+</p>
+
+<form action="/captcha-verify" method="post" accept-charset="UTF-8">
+  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+  <p>
+    <label for="message">Message</label><br>
+    <textarea id="message" name="message" rows="4" cols="40"></textarea>
+  </p>
+
+  {% render 'modules/captchas/widget', provider: 'test', site_key: 'demo-site-key' %}
+
+  <p><button type="submit">Submit (valid token)</button></p>
+</form>
+
+<form action="/captcha-verify" method="post" accept-charset="UTF-8">
+  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+  <input type="hidden" name="x-test-captcha-response" value="tampered">
+  <p><button type="submit">Submit with a tampered token (fails)</button></p>
+</form>

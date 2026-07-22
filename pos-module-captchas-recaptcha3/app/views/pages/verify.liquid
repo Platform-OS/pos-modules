@@ -1,0 +1,36 @@
+---
+slug: verify
+method: post
+---
+{% comment %}
+  Example-app POST handler for the reCAPTCHA v3 demo (NOT part of the distributed module).
+  Reads the real secret from a constant (v3 has no public test keys) and pairs the widget's
+  action with expected_action.
+{% endcomment %}
+{% liquid
+  function result = 'modules/captchas/commands/captcha/verify', provider: 'recaptcha3', secret: context.constants.CAPTCHA_RECAPTCHA3_SECRET, min_score: 0.5, expected_action: 'demo_submit'
+%}
+{% if result.valid %}
+  <h1>✅ Captcha passed ({{ result.provider }})</h1>
+  <p>Submitted message: {{ context.params.message }}</p>
+{% else %}
+  <h1>❌ Captcha failed ({{ result.provider }})</h1>
+  <ul>
+    {% for error in result.errors %}
+      {% for key in error[1] %}
+        <li>{{ key | t }}</li>
+      {% endfor %}
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if result.score != blank %}
+  <p>Score: <strong>{{ result.score }}</strong> (action: {{ result.action }})</p>
+{% endif %}
+
+<p><a href="/demo">← Back to the form</a></p>
+
+{% if result.response %}
+  <h2>Raw provider response</h2>
+  <pre>{{ result.response | json }}</pre>
+{% endif %}

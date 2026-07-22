@@ -1,0 +1,16 @@
+{% comment %}
+  NETWORK test: full verify flow against Cloudflare's real siteverify endpoint using the
+  public always-pass and always-fail TEST secrets (any token). Each case performs one real,
+  billable outbound API call and depends on challenges.cloudflare.com being reachable.
+{% endcomment %}
+{% liquid
+  # always-pass test secret -> valid
+  function r_pass = 'modules/captchas/commands/captcha/verify', provider: 'turnstile', secret: '1x0000000000000000000000000000000AA', token: 'XXXX.DUMMY.TOKEN.XXXX'
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: r_pass, field_name: 'testkey_pass'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r_pass.success, expected: true, field_name: 'testkey_pass_success'
+
+  # always-fail test secret -> invalid with verification_failed
+  function r_fail = 'modules/captchas/commands/captcha/verify', provider: 'turnstile', secret: '2x0000000000000000000000000000000AA', token: 'XXXX.DUMMY.TOKEN.XXXX'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'testkey_fail', object: r_fail
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r_fail.errors
+%}

@@ -1,0 +1,8 @@
+.pos
+tmp/
+.pos-supervisor/
+pos-supervisor.jsonl
+
+# Installed module dependencies (downloaded via `pos-cli modules install`).
+# The distributed module lives in modules/captchas and stays tracked; deps do not.
+modules/tests/

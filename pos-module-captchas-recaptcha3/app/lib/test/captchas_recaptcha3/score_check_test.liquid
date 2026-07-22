@@ -1,0 +1,40 @@
+{% comment %}
+  Unit test (no network): the v3 score/action gate (helpers/score_check), extracted from the
+  verify command precisely so these threshold and fail-closed semantics are testable without
+  hitting Google.
+{% endcomment %}
+{% liquid
+  assign no_errors = '{}' | parse_json
+
+  # success + score above the default 0.5 threshold -> valid
+  assign body_high = '{"success": true, "score": 0.9, "action": "demo_submit"}' | parse_json
+  function r1 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_high, errors: no_errors
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r1.valid, expected: true, field_name: 'high_score_passes'
+
+  # success + score below the default threshold -> low_score
+  assign body_low = '{"success": true, "score": 0.3, "action": "demo_submit"}' | parse_json
+  function r2 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_low, errors: no_errors
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r2.valid, expected: false, field_name: 'low_score_fails'
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r2.errors
+
+  # a custom min_score lowers the bar
+  function r3 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_low, min_score: 0.2, errors: no_errors
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r3.valid, expected: true, field_name: 'custom_min_score'
+
+  # expected_action must match the response action
+  function r4 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_high, expected_action: 'other_action', errors: no_errors
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r4.valid, expected: false, field_name: 'action_mismatch_fails'
+
+  function r5 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_high, expected_action: 'demo_submit', errors: no_errors
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r5.valid, expected: true, field_name: 'action_match_passes'
+
+  # fail closed: a missing/nil success field must never pass, even with min_score 0
+  assign body_no_success = '{"score": 0.9}' | parse_json
+  function r6 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_no_success, min_score: 0, errors: no_errors
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r6.valid, expected: false, field_name: 'missing_success_fails_closed'
+
+  # success false -> verification_failed regardless of score
+  assign body_failed = '{"success": false, "score": 0.9}' | parse_json
+  function r7 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_failed, errors: no_errors
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r7.valid, expected: false, field_name: 'success_false_fails'
+%}
