@@ -27,11 +27,13 @@
 
       assign recipient_user_ids = []
       for participant_id in message.conversation.participant_ids
-        unless participant_id == message.autor_id or message.conversation.participant_read_ids contains participant_id
-          function recipient = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
-          if recipient.user_id
-            assign recipient_user_ids << recipient.user_id
-          endif
+        unless participant_id == message.autor_id
+          unless message.conversation.participant_read_ids contains participant_id
+            function recipient = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+            if recipient.user_id
+              assign recipient_user_ids << recipient.user_id
+            endif
+          endunless
         endunless
       endfor
 
