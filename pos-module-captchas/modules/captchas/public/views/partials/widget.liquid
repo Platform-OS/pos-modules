@@ -3,14 +3,16 @@
     naming convention to the provider module's modules/captchas_<provider>/widget partial —
     the abstraction knows no providers. Render this partial (do not include it): provider
     widgets are pulled in via include and would otherwise leak their internals into your scope.
-  @param {string} site_key - The provider's public site key. A blank value (e.g. an unset
-    constant) logs an error and emits an HTML comment; the widget is still rendered and fails
-    visibly in the provider's client-side script.
+  @param {string} [site_key] - The provider's public site key; defaults to the
+    CAPTCHA_DEFAULT_SITE_KEY constant. A blank result (neither passed nor set) logs an error
+    and emits an HTML comment; the widget is still rendered and fails visibly in the
+    provider's client-side script.
   @param {string} [provider] - Provider key; defaults to the CAPTCHA_DEFAULT_PROVIDER constant.
   @param {object} [options] - Provider widget options, passed through to the provider partial.
 {% enddoc %}
 {%- liquid
   function active_provider = 'modules/captchas/helpers/default_provider', provider: provider
+  function site_key = 'modules/captchas/helpers/default_site_key', site_key: site_key
 
   if site_key == blank
     # The most common misconfiguration: an unset site-key constant. Surface it like the

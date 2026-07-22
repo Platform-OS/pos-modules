@@ -19,37 +19,49 @@ This also installs the `captchas` dependency. `pos-cli deploy <env>` afterwards.
 ## Keys
 
 Create a Turnstile widget in the [Cloudflare dashboard](https://dash.cloudflare.com/?to=/:account/turnstile)
-(your own account — keys are per-customer, not platform-wide) and store the pair in constants:
+(your own account — keys are per-customer, not platform-wide). **Best practice**: store them
+in the abstraction's default constants, so the generic widget/verify calls need neither
+`provider:`, `site_key:`, nor `secret:` at any call site:
 
 ```bash
-pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SITE_KEY --value "0x4AAA..."
-pos-cli constants set <env> --name CAPTCHA_TURNSTILE_SECRET --value "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "turnstile"
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SITE_KEY --value "0x4AAA..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SECRET --value "0x4AAA..."
 ```
 
 The site key is public (rendered client-side); the secret is server-side only — never output
-it in HTML. The constant names are a convention: keys are always passed by the caller, so
-multiple key pairs per instance (e.g. a separate marketing-site widget) are just more
-constants (`CAPTCHA_TURNSTILE_MKTG_SITE_KEY`, ...).
+it in HTML. Keys are always passed by the caller (or resolved from the defaults above), so
+multiple key pairs per instance (e.g. a separate marketing-site widget) are just another pair
+of constants, passed explicitly at that call site instead of relying on the default
+(`CAPTCHA_TURNSTILE_MKTG_SITE_KEY`, ...).
 
 ## Usage
 
 ```liquid
 {# in your form #}
-{% render 'modules/captchas/widget',
-     provider: 'turnstile',
-     site_key: context.constants.CAPTCHA_TURNSTILE_SITE_KEY %}
+{% render 'modules/captchas/widget' %}
 
 {# in your POST handler #}
-{% function result = 'modules/captchas/commands/captcha/verify',
-     provider: 'turnstile',
-     secret: context.constants.CAPTCHA_TURNSTILE_SECRET %}
+{% function result = 'modules/captchas/commands/captcha/verify' %}
 {% if result.valid %}...{% endif %}
 ```
 
-Set `CAPTCHA_DEFAULT_PROVIDER=turnstile` to omit the `provider:` argument. The token is read
-automatically from `cf-turnstile-response` in `context.params`; if you rename the widget's
-response field via its `response_field_name` option, pass the same value to `verify` as
-`response_field_name:`.
+Pass `provider:`, `site_key:`, and/or `secret:` explicitly only when a call site needs to
+deviate from the instance default (see [Keys](#keys)):
+
+```liquid
+{% render 'modules/captchas/widget',
+     provider: 'turnstile',
+     site_key: context.constants.CAPTCHA_TURNSTILE_MKTG_SITE_KEY %}
+
+{% function result = 'modules/captchas/commands/captcha/verify',
+     provider: 'turnstile',
+     secret: context.constants.CAPTCHA_TURNSTILE_MKTG_SECRET %}
+```
+
+The token is read automatically from `cf-turnstile-response` in `context.params`; if you
+rename the widget's response field via its `response_field_name` option, pass the same value
+to `verify` as `response_field_name:`.
 
 ## Widget options
 

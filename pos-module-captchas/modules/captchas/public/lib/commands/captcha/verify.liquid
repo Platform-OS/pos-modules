@@ -2,7 +2,9 @@
   @description Verify a captcha token server-side and return a normalized pass/fail.
   @param {string} [provider] - provider key; defaults to the CAPTCHA_DEFAULT_PROVIDER constant.
     Dispatches to the modules/captchas_<provider> module — see helpers/provider_available.
-  @param {string} secret - provider secret key (server-side; read from a constant by the caller).
+  @param {string} [secret] - provider secret key (server-side); defaults to the
+    CAPTCHA_DEFAULT_SECRET constant. Typically left to the default rather than read from a
+    per-provider constant by the caller.
   @param {string} [token] - the widget token; defaults to the provider's field in context.params.
   @param {string} [response_field_name] - name of the form field the widget writes the token to;
     overrides the provider default (only needed when you set the widget's response_field_name option).

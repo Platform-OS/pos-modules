@@ -23,34 +23,46 @@ This also installs the `captchas` dependency. `pos-cli deploy <env>` afterwards.
 ## Keys
 
 Register a **v2** site in the [reCAPTCHA admin console](https://www.google.com/recaptcha/admin)
-(your own Google account) and store the pair in constants:
+(your own Google account). **Best practice**: store the pair in the abstraction's default
+constants, so the generic widget/verify calls need neither `provider:`, `site_key:`, nor
+`secret:` at any call site:
 
 ```bash
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_SITE_KEY --value "6Le..."
-pos-cli constants set <env> --name CAPTCHA_RECAPTCHA_SECRET --value "6Le..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_PROVIDER --value "recaptcha"
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SITE_KEY --value "6Le..."
+pos-cli constants set <env> --name CAPTCHA_DEFAULT_SECRET --value "6Le..."
 ```
 
 The site key is public (rendered client-side); the secret is server-side only — never output
-it in HTML. The constant names are a convention: keys are always passed by the caller, so
-multiple key pairs per instance are just more constants.
+it in HTML. Keys are always passed by the caller (or resolved from the defaults above), so
+multiple key pairs per instance are just another pair of constants, passed explicitly at
+that call site instead of relying on the default.
 
 ## Usage
 
 ```liquid
 {# in your form #}
-{% render 'modules/captchas/widget',
-     provider: 'recaptcha',
-     site_key: context.constants.CAPTCHA_RECAPTCHA_SITE_KEY %}
+{% render 'modules/captchas/widget' %}
 
 {# in your POST handler #}
-{% function result = 'modules/captchas/commands/captcha/verify',
-     provider: 'recaptcha',
-     secret: context.constants.CAPTCHA_RECAPTCHA_SECRET %}
+{% function result = 'modules/captchas/commands/captcha/verify' %}
 {% if result.valid %}...{% endif %}
 ```
 
-Set `CAPTCHA_DEFAULT_PROVIDER=recaptcha` to omit the `provider:` argument. The token is read
-automatically from `g-recaptcha-response` in `context.params`.
+Pass `provider:`, `site_key:`, and/or `secret:` explicitly only when a call site needs to
+deviate from the instance default (see [Keys](#keys)):
+
+```liquid
+{% render 'modules/captchas/widget',
+     provider: 'recaptcha',
+     site_key: context.constants.CAPTCHA_RECAPTCHA_MKTG_SITE_KEY %}
+
+{% function result = 'modules/captchas/commands/captcha/verify',
+     provider: 'recaptcha',
+     secret: context.constants.CAPTCHA_RECAPTCHA_MKTG_SECRET %}
+```
+
+The token is read automatically from `g-recaptcha-response` in `context.params`.
 
 ## Widget options
 
