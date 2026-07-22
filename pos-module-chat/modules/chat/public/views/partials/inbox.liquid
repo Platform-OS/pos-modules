@@ -152,13 +152,15 @@
           <ul class="pos-chat-messages" id="chat-messagesList">
             {% if conversations.total_entries == 0 %}
               {% liquid
+                assign title = 'modules/chat/blank.title' | t
+                assign description = 'modules/chat/blank.description.desktop' | t
                 assign messages = [
                   {
-                    "message": "{{ 'modules/chat/blank.title' | t }}",
+                    "message": title,
                     "created_at": "{{ 'now' | to_time }}"
                   },
                   {
-                    "message": "{{ 'modules/chat/blank.description.desktop' | t }}",
+                    "message": description,
                     "created_at": "{{ 'now' | to_time }}"
                   }
                 ]
