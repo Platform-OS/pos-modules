@@ -1,6 +1,7 @@
 ---
 slug: passwords
 method: post
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
 ---
 {% liquid
   assign input = context.params.password

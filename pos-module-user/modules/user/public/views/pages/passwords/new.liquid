@@ -1,3 +1,6 @@
+---
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
+---
 {% liquid
   if context.session.reset_password_session_user_id == blank
     function user = 'modules/user/helpers/user_from_temporary_token', token: context.params.token, email: context.params.email

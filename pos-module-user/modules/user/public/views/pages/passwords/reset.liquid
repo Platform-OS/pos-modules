@@ -1,1 +1,4 @@
+---
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
+---
 {% render 'modules/user/passwords/reset', context: context, values: null, errors: null %}

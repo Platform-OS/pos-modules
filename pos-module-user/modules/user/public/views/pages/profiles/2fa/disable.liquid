@@ -1,3 +1,6 @@
+---
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
+---
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
   if current_profile.user.id == null or current_profile.otp_configured != true
