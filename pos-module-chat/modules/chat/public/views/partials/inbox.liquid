@@ -30,7 +30,7 @@
     window.pos.profile = {{ current_profile }};
   }
 
-  window.pos.profile.timezone = {% if current_profile.timezone %} '{{ current_profile.timezone }}' {% else %} null {% endif %};
+  window.pos.profile.timezone = {% if current_profile.properties.timezone %} '{{ current_profile.properties.timezone }}' {% else %} null {% endif %};
 
   /* translations used in module */
   window.pos.translations = {
@@ -124,7 +124,7 @@
                 assign authored = false
               endif
 
-              render 'modules/chat/message', message: message, authored: authored, timezone: current_profile.timezone
+              render 'modules/chat/message', message: message, authored: authored, timezone: current_profile.properties.timezone
             endfor
           %}
         </ul>
@@ -166,7 +166,7 @@
                 ]
               %}
               {% for message in messages %}
-                {% render 'modules/chat/message', message: message, authored: false, timezone: current_profile.timezone %}
+                {% render 'modules/chat/message', message: message, authored: false, timezone: current_profile.properties.timezone %}
               {% endfor %}
             {% endif %}
           </ul>
