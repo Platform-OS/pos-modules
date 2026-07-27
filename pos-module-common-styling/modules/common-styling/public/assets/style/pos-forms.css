@@ -91,14 +91,27 @@
     align-self: start;
   }
 
-  .pos-form :has([required]:not([type="radio"])) label:after,
-  .pos-form :has([required]:not([type="radio"])) label strong:after {
+  /*
+    The required marker belongs to the field group that holds the required control.
+    `:has()` is unbounded on its own - `.pos-form :has([required])` is matched by
+    every ancestor of a required control, not just its group, so any wrapper holding
+    at least one required control (a `.pos-card` around a set of fieldsets, for
+    instance) marked every label inside it: optional fields, and fields whose control
+    is never required at all, such as an upload area. Matching the fieldset keeps the
+    marker on the group it describes, which is the documented behaviour - labels
+    placed in a fieldset that has a required input.
+  */
+  .pos-form fieldset:has([required]:not([type="radio"])) label:after,
+  .pos-form fieldset:has([required]:not([type="radio"])) label strong:after,
+  .pos-form .pos-form-fieldset:has([required]:not([type="radio"])) label:after,
+  .pos-form .pos-form-fieldset:has([required]:not([type="radio"])) label strong:after {
     color: var(--pos-color-important);
 
     content: " *";
   }
 
-  .pos-form :has([required]) label:has(strong):after {
+  .pos-form fieldset:has([required]) label:has(strong):after,
+  .pos-form .pos-form-fieldset:has([required]) label:has(strong):after {
     display: none;
   }
 
