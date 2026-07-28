@@ -6,8 +6,7 @@
   @returns {object} object with success (boolean), response (hash), valid, and errors.
 {% enddoc %}
 {% liquid
-  assign payload = '{}' | parse_json
-  assign payload = payload | hash_merge: secret: object.secret, token: object.token, remote_ip: object.remote_ip
+  assign payload = { "secret": object.secret, "token": object.token, "remote_ip": object.remote_ip }
 
   graphql result = 'modules/captchas_recaptcha/api_call/send', data: payload, name: 'modules/captchas_recaptcha/siteverify'
 

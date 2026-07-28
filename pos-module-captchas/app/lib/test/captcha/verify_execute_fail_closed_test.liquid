@@ -8,7 +8,7 @@
 {% endcomment %}
 {% liquid
   # simulate an object that slipped past check: unknown provider, yet valid: true
-  assign slipped = '{}' | parse_json | hash_merge: provider: 'bogus', secret: 'sk_test', token: 'tok_test', valid: true
+  assign slipped = { "provider": "bogus", "secret": "sk_test", "token": "tok_test", "valid": true }
   function result = 'modules/captchas/commands/captcha/verify/execute', object: slipped
 
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'execute_fails_closed', object: result

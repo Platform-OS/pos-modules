@@ -10,7 +10,6 @@
 {% enddoc %}
 {% liquid
   function c = 'modules/captchas/helpers/errors_hash', errors: errors
-  assign result = '{}' | parse_json
 
   # `!= true` (not `== false`): a nil/missing success field must fail closed too — otherwise a
   # 200 JSON body without `success` would fall through to the score check and, with min_score 0,
@@ -18,7 +17,7 @@
   if body.success != true
     assign messages = 'modules/captchas/errors.verification_failed' | split: '|'
     assign merged = c | hash_merge: captcha: messages
-    assign result = result | hash_merge: valid: false, errors: merged
+    assign result = { "valid": false, "errors": merged }
     return result
   endif
 
@@ -26,7 +25,7 @@
     if body.action != expected_action
       assign messages = 'modules/captchas/errors.action_mismatch' | split: '|'
       assign merged = c | hash_merge: captcha: messages
-      assign result = result | hash_merge: valid: false, errors: merged
+      assign result = { "valid": false, "errors": merged }
       return result
     endif
   endif
@@ -35,11 +34,11 @@
   assign score = body.score | default: 0.0 | plus: 0.0
 
   if score >= threshold
-    assign result = result | hash_merge: valid: true, errors: c
+    assign result = { "valid": true, "errors": c }
   else
     assign messages = 'modules/captchas/errors.low_score' | split: '|'
     assign merged = c | hash_merge: captcha: messages
-    assign result = result | hash_merge: valid: false, errors: merged
+    assign result = { "valid": false, "errors": merged }
   endif
 
   return result
