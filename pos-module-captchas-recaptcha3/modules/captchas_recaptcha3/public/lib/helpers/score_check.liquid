@@ -15,7 +15,7 @@
   # 200 JSON body without `success` would fall through to the score check and, with min_score 0,
   # pass without any provider verdict.
   if body.success != true
-    assign messages = 'modules/captchas/errors.verification_failed' | split: '|'
+    assign messages = ["modules/captchas/errors.verification_failed"]
     assign merged = c | hash_merge: captcha: messages
     assign result = { "valid": false, "errors": merged }
     return result
@@ -23,7 +23,7 @@
 
   if expected_action != blank
     if body.action != expected_action
-      assign messages = 'modules/captchas/errors.action_mismatch' | split: '|'
+      assign messages = ["modules/captchas/errors.action_mismatch"]
       assign merged = c | hash_merge: captcha: messages
       assign result = { "valid": false, "errors": merged }
       return result
@@ -36,7 +36,7 @@
   if score >= threshold
     assign result = { "valid": true, "errors": c }
   else
-    assign messages = 'modules/captchas/errors.low_score' | split: '|'
+    assign messages = ["modules/captchas/errors.low_score"]
     assign merged = c | hash_merge: captcha: messages
     assign result = { "valid": false, "errors": merged }
   endif

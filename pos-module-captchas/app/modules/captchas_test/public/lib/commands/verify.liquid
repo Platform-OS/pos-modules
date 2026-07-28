@@ -16,7 +16,7 @@
   endif
 
   assign response = '{"success": false}' | parse_json
-  assign messages = 'modules/captchas/errors.verification_failed' | split: '|'
+  assign messages = ["modules/captchas/errors.verification_failed"]
   assign errors = c | hash_merge: captcha: messages
   assign object = object | hash_merge: response: response, success: false, valid: false, errors: errors
   return object

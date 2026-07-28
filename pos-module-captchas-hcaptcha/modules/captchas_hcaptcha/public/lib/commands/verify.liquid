@@ -16,7 +16,7 @@
   function c = 'modules/captchas/helpers/errors_hash', errors: object.errors
 
   if call.errors != blank
-    assign messages = 'modules/captchas/errors.request_failed' | split: '|'
+    assign messages = ["modules/captchas/errors.request_failed"]
     assign object.errors = c | hash_merge: captcha: messages
     assign object.success = false
     assign object.valid = false
@@ -25,7 +25,7 @@
 
   assign status = call.response.status
   if status != 200
-    assign messages = 'modules/captchas/errors.request_failed' | split: '|'
+    assign messages = ["modules/captchas/errors.request_failed"]
     assign object.errors = c | hash_merge: captcha: messages
     assign object.success = false
     assign object.valid = false
@@ -38,7 +38,7 @@
   assign raw_body = call.response.body | strip
   assign first_char = raw_body | slice: 0, 1
   if first_char != '{'
-    assign messages = 'modules/captchas/errors.request_failed' | split: '|'
+    assign messages = ["modules/captchas/errors.request_failed"]
     assign object.errors = c | hash_merge: captcha: messages
     assign object.success = false
     assign object.valid = false
@@ -52,7 +52,7 @@
   if body.success
     assign object.valid = true
   else
-    assign messages = 'modules/captchas/errors.verification_failed' | split: '|'
+    assign messages = ["modules/captchas/errors.verification_failed"]
     assign object.errors = c | hash_merge: captcha: messages
     assign object.valid = false
   endif

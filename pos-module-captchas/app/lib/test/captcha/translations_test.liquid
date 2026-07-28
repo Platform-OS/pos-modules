@@ -7,7 +7,7 @@
   Keep this list in sync with the keys used in commands/captcha and translations/en.yml.
 {% endcomment %}
 {% liquid
-  assign keys = 'token_missing,secret_missing,unsupported_provider,verification_failed,request_failed,low_score,action_mismatch,hostname_mismatch' | split: ','
+  assign keys = ["token_missing", "secret_missing", "unsupported_provider", "verification_failed", "request_failed", "low_score", "action_mismatch", "hostname_mismatch"]
 
   for key in keys
     assign full_key = 'modules/captchas/errors.' | append: key
