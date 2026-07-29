@@ -6,6 +6,7 @@
   and `helpers/score_check`), so `result.errors` holds translated messages instead of
   `modules/captchas/errors.*` keys — drop any `| t` you apply to them. Requires
   `captchas ^1.1.0`.
+- Other code improvements: internal cleanups with no change to behavior or the public API.
 
 ## 1.0.0
 

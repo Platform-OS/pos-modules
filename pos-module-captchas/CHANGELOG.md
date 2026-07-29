@@ -13,6 +13,7 @@
   modules to record errors; see the provider contract in the README.
 - **Migration:** drop any `| t` you apply to values from `result.errors` — the strings are
   already translated. Provider modules must depend on `captchas ^1.1.0`.
+- Other code improvements: internal cleanups with no change to behavior or the public API.
 
 ## 1.0.0
 
