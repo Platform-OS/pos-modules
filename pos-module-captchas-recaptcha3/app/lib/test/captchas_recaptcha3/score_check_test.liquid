@@ -17,6 +17,22 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: r2.valid, expected: false, field_name: 'low_score_fails'
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r2.errors
 
+  # The message is stored translated, not as a raw key: score_check sets the error via
+  # modules/captchas/helpers/add_error, which resolves a modules/captchas/* key from inside
+  # modules/captchas_recaptcha3. Callers render errors verbatim, so a raw key would leak to users.
+  assign low_score_key = 'modules/captchas/errors.low_score'
+  assign low_score_message = r2.errors.captcha | first
+  assign expected_message = low_score_key | t
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: low_score_message, expected: expected_message, field_name: 'low_score_message_translated'
+
+  # The check above alone would pass if `| t` silently returned the key on both sides, so assert
+  # the stored value is not the key itself — that is the failure mode this guards against.
+  assign is_raw_key = false
+  if low_score_message == low_score_key
+    assign is_raw_key = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: is_raw_key, expected: false, field_name: 'low_score_message_not_raw_key'
+
   # a custom min_score lowers the bar
   function r3 = 'modules/captchas_recaptcha3/helpers/score_check', body: body_low, min_score: 0.2, errors: no_errors
   function contract = 'modules/tests/assertions/equal', contract: contract, given: r3.valid, expected: true, field_name: 'custom_min_score'

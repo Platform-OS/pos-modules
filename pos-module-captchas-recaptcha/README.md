@@ -100,6 +100,9 @@ responses, and non-JSON bodies (`modules/captchas/errors.request_failed`). A
 `expected_hostname` (handled by the abstraction) works with the `hostname` field
 reCAPTCHA returns.
 
+Errors are stored via `modules/captchas/helpers/add_error`, which translates the message as it
+is set — `result.errors.captcha` holds display-ready text, not translation keys.
+
 > ⚠️ **Billing** — the server-side verify call is a normal, billable platformOS API call;
 > each `verify` performs one outbound `siteverify` request.
 

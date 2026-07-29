@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- Errors are now recorded with `modules/captchas/helpers/add_error`, so `result.errors` holds
+  translated messages instead of `modules/captchas/errors.*` keys — drop any `| t` you apply
+  to them. Requires `captchas ^1.1.0`.
+
 ## 1.0.0
 
 Initial release. hCaptcha provider for the

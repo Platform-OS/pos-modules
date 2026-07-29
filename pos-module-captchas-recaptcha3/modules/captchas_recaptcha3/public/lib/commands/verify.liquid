@@ -6,7 +6,8 @@
     modules/captchas/commands/captcha/verify/execute.
   @param {object} object - validated object: { secret, token, remote_ip, errors, min_score, expected_action }.
     min_score defaults to 0.5; expected_action is optional.
-  @returns {object} object with success (boolean), score (number), action (string), response (hash), valid, and errors.
+  @returns {object} object with success (boolean), score (number), action (string), response (hash),
+    valid, and errors (translated messages, via modules/captchas/helpers/add_error).
 {% enddoc %}
 {% liquid
   assign payload = { "secret": object.secret, "token": object.token, "remote_ip": object.remote_ip }
@@ -14,11 +15,10 @@
   graphql result = 'modules/captchas_recaptcha3/api_call/send', data: payload, name: 'modules/captchas_recaptcha3/siteverify'
 
   assign call = result.api_call_send
-  function c = 'modules/captchas/helpers/errors_hash', errors: object.errors
 
   if call.errors != blank
-    assign messages = ["modules/captchas/errors.request_failed"]
-    assign object.errors = c | hash_merge: captcha: messages
+    function updated_errors = 'modules/captchas/helpers/add_error', errors: object.errors, field_name: 'captcha', key: 'modules/captchas/errors.request_failed'
+    assign object.errors = updated_errors
     assign object.success = false
     assign object.valid = false
     return object
@@ -26,8 +26,8 @@
 
   assign status = call.response.status
   if status != 200
-    assign messages = ["modules/captchas/errors.request_failed"]
-    assign object.errors = c | hash_merge: captcha: messages
+    function updated_errors = 'modules/captchas/helpers/add_error', errors: object.errors, field_name: 'captcha', key: 'modules/captchas/errors.request_failed'
+    assign object.errors = updated_errors
     assign object.success = false
     assign object.valid = false
     return object
@@ -39,8 +39,8 @@
   assign raw_body = call.response.body | strip
   assign first_char = raw_body | slice: 0, 1
   if first_char != '{'
-    assign messages = ["modules/captchas/errors.request_failed"]
-    assign object.errors = c | hash_merge: captcha: messages
+    function updated_errors = 'modules/captchas/helpers/add_error', errors: object.errors, field_name: 'captcha', key: 'modules/captchas/errors.request_failed'
+    assign object.errors = updated_errors
     assign object.success = false
     assign object.valid = false
     return object

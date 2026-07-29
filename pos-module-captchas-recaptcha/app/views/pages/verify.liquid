@@ -21,10 +21,14 @@ method: post
   <p>Submitted message: {{ context.params.message }}</p>
 {% else %}
   <h1>❌ Captcha failed ({{ result.provider }})</h1>
+  {% comment %}
+    result.errors holds already-translated messages (the commands translate at set time, via
+    modules/captchas/helpers/add_error), so they render as-is — no `| t` here.
+  {% endcomment %}
   <ul>
     {% for error in result.errors %}
-      {% for key in error[1] %}
-        <li>{{ key | t }}</li>
+      {% for message in error[1] %}
+        <li>{{ message }}</li>
       {% endfor %}
     {% endfor %}
   </ul>

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0
+
+- `object.errors` now holds **translated messages** instead of `modules/captchas/errors.*`
+  translation keys, matching `modules/core/helpers/register_error` and the rest of the
+  platformOS modules. Callers can pass `result.errors[field]` straight to
+  `modules/common-styling/forms/error_list` (which renders each entry raw); previously that
+  printed a raw key to end users.
+- New `modules/captchas/helpers/add_error` — translates a `modules/captchas/errors.*` key and
+  **appends** it to a field, so multiple errors can accumulate on one field (the previous
+  `hash_merge` replaced the field's array). This is now the documented way for provider
+  modules to record errors; see the provider contract in the README.
+- **Migration:** drop any `| t` you apply to values from `result.errors` — the strings are
+  already translated. Provider modules must depend on `captchas ^1.1.0`.
+
 ## 1.0.0
 
 Initial release.

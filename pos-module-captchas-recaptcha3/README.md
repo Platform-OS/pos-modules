@@ -96,11 +96,14 @@ challenge fails client-side, the form submits token-less and verify fails closed
 and non-JSON bodies (`modules/captchas/errors.request_failed`), then applies the score/action
 gate (`modules/captchas_recaptcha3/helpers/score_check`):
 
-| Outcome | Error key |
+| Outcome | Message key |
 |---|---|
 | provider `success` false/missing | `modules/captchas/errors.verification_failed` |
 | action ≠ `expected_action` | `modules/captchas/errors.action_mismatch` |
 | score < `min_score` | `modules/captchas/errors.low_score` |
+
+Errors are stored via `modules/captchas/helpers/add_error`, which translates the message as it
+is set — `result.errors.captcha` holds display-ready text, not the keys above.
 
 `expected_hostname` (handled by the abstraction) works with the `hostname` field the
 response includes.

@@ -17,7 +17,7 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: merged_empty.secret, expected: 'y', field_name: 'empty_hash_mergeable'
 
   # a populated hash passes through: existing keys survive a subsequent merge
-  assign existing = '{"token":["modules/captchas/errors.token_missing"]}' | parse_json
+  assign existing = '{"token":["The captcha challenge was not completed."]}' | parse_json
   function preserved = 'modules/captchas/helpers/errors_hash', errors: existing
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'token', object: preserved
   assign merged_more = preserved | hash_merge: secret: 'z'

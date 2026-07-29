@@ -27,10 +27,15 @@ method: post
   <p>Submitted message: {{ context.params.message }}</p>
 {% else %}
   <h1>❌ Captcha failed ({{ result.provider }})</h1>
+  {% comment %}
+    result.errors holds already-translated messages (the commands translate at set time, like
+    modules/core/helpers/register_error), so they render as-is — no `| t` here. This is also why
+    a caller can pass result.errors[field] straight to modules/common-styling/forms/error_list.
+  {% endcomment %}
   <ul>
     {% for error in result.errors %}
-      {% for key in error[1] %}
-        <li>{{ key | t }}</li>
+      {% for message in error[1] %}
+        <li>{{ message }}</li>
       {% endfor %}
     {% endfor %}
   </ul>
