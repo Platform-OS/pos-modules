@@ -20,11 +20,12 @@ jobs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
       - id: skip_check
+        if: github.event_name != 'repository_dispatch'
         uses: fkirc/skip-duplicate-actions@master
         with:
           github_token: ${{ github.token }}
           paths_ignore: '["**/README.md"]'
-          do_not_skip: '["push", "workflow_dispatch", "repository_dispatch"]'
+          do_not_skip: '["push", "workflow_dispatch"]'
 
   detect-changes:
     needs: pre_job
