@@ -1,7 +1,9 @@
 name: Tests
+run-name: platform-build ${{ github.event.client_payload.build_id }}
 on:
   push:
     paths-ignore:
+      - "**/.github"
       - "**/README.md"
   workflow_dispatch:
     inputs:
