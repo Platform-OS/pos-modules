@@ -1,0 +1,36 @@
+{% comment %}
+  Unit test (no network): the add_error helper. The contract it locks in is that errors hold
+  *translated messages*, not translation keys — the same convention as
+  modules/core/helpers/register_error. That is what lets a caller pass object.errors[field]
+  straight to modules/common-styling/forms/error_list, which renders each entry raw: storing
+  keys here would print "modules/captchas/errors.token_missing" to end users.
+  Also covers appending, since several errors can land on one field.
+{% endcomment %}
+{% liquid
+  assign token_key = 'modules/captchas/errors.token_missing'
+
+  # nil errors input -> a real hash with the field populated
+  function e1 = 'modules/captchas/helpers/add_error', field_name: 'token', key: token_key
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'token', object: e1
+
+  # the stored value is the translated message
+  assign stored = e1.token | first
+  assign translated = token_key | t
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored, expected: translated, field_name: 'stores_translated_message'
+
+  # ...and specifically not the raw key
+  assign is_raw_key = false
+  if stored == token_key
+    assign is_raw_key = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: is_raw_key, expected: false, field_name: 'does_not_store_raw_key'
+
+  # appends rather than replaces: two errors on the same field both survive
+  function e2 = 'modules/captchas/helpers/add_error', errors: e1, field_name: 'token', key: 'modules/captchas/errors.verification_failed'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: e2.token.size, expected: 2, field_name: 'appends_to_same_field'
+
+  # an existing field survives a second field being added
+  function e3 = 'modules/captchas/helpers/add_error', errors: e2, field_name: 'secret', key: 'modules/captchas/errors.secret_missing'
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'token', object: e3
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'secret', object: e3
+%}

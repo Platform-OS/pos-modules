@@ -105,11 +105,19 @@ provider or key (see [Keys are caller-supplied](#keys-are-caller-supplied)):
 %}
 ```
 
-Render errors with `| t` — `result.errors` maps fields to arrays of translation keys:
+`result.errors` maps fields to arrays of **already-translated messages** (the commands
+translate at set time, like `modules/core/helpers/register_error`), so they render as-is — no
+`| t` at the call site, and they can go straight into the shared form-error partial:
+
+```liquid
+{% render 'modules/common-styling/forms/error_list', name: 'captcha', errors: result.errors.captcha %}
+```
+
+Or render them all:
 
 ```liquid
 {% for error in result.errors %}
-  {% for key in error[1] %}<p>{{ key | t }}</p>{% endfor %}
+  {% for message in error[1] %}<p>{{ message }}</p>{% endfor %}
 {% endfor %}
 ```
 
@@ -196,11 +204,14 @@ Returns:
 | `token_field` | The form field the token was read from. |
 | `response` | Parsed provider response (hash). |
 | `score` / `action` | Score-based providers only. |
-| `errors` | Hash of field → array of translation keys (`modules/captchas/errors.*`). |
+| `errors` | Hash of field (`token`, `secret`, `provider`, `captcha`) → array of translated messages, ready to display. |
 
-Error keys — all shipped by this module (en + pl), so callers deal with one namespace
-regardless of provider: `token_missing`, `secret_missing`, `unsupported_provider`,
-`request_failed`, `verification_failed`, `hostname_mismatch`, `low_score`, `action_mismatch`.
+Messages are translated when the error is set, so no `| t` is needed at the call site — see
+[Usage](#usage). The underlying keys (`modules/captchas/errors.*`) are all
+shipped by this module (en + pl), so the copy is one namespace regardless of provider:
+`token_missing`, `secret_missing`, `unsupported_provider`, `request_failed`,
+`verification_failed`, `hostname_mismatch`, `low_score`, `action_mismatch`. Override any of
+them the usual way — copy `modules/captchas/public/translations/<locale>.yml` into your app.
 
 ## How verification works
 
@@ -226,7 +237,7 @@ exempt** from API usage billing. Each `verify` performs one outbound `siteverify
 ## Writing a provider module
 
 A provider is a separate platformOS module named `captchas_<key>` (`<key>`: lowercase
-`a-z0-9_`), with `"dependencies": { "captchas": "^1.0.0" }`. The abstraction dispatches to
+`a-z0-9_`), with `"dependencies": { "captchas": "^1.1.0" }`. The abstraction dispatches to
 it purely by naming convention — no registration anywhere. It must expose:
 
 1. **`modules/captchas_<key>/widget`** (`public/views/partials/widget.liquid`) — receives
@@ -244,9 +255,18 @@ it purely by naming convention — no registration anywhere. It must expose:
    - `success` — the provider's raw verdict,
    - `valid` — the final boolean; **fail closed** on transport errors, non-200 responses,
      non-JSON bodies, and a missing success field,
-   - `errors` — merged via `modules/captchas/helpers/errors_hash`, using
-     `modules/captchas/errors.*` keys (`request_failed`, `verification_failed`, and for
-     score-based providers `low_score` / `action_mismatch`).
+   - `errors` — set via `modules/captchas/helpers/add_error`, which translates the message and
+     appends it to the field. Pass `errors: object.errors`, `field_name: 'captcha'`, and a
+     `modules/captchas/errors.*` key (`request_failed`, `verification_failed`, and for
+     score-based providers `low_score` / `action_mismatch`):
+
+     ```liquid
+     function updated_errors = 'modules/captchas/helpers/add_error', errors: object.errors, field_name: 'captcha', key: 'modules/captchas/errors.request_failed'
+     assign object.errors = updated_errors
+     ```
+
+     Do not store the raw key: callers display `object.errors` directly. Add your own keys in
+     your module's translations if you need provider-specific copy.
 
    The incoming `object` carries `secret`, `token`, `remote_ip`, `expected_sitekey`,
    `min_score`, `expected_action`, and the current `errors` — read what applies.

@@ -13,4 +13,21 @@
   function r_fail = 'modules/captchas/commands/captcha/verify', provider: 'recaptcha', secret: 'not-a-real-secret', token: 'dummy-token-for-test-keys'
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'bad_secret_fails', object: r_fail
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'captcha', object: r_fail.errors
+
+  # The message is stored translated, not as a raw key: this provider module sets the error via
+  # modules/captchas/helpers/add_error, which resolves a modules/captchas/* key from inside
+  # modules/captchas_recaptcha. Callers render errors verbatim, so a raw key would leak to users.
+  # Reuses r_fail — no extra billable call.
+  assign fail_key = 'modules/captchas/errors.verification_failed'
+  assign fail_message = r_fail.errors.captcha | first
+  assign expected_message = fail_key | t
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: fail_message, expected: expected_message, field_name: 'bad_secret_message_translated'
+
+  # The check above alone would pass if `| t` silently returned the key on both sides, so assert
+  # the stored value is not the key itself — that is the failure mode this guards against.
+  assign is_raw_key = false
+  if fail_message == fail_key
+    assign is_raw_key = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: is_raw_key, expected: false, field_name: 'bad_secret_message_not_raw_key'
 %}

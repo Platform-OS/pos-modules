@@ -16,29 +16,29 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: b1.secret, expected: '', field_name: 'no_secret_is_blank'
 
   # an explicit secret is preserved through build
-  assign o1b = '{}' | parse_json | hash_merge: secret: 'sk_explicit_test'
+  assign o1b = { "secret": "sk_explicit_test" }
   function b1b = 'modules/captchas/commands/captcha/verify/build', object: o1b
   function contract = 'modules/tests/assertions/equal', contract: contract, given: b1b.secret, expected: 'sk_explicit_test', field_name: 'explicit_secret_preserved'
 
   # an explicit provider is preserved, and the default token field comes from the provider
   # module's config helper (dynamic dispatch)
-  assign o2 = '{}' | parse_json | hash_merge: provider: 'test'
+  assign o2 = { "provider": "test" }
   function b2 = 'modules/captchas/commands/captcha/verify/build', object: o2
   function contract = 'modules/tests/assertions/equal', contract: contract, given: b2.provider, expected: 'test', field_name: 'explicit_provider'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: b2.token_field, expected: 'x-test-captcha-response', field_name: 'token_field_from_provider_config'
 
   # an unavailable provider must not be dispatched to for config: token_field stays blank
-  assign o3 = '{}' | parse_json | hash_merge: provider: 'bogus'
+  assign o3 = { "provider": "bogus" }
   function b3 = 'modules/captchas/commands/captcha/verify/build', object: o3
   function contract = 'modules/tests/assertions/blank', contract: contract, field_name: 'token_field', object: b3
 
   # an explicit response_field_name overrides the provider default
-  assign o4 = '{}' | parse_json | hash_merge: provider: 'test', response_field_name: 'my-custom-field'
+  assign o4 = { "provider": "test", "response_field_name": "my-custom-field" }
   function b4 = 'modules/captchas/commands/captcha/verify/build', object: o4
   function contract = 'modules/tests/assertions/equal', contract: contract, given: b4.token_field, expected: 'my-custom-field', field_name: 'explicit_response_field_name'
 
   # an explicit token is honoured (used instead of reading context.params)
-  assign o5 = '{}' | parse_json | hash_merge: provider: 'test', token: 'explicit-token-123'
+  assign o5 = { "provider": "test", "token": "explicit-token-123" }
   function b5 = 'modules/captchas/commands/captcha/verify/build', object: o5
   function contract = 'modules/tests/assertions/equal', contract: contract, given: b5.token, expected: 'explicit-token-123', field_name: 'explicit_token'
 %}

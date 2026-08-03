@@ -94,6 +94,9 @@ answer maps to `modules/captchas/errors.verification_failed`. Turnstile secrets 
 per-widget, so `expected_sitekey` is not needed; `expected_hostname` (handled by the
 abstraction) works with the `hostname` field Turnstile returns.
 
+Errors are stored via `modules/captchas/helpers/add_error`, which translates the message as it
+is set — `result.errors.captcha` holds display-ready text, not translation keys.
+
 > ⚠️ **Billing** — the server-side verify call is a normal, billable platformOS API call;
 > each `verify` performs one outbound `siteverify` request.
 

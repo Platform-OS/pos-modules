@@ -5,24 +5,24 @@
 {% endcomment %}
 {% liquid
   # happy path: token + secret + available provider -> valid
-  assign ok = '{}' | parse_json | hash_merge: provider: 'test', secret: 'sk_test', token: 'tok_test'
+  assign ok = { "provider": "test", "secret": "sk_test", "token": "tok_test" }
   function ok = 'modules/captchas/commands/captcha/verify/check', object: ok
   function contract = 'modules/tests/assertions/valid_object', contract: contract, object: ok, field_name: 'all_present'
 
   # missing token -> invalid, with a token error
-  assign no_token = '{}' | parse_json | hash_merge: provider: 'test', secret: 'sk_test'
+  assign no_token = { "provider": "test", "secret": "sk_test" }
   function no_token = 'modules/captchas/commands/captcha/verify/check', object: no_token
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'missing_token', object: no_token
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'token', object: no_token.errors
 
   # missing secret -> invalid, with a secret error
-  assign no_secret = '{}' | parse_json | hash_merge: provider: 'test', token: 'tok_test'
+  assign no_secret = { "provider": "test", "token": "tok_test" }
   function no_secret = 'modules/captchas/commands/captcha/verify/check', object: no_secret
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'missing_secret', object: no_secret
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'secret', object: no_secret.errors
 
   # unavailable provider (no such module installed) -> invalid, with a provider error
-  assign bad = '{}' | parse_json | hash_merge: provider: 'bogus', secret: 'sk_test', token: 'tok_test'
+  assign bad = { "provider": "bogus", "secret": "sk_test", "token": "tok_test" }
   function bad = 'modules/captchas/commands/captcha/verify/check', object: bad
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, field_name: 'unsupported_provider', object: bad
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'provider', object: bad.errors
