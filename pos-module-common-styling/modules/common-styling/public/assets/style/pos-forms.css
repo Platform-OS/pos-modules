@@ -91,14 +91,17 @@
     align-self: start;
   }
 
-  .pos-form :has([required]:not([type="radio"])) label:after,
-  .pos-form :has([required]:not([type="radio"])) label strong:after {
+  .pos-form fieldset:has([required]:not([type="radio"])) label:after,
+  .pos-form fieldset:has([required]:not([type="radio"])) label strong:after,
+  .pos-form .pos-form-fieldset:has([required]:not([type="radio"])) label:after,
+  .pos-form .pos-form-fieldset:has([required]:not([type="radio"])) label strong:after {
     color: var(--pos-color-important);
 
     content: " *";
   }
 
-  .pos-form :has([required]) label:has(strong):after {
+  .pos-form fieldset:has([required]) label:has(strong):after,
+  .pos-form .pos-form-fieldset:has([required]) label:has(strong):after {
     display: none;
   }
 
