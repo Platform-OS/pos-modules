@@ -49,10 +49,9 @@
     align-items: start;
   }
 
-    .pos-form-simple fieldset:has([type="checkbox"] + label) input,
-    .pos-form-simple fieldset:has([type="radio"] + label) input {
+    .pos-form-simple fieldset:has([type="checkbox"] + label) input[type="checkbox"],
+    .pos-form-simple fieldset:has([type="radio"] + label) input[type="checkbox"] {
       height: 1lh;
-      margin-block-start: 1px;
     }
 
   /* combined fieldset */
@@ -639,7 +638,7 @@
 
   /* filter input */
   .pos-form-multiselect-filter {
-    border: 0;
+    border: 0 !important;
   }
 
   .pos-form-multiselect-filter + .pos-form-multiselect-list {
