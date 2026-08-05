@@ -6,5 +6,8 @@
     "core": "^2.1.9",
     "common-styling": "^1.38.0",
     "user": "^5.2.11"
+  },
+  "postInstall": {
+    "message": "push_notifications installed.\n\nWire up the init partial in your layout and (optionally) generate & store the\nVAPID/sender key constants in one interactive step:\n\n  pos-cli generate run modules/push_notifications/generators/install\n\nPrefer to wire things up by hand? See the module README for the manual steps:\nhttps://github.com/Platform-OS/pos-modules/blob/master/pos-module-push-notifications/README.md"
   }
 }

@@ -9,5 +9,8 @@
   "devDependencies": {
     "oauth_github": "^0.0.13",
     "tests": "^1.3.4"
+  },
+  "postInstall": {
+    "message": "user module installed.\n\nWire up your layout (pos-app class, common-styling init, notifications) and\noptionally set the default role, override RBAC permissions, and create a\nsuperadmin, all in one interactive step:\n\n  pos-cli generate run modules/user/generators/install\n\nPrefer to wire things up by hand? See the module README, Setup section, for the manual steps:\nhttps://github.com/Platform-OS/pos-modules/blob/master/pos-module-user/README.md"
   }
 }
