@@ -1,0 +1,19 @@
+query (
+  $room_id: String!
+) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/websocket/room" }
+      properties: [{ name: "room_id", value: $room_id }]
+    }
+  ) {
+    results {
+      id
+      created_at
+      room_id: property(name: "room_id")
+      public: property_boolean(name: "public")
+      created_by: property(name: "created_by")
+    }
+  }
+}

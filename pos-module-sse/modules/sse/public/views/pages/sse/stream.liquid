@@ -1,0 +1,46 @@
+---
+slug: sse/stream
+method: get
+layout: ''
+response_headers: >
+  {
+    "Content-Type": "text/event-stream; charset=utf-8"
+  }
+---
+{% doc %}
+  Server-Sent Events endpoint (WHATWG spec). platformOS/Liquid has no
+  primitive to hold this connection open and push further chunks over time
+  (no sleep/flush/streaming tag) — every request renders one complete
+  response, then the connection closes. Real-time delivery instead comes
+  from the browser's native EventSource auto-reconnect: `retry: 1000` below
+  tells it to reconnect ~1s after this response ends, and every event
+  carries an `id:` so the reconnect — which automatically resends it as the
+  `Last-Event-ID` request header — resumes exactly where this response left
+  off. From the page/user's perspective it reads as one continuous live
+  feed; under the hood it's a tight, browser-managed reconnect loop. See
+  modules/sse/README.md.
+
+  Public by default (no auth) — override this file (Module Override System)
+  to restrict which channels a visitor may read.
+
+  Query params:
+    channel - channel name (default: "default")
+    since   - optional ISO8601 cursor, overridden by the Last-Event-ID
+              request header when the browser sends one (i.e. on any
+              reconnect after the first)
+{% enddoc %}
+{% liquid
+  assign channel = context.params.channel | default: 'default'
+  assign since = context.headers.HTTP_LAST_EVENT_ID | default: context.params.since
+
+  function events = 'modules/sse/queries/events/search', channel: channel, since: since, limit: 100
+%}
+retry: 1000
+{% for event in events %}
+event: {{ event.event }}
+id: {{ event.created_at }}
+data: {{ event.data }}
+
+{% endfor %}
+: ping
+

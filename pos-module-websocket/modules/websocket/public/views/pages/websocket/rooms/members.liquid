@@ -1,0 +1,30 @@
+---
+slug: websocket/rooms/members
+method: post
+format: json
+layout: ''
+---
+{% doc %}
+  Adds a user to a private room's member list — an invite. Body params:
+  room_id, user_id. The caller must already be authorized for room_id
+  themselves (the creator, or an existing member, or anyone at all if the
+  room happens to be public) — otherwise anyone could add themselves to a
+  private room they were never invited to.
+{% enddoc %}
+{% liquid
+  if context.current_user == blank
+    print '{"ok":false,"error":"unauthorized"}'
+    return
+  endif
+
+  assign room_id = context.params.room_id
+  function caller_authorized = 'modules/websocket/queries/rooms/authorized', room_id: room_id, user_id: context.current_user.id
+
+  unless caller_authorized
+    print '{"ok":false,"error":"unauthorized"}'
+    return
+  endunless
+
+  function result = 'modules/websocket/commands/rooms/members/add', room_id: room_id, user_id: context.params.user_id
+%}
+{% if result.valid %}{"ok":true}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}

@@ -1,0 +1,22 @@
+mutation (
+  $channel: String!
+  $event: String!
+  $data: String!
+) {
+  record: record_create(
+    record: {
+      table: "modules/sse/sse_event"
+      properties: [
+        { name: "channel", value: $channel }
+        { name: "event", value: $event }
+        { name: "data", value: $data }
+      ]
+    }
+  ) {
+    id
+    created_at
+    channel: property(name: "channel")
+    event: property(name: "event")
+    data: property(name: "data")
+  }
+}

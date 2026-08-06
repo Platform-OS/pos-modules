@@ -1,0 +1,75 @@
+---
+metadata:
+  name: Websocket Init
+  params:
+    websocket_url: "/websocket"
+---
+{% doc %}
+  Sets up window.pos.modules.websocket, a thin generalized wrapper around
+  @rails/actioncable (loaded directly from a CDN as an ES module, the same
+  way pos-module-chat does it — no npm bundling required). Render this once
+  per page, in <head> or just before </body>.
+
+  API:
+    window.pos.modules.websocket.subscribe(roomId, {received, connected, disconnected, rejected})
+    window.pos.modules.websocket.send(roomId, payload)
+    window.pos.modules.websocket.unsubscribe(roomId)
+
+  Unlike pos-module-chat's JS (one hardcoded subscription per file), this
+  keys subscriptions by room_id so a single page can hold several concurrent
+  room subscriptions at once.
+{% enddoc %}
+{% liquid
+  assign websocket_url = websocket_url | default: '/websocket'
+%}
+<script type="module">
+  import { createConsumer } from "https://unpkg.com/@rails/actioncable@8.0.100/app/assets/javascripts/actioncable.esm.js";
+
+  if (!window.pos) window.pos = {};
+  if (!window.pos.modules) window.pos.modules = {};
+  if (!window.pos.modules.active) window.pos.modules.active = {};
+
+  var csrfToken = '{{ context.authenticity_token }}';
+  var consumer = null;
+  var subscriptions = {};
+
+  function getConsumer() {
+    if (!consumer) {
+      consumer = createConsumer('{{ websocket_url }}?authenticity_token=' + encodeURIComponent(csrfToken));
+    }
+    return consumer;
+  }
+
+  window.pos.modules.websocket = {
+    subscribe: function(roomId, callbacks) {
+      callbacks = callbacks || {};
+      var subscription = getConsumer().subscriptions.create(
+        { channel: 'pos_websocket', room_id: roomId },
+        {
+          received: function(data) { if (callbacks.received) callbacks.received(data); },
+          connected: function() { if (callbacks.connected) callbacks.connected(); },
+          disconnected: function() { if (callbacks.disconnected) callbacks.disconnected(); },
+          rejected: function() { if (callbacks.rejected) callbacks.rejected(); }
+        }
+      );
+      subscriptions[roomId] = subscription;
+      return subscription;
+    },
+
+    send: function(roomId, payload) {
+      var subscription = subscriptions[roomId];
+      if (!subscription) return false;
+      subscription.send(Object.assign({}, payload, { room_id: roomId }));
+      return true;
+    },
+
+    unsubscribe: function(roomId) {
+      var subscription = subscriptions[roomId];
+      if (!subscription) return;
+      subscription.unsubscribe();
+      delete subscriptions[roomId];
+    }
+  };
+
+  window.pos.modules.active.websocket = window.pos.modules.websocket;
+</script>

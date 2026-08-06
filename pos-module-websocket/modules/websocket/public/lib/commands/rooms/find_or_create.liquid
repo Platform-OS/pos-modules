@@ -1,0 +1,38 @@
+{% doc %}
+  Registers a room if it doesn't exist yet; idempotently returns the
+  existing one otherwise (the `public`/`created_by` args are ignored on an
+  existing room — the room's own visibility can't be changed by re-calling
+  this). Private rooms (the default) automatically get `created_by` added
+  as their first member; public rooms don't need a member list at all,
+  since subscribed/receive let any logged-in user in regardless.
+
+  @param {string} room_id
+  @param {boolean} [public] - default false (private)
+  @param {string} created_by - user_id of the room's creator
+  @returns {object} The room record (with .valid and .errors on failure)
+{% enddoc %}
+{% liquid
+  function object = 'modules/websocket/commands/rooms/find_or_create/build', room_id: room_id, public: public, created_by: created_by
+  function object = 'modules/websocket/commands/rooms/find_or_create/check', object: object
+
+  if object.valid
+    function existing = 'modules/websocket/queries/rooms/find', room_id: object.room_id
+
+    if existing != blank
+      assign existing.valid = true
+      return existing
+    endif
+
+    graphql room = 'modules/websocket/rooms/create', room_id: object.room_id, public: object.public, created_by: object.created_by
+    assign room = room.record
+    assign object = object | hash_merge: room
+
+    unless object.public
+      function _ = 'modules/websocket/commands/rooms/members/add', room_id: object.room_id, user_id: object.created_by
+    endunless
+
+    return object
+  endif
+
+  return object
+%}

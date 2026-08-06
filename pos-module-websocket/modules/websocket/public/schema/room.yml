@@ -1,0 +1,8 @@
+name: room
+properties:
+  - name: room_id
+    type: string
+  - name: public
+    type: boolean
+  - name: created_by
+    type: string

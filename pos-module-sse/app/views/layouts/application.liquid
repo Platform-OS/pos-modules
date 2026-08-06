@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="pos-app" lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSE Demo</title>
+  {% render 'modules/common-styling/init', reset: true %}
+  <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
+  <link rel="stylesheet" href="{{ 'style/app.css' | asset_url }}">
+  {% render 'modules/sse/init' %}
+</head>
+<body>
+  <main class="app-page">
+    <nav class="app-nav">
+      <a href="/" class="app-nav-brand">SSE Demo</a>
+      {% if context.current_user %}
+        <div class="app-nav-user">
+          {% render 'modules/common-styling/user/avatar', size: 'xs', name: context.current_user.email, image_src: '' %}
+          <span class="pos-supplementary">{{ context.current_user.email }}</span>
+        </div>
+        <form method="post" action="/sessions" style="display:inline">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="_method" value="delete">
+          <button type="submit" class="pos-button pos-button-small">Log out</button>
+        </form>
+      {% else %}
+        <a href="/sessions/new" class="app-nav-link">Log in</a>
+      {% endif %}
+    </nav>
+    {{ content_for_layout }}
+  </main>
+</body>
+</html>

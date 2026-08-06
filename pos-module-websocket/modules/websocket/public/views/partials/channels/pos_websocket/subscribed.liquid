@@ -1,0 +1,36 @@
+{% doc %}
+  Authorization gate for the module's single generic ActionCable channel,
+  `pos_websocket`. Must echo the literal string 'true' or 'false' — this is
+  platformOS's native WebSocket convention (see
+  https://documentation.platformos.com/use-cases/using-websockets), not
+  something this module invents.
+
+  Private by default. A room only becomes joinable once something has
+  called commands/rooms/find_or_create for it — until then nobody can join,
+  including its would-be creator's own next request racing against
+  itself. Once registered:
+    - public rooms  (public: true)  — any logged-in user may join
+    - private rooms (public: false) — only registered members (the creator,
+      added automatically, plus anyone added via commands/rooms/members/add)
+  See modules/websocket/lib/queries/rooms/authorized.liquid for the actual
+  check (shared with receive.liquid so the two can't drift apart).
+
+  Apps needing a different policy entirely should override this file — copy
+  it to app/modules/websocket/public/views/partials/channels/pos_websocket/subscribed.liquid
+  per the Module Override System.
+{% enddoc %}
+{% liquid
+  assign room_id = context.params.room_id
+
+  if context.current_user == blank
+    echo 'false'
+  else
+    function authorized = 'modules/websocket/queries/rooms/authorized', room_id: room_id, user_id: context.current_user.id
+
+    if authorized
+      echo 'true'
+    else
+      echo 'false'
+    endif
+  endif
+%}

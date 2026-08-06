@@ -1,0 +1,10 @@
+{% doc %}
+  @param {string} room_id
+  @param {boolean} [public] - default false (private)
+  @param {string} created_by - user_id of the room's creator
+{% enddoc %}
+{% liquid
+  assign public = public | default: false
+  assign object = { "room_id": room_id, "public": public, "created_by": created_by }
+  return object
+%}

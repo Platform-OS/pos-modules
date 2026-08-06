@@ -1,0 +1,9 @@
+{% doc %}
+  @param {string} room_id
+  @returns {object|null} {id, created_at, room_id, public, created_by}, or null if unregistered
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/websocket/rooms/find', room_id: room_id
+  assign result = r.records.results | first
+  return result
+%}

@@ -1,0 +1,21 @@
+{% doc %}
+  @param {string} channel - Channel name to filter by
+  @param {string} [since] - ISO8601 timestamp (typically the last received
+    SSE `id:` / a record's `created_at`); when given, returns only events
+    created after it, oldest first — the resume-after-reconnect path.
+  @param {number} [limit] - Max events to return (default: 50)
+  @returns {object[]} Events ordered oldest-first: [{id, created_at, channel, event, data}]
+{% enddoc %}
+{% liquid
+  assign limit = limit | default: 50
+
+  if since != blank
+    graphql r = 'modules/sse/events/search', channel: channel, since: since, limit: limit, order: 'ASC'
+    assign results = r.records.results
+  else
+    graphql r = 'modules/sse/events/search', channel: channel, since: null, limit: limit, order: 'DESC'
+    assign results = r.records.results | reverse
+  endif
+
+  return results
+%}

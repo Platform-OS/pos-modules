@@ -1,0 +1,29 @@
+{% doc %}
+  Appends an event to `channel`'s log and publishes `sse_event_published` for
+  server-side consumers. There is no server push to already-open readers —
+  see modules/sse/README.md for why — they pick this up the next time their
+  browser's EventSource reconnects to views/pages/sse/stream.liquid, which
+  happens roughly every second by design.
+
+  @param {string} channel - Channel name
+  @param {string} [event] - Event type name (default: "message")
+  @param {*} data - Arbitrary JSON-serializable payload
+  @returns {object} Created event record (with .valid and .errors on failure)
+{% enddoc %}
+{% liquid
+  function object = 'modules/sse/commands/events/publish/build', channel: channel, event: event, data: data
+  function object = 'modules/sse/commands/events/publish/check', object: object
+
+  if object.valid
+    graphql r = 'modules/sse/events/create', channel: object.channel, event: object.event, data: object.data
+    assign record = r.record
+    assign object = object | hash_merge: record
+
+    assign event_payload = { "channel": object.channel, "event": object.event, "id": object.id, "created_at": object.created_at }
+    function _ = 'modules/core/commands/events/publish', type: 'sse_event_published', object: event_payload, delay: null, max_attempts: null
+
+    return object
+  endif
+
+  return object
+%}

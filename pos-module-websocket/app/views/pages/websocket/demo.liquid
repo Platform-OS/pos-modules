@@ -1,0 +1,66 @@
+---
+slug: websocket/demo
+method: get
+layout: application
+---
+{% liquid
+  if context.current_user == blank
+    redirect_to '/sessions/new'
+    return
+  endif
+
+  assign room = context.params.room | default: 'lobby'
+  assign room_id = 'demo-' | append: room
+%}
+<section class="pos-card">
+  <h1 class="pos-heading-3">Room: {{ room }}</h1>
+  <p id="pos-ws-status" class="pos-supplementary">Connecting…</p>
+
+  <ul id="pos-ws-messages"></ul>
+
+  <form id="pos-ws-form" class="pos-form pos-form-simple">
+    <fieldset>
+      <label for="ws-text" class="pos-visually-hidden">Message</label>
+      <input type="text" id="ws-text" placeholder="Say something…" class="pos-form-input" autocomplete="off">
+    </fieldset>
+    <fieldset class="pos-form-actions">
+      <button type="submit" class="pos-button pos-button-primary">Send</button>
+    </fieldset>
+  </form>
+
+  <p><a href="/">Leave room</a></p>
+</section>
+
+<script type="module">
+  (function() {
+    var roomId = {{ room_id | json }};
+    var senderName = {{ context.current_user.email | json }};
+    var status = document.getElementById('pos-ws-status');
+    var list = document.getElementById('pos-ws-messages');
+    var form = document.getElementById('pos-ws-form');
+    var input = document.getElementById('ws-text');
+
+    function appendMessage(data) {
+      var li = document.createElement('li');
+      if (data.sender_name === senderName) li.className = 'pos-ws-message-you';
+      li.textContent = (data.sender_name || 'Someone') + ': ' + data.text;
+      list.appendChild(li);
+      list.scrollTop = list.scrollHeight;
+    }
+
+    window.pos.modules.active.websocket.subscribe(roomId, {
+      connected: function() { status.textContent = 'Connected to "' + {{ room | json }} + '".'; },
+      disconnected: function() { status.textContent = 'Disconnected.'; },
+      rejected: function() { status.textContent = 'Could not join this room — it may be private and you\'re not a member.'; },
+      received: function(data) { appendMessage(data); }
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var text = input.value.trim();
+      if (!text) return;
+      window.pos.modules.active.websocket.send(roomId, { text: text, sender_name: senderName });
+      input.value = '';
+    });
+  })();
+</script>

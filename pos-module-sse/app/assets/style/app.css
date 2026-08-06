@@ -1,0 +1,88 @@
+/*
+  styling for the sse demo app, mirroring the layout conventions used in
+  pos-module-push-notifications/app (pos-app shell, fixed-width page area
+  with a top nav)
+
+  page background and font
+  page
+  activity feed
+*/
+
+
+
+/* page background and font
+============================================================================ */
+.pos-app body {
+  min-height: 100vh;
+  padding: 0;
+
+  background-color: var(--pos-color-page-background);
+}
+
+
+
+/* page
+============================================================================ */
+.app-page {
+  width: 640px;
+  max-width: 100%;
+  padding: var(--pos-padding-page);
+  margin-inline: auto;
+}
+
+.app-nav {
+  padding-block-end: var(--pos-padding-page);
+  display: flex;
+  align-items: center;
+  gap: var(--pos-gap-button-button);
+}
+
+.app-nav-brand {
+  margin-inline-end: auto;
+
+  font-weight: 600;
+}
+
+.app-nav-user {
+  display: flex;
+  align-items: center;
+  gap: .5em;
+}
+
+.app-nav-link {
+  height: var(--pos-height-button);
+  padding-inline: var(--pos-padding-button);
+  display: inline-flex;
+  align-items: center;
+
+  font-weight: 500;
+}
+
+.app-nav-link:hover {
+  color: var(--pos-color-highlight-text);
+}
+
+.app-page .pos-card + .pos-card {
+  margin-block-start: var(--pos-gap-section-section);
+}
+
+
+
+/* activity feed
+============================================================================ */
+#pos-sse-feed {
+  max-height: 20rem;
+  overflow-y: auto;
+
+  display: flex;
+  flex-direction: column-reverse;
+  gap: .5em;
+}
+
+#pos-sse-feed li {
+  list-style: none;
+}
+
+#pos-sse-status {
+  margin-block-end: 1em;
+}
