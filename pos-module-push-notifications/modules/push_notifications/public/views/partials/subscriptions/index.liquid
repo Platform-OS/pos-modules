@@ -7,7 +7,7 @@ metadata:
 {% if subscriptions == blank %}
   <p class="pos-supplementary">No active push subscriptions.</p>
 {% else %}
-  <section class="pos-table" id="pos-push-subscriptions-table">
+  <section class="pos-table pos-push-subscriptions" id="pos-push-subscriptions-table">
     <header>
       <div>Browser</div>
       <div>Created</div>
@@ -38,42 +38,4 @@ metadata:
       {% endfor %}
     </div>
   </section>
-  <script>
-    (function() {
-      var container = document.getElementById('pos-push-subscriptions-table');
-      if (!container) return;
-
-      (async function() {
-        var registration = null;
-        try {
-          registration = await navigator.serviceWorker.getRegistration();
-          if (registration) registration = await navigator.serviceWorker.ready;
-        } catch (e) {}
-
-        var localEndpoint = null;
-        if (registration) {
-          try {
-            var localSub = await registration.pushManager.getSubscription();
-            localEndpoint = localSub ? localSub.endpoint : null;
-          } catch (e) {}
-        }
-        if (!localEndpoint) return;
-
-        var serverSubscriptions = [];
-        try {
-          var resp = await fetch('/push_notifications/subscriptions');
-          serverSubscriptions = resp.ok ? await resp.json() : [];
-        } catch (e) {}
-
-        var match = serverSubscriptions.find(function(s) { return s.endpoint === localEndpoint; });
-        if (!match) return;
-
-        var row = container.querySelector('[data-pos-push-subscription-id="' + match.id + '"]');
-        var cell = row && row.querySelector('.pos-push-subscription-device');
-        if (cell) {
-          cell.innerHTML = '<span class="pos-tag pos-tag-confirmation">This browser</span>';
-        }
-      })();
-    })();
-  </script>
 {% endif %}
