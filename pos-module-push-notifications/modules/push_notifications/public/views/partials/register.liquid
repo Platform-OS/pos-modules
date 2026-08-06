@@ -90,10 +90,10 @@
           } catch (e) {}
         }
 
-        if (!localEndpoint) {
+        {% comment %} if (!localEndpoint) {
           setUnsubscribed();
           return;
-        }
+        } {% endcomment %}
 
         var serverSubscriptions = [];
         try {
@@ -109,7 +109,7 @@
         }
       }
 
-      refreshState();
+      {% comment %} refreshState(); {% endcomment %}
     })();
   </script>
 </div>

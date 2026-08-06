@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
   <link rel="stylesheet" href="{{ 'style/app.css' | asset_url }}">
   {% liquid
-    assign sw_path = '/sw.js'
+    assign sw_path = '/sw.js?a'
   %}
   {% render 'modules/push_notifications/init', service_worker_path: sw_path %}
 </head>

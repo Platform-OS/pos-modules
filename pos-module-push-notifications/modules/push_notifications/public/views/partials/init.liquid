@@ -117,13 +117,13 @@ metadata:
       }
     };
 
-    window.pos.modules.active.pushNotifications = new window.pos.modules.pushNotifications({
+    {% comment %} window.pos.modules.active.pushNotifications = new window.pos.modules.pushNotifications({
       subscribeUrl: '{{ subscribe_url }}',
       destroyUrl: '{{ destroy_url }}',
       serviceWorkerPath: '{{ service_worker_path }}',
       rotateUrl: '{{ rotate_url }}',
       vapidPublicKey: '{{ vapid_public_key }}',
       csrfToken: '{{ context.authenticity_token }}'
-    });
+    }); {% endcomment %}
   })();
 </script>

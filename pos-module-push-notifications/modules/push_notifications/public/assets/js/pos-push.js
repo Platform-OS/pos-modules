@@ -24,12 +24,15 @@ pos.modules.push = function(settings){
   module.settings.destroyUrl = settings.destroyUrl || '/push_notifications/subscriptions/destroy';
   // api endpoint that handles rotating VAPID keys (string)
   module.settings.rotateUrl = settings.rotateUrl || '/push_notifications/subscriptions/rotate';
-  // path to the service worker file (string)
-  module.settings.serviceWorkerPath = settings.serviceWorkerPath || '/sw.js';
   // VAPID public key (string)
   module.settings.vapidPublicKey = settings.vapidPublicKey || '';
+
+  // service worker scope (object)
+  module.settings.serviceWorker = {};
+  // path to the service worker file (string)
+  module.settings.serviceWorker.path = settings.serviceWorkerPath || '/sw.js';
   // service worker registration object (object)
-  module.settings.serviceWorkerRegistration = null;
+  module.settings.serviceWorker.registration = null;
 
   // debug mode enabled (bool)
   module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : true;
@@ -40,32 +43,38 @@ pos.modules.push = function(settings){
   // purpose:		initializes the component
   // ------------------------------------------------------------------------
   module.init = () => {
+    module.serviceWorker.register();
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing push module', module.settings.container);
   };
 
 
+  // service worker related
+  // ------------------------------------------------------------------------
+  module.serviceWorker = {};
+
+  
   // purpose:		registers service worker
   // returns:   registration object (promise)
   // ------------------------------------------------------------------------
-  module.register = async () => {
+  module.serviceWorker.register = async () => {
     if(!('serviceWorker' in navigator)){
       pos.modules.debug(module.settings.debug, module.settings.id, 'Service Worker not supported, aborting', module.settings.container);
 
       return null;
     }
 
-    let sep = module.settings.serviceWorkerPath.indexOf('?') === -1 ? '?' : '&';
-    let url = module.settings.serviceWorkerPath + sep + new URLSearchParams({
+    let sep = module.settings.serviceWorker.path.indexOf('?') === -1 ? '?' : '&';
+    let url = module.settings.serviceWorker.path + sep + new URLSearchParams({
       vapid: module.settings.vapidPublicKey,
       rotate_url: module.settings.rotateUrl
     }).toString();
-    
-    module.settings.serviceWorkerRegistration = await navigator.serviceWorker.register(url);
 
-    pos.modules.debug(module.settings.debug, module.settings.id, 'Service worker registered', module.settings.serviceWorkerRegistration);
+    module.settings.serviceWorker.registration = await navigator.serviceWorker.register(url);
 
-    return module.settings.serviceWorkerRegistration;
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Service worker registered', module.settings.serviceWorker.registration);
+
+    return module.settings.serviceWorker.registration;
   };
 
 
