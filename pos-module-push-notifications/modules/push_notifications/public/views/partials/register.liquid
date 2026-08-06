@@ -3,12 +3,17 @@
   Requires modules/push_notifications/init to be rendered in the page <head>.
 {% enddoc %}
 
-<div class="pos-push" id="pos-push-register">
+<div class="pos-push">
   <button
     type="button"
-    class="pos-push-subscribe-btn pos-button pos-button-primary"
-    disabled
+    class="pos-push-toggle-subscribe pos-button pos-button-primary"
   >
-    Subscribe to Notifications
+    {{ 'modules/push_notifications/toggle.subscribe' | t }}
+  </button>
+  <button
+    type="button"
+    class="pos-push-toggle-unsubscribe pos-button"
+  >
+    {{ 'modules/push_notifications/toggle.unsubscribe' | t }}
   </button>
 </div>

@@ -1,0 +1,25 @@
+/*
+  styling for the push subscriptions ui
+
+  toggle button
+*/
+
+
+
+/* toggle button
+============================================================================ */
+.pos-push {
+  min-height: var(--pos-height-button);
+}
+
+.pos-push button {
+  display: none;
+}
+
+.pos-push-active.pos-push-subscribed .pos-push-toggle-unsubscribe {
+  display: inline-flex;
+}
+
+.pos-push-active:not(.pos-push-subscribed) .pos-push-toggle-subscribe {
+  display: inline-flex;
+}

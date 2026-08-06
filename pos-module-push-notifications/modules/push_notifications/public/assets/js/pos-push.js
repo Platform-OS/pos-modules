@@ -4,8 +4,8 @@
   and highlighting the current browser's row in a subscriptions list
 
   usage:
-    new pos.modules.push({ container });
-    new pos.modules.pushSubscriptionsList({ container });
+    new pos.modules.push({ settings });
+    new pos.modules.pushSubscriptionsList({ settings });
 */
 
 
@@ -27,10 +27,7 @@ window.pos.modules.push = function(userSettings){
   module.settings.container = userSettings.container;
   // unique id for the module (string)
   module.settings.id = userSettings.id || module.settings.container.id || 'pos-push';
-  // selector, relative to the container, for the subscribe/unsubscribe toggle button (string)
-  module.settings.buttonSelector = userSettings.buttonSelector || '.pos-push-subscribe-btn';
-  // toggle button (dom node)
-  module.settings.button = module.settings.container.querySelector(module.settings.buttonSelector);
+
   // api endpoint that handles listing and creating subscriptions (string)
   module.settings.subscribeUrl = userSettings.subscribeUrl || '/push_notifications/subscriptions';
   // api endpoint that handles deleting a subscription (string)
@@ -41,8 +38,20 @@ window.pos.modules.push = function(userSettings){
   module.settings.vapidPublicKey = userSettings.vapidPublicKey || '';
   // csrf token sent with subscribe/unsubscribe requests (string)
   module.settings.csrfToken = userSettings.csrfToken || window.pos.csrfToken || '';
-  // to enable debug mode (bool)
-  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
+
+  // class to add if the user already subscribed (string)
+  module.settings.subscribedClass = 'pos-push-subscribed';
+  // class to add after the component is ready (string)
+  module.settings.activeClass = 'pos-push-active';
+  // class to add to the container when the permission were rejected (string)
+  module.settings.blockedClass = 'pos-push-blocked';
+
+  // toggle subscription button scope (object)
+  module.settings.toggle = {};
+  // subscribe button (dom node)
+  module.settings.toggle.subscribe = userSettings.toggle?.subscribe || module.settings.container.querySelector('.pos-push-toggle-subscribe');
+  // unsubscribe button (dom node)
+  module.settings.toggle.unsubscribe = userSettings.toggle?.unsubscribe || module.settings.container.querySelector('.pos-push-toggle-unsubscribe');
 
   // service worker scope (object)
   module.settings.serviceWorker = {};
@@ -51,20 +60,34 @@ window.pos.modules.push = function(userSettings){
   // service worker registration object (object)
   module.settings.serviceWorker.registration = null;
 
+  // if there is an active subscription, this holds it's ID (string)
+  module.settings.subscriptionId = null;
+
+  // to enable debug mode (bool)
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+
 
 
   // purpose:		initializes the component
   // ------------------------------------------------------------------------
-  module.init = () => {
-    pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing push module', module.settings.container);
+  module.init = async () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing push toggle button', module.settings.container);
 
     module.serviceWorker.register();
 
-    if(module.settings.button){
-      module.settings.button.addEventListener('click', module.handleButtonClick);
-
-      module.refreshState();
+    if(module.settings.toggle.subscribe){
+      module.settings.toggle.subscribe.addEventListener('click', module.subscribe);
     }
+
+    if(module.settings.toggle.unsubscribe){
+      module.settings.toggle.unsubscribe.addEventListener('click', () => module.unsubscribe(module.settings.subscriptionId));
+    }
+
+    await module.setUIState();
+
+    module.settings.container.classList.add(module.settings.activeClass);
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Push toggle button activated', module.settings.container);
   };
 
 
@@ -134,9 +157,13 @@ window.pos.modules.push = function(userSettings){
 
     const result = await response.json();
 
+    module.settings.subscriptionId = response.id;
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'Subscribed to push notifications', result);
     document.dispatchEvent(new CustomEvent('pos-push-subscribed', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, subscription: result } }));
     pos.modules.debug(module.settings.debug, 'event', 'pos-push-subscribed', { target: module.settings.container, id: module.settings.id, subscription: result });
+
+    module.setUIState();
 
     return result;
   };
@@ -163,8 +190,10 @@ window.pos.modules.push = function(userSettings){
     } catch(e) {}
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Unsubscribed from push notifications', id);
-    document.dispatchEvent(new CustomEvent('pos-push-unsubscribed', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, subscriptionId: id } }));
-    pos.modules.debug(module.settings.debug, 'event', 'pos-push-unsubscribed', { target: module.settings.container, id: module.settings.id, subscriptionId: id });
+    document.dispatchEvent(new CustomEvent('pos-push-unsubscribed', { bubbles: true, detail: { target: module.settings.container, id: module.settings.id, subscription: { id } } }));
+    pos.modules.debug(module.settings.debug, 'event', 'pos-push-unsubscribed', { target: module.settings.container, id: module.settings.id, subscription: { id } });
+
+    module.setUIState();
   };
 
 
@@ -180,9 +209,9 @@ window.pos.modules.push = function(userSettings){
 
   // purpose:		syncs the toggle button with the browser permission and server subscriptions
   // ------------------------------------------------------------------------
-  module.refreshState = async () => {
+  module.setUIState = async () => {
     if(module.getPermissionState() === 'denied'){
-      module.button.setBlocked();
+      module.settings.container.classList.add(module.settings.blockedClass);
 
       return;
     }
@@ -193,67 +222,12 @@ window.pos.modules.push = function(userSettings){
     const match = serverSubscriptions.find(subscription => subscription.endpoint === localEndpoint);
 
     if(match){
-      module.button.setSubscribed(match.id);
+      module.settings.container.classList.add(module.settings.subscribedClass);
+      module.settings.subscriptionId = match.id;
     } else {
-      module.button.setUnsubscribed();
+      module.settings.container.classList.remove(module.settings.subscribedClass);
+      module.settings.subscriptionId = null
     }
-  };
-
-
-  // toggle button related
-  // ------------------------------------------------------------------------
-  module.button = {};
-
-
-  // purpose:		reacts to the toggle button being clicked
-  // ------------------------------------------------------------------------
-  module.handleButtonClick = async () => {
-    module.settings.button.disabled = true;
-
-    if(module.settings.button.dataset.subscriptionId){
-      await module.unsubscribe(module.settings.button.dataset.subscriptionId);
-
-      module.button.setUnsubscribed();
-    } else {
-      const result = await module.subscribe();
-
-      if(result){
-        module.button.setSubscribed(result.id);
-      } else {
-        module.button.setUnsubscribed();
-      }
-    }
-  };
-
-
-  // purpose:		updates the button to reflect an active subscription
-  // arguments: id of the active subscription (string)
-  // ------------------------------------------------------------------------
-  module.button.setSubscribed = (id) => {
-    module.settings.button.textContent = 'Unsubscribe';
-    module.settings.button.className = 'pos-button';
-    module.settings.button.disabled = false;
-    module.settings.button.dataset.subscriptionId = id;
-  };
-
-
-  // purpose:		updates the button to reflect no active subscription
-  // ------------------------------------------------------------------------
-  module.button.setUnsubscribed = () => {
-    module.settings.button.textContent = 'Subscribe to Notifications';
-    module.settings.button.className = 'pos-button pos-button-primary';
-    module.settings.button.disabled = false;
-    delete module.settings.button.dataset.subscriptionId;
-  };
-
-
-  // purpose:		updates the button to reflect notifications being blocked by the browser
-  // ------------------------------------------------------------------------
-  module.button.setBlocked = () => {
-    module.settings.button.textContent = 'Notifications blocked';
-    module.settings.button.className = 'pos-button';
-    module.settings.button.disabled = true;
-    delete module.settings.button.dataset.subscriptionId;
   };
 
 

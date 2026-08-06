@@ -1,0 +1,5 @@
+en:
+  toggle:
+    subscribe: Turn notifications on
+    unsubscribe: Turn notifications off
+    blocked: Notifications are not available for current browser. Please check your browser settings and try again.

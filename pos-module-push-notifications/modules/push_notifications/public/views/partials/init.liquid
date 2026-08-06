@@ -15,6 +15,8 @@ metadata:
   assign vapid_public_key = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
 %}
 
+<link rel="stylesheet" href="{{ 'modules/push_notifications/style/pos-push.css' | asset_url }}">
+
 <script>
   /* selectively load modules */
   document.addEventListener('DOMContentLoaded', () => {
