@@ -15,6 +15,29 @@ metadata:
   assign service_worker_path = service_worker_path | default: default_service_worker_path
   assign vapid_public_key = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
 %}
+
+<script src="" defer></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    if(document.querySelector('.pos-push')){
+      import('{{ 'modules/push_notifications/js/pos-push.js' | asset_url }}').then(module => {
+        document.querySelectorAll('.pos-push').forEach((element, index) => {
+          pos.modules.active[element.id || `pos-push-${index}`] = new pos.modules.push({
+            container: element,
+            id: element.id || `pos-push-${index}`,
+            subscribeUrl: '{{ subscribe_url }}',
+            destroyUrl: '{{ destroy_url }}',
+            serviceWorkerPath: '{{ service_worker_path }}',
+            rotateUrl: '{{ rotate_url }}',
+            vapidPublicKey: '{{ vapid_public_key }}',
+            csrfToken: '{{ context.authenticity_token }}'
+          });
+        });
+      });
+    }
+  });
+</script>
+
 <script>
   (function() {
     if (!window.pos) window.pos = {};
