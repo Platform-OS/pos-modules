@@ -3,6 +3,7 @@ slug: push_notifications/demo
 method: post
 layout: application
 ---
+
 {% liquid
   if context.current_user == blank
     redirect_to '/sessions/new'
@@ -26,12 +27,15 @@ layout: application
 
   assign queued = result.queued
 %}
-<section class="pos-card">
-  <h1 class="pos-heading-3">Test Notification Result</h1>
-  <dl>
-    <dt>Recipients</dt><dd>{{ user_ids | size }}</dd>
-    <dt>Queued</dt><dd>{{ queued }}</dd>
-  </dl>
-  <p>Delivery happens asynchronously — check instance logs or the <code>push_notification_sent</code>/<code>push_notification_failed</code>/<code>push_subscription_expired</code> events for actual outcomes.</p>
-  <a href="/">Back</a>
-</section>
+
+<div class="app-container">
+  <section class="pos-card">
+    <h1 class="pos-heading-3">Test Notification Result</h1>
+    <dl>
+      <dt>Recipients</dt><dd>{{ user_ids | size }}</dd>
+      <dt>Queued</dt><dd>{{ queued }}</dd>
+    </dl>
+    <p>Delivery happens asynchronously — check instance logs or the <code>push_notification_sent</code>/<code>push_notification_failed</code>/<code>push_subscription_expired</code> events for actual outcomes.</p>
+    <a href="/">Back</a>
+  </section>
+</div>

@@ -1,118 +1,14 @@
----
-metadata:
-  name: Push Notification Register Button
----
 {% doc %}
   Renders a subscribe/unsubscribe button for push notifications.
   Requires modules/push_notifications/init to be rendered in the page <head>.
 {% enddoc %}
-<div id="pos-push-register">
+
+<div class="pos-push" id="pos-push-register">
   <button
     type="button"
-    id="pos-push-subscribe-btn"
-    class="pos-button pos-button-primary"
+    class="pos-push-subscribe-btn pos-button pos-button-primary"
     disabled
   >
     Subscribe to Notifications
   </button>
-  <script>
-    (function() {
-      var btn = document.getElementById('pos-push-subscribe-btn');
-      if (!btn) return;
-      var pn = window.pos && window.pos.modules && window.pos.modules.active && window.pos.modules.active.pushNotifications;
-      if (!pn) return;
-
-      function setSubscribed(id) {
-        btn.textContent = 'Unsubscribe';
-        btn.className = 'pos-button';
-        btn.disabled = false;
-        btn.onclick = function() { doUnsubscribe(id); };
-      }
-
-      function setUnsubscribed() {
-        btn.textContent = 'Subscribe to Notifications';
-        btn.className = 'pos-button pos-button-primary';
-        btn.disabled = false;
-        btn.onclick = doSubscribe;
-      }
-
-      function setBlocked() {
-        btn.textContent = 'Notifications blocked';
-        btn.className = 'pos-button';
-        btn.disabled = true;
-        btn.onclick = null;
-      }
-
-      async function getReadyRegistration() {
-        var registration = null;
-        try {
-          registration = await navigator.serviceWorker.getRegistration();
-        } catch (e) {}
-        if (!registration) return null;
-        try {
-          return await navigator.serviceWorker.ready;
-        } catch (e) {
-          return registration;
-        }
-      }
-
-      async function doSubscribe() {
-        btn.disabled = true;
-        var result = await pn.subscribe();
-        if (result && result.ok) {
-          window.location.reload();
-        } else {
-          setUnsubscribed();
-        }
-      }
-
-      async function doUnsubscribe(id) {
-        btn.disabled = true;
-        await pn.unsubscribe(id);
-        try {
-          var registration = await getReadyRegistration();
-          var localSub = registration && await registration.pushManager.getSubscription();
-          if (localSub) await localSub.unsubscribe();
-        } catch (e) {}
-        window.location.reload();
-      }
-
-      async function refreshState() {
-        if (pn.getPermissionState() === 'denied') {
-          setBlocked();
-          return;
-        }
-
-        var registration = await getReadyRegistration();
-
-        var localEndpoint = null;
-        if (registration) {
-          try {
-            var localSub = await registration.pushManager.getSubscription();
-            localEndpoint = localSub ? localSub.endpoint : null;
-          } catch (e) {}
-        }
-
-        if (!localEndpoint) {
-          setUnsubscribed();
-          return;
-        }
-
-        var serverSubscriptions = [];
-        try {
-          var resp = await fetch('/push_notifications/subscriptions');
-          serverSubscriptions = resp.ok ? await resp.json() : [];
-        } catch (e) {}
-
-        var match = serverSubscriptions.find(function(s) { return s.endpoint === localEndpoint; });
-        if (match) {
-          setSubscribed(match.id);
-        } else {
-          setUnsubscribed();
-        }
-      }
-
-      refreshState();
-    })();
-  </script>
 </div>
