@@ -1,0 +1,36 @@
+{% doc %}
+  Renders a subscribe/unsubscribe button for push notifications.
+{% enddoc %}
+
+<div class="pos-push-toggle">
+
+  <button
+    type="button"
+    class="pos-push-toggle-subscribe pos-button pos-button-primary"
+  >
+    {{ 'modules/push_notifications/toggle.subscribe' | t }}
+  </button>
+  <button
+    type="button"
+    class="pos-push-toggle-unsubscribe pos-button"
+  >
+    {{ 'modules/push_notifications/toggle.unsubscribe' | t }}
+  </button>
+
+  {% comment %} iOS (Safari, Chrome, Firefox, etc.) {% endcomment %}
+  <div class="pos-push-toggle-instruction" data-os="ios" data-browser="all">
+    {% capture share_icon %}
+      {% render 'modules/common-styling/icon', icon: 'share' %}
+    {% endcapture %}
+    {% capture add_to_home_screen_icon %}
+      {% render 'modules/common-styling/icon', icon: 'addSquare' %}
+    {% endcapture %}
+    {{ 'modules/push_notifications/instructions.ios' | t: share_icon: share_icon, add_to_home_screen_icon: add_to_home_screen_icon | html_safe }}
+  </div>
+
+  {% comment %} macOS Safari (Pre-Sonoma or browsers requiring PWA install for push) {% endcomment %}
+  <div class="pos-push-toggle-instruction" data-os="macos" data-browser="safari">
+    {{ 'modules/push_notifications/instructions.macos.safari' | t }}
+  </div>
+  
+</div>
