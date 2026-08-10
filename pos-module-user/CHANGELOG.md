@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+## v5.3.0
+
+* Every page now sets `layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"` instead of leaving `layout:` unset. This lets a consuming app or module (for example a theme that depends on this module) restyle every built-in page - `/sessions/new`, `/users/new`, `/passwords/*`, 2FA, OAuth - by setting a single `modules/user/LAYOUT` constant, without needing to override any of this module's page files. Falls back to the Instance's actual `default_layout` (via `context.config`, itself unreleased at the time of writing) once available, and to a literal `'application'` on engines that predate `context.config` - existing behavior is unchanged unless `modules/user/LAYOUT` is explicitly set.
+
 ## v5.1.1
 
 * Fix: remove theme_render for can_do_or_unauthorized command

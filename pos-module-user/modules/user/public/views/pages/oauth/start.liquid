@@ -1,6 +1,7 @@
 ---
 method: post
 slug: oauth/:provider/start
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
 ---
 
 {% liquid

@@ -1,6 +1,7 @@
 ---
 method: get
 slug: oauth/:provider/callback
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
 ---
 {% liquid
   # platformos-check-disable ConvertIncludeToRender

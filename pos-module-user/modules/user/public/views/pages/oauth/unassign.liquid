@@ -1,6 +1,7 @@
 ---
 slug: oauth/:provider/unassign
 method: delete
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
 ---
 {% liquid
   function current_user = 'modules/user/queries/user/current'

@@ -1,6 +1,7 @@
 ---
 method: post
 slug: authentication_links
+layout: "{{ context.constants['modules/user/LAYOUT'] | default: context.config.default_layout | default: 'application' }}"
 ---
 {% liquid
   function object = 'modules/user/commands/authentication_links/create', email: context.params.authentication_link.email, host: context.location.host, hcaptcha_params: context.params, valid_for: null
