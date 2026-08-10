@@ -407,7 +407,68 @@ window.pos.modules.push.toggle = function(userSettings){
 // usage:     new pos.modules.pushSubscriptionsList({ container: [dom node] });
 // ************************************************************************
 window.pos.modules.push.list = function(userSettings){
-}
+
+  // cache 'this' value not to be overwritten later
+  const module = this;
+
+  // purpose:		settings that are being used across the module
+  // ------------------------------------------------------------------------
+  module.settings = {};
+  // container element (dom node)
+  module.settings.container = userSettings.container;
+  // unique id for the module (string)
+  module.settings.id = userSettings.id || module.settings.container.id || 'pos-push-subscriptions-list';
+  // selector, relative to a row, for the cell that marks 'this browser' (string)
+  module.settings.deviceSelector = userSettings.deviceSelector || '.pos-push-subscription-device';
+  // api endpoint that handles listing subscriptions (string)
+  module.settings.subscribeUrl = userSettings.subscribeUrl || '/push_notifications/subscriptions';
+
+  // to enable debug mode (bool)
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+
+
+
+  // purpose:		initializes the component
+  // ------------------------------------------------------------------------
+  module.init = async () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing push subscriptions list', module.settings.container);
+
+    const registration = await pos.modules.push.readyRegistration();
+    const localEndpoint = await pos.modules.push.localEndpoint(registration);
+
+    if(!localEndpoint) return;
+
+    const serverSubscriptions = await pos.modules.push.serverSubscriptions(pos.modules.active['pos-push'].settings.subscribeUrl);
+    const match = serverSubscriptions.find(subscription => subscription.endpoint === localEndpoint);
+
+    if(!match){
+      pos.modules.debug(module.settings.debug, module.settings.id, `Couldn't current os/browser subscription on the list`);
+    } else {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Found current os/browser subscription on the list, highlighting', match.id);
+      module.highlightRow(match.id);
+    };
+
+  };
+
+
+  // purpose:		marks a row in the list as belonging to the current browser
+  // arguments: id of the subscription to mark (string)
+  // ------------------------------------------------------------------------
+  module.highlightRow = (id) => {
+    const row = module.settings.container.querySelector(`[data-pos-push-subscription-id="${id}"]`);
+    const cell = row && row.querySelector(module.settings.deviceSelector);
+
+    if(cell){
+      cell.innerHTML = '<span class="pos-tag pos-tag-confirmation">This browser</span>';
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Marked row as this browser', row);
+    }
+  }
+
+
+  module.init();
+  
+};
 
 
 

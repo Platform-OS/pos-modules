@@ -31,7 +31,7 @@ metadata:
             <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
             <input type="hidden" name="id" value="{{ sub.id }}">
             <input type="hidden" name="return_to" value="{{ context.location.pathname }}">
-            <button type="submit" class="pos-button pos-button-small">Delete</button>
+            <button type="submit" class="pos-button pos-button-small pos-button-danger">Delete</button>
           </form>
         </li>
       </ul>
