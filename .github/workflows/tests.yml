@@ -3,12 +3,13 @@ run-name: platform-build ${{ github.event.client_payload.build_id }}
 on:
   push:
     paths-ignore:
-      - "**/.github"
-      - "**/README.md"
+      # Leading "**/" can never match a root-level file: GitHub's "**" matches
+      # zero or more of ANY character, so "**/README.md" expands to "/README.md".
+      - "**README.md"
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Modules to test (comma-separated: chat, common-styling, data-export-api, oauth-facebook, oauth-github, oauth-google, openai, payments, payments-example-gateway, payments-stripe, reports, user or "all")'
+        description: 'Modules to test (comma-separated, e.g. "chat,user,captchas-turnstile") or "all". Testable modules are the keys of module-config in the detect-changes job.'
         required: false
         default: 'all'
         type: string
@@ -26,8 +27,14 @@ jobs:
         uses: fkirc/skip-duplicate-actions@master
         with:
           github_token: ${{ github.token }}
+          # micromatch semantics here (unlike the workflow-level paths-ignore
+          # above): "**/" matches zero or more directories, so this does match
+          # a root-level README.md.
           paths_ignore: '["**/README.md"]'
-          do_not_skip: '["push", "workflow_dispatch"]'
+          # Listing "push" here disabled de-duplication for the trigger that
+          # produces nearly every run, making this job a no-op. Mirrors the
+          # action's own default, pinned explicitly since it tracks @master.
+          do_not_skip: '["workflow_dispatch", "schedule", "merge_group"]'
 
   detect-changes:
     needs: pre_job
@@ -45,6 +52,16 @@ jobs:
           base: ${{ github.event.before }}
           ref: ${{ github.event.after }}
           filters: |
+            captchas:
+              - 'pos-module-captchas/**'
+            captchas-hcaptcha:
+              - 'pos-module-captchas-hcaptcha/**'
+            captchas-recaptcha:
+              - 'pos-module-captchas-recaptcha/**'
+            captchas-recaptcha3:
+              - 'pos-module-captchas-recaptcha3/**'
+            captchas-turnstile:
+              - 'pos-module-captchas-turnstile/**'
             chat:
               - 'pos-module-chat/**'
             common-styling:
@@ -73,9 +90,45 @@ jobs:
       - name: Set matrix for changed modules
         id: set-matrix
         run: |
-          # Define module configurations
+          # Define module configurations.
+          # Playwright suites run through npm scripts; Liquid suites (app/lib/test/**) run
+          # through the tests module with `pos-cli test run ci` - the positional environment
+          # name is ignored because MPKIT_URL/MPKIT_EMAIL/MPKIT_TOKEN in the job env win.
+          # Modules absent from this map have no suite wired up yet (core, push-notifications,
+          # user-invites) or only ship example suites (tests). A paths-filter hit with no
+          # entry here is dropped, so filters and this map must be kept in step.
           cat > /tmp/module-config.json << 'EOF'
           {
+            "captchas": {
+              "module": "captchas",
+              "path": "pos-module-captchas",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli modules install --dev\npos-cli deploy",
+              "test-commands": "pos-cli test run ci"
+            },
+            "captchas-hcaptcha": {
+              "module": "captchas-hcaptcha",
+              "path": "pos-module-captchas-hcaptcha",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli modules install --dev\npos-cli deploy",
+              "test-commands": "pos-cli test run ci"
+            },
+            "captchas-recaptcha": {
+              "module": "captchas-recaptcha",
+              "path": "pos-module-captchas-recaptcha",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli modules install --dev\npos-cli deploy",
+              "test-commands": "pos-cli test run ci"
+            },
+            "captchas-recaptcha3": {
+              "module": "captchas-recaptcha3",
+              "path": "pos-module-captchas-recaptcha3",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli modules install --dev\npos-cli deploy",
+              "test-commands": "pos-cli test run ci"
+            },
+            "captchas-turnstile": {
+              "module": "captchas-turnstile",
+              "path": "pos-module-captchas-turnstile",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli modules install --dev\npos-cli deploy",
+              "test-commands": "pos-cli test run ci"
+            },
             "chat": {
               "module": "chat",
               "path": "pos-module-chat",
@@ -158,8 +211,8 @@ jobs:
             echo "Manual input: $manual_input"
 
             if [ "$manual_input" = "all" ] || [ -z "$manual_input" ]; then
-              # Test all modules
-              modules=$(jq -c '[.chat, ."common-styling", ."data-export-api", ."oauth-facebook", ."oauth-github", ."oauth-google", .openai, .payments, ."payments-stripe", ."payments-example-gateway", .reports, .user]' /tmp/module-config.json)
+              # Test every module in the config - derived, so adding a module needs no edit here
+              modules=$(jq -c '[.[]]' /tmp/module-config.json)
             else
               # Parse comma-separated list, strip pos-module- prefix, and map to configurations
               modules=$(echo "$manual_input" | \
@@ -239,7 +292,7 @@ jobs:
           set -eu
           ${{ matrix.deploy-script }}
 
-      - name: Run Playwright tests
+      - name: Run tests
         shell: sh
         env:
           MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}

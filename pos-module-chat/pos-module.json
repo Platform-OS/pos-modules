@@ -4,8 +4,8 @@
   "version": "2.1.5",
   "dependencies": {
     "core": "^2.1.9",
-    "user": "^5.2.10",
-    "common-styling": "^1.37.30",
-    "push_notifications": "2.0.1"
+    "user": "^5.2.12",
+    "common-styling": "^1.38.5",
+    "push_notifications": "^2.0.1"
   }
 }

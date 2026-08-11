@@ -1,10 +1,10 @@
 {
   "machine_name": "user",
-  "version": "5.2.11",
+  "version": "5.2.12",
   "name": "User",
   "dependencies": {
     "core": "^2.1.9",
-    "common-styling": "^1.11.0"
+    "common-styling": "^1.38.5"
   },
   "devDependencies": {
     "oauth_github": "^0.0.13",
