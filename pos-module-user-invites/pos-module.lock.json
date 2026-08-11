@@ -1,15 +1,13 @@
 {
   "dependencies": {
-    "user": "5.2.8",
-    "common-styling": "1.37.26",
     "core": "2.1.9",
-    "oauth_github": "0.0.12"
+    "user": "5.2.12",
+    "common-styling": "1.38.5"
   },
   "devDependencies": {},
   "registries": {
-    "user": "https://partners.platformos.com",
-    "common-styling": "https://partners.platformos.com",
     "core": "https://partners.platformos.com",
-    "oauth_github": "https://partners.platformos.com"
+    "user": "https://partners.platformos.com",
+    "common-styling": "https://partners.platformos.com"
   }
 }
