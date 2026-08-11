@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "push_notifications": "2.0.0",
+    "push_notifications": "2.0.1",
     "core": "2.1.9",
     "user": "5.2.11",
     "common-styling": "1.38.5"
