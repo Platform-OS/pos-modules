@@ -33,6 +33,20 @@ This command installs the User Module along with its dependencies (such as [pos-
 
 ### Setup
 
+#### Quick start with the `install` generator
+
+The fastest way to wire things up is the bundled `install` generator. It asks which of the steps
+below you want done — layout wiring, the `USER_DEFAULT_ROLE` migration, overriding the RBAC
+permissions file, creating a superadmin — and performs whichever you say yes to:
+
+```bash
+pos-cli generate run modules/user/generators/install
+```
+
+It never writes the superadmin password to a file: that step runs the `user_create` mutation
+directly against the environment you choose. Prefer to do it by hand, or want to understand what
+it's doing under the hood? The manual steps are below.
+
 1.  **Install the module** using the [pos-cli](https://github.com/Platform-OS/pos-cli).
 
 2. Configure the [common-styling](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-common-styling) to include default styles. It is recommended that you familiarize with the common-styling module by reading its README file. At ensures that your [Layout](https://documentation.platformos.com/developer-guide/pages/layouts) includes:
