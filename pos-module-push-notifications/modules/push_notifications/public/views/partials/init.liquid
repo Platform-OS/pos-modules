@@ -1,12 +1,14 @@
----
-metadata:
-  name: Push Notifications Init
-  params:
-    subscribe_url: "/push_notifications/subscriptions"
-    destroy_url: "/push_notifications/subscriptions/destroy"
-    service_worker_path: "" # defaults to /sw.js (root scope; platformOS serves assets/sw-X.js at the domain root)
-    rotate_url: "" # defaults to /push_notifications/subscriptions/rotate
----
+{% doc %}
+  Initializes push notifications module by registering corresponding JavaScript and CSS
+
+  @param {string} subscribe_url - endpoint URL for creating a subscription
+  @param {string} destroy_url - endpoint URL for removing a subscription
+  @param {string} rotate_url - endpoint URL to refresh the subscription
+  @param {string} [service_worker_path] - path to the service worker that handles push notifications
+  @param {string} vapid_public_key - public VAPID key used to sign push notification data
+{% enddoc %}
+
+
 {% liquid
   assign subscribe_url = subscribe_url | default: '/push_notifications/subscriptions'
   assign destroy_url = destroy_url | default: '/push_notifications/subscriptions/destroy'
@@ -22,29 +24,33 @@ metadata:
   document.addEventListener('DOMContentLoaded', () => {
 
     /* subscribe/unsubscribe toggle button */
-    if(document.querySelector('.pos-push')){
+    if(document.querySelector('.pos-push-toggle') || document.querySelector('.pos-push-subscriptions')){
       import('{{ 'modules/push_notifications/js/pos-push.js' | asset_url }}').then(module => {
-        document.querySelectorAll('.pos-push').forEach((element, index) => {
-          window.pos.modules.active[element.id || `pos-push-${index}`] = new window.pos.modules.push({
+        window.pos.modules.active['pos-push'] = new window.pos.modules.push({
+          id: `pos-push`,
+          subscribeUrl: '{{ subscribe_url }}',
+          destroyUrl: '{{ destroy_url }}',
+          serviceWorkerPath: '{{ service_worker_path }}',
+          rotateUrl: '{{ rotate_url }}',
+          vapidPublicKey: '{{ vapid_public_key }}'
+        });
+
+        document.querySelectorAll('.pos-push-toggle').forEach((element, index) => {
+          window.pos.modules.active[element.id || `pos-push-toggle-${index}`] = new window.pos.modules.push.toggle({
             container: element,
-            id: element.id || `pos-push-${index}`,
-            subscribeUrl: '{{ subscribe_url }}',
-            destroyUrl: '{{ destroy_url }}',
-            serviceWorkerPath: '{{ service_worker_path }}',
-            rotateUrl: '{{ rotate_url }}',
-            vapidPublicKey: '{{ vapid_public_key }}'
+            id: element.id || `pos-push-toggle-${index}`
           });
         });
       });
     }
 
     /* subscriptions list, highlights the current browser's row */
-    if(document.querySelector('.pos-push-subscriptions')){
+    if(document.querySelector('.pos-push-list')){
       import('{{ 'modules/push_notifications/js/pos-push.js' | asset_url }}').then(module => {
-        document.querySelectorAll('.pos-push-subscriptions').forEach((element, index) => {
-          window.pos.modules.active[element.id || `pos-push-subscriptions-${index}`] = new window.pos.modules.pushSubscriptionsList({
+        document.querySelectorAll('.pos-push-list').forEach((element, index) => {
+          window.pos.modules.active[element.id || `pos-push-list-${index}`] = new window.pos.modules.push.list({
             container: element,
-            id: element.id || `pos-push-subscriptions-${index}`,
+            id: element.id || `pos-push-list-${index}`,
             subscribeUrl: '{{ subscribe_url }}'
           });
         });

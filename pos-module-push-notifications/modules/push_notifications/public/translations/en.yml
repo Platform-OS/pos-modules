@@ -3,3 +3,15 @@ en:
     subscribe: Turn notifications on
     unsubscribe: Turn notifications off
     blocked: Notifications are not available for current browser. Please check your browser settings and try again.
+  instructions:
+    ios: >-
+      <p>We can send you notifications even when you're away but first you'll need to install the app to your Home Screen.</p>
+      <p>In Safari, tap <strong class="pos-push-toggle-instruction-icon">%{share_icon} Share</strong> → <strong class="pos-push-toggle-instruction-icon">%{add_to_home_screen_icon} Add to Home Screen</strong>, then open the app from your home screen.</p>
+    macos:
+      safari: >-
+        <p>We can send you notifications even when you're away but first you'll need to add this app to your Dock:</p>
+        <p>Click <strong>File</strong> → <strong>Add to Dock</strong>, then launch the app from your Dock.</p>
+  list:
+    heading:
+      browser: Browser
+      created_at: Created

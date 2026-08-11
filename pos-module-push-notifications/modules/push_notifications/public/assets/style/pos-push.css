@@ -2,24 +2,64 @@
   styling for the push subscriptions ui
 
   toggle button
+  instructions
+  list
 */
 
 
 
 /* toggle button
 ============================================================================ */
-.pos-push {
+.pos-push-toggle {
   min-height: var(--pos-height-button);
 }
 
-.pos-push button {
+.pos-push-toggle button {
   display: none;
 }
 
-.pos-push-active.pos-push-subscribed .pos-push-toggle-unsubscribe {
+.pos-push-toggle-active.pos-push-subscribed .pos-push-toggle-unsubscribe {
   display: inline-flex;
 }
 
-.pos-push-active:not(.pos-push-subscribed) .pos-push-toggle-subscribe {
+.pos-push-toggle-active:not(.pos-push-subscribed) .pos-push-toggle-subscribe {
   display: inline-flex;
 }
+
+
+/* instructions
+============================================================================ */
+.pos-push-toggle-instruction {
+  display: none;
+  flex-direction: column;
+  gap: .2em;
+}
+
+  .pos-push-toggle-instruction-active {
+    display: flex;
+  }
+
+  .pos-push-toggle-instruction strong {
+    font-weight: 500;
+    color: var(--pos-color-content-text-prominent);
+  }
+
+  .pos-push-toggle-instruction-icon svg {
+    width: .7lh;
+    height: .7lh;
+    display: inline-block;
+    position: relative;
+    top: 2px;
+  }
+
+
+
+/* list
+============================================================================ */
+.pos-push-list-current-mark {
+  display: none;
+}
+
+  .pos-push-list-current .pos-push-list-current-mark {
+    display: inline-flex;
+  }
