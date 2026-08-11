@@ -68,7 +68,7 @@ window.pos.modules.push = function(userSettings){
   module.settings.requiresInstallForPush = userSettings?.requiresInstallForPush || false;
 
   // to enable debug mode (bool)
-  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
 
 
   // purpose:		initializes the component
@@ -309,7 +309,7 @@ window.pos.modules.push.toggle = function(userSettings){
   module.settings.toggle.unsubscribe = userSettings.toggle?.unsubscribe || module.settings.container.querySelectorAll('.pos-push-toggle-unsubscribe');
 
   // to enable debug mode (bool)
-  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
 
 
 
@@ -424,7 +424,7 @@ window.pos.modules.push.list = function(userSettings){
   module.settings.subscribeUrl = userSettings.subscribeUrl || '/push_notifications/subscriptions';
 
   // to enable debug mode (bool)
-  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
 
 
 

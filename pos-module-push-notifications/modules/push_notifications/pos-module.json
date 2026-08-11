@@ -1,6 +1,6 @@
 {
   "machine_name": "push_notifications",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "name": "Push Notifications",
   "dependencies": {
     "core": "^2.1.9",
