@@ -3,6 +3,7 @@
 
   toggle button
   instructions
+  list
 */
 
 
@@ -49,4 +50,16 @@
     display: inline-block;
     position: relative;
     top: 2px;
+  }
+
+
+
+/* list
+============================================================================ */
+.pos-push-list-current-mark {
+  display: none;
+}
+
+  .pos-push-list-current .pos-push-list-current-mark {
+    display: inline-flex;
   }

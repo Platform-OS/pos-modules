@@ -11,3 +11,7 @@ en:
       safari: >-
         <p>We can send you notifications even when you're away but first you'll need to add this app to your Dock:</p>
         <p>Click <strong>File</strong> → <strong>Add to Dock</strong>, then launch the app from your Dock.</p>
+  list:
+    heading:
+      browser: Browser
+      created_at: Created

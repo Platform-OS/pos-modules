@@ -45,9 +45,9 @@
     }
 
     /* subscriptions list, highlights the current browser's row */
-    if(document.querySelector('.pos-push-subscriptions')){
+    if(document.querySelector('.pos-push-list')){
       import('{{ 'modules/push_notifications/js/pos-push.js' | asset_url }}').then(module => {
-        document.querySelectorAll('.pos-push-subscriptions').forEach((element, index) => {
+        document.querySelectorAll('.pos-push-list').forEach((element, index) => {
           window.pos.modules.active[element.id || `pos-push-list-${index}`] = new window.pos.modules.push.list({
             container: element,
             id: element.id || `pos-push-list-${index}`,

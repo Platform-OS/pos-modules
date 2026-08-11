@@ -418,8 +418,8 @@ window.pos.modules.push.list = function(userSettings){
   module.settings.container = userSettings.container;
   // unique id for the module (string)
   module.settings.id = userSettings.id || module.settings.container.id || 'pos-push-subscriptions-list';
-  // selector, relative to a row, for the cell that marks 'this browser' (string)
-  module.settings.deviceSelector = userSettings.deviceSelector || '.pos-push-subscription-device';
+  // class name to mark the row as corresponding to the current browser that the user is viewing the page from
+  module.settings.currentClass = userSettings.currentClass || 'pos-push-list-current';
   // api endpoint that handles listing subscriptions (string)
   module.settings.subscribeUrl = userSettings.subscribeUrl || '/push_notifications/subscriptions';
 
@@ -440,9 +440,8 @@ window.pos.modules.push.list = function(userSettings){
 
     const serverSubscriptions = await pos.modules.push.serverSubscriptions(pos.modules.active['pos-push'].settings.subscribeUrl);
     const match = serverSubscriptions.find(subscription => subscription.endpoint === localEndpoint);
-
     if(!match){
-      pos.modules.debug(module.settings.debug, module.settings.id, `Couldn't current os/browser subscription on the list`);
+      pos.modules.debug(module.settings.debug, module.settings.id, `Couldn't find current os/browser subscription on the list`);
     } else {
       pos.modules.debug(module.settings.debug, module.settings.id, 'Found current os/browser subscription on the list, highlighting', match.id);
       module.highlightRow(match.id);
@@ -456,10 +455,9 @@ window.pos.modules.push.list = function(userSettings){
   // ------------------------------------------------------------------------
   module.highlightRow = (id) => {
     const row = module.settings.container.querySelector(`[data-pos-push-subscription-id="${id}"]`);
-    const cell = row && row.querySelector(module.settings.deviceSelector);
 
-    if(cell){
-      cell.innerHTML = '<span class="pos-tag pos-tag-confirmation">This browser</span>';
+    if(row){
+      row.classList.add(module.settings.currentClass);
 
       pos.modules.debug(module.settings.debug, module.settings.id, 'Marked row as this browser', row);
     }
