@@ -1,9 +1,18 @@
 # A Native Streaming Gateway for Server-Sent Events
 
-**Status:** Draft — for internal review, not yet scoped against a release
+**Status:** Draft — for internal review, not yet scoped against a release.
+Superseded in part: §3.3.1's bet that Option B was "already built" via
+AnyCable-go's native SSE gateway was confirmed, and shipped — see
+`docs/sse-transport.md` for the resulting contract. `pos-module-sse`, the
+"pending this" module referenced below, no longer exists as a standalone
+module: once the transport was confirmed to reuse this module's channel
+contract unchanged, there was nothing left for it to own, so it was folded
+into `pos-module-websocket` (`subscribeSSE` in `modules/websocket/init`).
+The rest of this document is kept for historical context on why the
+module-space polling fallback existed and what replaced it.
 **Prior art:** the existing `/websocket` ActionCable gateway
 **Scope:** platformOS core application (Rails) — not module-space
-**Related:** `pos-module-websocket`, `pos-module-sse` (Liquid wrappers, pending this)
+**Related:** `pos-module-websocket` (now also covers the SSE transport — see `docs/sse-transport.md`)
 **Date:** 2026-08-05
 
 Liquid pages render once and return — there is no primitive for holding a connection open and writing to it later. That's a hard constraint, not a gap in module code. Real Server-Sent Events, like WebSockets before them, can only be added as a core platform feature. This document specifies what that feature would need to look like, using the WebSocket gateway as the closest working precedent.
@@ -71,6 +80,20 @@ A thread held open for the lifetime of a connection doesn't scale on a normal Pu
 
 Option A is the pragmatic default — it extends something that's already deployed, monitored, and understood, rather than introducing a fourth runtime to operate. Option B is the more scalable answer if SSE traffic ever needs to scale independently of WebSocket traffic.
 
+### 3.3.1 Option B, already built: AnyCable-go's native SSE gateway
+
+Before sketching a bespoke evented process for Option B, check [AnyCable-go's SSE support](https://docs.anycable.io/anycable-go/sse) — it is very likely a closer match than anything custom:
+
+- It's the same Go binary that would front `/websocket` if platformOS's cable gateway is (or moves to) AnyCable-go, not a second runtime — enabled with one flag (`--sse` / `ANYCABLE_SSE=true`), serving a dedicated path (default `/events`, configurable via `--sse_path`).
+- It reuses AnyCable's existing channel/subscription/broadcast model wholesale: clients subscribe via `channel=<Name>`, `identifier=<json>` (parameterized/room channels), or `stream=<name>` / `signed_stream=<name>`, and server-initiated broadcasts reach SSE subscribers through the exact same pub/sub fan-out that already serves WebSocket clients — i.e. `channel_send_message`-style pushes would need no SSE-specific publish path at all.
+- Connection model is evented, not thread-per-connection — it doesn't reintroduce the Option C scaling ceiling.
+- Client side is a plain native `EventSource` (`new EventSource(".../events?channel=ChatChannel")`), matching what `pos-module-sse` already exposes today — no protocol change visible to app code.
+- It has its own reconnect/resume story (message IDs, `history_since` for reliable streams) that can likely replace the module's current `Last-Event-ID`/short-timer polling shim outright, and a `?raw=1` mode that strips protocol envelope events for simpler clients.
+
+**Confirmed: `/websocket` already runs on AnyCable-go**, not vanilla ActionCable/Puma — `pos-module-chat`'s test suite (`tests/pages/channel.ts:30`) documents the `no_confirmation` verdict (a rejected `subscribed.liquid` surfaced as a silently-dropped connection rather than an explicit close frame) as "how AnyCable surfaces" that case, which is AnyCable-go-specific gateway behavior, not stock Rails ActionCable. So this isn't "which of A/B/C do we build" — the process Option B describes is already deployed, monitored, and taking production WebSocket traffic today. Turning on native SSE is a matter of enabling `--sse` on that existing gateway, routing `/sse/:channel` (or reusing `/events` directly) through it, and adding the `subscribed.liquid`-equivalent auth convention from §3.4. Options A and C are moot.
+
+This is still core/infra work, not module-space — the flag, routing, and process config live in platformOS's core deployment, which this repo (`pos-modules`) has no access to or visibility into. Nothing here changes without whoever owns that gateway making the change.
+
 ### 3.4 The Liquid-facing convention
 
 Mirroring the WebSocket shape directly:
@@ -101,16 +124,17 @@ No breaking change to either module's public API is required:
 
 ## 5. Open questions
 
-- **A or B from 3.3?** Depends on expected SSE concurrency relative to existing WebSocket concurrency, and on how much operational appetite there is for a fourth runtime. Worth a load estimate before committing.
 - **Does auth need to survive across hours, not just page-load?** Session/CSRF tokens that expire mid-connection need a refresh path that doesn't require closing the stream — WebSocket connections likely already hit this; whatever answer exists there should transfer directly.
 - **One mutation or two?** Whether `sse_send_message` is genuinely a new mutation or `channel_send_message` gains an "also fan out to any SSE subscribers of this room" behavior — the latter is less API surface, but couples the two transports more tightly at the schema level.
 - **Per-instance connection ceiling?** Every plan in §3.3 still has a maximum concurrent-connections number somewhere; it needs to be measured, published, and enforced with a clear error rather than discovered in production.
 
 ## 6. Effort shape
 
+Since `/websocket` is confirmed already on AnyCable-go (§3.3.1), this is the relevant path — the custom-build sizing from §3.1–3.3 (Options A/C) is superseded and not repeated here.
+
 | Area | Work | Size |
 |---|---|---|
-| Core: streaming endpoint | Controller + pub/sub wiring per 3.1–3.2, on whichever process from 3.3 is chosen | Medium–Large |
-| Core: GraphQL mutation | `sse_send_message` (or extending `channel_send_message`) | Small |
-| Core: infra | Proxy/LB config per 3.5, plus connection-count monitoring | Medium |
+| Core: streaming endpoint | Enable `--sse` on the existing AnyCable-go gateway, route `/sse/:channel` (or expose `/events` directly) | Small |
+| Core: GraphQL mutation | `sse_send_message`, or extend `channel_send_message` to also fan out over AnyCable-go's existing pub/sub | Small |
+| Core: infra | Proxy/LB config per 3.5, plus connection-count monitoring | Small–Medium |
 | Module: pos-module-sse rewrite | Delete schema/commands/queries/stream page; add `subscribed.liquid` convention | Small |

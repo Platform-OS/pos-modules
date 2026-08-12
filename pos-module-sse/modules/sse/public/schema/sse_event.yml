@@ -1,8 +1,0 @@
-name: sse_event
-properties:
-  - name: channel
-    type: string
-  - name: event
-    type: string
-  - name: data
-    type: string

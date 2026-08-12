@@ -1,10 +1,12 @@
 # pos-module-websocket
 
-Generic, reusable WebSocket pub/sub for platformOS. `modules/websocket` is the module. `app/` is a minimal demo ("Live Room") showing how to embed it, built with `user` (auth) and `common-styling` (UI).
+Generic, reusable WebSocket (and SSE) pub/sub for platformOS. `modules/websocket` is the module. `app/` is a minimal demo ("Live Room") showing how to embed it, built with `user` (auth) and `common-styling` (UI).
 
 ## Status
 
 platformOS's WebSocket support is native: the platform runs a gateway at `/websocket`, and Liquid integrates with it purely by convention (`views/partials/channels/<channel_name>/{subscribed,receive}.liquid` files, plus the `channel_send_message` GraphQL mutation for server-initiated pushes). This module does not reimplement RFC 6455 — it can't: Liquid pages are strictly request-in/response-out with no raw socket access and no way to block waiting on further client frames, which is exactly why platformOS itself put WebSocket support in the Rails layer rather than in Liquid. `pos-module-chat` already uses this native gateway, but bakes a `conversate` channel and a `notifications` channel directly into chat-specific code with no reusable shape. **This module generalizes that into one reusable channel** (`pos_websocket`) that any app can subscribe rooms on without adding new channel files.
+
+The same gateway (AnyCable-go) can also terminate connections as [Server-Sent Events](https://docs.anycable.io/anycable-go/sse) instead of a WebSocket upgrade — same `Connect`/`Command` RPC, same `pos_websocket` channel, same `subscribed.liquid` authorization, no separate channel or module required. This used to be a separate module (`pos-module-sse`) that faked push with a Liquid page and a browser reconnect timer; it's gone now that the real transport is confirmed to reuse this module's channel contract unchanged — there was nothing left for a standalone module to own. See "Server-Sent Events transport" below and `docs/sse-transport.md` for the full contract, including the one hard limitation (SSE is read-only — no `receive`).
 
 ## Installation
 
@@ -20,7 +22,7 @@ pos-cli modules install websocket
 {% render 'modules/websocket/init' %}
 ```
 
-This sets up `window.pos.modules.active.websocket` with `subscribe(roomId, callbacks)`, `send(roomId, payload)`, and `unsubscribe(roomId)`.
+This sets up `window.pos.modules.active.websocket` with `subscribe(roomId, callbacks)`, `subscribeSSE(roomId, callbacks)`, `send(roomId, payload)`, and `unsubscribe(roomId)`. `subscribe` and `subscribeSSE` join the exact same room over different transports (WebSocket vs. SSE) — pick per room based on whether that room needs two-way messaging (see "Server-Sent Events transport" below).
 
 ### 2. Register a room
 
@@ -65,6 +67,28 @@ function result = 'modules/websocket/commands/messages/broadcast',
 ```
 
 Client-to-room messages don't need this — once `receive.liquid` lets a message through, ActionCable broadcasts it to the room automatically. This command is a trusted server-side call and isn't gated by room membership — the caller already decided to push.
+
+## Server-Sent Events transport
+
+Any room can be read over SSE instead of WebSocket — same channel, same authorization, same rooms, just a different transport for clients that only need to *read* a room:
+
+```html
+<script type="module">
+  window.pos.modules.active.websocket.subscribeSSE('chat-42', {
+    connected: function() { console.log('subscribed'); },
+    rejected: function() { console.log('not authorized for this room'); },
+    received: function(data) { console.log('got', data); }
+  });
+</script>
+```
+
+Three things are different enough from `subscribe()` to matter (full detail in `docs/sse-transport.md`):
+
+1. **Read-only.** There is no confirmed way to invoke `receive.liquid` over this gateway. `subscribeSSE`'d rooms have no `send()` — `send(roomId, ...)` only works for rooms joined via `subscribe()`, because only those are tracked as WebSocket subscriptions internally. If a room needs a client to post into it, join it with `subscribe()` instead (or push server-side via `commands/messages/broadcast`, same as any other server-initiated push — see above).
+2. **`?identifier=`, not `?channel=`.** This module's `subscribeSSE` builds and encodes the full `{channel, room_id}` identifier for you; the shorthand query-string form silently drops `room_id` server-side and isn't used here.
+3. **`Origin` header must be proxied to RPC on the anycable-go side** for `same_origin?`-gated code paths to see it. This is infra config, not something toggled from Liquid or JS — see `docs/sse-transport.md`.
+
+**Prerequisite:** the instance needs `sse_enabled: true` and the anycable-go gateway needs `--sse` (and a matching `--sse_path`, default `/events`) — both are core/platform configuration this module doesn't control. Until that's confirmed deployed, treat `subscribeSSE` as the contract to build against, not a guarantee.
 
 ## Authorization
 
