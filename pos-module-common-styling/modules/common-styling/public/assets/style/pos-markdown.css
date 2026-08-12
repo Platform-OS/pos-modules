@@ -94,6 +94,16 @@
     content: '';
   }
 
+    @media (max-width: 600px) {
+      .pos-markdown-mention [popover] {
+        margin-inline-start: 0;
+      }
+
+      .pos-markdown-mention [popover]:after {
+        inset-inline-start: calc(50% - 8px);
+      }
+    }
+
   .pos-markdown-mention menu li button {
     padding: .5rem .75rem;
   }

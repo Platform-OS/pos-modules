@@ -368,6 +368,16 @@ window.pos.modules.markdown = function(settings){
       if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
     });
 
+    // mobile Safari: with the keyboard open, panning the page moves the visual viewport
+    // without firing a 'scroll' event on window, so the popup needs its own listeners
+    window.visualViewport?.addEventListener('scroll', () => {
+      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+    }, { passive: true });
+
+    window.visualViewport?.addEventListener('resize', () => {
+      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+    }, { passive: true });
+
     module.mention.reapplyMarks();
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Activated @mentions', module.settings.mention);
