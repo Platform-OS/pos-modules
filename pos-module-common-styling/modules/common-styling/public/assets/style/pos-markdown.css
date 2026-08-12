@@ -77,8 +77,12 @@
   .pos-markdown-mention [popover] {
     margin-inline-start: calc(var(--pos-radius-card) * -2);
     overflow: visible;
-  
-    position: fixed;
+
+    /* absolute (document-relative), not fixed (viewport-relative): this lets the popup scroll
+       with the page natively. Mobile Safari mishandles `position: fixed` while the on-screen
+       keyboard is open (panning the page can leave fixed elements behind or misplaced), so we
+       anchor in document coordinates instead and let the browser carry it along on scroll. */
+    position: absolute;
   }
 
   .pos-markdown-mention [popover]:after {

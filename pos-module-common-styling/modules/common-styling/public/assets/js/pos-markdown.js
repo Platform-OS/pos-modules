@@ -359,21 +359,16 @@ window.pos.modules.markdown = function(settings){
       }
     });
 
-    // reposition popup when the page or the editor itself scrolls
-    window.addEventListener('scroll', () => {
-      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
-    }, { passive: true });
-
+    // the popup is positioned in document coordinates (see updatePopupPosition), so it scrolls
+    // along with the page natively — no listener needed for window/page scrolling. What still
+    // needs a manual reposition is the editor's own internal scroll (typing pushes lines up
+    // inside CodeMirror's viewport without the page itself scrolling)...
     module.settings.easyMde.codemirror.on('scroll', () => {
       if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
     });
 
-    // mobile Safari: with the keyboard open, panning the page moves the visual viewport
-    // without firing a 'scroll' event on window, so the popup needs its own listeners
-    window.visualViewport?.addEventListener('scroll', () => {
-      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
-    }, { passive: true });
-
+    // ...and the on-screen keyboard showing/hiding, which can reflow the editor (e.g. line
+    // wrapping changes) even though the page didn't scroll.
     window.visualViewport?.addEventListener('resize', () => {
       if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
     }, { passive: true });
@@ -425,7 +420,8 @@ window.pos.modules.markdown = function(settings){
   };
 
 
-  // purpose:   recalculates popup position anchored to the @ character (fixed to viewport)
+  // purpose:   recalculates popup position anchored to the @ character (document-relative,
+  //            since the popup is `position: absolute` — see pos-markdown.css)
   // ------------------------------------------------------------------------
   module.mention.updatePopupPosition = () => {
     if(!module.settings.mention.state){
@@ -435,7 +431,12 @@ window.pos.modules.markdown = function(settings){
     pos.modules.debug(module.settings.debug, module.settings.id, 'Updating @mention popover position', module.settings.mention.state);
 
     const atPos = { line: module.settings.mention.state.line, ch: module.settings.mention.state.atCh };
-    const coords = module.settings.easyMde.codemirror.charCoords(atPos, 'window');
+    // 'page' mode bakes the document scroll offset into the coordinates, matching a
+    // `position: absolute` element — the browser then keeps it aligned with the caret on
+    // scroll natively, instead of us recomputing viewport-relative ('window' mode) coordinates
+    // on every scroll frame, which is what broke on mobile Safari with the keyboard open.
+    const coords = module.settings.easyMde.codemirror.charCoords(atPos, 'page');
+
     module.settings.mention.results.style.left = coords.left + 'px';
     module.settings.mention.results.style.top = (coords.bottom + 4) + 'px';
   };
