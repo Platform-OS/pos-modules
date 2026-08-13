@@ -16,7 +16,10 @@ method: post
   function object = 'modules/user/commands/user/verify_otp', object: context.params.2fa, email: null
   if object.valid
     function res = 'modules/user/commands/session/create', email: object.email, password: object.password, hook_params: context.params, skip_otp: true, validate_password: null, user_id: null
-    if res.valid
+    if res.valid and res.email_verification_required
+      function _ = 'modules/user/helpers/flash', error: 'modules/user/email_verification.login_blocked', info: null, notice: null, force_clear: null
+      render 'modules/user/users/check_email', context: context, email: res.email
+    elsif res.valid
       # platformos-check-disable DeprecatedTag
       include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
       # platformos-check-enable DeprecatedTag

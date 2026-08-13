@@ -11,6 +11,9 @@ slug: sessions
   function res = 'modules/user/commands/session/create', email: context.params.email, password: context.params.password, hook_params: context.params, validate_password: true, skip_otp: null, user_id: null
   if res.valid and res.otp_required
     render 'modules/user/2fa/verify', object: context.params
+  elsif res.valid and res.email_verification_required
+    function _ = 'modules/user/helpers/flash', error: 'modules/user/email_verification.login_blocked', info: null, notice: null, force_clear: null
+    render 'modules/user/users/check_email', context: context, email: res.email
   elsif res.valid
     # platformos-check-disable DeprecatedTag
     include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null
