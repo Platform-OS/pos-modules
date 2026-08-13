@@ -1,0 +1,51 @@
+{% comment %}
+  modules/accela_construct/accela_client/schedule_retry
+
+  Schedules the next retry attempt for a failed Accela request to run
+  later in the background (via platformOS's `{% background %}` tag),
+  after an increasing delay: `base_delay_minutes * (attempt_number - 1)`
+  minutes (linear backoff - 1x, 2x, 3x, ... the base delay per retry).
+  Called by `send.liquid` after the first, synchronous attempt (attempt_number
+  1) fails with `with_retries: true`, and recursively by
+  `perform_retry_attempt.liquid` after each subsequent failed attempt,
+  until `attempt_number` exceeds `max_retries`.
+
+  Doesn't carry the request itself (method/path/payload) through the
+  chain - only `request_id` (the accela_request row's id). Whatever
+  eventually calls `send` again (`perform_retry_attempt.liquid`) looks
+  the request up from there via `queries/accela_request/get`, instead of
+  every hop in the chain passing those fields along by hand.
+
+  `attempt_number` is the same absolute, 1-based counter used throughout
+  this file, `perform_retry_attempt.liquid`, and `send.liquid`'s own
+  `attempt_number` param: 1 = the original synchronous call, 2 = the
+  first retry, 3 = the second, etc. `max_retries` doesn't count that
+  initial attempt, so retrying is exhausted once `attempt_number` would
+  exceed `max_retries + 1`.
+
+  Params:
+    request_id         - id of the accela_request row being retried
+                         (required)
+    attempt_number     - the absolute attempt number about to be
+                         scheduled - 2 for the first retry, 3 for the
+                         second, etc. (required)
+    last_error         - the previous attempt's error message, for logging only
+
+  Fire-and-forget: returns nothing meaningful. Logs the scheduling
+  decision (type "accela_retry_scheduled") since nothing else observes
+  this - a `{% background %}` job runs in a detached execution context
+  with no way to report back to whatever request originally failed.
+{% endcomment %}
+
+{% liquid
+  function accela_max_retries = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_MAX_RETRIES', type: 'integer'
+  assign retry_number = attempt_number | minus: 1
+  function accela_retry_delay_minutes = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_RETRY_DELAY_MINUTES', type: 'integer'
+
+  assign delay_minutes = accela_retry_delay_minutes | default: 1 | times: retry_number
+  assign retry_data = { "request_id": request_id, "attempt_number": attempt_number, "max_retries": accela_max_retries}
+
+  log "Scheduling Accela retry {{ retry_number }}/{{ accela_max_retries }} for accela_request {{ request_id }} in {{ delay_minutes }}m (previous error: {{ last_error }})", type: "accela_retry_scheduled"
+
+  background attempt_job = 'modules/accela_construct/accela_client/perform_retry_attempt', data: retry_data, priority: 'low', delay: delay_minutes, max_attempts: 1
+%}

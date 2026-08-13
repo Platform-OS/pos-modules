@@ -1,0 +1,29 @@
+{% comment %}
+  modules/accela_construct/commands/records/documents/upload/build
+
+  Normalizes input and prepares the request for POST
+  /v4/records/{recordId}/documents: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL) and the `fileInfo` JSON body Accela expects alongside
+  the uploaded file part.
+
+  Params:
+    object - Hash with `record_id`, `file_name`, `content_type`, and
+             optional `category`/`description` (see documents/upload.liquid)
+
+  Returns object with `path` and `file_info` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/documents"
+
+  assign file_info_item = { "fileName": object.file_name, "type": object.content_type }
+  if object.category != blank
+    assign file_info_item.category = object.category
+  endif
+  if object.description != blank
+    assign file_info_item.description = object.description
+  endif
+  assign object.file_info = "[{{ file_info_item | json }}]"
+
+  return object
+%}

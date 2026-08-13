@@ -1,0 +1,18 @@
+---
+name: accela_post_multipart
+delay: '0'
+format: http
+request_headers: >
+  {
+    "x-accela-appid": "{{ data.app_id }}",
+    "Authorization": "{{ data.access_token }}"
+  }
+request_type: POST
+to: >
+  {% function accela_base_url = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_BASE_URL' %}
+  {{ accela_base_url }}{{ data.path }}
+---
+{
+  "uploadedFile": {{ data.file_field | json }},
+  "fileInfo": {{ data.file_info }}
+}

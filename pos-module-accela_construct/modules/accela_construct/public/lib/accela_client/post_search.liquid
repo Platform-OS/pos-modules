@@ -1,0 +1,42 @@
+{% comment %}
+  modules/accela_construct/accela_client/post_search
+
+  Shared implementation for every POST /v4/search/<resource> query - they
+  all take the same criteria hash plus optional pagination/filter params
+  and differ only in which Accela resource they search. Each
+  `lib/queries/searches/<resource>.liquid` file delegates here instead of
+  repeating the same body verbatim.
+
+  Params:
+    resource - URL segment to search, e.g. "addresses", "parcels" (required)
+    criteria - Hash of search criteria (all fields Accela documents for
+               these endpoints are individually optional)
+    offset   - optional, default 0
+    limit    - optional, default 25 (Accela max 1000)
+    expand   - optional comma-separated string
+    fields   - optional comma-separated string to limit returned fields
+    with_retries - optional boolean, default false. When true, retries a
+      failed attempt in the background with increasing delay - see
+      lib/accela_client/send.liquid.
+    reference - optional hash `{ "id", "table" }` forwarded to
+      send.liquid - see send.liquid.
+    caller - optional module path forwarded to send.liquid - see
+      send.liquid and error_result.liquid.
+
+  Usage:
+    {% function result = 'modules/accela_construct/accela_client/post_search', resource: 'addresses', criteria: criteria %}
+{% endcomment %}
+
+{% liquid
+  assign offset = offset | default: 0
+  assign limit = limit | default: 25
+
+  assign qs_params = { "offset": offset, "limit": limit, "expand": expand, "fields": fields }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign path = "/search/{{ resource }}?{{ qs }}"
+  assign payload = criteria | json
+
+  function result = 'modules/accela_construct/accela_client/send', method: 'POST', path: path, payload: payload, with_retries: with_retries, reference: reference, caller: caller
+  return result
+%}

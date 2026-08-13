@@ -1,0 +1,57 @@
+{% comment %}
+  modules/accela_construct/accela_client/log_request
+
+  Writes this attempt's outcome to the accela_request/accela_request_response
+  tables - one accela_request row per logical request (created once, on
+  the first attempt), and one accela_request_response row per attempt,
+  including every retry, each pointing back at its accela_request via
+  `request_id`. Shared by send.liquid's two logging paths - called
+  directly (synchronously) when a retry is about to be scheduled and the
+  accela_request id is needed as the chain's request_id, and via a direct
+  `{% background %}` invocation otherwise.
+
+  Params:
+    data - Hash with method, path, request_payload, request_id,
+           attempt_number, status, response_body, success, error,
+           reference (the exact shape send.liquid builds as `log_data`).
+           When `data.request_id` is blank, this is attempt 1 of a fresh
+           logical request - creates the accela_request row (using
+           `data.reference.id`/`data.reference.table` if given - if
+           `id` is present but `table` isn't, looks `table` up via
+           accela_client/resolve_reference_table rather than requiring
+           the caller to supply it), using its own new id as the
+           response row's request_id. When `data.request_id` is already
+           set (attempts 2+, passed through from a prior attempt), reuses
+           it directly - no accela_request row is touched on retries at
+           all, only a new accela_request_response row is created (and
+           `data.reference` is ignored then, since it was already
+           resolved and stored at creation and doesn't change across
+           retries).
+
+  Returns { "request_id": <the accela_request id used, new or reused>,
+  "response_id": <the accela_request_response row created for this
+  specific attempt> }. If either write fails, the corresponding id comes
+  back blank (see README's Known Gaps on request_id correlation) - this
+  never raises, matching send.liquid's "a failed log write never blocks
+  the underlying Accela request" contract.
+{% endcomment %}
+
+{% liquid
+  assign request_id = data.request_id
+  if request_id == blank
+    assign reference_id = data.reference.id
+    assign reference_table = data.reference.table
+    if reference_table == blank and reference_id != blank
+      function reference_table = 'modules/accela_construct/accela_client/resolve_reference_table', id: reference_id
+    endif
+
+    graphql request_result = 'modules/accela_construct/accela_request/create', method: data.method, path: data.path, request_payload: data.request_payload, reference_id: reference_id, reference_schema: reference_table
+    assign request_id = request_result.record_create.id
+  endif
+
+  graphql response_result = 'modules/accela_construct/accela_request_response/create', request_id: request_id, attempt_number: data.attempt_number, status: data.status, response_body: data.response_body, success: data.success, error: data.error
+  assign response_id = response_result.record_create.id
+
+  assign log_result = { "request_id": request_id, "response_id": response_id }
+  return log_result
+%}

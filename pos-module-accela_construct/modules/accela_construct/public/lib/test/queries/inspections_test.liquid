@@ -1,0 +1,45 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% comment %}
+  Contract/shape smoke tests, not path-correctness tests - they assert
+  graceful failure in the absence of live Accela credentials (the expected
+  state for automated test runs); with real credentials configured some
+  assertions here would need to expect success instead.
+{% endcomment %}
+{% liquid
+  # queries/records/inspections/list (record-scoped)
+  function result = 'modules/accela_construct/queries/records/inspections/list', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_list_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_list_error'
+
+  # queries/records/inspection_types/list (record-scoped)
+  function result = 'modules/accela_construct/queries/records/inspection_types/list', record_ids: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_types_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_types_error'
+
+  # queries/inspections/all
+  function result = 'modules/accela_construct/queries/inspections/all', module: 'Building'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_all_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_all_error'
+
+  # queries/inspections/get
+  function result = 'modules/accela_construct/queries/inspections/get', ids: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_get_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_get_error'
+
+  # queries/inspections/available_dates
+  function result = 'modules/accela_construct/queries/inspections/available_dates', type_id: 173, record_id: 'TEST-0000-00001', start_date: '2026-08-01'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_available_dates_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_available_dates_error'
+
+  # queries/inspections/histories
+  function result = 'modules/accela_construct/queries/inspections/histories', inspection_ids: '1001,1002'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_histories_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_histories_error'
+
+  # queries/inspections/related
+  function result = 'modules/accela_construct/queries/inspections/related', id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_related_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_related_error'
+%}

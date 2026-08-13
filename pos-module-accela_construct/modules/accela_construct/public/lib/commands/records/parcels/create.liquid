@@ -1,0 +1,38 @@
+{% comment %}
+  modules/accela_construct/commands/records/parcels/create
+  Wraps: POST /v4/records/{recordId}/parcels  (Accela "Create Record Parcels")
+
+  Params:
+    record_id - Record id (required)
+    parcel    - Hash of parcel fields, e.g. { "parcelNumber": "005020018", "isPrimary": "Y" }
+                (required by this module as a sanity check on the call site -
+                Accela's own docs mark every parcel field Optional at the
+                schema level, so this isn't an Accela-mandated requirement)
+    with_retries - optional boolean, default false. When true, retries a
+                failed attempt in the background with increasing delay -
+                see lib/accela_client/send.liquid.
+    reference - optional hash `{ "id", "table" }` forwarded
+      to send.liquid - see send.liquid.
+
+  Follows the pos-module-core build/check/execute command pattern (see
+  create/{build,check}.liquid): build prepares the request path/body,
+  check validates required params, and this file executes the request
+  itself once valid (rather than delegating to a separate execute.liquid).
+
+  Usage:
+    {% function result = 'modules/accela_construct/commands/records/parcels/create', record_id: record_id, parcel: parcel %}
+{% endcomment %}
+
+{% liquid
+  assign object = { "errors": {}, "valid": true, "record_id": record_id, "parcel": parcel }
+  function object = 'modules/accela_construct/commands/records/parcels/create/build', object: object
+  function object = 'modules/accela_construct/commands/records/parcels/create/check', object: object
+
+  if object.valid
+    function result = 'modules/accela_construct/accela_client/send', method: 'POST', path: object.path, payload: object.payload, with_retries: with_retries, reference: reference, caller: 'modules/accela_construct/commands/records/parcels/create'
+  else
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/commands/records/parcels/create'
+  endif
+
+  return result
+%}

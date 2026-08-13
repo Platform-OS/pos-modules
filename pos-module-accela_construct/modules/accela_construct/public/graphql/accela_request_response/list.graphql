@@ -1,0 +1,37 @@
+query accela_request_response_list(
+  $limit: Int!
+  $page: Int!
+  $request_id: String
+  $success: Boolean
+) {
+  records(
+    per_page: $limit
+    page: $page
+    filter: {
+      table: { value: "modules/accela_construct/accela_request_response" }
+      properties: [
+        { name: "request_id", value: $request_id }
+        { name: "success", value_boolean: $success }
+      ]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    has_next_page
+    current_page
+
+    results {
+      id
+      created_at
+      updated_at
+      table
+
+      request_id: property(name: "request_id")
+      attempt_number: property_int(name: "attempt_number")
+      status: property_int(name: "status")
+      response_body: property(name: "response_body")
+      success: property_boolean(name: "success")
+      error: property(name: "error")
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{% comment %}
+  modules/accela_construct/accela_client/error_result
+
+  Builds the standard failure envelope every query/command returns when it
+  can't complete a request - either before calling Accela (a local
+  validation failure) or because the HTTP call itself failed. Single
+  source of truth for this shape so it can't drift between call sites.
+  Also logs the error via `{% log %}`, tagged with the caller's own
+  module path, so a failure shows up in logs already labeled with which
+  query/command it came from, instead of just the bare error string.
+
+  Params:
+    error  - String error message (required)
+    errors - optional hash of per-field validation errors
+    caller - optional. The calling function's own module path, e.g.
+             `modules/accela_construct/queries/records/inspection_types/list`
+             - every query/command orchestrator passes its own path here
+             (verbatim from its own doc comment header), and send.liquid
+             accepts and forwards the same param so a live Accela failure
+             (not just a local validation failure) is traced back to its
+             caller too.
+
+  Returns: { "success": false, "status": null, "body": null, "raw": null, "error": error [, "errors": errors] }
+
+  Usage:
+    {% function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/queries/records/get' %}
+{% endcomment %}
+
+{% liquid
+  assign result = { "success": false, "status": null, "body": null, "raw": null, "error": error }
+  if errors != blank
+    assign result.errors = errors
+  endif
+
+  if caller != blank
+    log errors, type: "ACCELA CONSTRUCT MODULE ERROR: {{ caller }}"
+  else
+    log errors, type: "ACCELA CONSTRUCT MODULE ERROR: <unknown caller>"
+  endif
+
+  return result
+%}

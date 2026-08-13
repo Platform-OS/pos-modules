@@ -1,0 +1,31 @@
+mutation accela_request_create(
+  $method: String!
+  $path: String!
+  $request_payload: String
+  $reference_id: String
+  $reference_schema: String
+) {
+  record_create(
+    record: {
+      table: "modules/accela_construct/accela_request"
+      properties: [
+        { name: "method", value: $method }
+        { name: "path", value: $path }
+        { name: "request_payload", value: $request_payload }
+        { name: "reference_id", value: $reference_id }
+        { name: "reference_schema", value: $reference_schema }
+      ]
+    }
+  ) {
+    id
+    created_at
+    updated_at
+    table
+
+    method: property(name: "method")
+    path: property(name: "path")
+    request_payload: property(name: "request_payload")
+    reference_id: property(name: "reference_id")
+    reference_schema: property(name: "reference_schema")
+  }
+}

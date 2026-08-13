@@ -1,0 +1,15 @@
+{% comment %}
+  modules/accela_construct/queries/inspections/conditions/list/build
+
+  Builds the request path for GET /v4/inspections/{inspectionId}/conditions.
+
+  Params:
+    object - Hash with `inspection_id` (see inspections/conditions/list.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/conditions"
+  return object
+%}

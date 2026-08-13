@@ -1,0 +1,17 @@
+{% comment %}
+  modules/accela_construct/commands/records/finalize/build
+
+  Normalizes input and prepares the request for POST
+  /v4/records/{recordId}/finalize: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the record id). This request has no body.
+
+  Params:
+    object - Hash with `record_id` (see records/finalize.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/finalize"
+  return object
+%}

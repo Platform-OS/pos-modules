@@ -1,0 +1,12 @@
+{% comment %}
+  modules/accela_construct/queries/records/search/check
+  No required params for this endpoint - Accela documents no required
+  search criteria field for "Search Records". Kept for structural
+  consistency with the build/check split used across all queries.
+{% endcomment %}
+
+{% liquid
+  assign object.valid = true
+  assign object.errors = {}
+  return object
+%}

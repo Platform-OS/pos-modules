@@ -1,0 +1,18 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/conditions/delete/build
+
+  Normalizes input and prepares the request for DELETE
+  /v4/inspections/{inspectionId}/conditions/{ids}: the request path
+  (relative to ACCELA_CONSTRUCT_BASE_URL). This request has no body.
+
+  Params:
+    object - Hash with `inspection_id` and `ids` (see
+             inspections/conditions/delete.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/conditions/{{ object.ids | url_encode }}"
+  return object
+%}

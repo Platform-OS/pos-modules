@@ -1,0 +1,30 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% comment %}
+  Contract/shape smoke tests, not path-correctness tests - they assert
+  graceful failure in the absence of live Accela credentials (the expected
+  state for automated test runs); with real credentials configured some
+  assertions here would need to expect success instead.
+{% endcomment %}
+{% liquid
+  # queries/inspections/checklists/list
+  function result = 'modules/accela_construct/queries/inspections/checklists/list', inspection_id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_checklists_list_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_checklists_list_error'
+
+  # queries/inspections/conditions/list
+  function result = 'modules/accela_construct/queries/inspections/conditions/list', inspection_id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_conditions_list_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_conditions_list_error'
+
+  # queries/inspections/conditions/get
+  function result = 'modules/accela_construct/queries/inspections/conditions/get', inspection_id: '1001', id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_conditions_get_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_conditions_get_error'
+
+  # queries/inspections/conditions/histories
+  function result = 'modules/accela_construct/queries/inspections/conditions/histories', inspection_id: '1001', id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'inspections_conditions_histories_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'inspections_conditions_histories_error'
+%}

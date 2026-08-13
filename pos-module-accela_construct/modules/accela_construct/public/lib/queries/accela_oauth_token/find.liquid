@@ -1,0 +1,16 @@
+{% comment %}
+  modules/accela_construct/queries/accela_oauth_token/find
+
+  Returns the most recently created accela_oauth_token record, or nil if
+  none exists yet. Used by lib/accela_client/get_valid_token to check
+  whether a cached token is still valid before requesting a new one.
+
+  Usage:
+    {% function token_record = 'modules/accela_construct/queries/accela_oauth_token/find' %}
+{% endcomment %}
+
+{% liquid
+  graphql token_result = 'modules/accela_construct/accela_oauth_token/find_latest'
+  assign token_record = token_result.records.results.first
+  return token_record
+%}

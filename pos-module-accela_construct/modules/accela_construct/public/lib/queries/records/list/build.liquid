@@ -1,0 +1,23 @@
+{% comment %}
+  modules/accela_construct/queries/records/list/build
+
+  Builds the request path for GET /v4/records.
+
+  Params:
+    object - Hash with `offset`, `limit`, `fields`, `module`, `status`
+             (see records/list.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign qs_params = { "offset": object.offset, "limit": object.limit, "fields": object.fields, "module": object.module, "status": object.status }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = '/records'
+  if qs != blank
+    assign object.path = "{{ object.path }}?{{ qs }}"
+  endif
+
+  return object
+%}

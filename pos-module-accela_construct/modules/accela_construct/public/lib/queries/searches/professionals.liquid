@@ -1,0 +1,41 @@
+{% comment %}
+  modules/accela_construct/queries/searches/professionals
+  Wraps: POST /v4/search/professionals  (Accela "Search Professionals")
+
+  Params:
+    criteria - Hash of search criteria (all fields Accela documents for
+               this endpoint are individually optional)
+    offset   - optional, default 0
+    limit    - optional, default 25 (Accela max 1000)
+    expand   - optional comma-separated string
+    fields   - optional comma-separated string to limit returned fields
+    with_retries - optional boolean, default false. When true, retries a
+               failed attempt in the background with increasing delay -
+               see lib/accela_client/send.liquid.
+    reference - optional hash `{ "id", "table" }` forwarded
+               to send.liquid - see send.liquid.
+
+  Follows the pos-module-core build/check command pattern (see
+  professionals/{build,check}.liquid) for consistency with every other
+  query, even though there's nothing to build here - the actual path/body
+  construction lives in the shared lib/accela_client/post_search.liquid -
+  and nothing to check, since every field Accela documents for this
+  endpoint is optional.
+
+  Usage:
+    {% function result = 'modules/accela_construct/queries/searches/professionals', criteria: criteria %}
+{% endcomment %}
+
+{% liquid
+  assign object = { "errors": {}, "valid": true, "criteria": criteria, "offset": offset, "limit": limit, "expand": expand, "fields": fields }
+  function object = 'modules/accela_construct/queries/searches/professionals/build', object: object
+  function object = 'modules/accela_construct/queries/searches/professionals/check', object: object
+
+  if object.valid
+    function result = 'modules/accela_construct/accela_client/post_search', resource: 'professionals', criteria: object.criteria, offset: object.offset, limit: object.limit, expand: object.expand, fields: object.fields, with_retries: with_retries, reference: reference, caller: 'modules/accela_construct/queries/searches/professionals'
+  else
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/queries/searches/professionals'
+  endif
+
+  return result
+%}

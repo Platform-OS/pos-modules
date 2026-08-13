@@ -1,0 +1,20 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/conditions/update/build
+
+  Normalizes input and prepares the request for PUT
+  /v4/inspections/{inspectionId}/conditions/{id}: the request path
+  (relative to ACCELA_CONSTRUCT_BASE_URL, with the inspection and condition ids)
+  and the JSON-serialized condition body.
+
+  Params:
+    object - Hash with `inspection_id`, `id`, and `condition` (see
+             inspections/conditions/update.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/conditions/{{ object.id | url_encode }}"
+  assign object.payload = object.condition | json
+  return object
+%}

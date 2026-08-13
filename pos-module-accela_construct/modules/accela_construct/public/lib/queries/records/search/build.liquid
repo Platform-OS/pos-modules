@@ -1,0 +1,24 @@
+{% comment %}
+  modules/accela_construct/queries/records/search/build
+
+  Builds the request path and payload for POST /v4/search/records.
+
+  Params:
+    object - Hash with `criteria`, `offset`, `limit`, `expand`, `fields`
+             (see records/search.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.offset = object.offset | default: 0
+  assign object.limit = object.limit | default: 25
+
+  assign qs_params = { "offset": object.offset, "limit": object.limit, "expand": object.expand, "fields": object.fields }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = "/search/records?{{ qs }}"
+  assign object.payload = null | hash_merge: object.criteria | json
+
+  return object
+%}

@@ -1,0 +1,15 @@
+{% comment %}
+  modules/accela_construct/queries/documents/download/build
+
+  Builds the request path for GET /v4/documents/{documentId}/download.
+
+  Params:
+    object - Hash with `document_id` (see documents/download.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/documents/{{ object.document_id | url_encode }}/download"
+  return object
+%}

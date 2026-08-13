@@ -1,0 +1,22 @@
+---
+slug: accela_construct/test
+---
+{% comment %}
+  Manual smoke-test page for the module. Visit /accela_construct/test?module=Building
+  once ACCELA_* constants are configured. Remove or protect this page
+  (e.g. with an authorization_policy limiting it to admins) before
+  shipping to production - it exposes raw Accela responses.
+{% endcomment %}
+
+{% liquid
+  assign search_module = context.params.module | default: 'Building'
+  assign criteria = { "module": search_module }
+  function result = 'modules/accela_construct/queries/records/search', criteria: criteria, limit: 5
+%}
+
+<h1>Accela Construct API - test call</h1>
+<p>Search module: {{ search_module }}</p>
+<p>Success: {{ result.success }}</p>
+<p>Status: {{ result.status }}</p>
+{% if result.error %}<p>Error: {{ result.error }}</p>{% endif %}
+<pre>{{ result.raw }}</pre>

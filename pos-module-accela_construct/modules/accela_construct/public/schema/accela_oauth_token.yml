@@ -1,0 +1,13 @@
+# Table used to cache the Accela OAuth2 token so we don't request a new one
+# on every API call. Accela access tokens are short-lived (15 minutes as of
+# May 2024); refresh tokens last 8 hours. See lib/accela_client/get_valid_token.liquid.
+name: accela_oauth_token
+properties:
+  - name: access_token
+    type: string
+  - name: refresh_token
+    type: string
+  - name: expires_at
+    type: string        # unix timestamp (seconds), stored as string
+  - name: refresh_token_expires_at
+    type: string        # unix timestamp (seconds), stored as string

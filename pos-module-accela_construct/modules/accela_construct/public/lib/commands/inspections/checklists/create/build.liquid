@@ -1,0 +1,18 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/checklists/create/build
+
+  Normalizes input and prepares the request for POST
+  /v4/inspections/{inspectionId}/checklists: the request path and the
+  JSON-serialized checklist body.
+
+  Params:
+    object - Hash with `inspection_id` and `checklist` (see create.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/checklists"
+  assign object.payload = object.checklist | json
+  return object
+%}

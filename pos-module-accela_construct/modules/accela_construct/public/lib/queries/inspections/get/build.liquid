@@ -1,0 +1,22 @@
+{% comment %}
+  modules/accela_construct/queries/inspections/get/build
+
+  Builds the request path for GET /v4/inspections/{ids}.
+
+  Params:
+    object - Hash with `ids`, `fields` (see inspections/get.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign qs_params = { "fields": object.fields }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = "/inspections/{{ object.ids | url_encode }}"
+  if qs != blank
+    assign object.path = "{{ object.path }}?{{ qs }}"
+  endif
+
+  return object
+%}

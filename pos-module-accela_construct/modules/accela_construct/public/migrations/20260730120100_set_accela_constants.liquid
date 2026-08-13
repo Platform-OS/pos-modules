@@ -1,0 +1,27 @@
+{% comment %}
+  Seeds the Accela credentials/config as encrypted Constants from
+  template-values.json (see pos-cli "template values" docs). Re-run this
+  migration (or update the constants directly via GraphiQL / constant_set)
+  whenever credentials change.
+
+  IMPORTANT: verify `constant_set` behavior and template-value interpolation
+  (<%= accela_client_id %> etc.) against your platformOS instance/pos-cli
+  version before relying on this in production - this pattern is inferred
+  from other published modules (e.g. payments-stripe) rather than a single
+  authoritative doc page.
+{% endcomment %}
+
+{% liquid
+  graphql g1 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_BASE_URL', value: '<%= accela_base_url %>'
+  graphql g2 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_AUTH_URL', value: '<%= accela_auth_url %>'
+  graphql g3 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_APP_ID', value: '<%= accela_app_id %>'
+  graphql g4 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_CLIENT_ID', value: '<%= accela_client_id %>'
+  graphql g5 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_CLIENT_SECRET', value: '<%= accela_client_secret %>'
+  graphql g6 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_USERNAME', value: '<%= accela_username %>'
+  graphql g7 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_PASSWORD', value: '<%= accela_password %>'
+  graphql g8 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_AGENCY', value: '<%= accela_agency %>'
+  graphql g9 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_ENVIRONMENT', value: '<%= accela_environment %>'
+  graphql g10 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_SCOPE', value: '<%= accela_scope %>'
+  graphql g11 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_MAX_RETRIES', value: '<%= accela_max_retries %>'
+  graphql g12 = 'modules/accela_construct/constants/set', name: 'ACCELA_CONSTRUCT_RETRY_DELAY_MINUTES', value: '<%= accela_retry_delay_minutes %>'
+%}

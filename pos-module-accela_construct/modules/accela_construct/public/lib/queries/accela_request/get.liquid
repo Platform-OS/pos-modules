@@ -1,0 +1,22 @@
+{% comment %}
+  modules/accela_construct/queries/accela_request/get
+
+  Returns one accela_request row by id (method, path, request_payload),
+  or nil if it doesn't exist. Used by perform_retry_attempt.liquid to
+  look up the original request rather than carrying method/path/payload
+  through the retry chain as arguments - schedule_retry.liquid/
+  perform_retry_attempt.liquid only ever pass around the accela_request
+  id (`request_id`) plus retry bookkeeping.
+
+  Params:
+    id - accela_request row id (required)
+
+  Usage:
+    {% function accela_request = 'modules/accela_construct/queries/accela_request/get', id: some_id %}
+{% endcomment %}
+
+{% liquid
+  graphql get_result = 'modules/accela_construct/accela_request/get', id: id
+  assign accela_request = get_result.records.results.first
+  return accela_request
+%}

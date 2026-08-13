@@ -1,0 +1,43 @@
+{% comment %}
+  modules/accela_construct/queries/inspections/available_dates
+  Wraps: GET /v4/inspections/availableDates  (Accela "Get Available Dates")
+
+  Params:
+    type_id    - Long, inspection type id (required)
+    record_id  - String, record id (required)
+    start_date - String date (required)
+    offset, limit - optional pagination
+    fields     - optional comma-separated string
+    with_retries - optional boolean, default false. When true, retries a
+      failed attempt in the background with increasing delay - see
+      lib/accela_client/send.liquid.
+    reference - optional hash `{ "id", "table" }` forwarded
+      to send.liquid - see send.liquid.
+
+  NOTE: unlike most Accela query params, Accela documents type_id/record_id/
+  start_date as required for this endpoint even though they're sent as
+  query-string params, not path segments - check.liquid validates all
+  three are present before this ever reaches Accela.
+
+  Follows the pos-module-core build/check command pattern (see
+  available_dates/{build,check}.liquid): build prepares the request
+  path, check validates required params, and this file executes the
+  request itself once valid.
+
+  Usage:
+    {% function result = 'modules/accela_construct/queries/inspections/available_dates', type_id: 173, record_id: record_id, start_date: '2026-08-01' %}
+{% endcomment %}
+
+{% liquid
+  assign object = { "errors": {}, "valid": true, "type_id": type_id, "record_id": record_id, "start_date": start_date, "offset": offset, "limit": limit, "fields": fields }
+  function object = 'modules/accela_construct/queries/inspections/available_dates/build', object: object
+  function object = 'modules/accela_construct/queries/inspections/available_dates/check', object: object
+
+  if object.valid
+    function result = 'modules/accela_construct/accela_client/send', method: 'GET', path: object.path, with_retries: with_retries, reference: reference, caller: 'modules/accela_construct/queries/inspections/available_dates'
+  else
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/queries/inspections/available_dates'
+  endif
+
+  return result
+%}

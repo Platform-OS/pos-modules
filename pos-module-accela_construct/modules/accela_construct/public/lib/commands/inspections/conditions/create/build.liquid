@@ -1,0 +1,20 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/conditions/create/build
+
+  Normalizes input and prepares the request for POST
+  /v4/inspections/{inspectionId}/conditions: the request path (relative
+  to ACCELA_CONSTRUCT_BASE_URL, with the inspection id) and the JSON-serialized
+  condition body.
+
+  Params:
+    object - Hash with `inspection_id` and `condition` (see
+             inspections/conditions/create.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/conditions"
+  assign object.payload = object.condition | json
+  return object
+%}

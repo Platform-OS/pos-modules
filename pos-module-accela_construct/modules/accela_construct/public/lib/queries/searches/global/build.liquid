@@ -1,0 +1,23 @@
+{% comment %}
+  modules/accela_construct/queries/searches/global/build
+
+  Builds the request path for GET /v4/search/global.
+
+  Params:
+    object - Hash with `query`, `type`, `modules`, `offset`, `limit`,
+             `sort`, `direction` (see searches/global.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.offset = object.offset | default: 0
+  assign object.limit = object.limit | default: 25
+
+  assign qs_params = { "query": object.query, "type": object.type, "modules": object.modules, "offset": object.offset, "limit": object.limit, "sort": object.sort, "direction": object.direction }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = "/search/global?{{ qs }}"
+
+  return object
+%}
