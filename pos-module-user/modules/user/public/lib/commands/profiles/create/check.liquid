@@ -7,9 +7,7 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'user_id'
   function c = 'modules/core/validations/uniqueness', c: c, object: object, field_name: 'user_id', table: 'modules/user/profile', scope_name: null, exclude_name: null
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'uuid'
-  function c = 'modules/core/validations/length', c: c, object: object, field_name: 'name', maximum: 80, allow_blank: null, is: null, message_is: null, message_maximum: null, message_minimum: null, minimum: null, value: null
-  function c = 'modules/core/validations/length', c: c, object: object, field_name: 'first_name', maximum: 40, allow_blank: null, is: null, message_is: null, message_maximum: null, message_minimum: null, minimum: null, value: null
-  function c = 'modules/core/validations/length', c: c, object: object, field_name: 'last_name', maximum: 40, allow_blank: null, is: null, message_is: null, message_maximum: null, message_minimum: null, minimum: null, value: null
+  function c = 'modules/user/validations/profile_names', c: c, object: object
 
   assign object.valid = c.valid
 

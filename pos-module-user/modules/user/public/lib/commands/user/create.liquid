@@ -15,6 +15,23 @@
 
     function profile = 'modules/user/commands/profiles/create', object: object
     if profile.valid != true
+      comment
+        The user row is already committed but has no profile, so it has no roles
+        and every can_do check against it fails. Left in place it would also
+        block that email address from ever registering again, because
+        user/create/check rejects addresses that already exist.
+
+        Delete it so the caller can retry. The graphql mutation is used directly
+        rather than modules/user/commands/user/delete: user_created has not been
+        published at this point, so publishing user_deleted for a user nobody
+        was told about would leave consumers with an unpaired event.
+      endcomment
+      graphql deleted = 'modules/user/user/delete', id: user.id
+
+      if deleted.errors
+        log deleted.errors, type: 'ERROR: user/create could not roll back user after profile creation failed'
+      endif
+
       return profile
     endif
 
