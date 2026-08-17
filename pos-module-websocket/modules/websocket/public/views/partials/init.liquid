@@ -80,7 +80,7 @@ metadata:
     subscribeSSE: function(roomId, callbacks) {
       callbacks = callbacks || {};
       var identifier = JSON.stringify({ channel: 'pos_websocket', room_id: roomId });
-      var url = '{{ events_url }}' + '?identifier=' + encodeURIComponent(identifier);
+      var url = '{{ events_url }}' + '?identifier=' + encodeURIComponent(identifier) + '&authenticity_token=' + encodeURIComponent(csrfToken);
       var source = new EventSource(url);
 
       source.onerror = function() { if (callbacks.disconnected) callbacks.disconnected(); };
@@ -122,7 +122,7 @@ metadata:
     send: function(roomId, payload) {
       var subscription = subscriptions[roomId];
       if (!subscription) return false;
-      subscription.send(Object.assign({}, payload, { room_id: roomId }));
+      subscription.send(Object.assign({}, payload, { room_id: roomId, authenticity_token: csrfToken }));
       return true;
     },
 

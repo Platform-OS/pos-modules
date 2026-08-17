@@ -11,7 +11,10 @@ layout: application
 
   assign room = context.params.room | default: 'lobby'
   assign room_id = 'demo-' | append: room
-  assign via_sse = context.params.transport == 'sse'
+  assign via_sse = false
+  if context.params.transport == 'sse'
+    assign via_sse = true
+  endif
   assign other_transport_url = '/websocket/demo?room=' | append: room
   unless via_sse
     assign other_transport_url = other_transport_url | append: '&transport=sse'
@@ -45,9 +48,9 @@ layout: application
 
 <script type="module">
   (function() {
-    var roomId = {{ room_id | json }};
+    var roomId = "{{ room_id }}";
     var viaSSE = {{ via_sse | json }};
-    var senderName = {{ context.current_user.email | json }};
+    var senderName = "{{ context.current_user.email }}";
     var status = document.getElementById('pos-ws-status');
     var list = document.getElementById('pos-ws-messages');
     var form = document.getElementById('pos-ws-form');
@@ -61,7 +64,7 @@ layout: application
     }
 
     var callbacks = {
-      connected: function() { status.textContent = 'Connected to "' + {{ room | json }} + '".'; },
+      connected: function() { status.textContent = 'Connected to "' + "{{ room}}" + '".'; },
       disconnected: function() { status.textContent = 'Disconnected.'; },
       rejected: function() { status.textContent = 'Could not join this room — it may be private and you\'re not a member.'; },
       received: function(data) { appendMessage(data); }

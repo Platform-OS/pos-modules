@@ -16,7 +16,10 @@ layout: ''
     return
   endif
 
-  assign is_public = context.params.public == 'true' or context.params.public == true
+  assign is_public = false
+  if context.params.public == 'true' or context.params.public == true
+    assign is_public = true
+  endif
 
   function result = 'modules/websocket/commands/rooms/find_or_create',
     room_id: context.params.room_id,

@@ -17,7 +17,10 @@ method: post
 
   assign room = context.params.room | default: 'lobby'
   assign room_id = 'demo-' | append: room
-  assign is_public = context.params.public == 'true'
+  assign is_public = false
+  if context.params.public == 'true'
+    assign is_public = true
+  endif
 
   function result = 'modules/websocket/commands/rooms/find_or_create',
     room_id: room_id,

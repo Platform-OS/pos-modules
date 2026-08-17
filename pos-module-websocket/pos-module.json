@@ -3,6 +3,8 @@
   "name": "Websocket",
   "version": "0.1.0",
   "dependencies": {
-    "core": "^2.1.9"
+    "core": "^2.1.9",
+    "user": "^5.2.10",
+    "common-styling": "^1.37.30"
   }
 }
