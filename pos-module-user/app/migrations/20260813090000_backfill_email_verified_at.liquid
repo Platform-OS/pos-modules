@@ -1,0 +1,38 @@
+{% comment %}
+  Marks every profile that already exists as verified.
+
+  Run this once, before enabling USER_EMAIL_VERIFICATION_ENABLED. Without it
+  every current user would be treated as unverified the moment the feature is
+  switched on, and would be locked out of their own account at the next login.
+
+  Uses created_at so the timestamp reflects when the account was made rather
+  than when this migration happened to run.
+{% endcomment %}
+{% liquid
+  assign page = 1
+  assign processed = 0
+
+  for _ in (1..1000)
+    function profiles = 'modules/user/queries/profiles/search', page: page, limit: 100, query: null, id: null, ids: null, not_ids: null, uuid: null, user_id: null, emails: null, first_name: null, last_name: null, sort: null
+
+    if profiles.results.size == 0
+      break
+    endif
+
+    for profile in profiles.results
+      if profile.email_verified_at == blank
+        assign object = { "id": profile.id, "email_verified_at": profile.created_at }
+        function _ = 'modules/user/commands/profiles/mark_email_verified', object: object
+        assign processed = processed | plus: 1
+      endif
+    endfor
+
+    if profiles.has_next_page != true
+      break
+    endif
+
+    assign page = page | plus: 1
+  endfor
+
+  log processed, type: 'backfill_email_verified_at: profiles marked verified'
+%}

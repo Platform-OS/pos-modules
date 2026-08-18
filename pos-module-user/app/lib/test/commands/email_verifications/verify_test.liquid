@@ -1,0 +1,70 @@
+{% doc %}
+  Covers the verification command directly. The browser journey is covered by
+  the Playwright specs; these assert the parts that are easy to get subtly
+  wrong and invisible from the UI - idempotency, and the fact that a bad token
+  reveals nothing.
+
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # a fresh registration is unverified, and verifying it sets the timestamp
+
+  assign email = 10 | random_string | append: '-verify@example.com'
+
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: profile, field_name: 'email_verified_at'
+
+  function _ = 'modules/user/commands/profiles/mark_email_verified', object: profile
+  function verified_profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: verified_profile, field_name: 'email_verified_at'
+%}
+
+{% liquid
+  # marking an already verified profile does not move the timestamp, so
+  # following the same link twice is harmless
+
+  assign email = 10 | random_string | append: '-verify@example.com'
+
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  function _ = 'modules/user/commands/profiles/mark_email_verified', object: profile
+  function first_pass = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  assign already = { "id": first_pass.id, "email_verified_at": first_pass.email_verified_at }
+  function _ = 'modules/user/commands/profiles/mark_email_verified', object: already
+  function second_pass = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: second_pass.email_verified_at, expected: first_pass.email_verified_at, field_name: 'email_verified_at'
+%}
+
+{% liquid
+  # an unknown token is rejected, and the failure looks the same whether or not
+  # the address has an account
+
+  function unknown = 'modules/user/commands/email_verifications/verify', token: 'not-a-real-token', email: 'nobody@example.com'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: unknown, field_name: 'unknown_token'
+
+  assign email = 10 | random_string | append: '-verify@example.com'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+
+  function real_address_bad_token = 'modules/user/commands/email_verifications/verify', token: 'not-a-real-token', email: email
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: real_address_bad_token, field_name: 'bad_token_real_address'
+
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_address_bad_token.errors.token, expected: unknown.errors.token, field_name: 'errors_do_not_leak_existence'
+%}
+
+{% liquid
+  # resend never reports whether the address exists: a well formed request for
+  # an address with no account still comes back valid
+
+  function object = 'modules/user/commands/email_verifications/create', email: 'definitely-not-registered@example.com', host: 'example.com', hcaptcha_params: null
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: object, field_name: 'resend_unknown_address'
+
+  # but a malformed address is still a normal validation error
+  function malformed = 'modules/user/commands/email_verifications/create', email: 'not-an-email', host: 'example.com', hcaptcha_params: null
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: malformed, field_name: 'resend_malformed_address'
+%}

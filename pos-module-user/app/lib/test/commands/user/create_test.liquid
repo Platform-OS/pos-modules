@@ -44,3 +44,41 @@
   assign roles = 'member' | split: ','
   function contract = 'modules/tests/assertions/equal', contract: contract, given: profile.roles expected: roles, field_name: null
 %}
+
+{% liquid
+  # test an over-long first name is rejected before anything is written, and
+  # does not burn the email address - regression test for
+  # https://github.com/Platform-OS/pos-modules/issues/35
+
+  assign email = 10 | random_string | append: '-user-create@example.com'
+  assign too_long = 50 | random_string
+
+  function user = 'modules/user/commands/user/create', first_name: too_long, last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: user, field_name: 'first_name_too_long'
+
+  # the user row must not exist, otherwise the address is blocked forever
+  # (find returns null when there is no match, so a blank id means no user)
+  function leftover = 'modules/user/queries/user/find', email: email, id: null, with_token: null
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: leftover, field_name: 'id'
+
+  # and the same address must still be usable
+  function retry = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: retry, field_name: 'id'
+
+  function retry_profile = 'modules/user/queries/profiles/find', user_id: retry.id, id: null, uuid: null, first_name: null, last_name: null
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: retry_profile, field_name: 'id'
+%}
+
+{% liquid
+  # test the combined name length is enforced too: two names that are each
+  # within 40 chars but together exceed the 80 char profile limit
+
+  assign email = 10 | random_string | append: '-user-create@example.com'
+  assign long_part = 40 | random_string
+
+  function user = 'modules/user/commands/user/create', first_name: long_part, last_name: long_part, email: email, password: email, roles: null, hook_params: null
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: user, field_name: 'name_too_long'
+
+  function leftover = 'modules/user/queries/user/find', email: email, id: null, with_token: null
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: leftover, field_name: 'id'
+%}

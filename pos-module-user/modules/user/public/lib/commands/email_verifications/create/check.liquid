@@ -1,0 +1,25 @@
+{% doc %}
+  Validates only what the caller supplied. Whether the address belongs to a real
+  or an unverified account is deliberately NOT validated here - that decision
+  lives in create.liquid, which stays silent about it so the endpoint cannot be
+  used to test which addresses are registered.
+
+  @param {object} object - The object to process
+  @param {object} hcaptcha_params - The hCaptcha parameters
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'email', key: 'modules/user/validation.email.required'
+  function c = 'modules/core/validations/email', c: c, object: object, field_name: 'email', key: 'modules/user/validation.email.format'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'host'
+
+  if context.constants.VERIFY_HCAPTCHA == "true"
+    function c = 'modules/core/validations/hcaptcha', c: c, hcaptcha_params: hcaptcha_params
+  endif
+
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+
+  return object
+%}
