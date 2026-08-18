@@ -571,6 +571,75 @@ To implement a custom OAuth2 provider, you must provide two helper methods:
 | email | User's email. |
 | valid | A boolean indicating whether the flow was successful or not. |
 
+### Email verification
+
+Optionally require new users to confirm their email address before they can log
+in. It exists to stop signups with addresses the registrant does not control -
+throwaway accounts, typos, and bots.
+
+**The feature is off by default.** Upgrading the module does not change
+registration or login for an application that does not opt in.
+
+#### Enabling it
+
+Before switching it on in an application that already has users, backfill their
+profiles so they count as verified - otherwise everyone is locked out at their
+next login. See [MIGRATIONS.md](MIGRATIONS.md) for the ordered steps.
+
+Then set the constant in a migration:
+
+```
+{% liquid
+  function result = 'modules/core/commands/variable/set', name: 'USER_EMAIL_VERIFICATION_ENABLED', value: 'true'
+%}
+```
+
+#### Configuration
+
+| Constant | Default | Meaning |
+| :--- | :--- | :--- |
+| `USER_EMAIL_VERIFICATION_ENABLED` | off | Master switch |
+| `USER_EMAIL_VERIFICATION_TTL_HOURS` | `24` | How long a verification link stays valid |
+| `USER_EMAIL_VERIFICATION_RESEND_INTERVAL` | `60` | Minimum seconds between resends to one address |
+| `USER_EMAIL_VERIFICATION_RESEND_DAILY_MAX` | `5` | Maximum resends per address per 24 hours |
+
+#### The flow
+
+1. The visitor registers. The account is created but **no session is started**.
+2. They land on `/users/check-email`, which tells them to go and click the link
+   and offers a throttled resend.
+3. They get an email with a link to `/users/verify`, valid for the configured
+   TTL.
+4. Following the link marks the profile verified, signs them in and redirects.
+   Following it a second time is not an error - they are told the address is
+   already confirmed.
+5. Trying to log in before confirming shows the same "check your inbox" screen
+   with a resend button, and fires neither `user_login` nor `user_signed_in`.
+
+Registrations through an OAuth provider skip all of this: the provider has
+already established that the user controls the address, so those profiles are
+marked verified at creation.
+
+#### Extending it
+
+- `user_email_verified` event (payload `{user_id}`) - published once, when an
+  address is first confirmed. Use this instead of `user_created` for anything
+  that should only happen for confirmed users.
+- `email_verification_sent` event - published each time a verification email
+  goes out.
+- `hook_user_email_verified` - fired synchronously on verification, with
+  `params.user` and `params.profile`.
+
+#### Customising the copy
+
+All strings are translations, so wording can be changed without touching the
+views. The email lives in `emails.users.verify.*` and the screens in
+`email_verification.*`. The views themselves
+(`views/partials/users/check_email.liquid`,
+`views/partials/users/verification_expired.liquid` and
+`views/partials/emails/users/verify.liquid`) can be overridden the same way as
+any other module file.
+
 ### 2FA
 
 This feature enables the use of a second form of identification to verify a user's identity and grant them access to the account. Users can scan the generated QR code with any authenticator app to be able to generate one-time passwords (OTP).

@@ -1,0 +1,21 @@
+en:
+  email_verification:
+    check_email:
+      title: Check your inbox
+      sent_to_html: We sent a verification link to <strong>%{email}</strong>. Click
+        the link in that email to activate your account.
+      expires: The link is valid for 24 hours. Can't find it? Check your spam or
+        promotions folder.
+      resend: Send it again
+      resent: Verification email sent again.
+      wrong_email: Wrong email address?
+      back_to_login: Return to login page
+    expired:
+      title: That link has expired
+      description: Verification links are only valid for a short time. Request a
+        new one and we'll email it straight away.
+      resend: Send a new link
+    confirmed: Email confirmed.
+    already_confirmed: Your email is already confirmed.
+    expired_link: The verification link you've entered is invalid or has expired.
+    login_blocked: Please verify your email address before signing in.

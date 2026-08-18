@@ -47,6 +47,9 @@ query (
       uuid: property(name: "uuid")
       roles: property_array(name: "roles")
       otp_configured: property_boolean(name: "otp_configured")
+      email_verified_at: property(name: "email_verified_at")
+      email_verification_sent_at: property(name: "email_verification_sent_at")
+      email_verification_sent_count: property_int(name: "email_verification_sent_count")
     }
   }
 }

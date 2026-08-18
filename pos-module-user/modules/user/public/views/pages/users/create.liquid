@@ -4,13 +4,29 @@ slug: users
 ---
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
-  
+
   # platformos-check-disable DeprecatedTag
   include 'modules/user/helpers/can_do_or_redirect', requester: current_profile, do: 'users.register', access_callback: null, entity: null, return_url: null
   # platformos-check-enable DeprecatedTag
 
   function object = 'modules/user/commands/user/create', first_name: context.params.first_name, last_name: context.params.last_name, email: context.params.email, password: context.params.password, hook_params: context.params, roles: null
   if object.valid
+    function verification_enabled = 'modules/user/helpers/email_verification_enabled'
+
+    if verification_enabled
+      comment
+        No session until the address is confirmed. The account exists and
+        user_created has been published, so consumers still run - what the
+        visitor cannot do yet is sign in.
+      endcomment
+      function _ = 'modules/user/commands/email_verifications/create', email: context.params.email, host: context.location.host, hcaptcha_params: null
+
+      assign encoded_email = context.params.email | url_encode
+      assign target = '/users/check-email?email=' | append: encoded_email
+      redirect_to target
+      break
+    endif
+
     function _ = 'modules/user/commands/session/create', validate_password: false, user_id: object.id, email: null, password: null, hook_params: null, skip_otp: null
     # platformos-check-disable DeprecatedTag
     include 'modules/core/helpers/redirect_to', default: null, error: null, format: null, info: null, notice: null, object: null, url: null

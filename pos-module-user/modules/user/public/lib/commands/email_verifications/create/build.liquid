@@ -1,0 +1,31 @@
+{% doc %}
+  Looks up the user and mints a temporary token scoped to the verification TTL.
+
+  The token comes straight from the graphql query rather than through
+  queries/user/find, because that wrapper does not expose valid_for/expires_in
+  and its defaults are not the ones this flow wants.
+
+  Both duration arguments are set from the same TTL, following the usage in
+  pos-module-user-invites: valid_for is documented in minutes by
+  commands/authentication_links/create, expires_in in hours.
+
+  The token is not single use - replay is handled in verify.liquid, which
+  reports an already confirmed address rather than an error, because mail
+  clients and link scanners do follow these URLs more than once.
+
+  @param {string} email - The address to send the link to
+  @param {string} host - The host the link should point at
+{% enddoc %}
+{% liquid
+  assign ttl_hours = context.constants.USER_EMAIL_VERIFICATION_TTL_HOURS | default: 24 | plus: 0
+  assign ttl_minutes = ttl_hours | times: 60
+
+  graphql r = 'modules/user/user/find', email: email, id: null, with_token: true, valid_for: ttl_minutes, expires_in: ttl_hours, limit: 1
+  assign user = r.users.results.first
+
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  assign object = { "email": email, "host": host, "id": user.id, "token": user.token, "profile": profile }
+
+  return object
+%}
