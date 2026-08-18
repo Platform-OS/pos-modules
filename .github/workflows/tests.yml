@@ -1,5 +1,5 @@
 name: Tests
-run-name: platform-build ${{ github.event.client_payload.build_id }}
+run-name: ${{ github.event_name == 'repository_dispatch' && format('platform-build {0}', github.event.client_payload.build_id) || '' }}
 on:
   push:
     paths-ignore:
