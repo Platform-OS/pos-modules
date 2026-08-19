@@ -1,7 +1,7 @@
 const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const WebpackRequireFrom = require('webpack-require-from');
-const { ESBuildMinifyPlugin } = require('esbuild-loader');
+const { EsbuildPlugin } = require('esbuild-loader');
 
 const prod = process.env.NODE_ENV === 'production';
 
@@ -37,7 +37,7 @@ const config = {
   optimization: {
     minimize: false,
     minimizer: [
-      new ESBuildMinifyPlugin({
+      new EsbuildPlugin({
         css: true
       })
     ]
