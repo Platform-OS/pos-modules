@@ -2,15 +2,15 @@
   @param {object} c - The contract object for collecting validation errors
   @param {string} field_name - The name of the field to validate
   @param {string} table - The database table name
-  @param {string} exclude_name - The property name to exclude
-  @param {string} exclude_value - The property value to exclude
-  @param {string} ids - List of record IDs to include
-  @param {string} key - The translation key for the error message
-  @param {string} not_ids - List of record IDs to exclude
-  @param {string} property_name - The property name to check
-  @param {string} property_value - The property value to check
-  @param {string} scope_name - The scope property name for filtering
-  @param {string} scope_value - The scope property value for filtering
+  @param {string} [exclude_name] - The property name to exclude
+  @param {string} [exclude_value] - The property value to exclude
+  @param {array} ids - List of record IDs to include
+  @param {string} [key] - The translation key for the error message
+  @param {array} not_ids - List of record IDs to exclude
+  @param {string} [property_name] - The property name to check
+  @param {string} [property_value] - The property value to check
+  @param {string} [scope_name] - The scope property name for filtering
+  @param {string} [scope_value] - The scope property value for filtering
 {% enddoc %}
 {% liquid
   assign property_name = property_name | default: ''

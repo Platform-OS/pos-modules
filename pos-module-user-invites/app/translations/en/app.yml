@@ -1,0 +1,8 @@
+# The module reads these app level keys; a host app installing pos-module-user-invites has
+# to define them. These are the example app's values.
+en:
+  app:
+    site_name: 'Example App'
+    from_email: 'no-reply@example.com'
+    errors:
+      taken: 'is already taken'

@@ -1,6 +1,6 @@
 {% doc %}
   @param {string} id - The record ID
-  @param {string} roles - The roles to assign
+  @param {array} roles - The roles to assign; the graphql takes [String!]
 {% enddoc %}
 {% liquid
   assign object = { "valid": true, "id": id, "roles": roles }

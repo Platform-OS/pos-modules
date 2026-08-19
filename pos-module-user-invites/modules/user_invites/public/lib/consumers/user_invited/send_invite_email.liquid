@@ -1,13 +1,13 @@
 {% background delay: 0.1, user_id: event.user_id, email: event.email, user_invite_id: event.user_invite_id, app_host: event.app_host, max_attempts: 0 %}
   {% liquid
-    graphql g = 'modules/user/user/find', id: user_id, with_token: true, valid_for: 4380, expires_in: 4380
+    graphql g = 'modules/user/user/find', id: user_id, with_token: true, expires_in: 4380
 
     assign user_invite_token = g.users.results.first.token
 
-    assign object = '{}' | parse_json
-    hash_assign object['email'] = email
-    hash_assign object['user_id'] = user_id
-    hash_assign object['sign_up_url'] = "https://" | append: app_host | append: "/user_invites/" | append: user_invite_id | append: "/edit" | append: "?token=" | append: user_invite_token
+    assign object = {}
+    assign object['email'] = email
+    assign object['user_id'] = user_id
+    assign object['sign_up_url'] = "https://" | append: app_host | append: "/user_invites/" | append: user_invite_id | append: "/edit" | append: "?token=" | append: user_invite_token
 
     assign now_time = 'now' | to_time: 'UTC'
     assign sent_at = now_time | strftime: "%Y-%m-%dT%H:%M:%S%Z"

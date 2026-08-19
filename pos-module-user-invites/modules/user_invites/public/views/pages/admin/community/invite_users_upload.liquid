@@ -6,7 +6,7 @@ slug: admin/community/invite_users/upload
 {% liquid
   function current_profile = 'modules/user_invites/helpers/current_profile'
   # platformos-check-disable UnreachableCode
-  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'profiles.manage.all'
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'profiles.manage.all', access_callback: null, entity: null, forbidden_partial: null, redirect_anonymous_to_login: null
   # platformos-check-enable UnreachableCode
 
   assign filename = context.params.filename | default: 'upload.csv'

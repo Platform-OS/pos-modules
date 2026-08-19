@@ -35,7 +35,7 @@
           {% for record in invite_csvs.results %}
             {% liquid
               assign filename_label = record.filename | default: unnamed_label
-              assign uploaded_at = record.created_at | localize: 'short'
+              assign uploaded_at = record.created_at | l: 'short'
               assign action_label = 'modules/user_invites/admin.invite_users.action_view' | t
               if record.status == 'pending'
                 assign action_label = 'modules/user_invites/admin.invite_users.action_resume' | t
@@ -50,7 +50,9 @@
                   if record.status == 'sent'
                     assign chip_variant = 'success'
                   endif
+                  # platformos-check-disable MissingPartial
                   theme_render_rc 'components/molecules/chip', variant: chip_variant, content: record.status
+                  # platformos-check-enable MissingPartial
                 %}
               </td>
               <td class="py-2">
@@ -69,7 +71,9 @@
         assign url_params = null | hash_merge: page: ''
         assign url_template = '/admin/community/invite_users{?page}'
         assign pager_url = url_template | expand_url_template: url_params
+        # platformos-check-disable MissingPartial
         theme_render_rc 'components/molecules/pagination', count: invite_csvs.total_pages, active: page, url: pager_url
+        # platformos-check-enable MissingPartial
       endif
     %}
   </div>

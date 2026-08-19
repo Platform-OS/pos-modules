@@ -3,9 +3,9 @@
   @param {string} info - The info flash message
   @param {string} notice - The notice flash message
   @param {object} object - The object to process
-  @param {string} default - The default value
+  @param {string} [default] - The default value
   @param {string} format - The response format
-  @param {string} url - The URL to redirect to
+  @param {string} [url] - The URL to redirect to
 {% enddoc %}
 {% liquid
   if url == blank and context.session.return_to != blank

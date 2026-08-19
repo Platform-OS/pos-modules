@@ -3,21 +3,20 @@
   @param site_name {string} - site name shown in subject line
   @param from {string} - sender email address
 {% enddoc %}
-{% parse_json object %}
-  {
-    "to":      {{ object.email | json }},
-    "from":    {{ from | json }},
-    "subject": {% print 'modules/user_invites/emails.invitation_subject' | t: site_name: site_name | json %},
+{% liquid
+  assign subject = 'modules/user_invites/emails.invitation_subject' | t: site_name: site_name
+  assign object = {
+    "to": object.email,
+    "from": from,
+    "subject": subject,
     "partial": "modules/user_invites/emails/user_invites/user_invite",
-    "layout": {{ context.constants.USER_INVITES_MAILER_LAYOUT | json }},
+    "layout": context.constants.USER_INVITES_MAILER_LAYOUT,
     "data": {
-      "sign_up_url": {% print object.sign_up_url | json %},
-      "email": {{ object.email | json }}
+      "sign_up_url": object.sign_up_url,
+      "email": object.email
     }
   }
-{% endparse_json %}
 
-{% liquid
   function object = 'modules/core/commands/email/send', object: object
   return object
 %}

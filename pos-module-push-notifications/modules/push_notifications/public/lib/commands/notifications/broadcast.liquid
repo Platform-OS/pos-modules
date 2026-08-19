@@ -24,7 +24,7 @@
   assign user_id_batches = user_ids | array_in_groups_of: 50
 
   for batch in user_id_batches
-    assign clean_batch = batch | compact
+    assign clean_batch = batch | array_compact
 
     function subs = 'modules/push_notifications/queries/subscriptions/search',
       user_ids: clean_batch,

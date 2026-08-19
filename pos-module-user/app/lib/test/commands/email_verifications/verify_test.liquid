@@ -65,11 +65,11 @@
   # resend never reports whether the address exists: a well formed request for
   # an address with no account still comes back valid
 
-  function object = 'modules/user/commands/email_verifications/create', email: 'definitely-not-registered@example.com', host: 'example.com', hcaptcha_params: null
+  function object = 'modules/user/commands/email_verifications/create', email: 'definitely-not-registered@example.com', host: 'example.com', hcaptcha_params: null, verify_hcaptcha: false
   function contract = 'modules/tests/assertions/valid_object', contract: contract, object: object, field_name: 'resend_unknown_address'
 
   # but a malformed address is still a normal validation error
-  function malformed = 'modules/user/commands/email_verifications/create', email: 'not-an-email', host: 'example.com', hcaptcha_params: null
+  function malformed = 'modules/user/commands/email_verifications/create', email: 'not-an-email', host: 'example.com', hcaptcha_params: null, verify_hcaptcha: false
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: malformed, field_name: 'resend_malformed_address'
 %}
 

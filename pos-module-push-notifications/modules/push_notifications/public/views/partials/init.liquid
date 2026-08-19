@@ -1,11 +1,11 @@
 {% doc %}
   Initializes push notifications module by registering corresponding JavaScript and CSS
 
-  @param {string} subscribe_url - endpoint URL for creating a subscription
-  @param {string} destroy_url - endpoint URL for removing a subscription
-  @param {string} rotate_url - endpoint URL to refresh the subscription
+  @param {string} [subscribe_url] - endpoint URL for creating a subscription
+  @param {string} [destroy_url] - endpoint URL for removing a subscription
+  @param {string} [rotate_url] - endpoint URL to refresh the subscription
   @param {string} [service_worker_path] - path to the service worker that handles push notifications
-  @param {string} vapid_public_key - public VAPID key used to sign push notification data
+  @param {string} [vapid_public_key] - public VAPID key used to sign push notification data; defaults to the modules/push_notifications/VAPID_PUBLIC_KEY constant
 {% enddoc %}
 
 
@@ -14,7 +14,7 @@
   assign destroy_url = destroy_url | default: '/push_notifications/subscriptions/destroy'
   assign rotate_url = rotate_url | default: '/push_notifications/subscriptions/rotate'
   assign service_worker_path = service_worker_path | default: '/sw.js'
-  assign vapid_public_key = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
+  assign vapid_public_key = vapid_public_key | default: context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
 %}
 
 <link rel="stylesheet" href="{{ 'modules/push_notifications/style/pos-push.css' | asset_url }}">

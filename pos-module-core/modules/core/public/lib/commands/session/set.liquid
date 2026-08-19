@@ -1,6 +1,6 @@
 {% doc %}
-  @param {string} key - The translation key for the error message
-  @param {string} value - The value
+  @param {string} key - The session key to write
+  @param value - The value to store; any type, serialized with the json filter
 {% enddoc %}
 {% liquid
   assign value = value | json

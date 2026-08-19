@@ -6,7 +6,7 @@
 {% liquid
   assign unnamed_label = 'modules/user_invites/admin.invite_users.unnamed' | t
   assign filename_label = invite_csv.filename | default: unnamed_label
-  assign sent_date = invite_csv.sent_at | localize: 'short'
+  assign sent_date = invite_csv.sent_at | l: 'short'
   assign sent_count = invite_csv.sent_count | default: 0
 %}
 <div class="container">

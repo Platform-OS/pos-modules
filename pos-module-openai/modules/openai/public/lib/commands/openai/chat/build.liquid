@@ -41,39 +41,39 @@ See also: https://platform.openai.com/docs/api-reference/chat
           https://platform.openai.com/docs/guides/structured-outputs
 
 {%- endcomment -%}
-{%- parse_json data_frame -%}
-{
-  "model": "gpt-4o-mini",
-  "temperature": 1,
-  "messages": [
-      {
-          "role": "system",
-          "content": ""
-      },
-      {
-          "role": "user",
-          "content": [
-            {
-              "type": "text",
-              "text": ""
-            }
-          ]
-      }
-  ],
-  "response_format": {
-      "type": "json_schema",
-      "json_schema": {
-        "name": "prompt_response_schema",
-        "schema": {
-          "type": "object",
-          "properties": {
-          },
-        "additionalProperties": false
+{%- assign data_frame =
+  {
+    "model": "gpt-4o-mini",
+    "temperature": 1,
+    "messages": [
+        {
+            "role": "system",
+            "content": ""
+        },
+        {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": ""
+              }
+            ]
+        }
+    ],
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+          "name": "prompt_response_schema",
+          "schema": {
+            "type": "object",
+            "properties": {
+            },
+          "additionalProperties": false
+        }
       }
     }
   }
-}
-{%- endparse_json -%}
+-%}
 
 
 {%- liquid

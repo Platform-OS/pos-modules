@@ -8,12 +8,12 @@
 {% enddoc %}
 {% liquid
   if object.token == 'pass'
-    assign response = '{"success": true, "hostname": "test.example.com"}' | parse_json
+    assign response = {"success": true, "hostname": "test.example.com"}
     assign object = object | hash_merge: response: response, success: true, valid: true
     return object
   endif
 
-  assign response = '{"success": false}' | parse_json
+  assign response = {"success": false}
   function errors = 'modules/captchas/helpers/add_error', errors: object.errors, field_name: 'captcha', key: 'modules/captchas/errors.verification_failed'
   assign object = object | hash_merge: response: response, success: false, valid: false, errors: errors
   return object

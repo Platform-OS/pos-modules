@@ -3,7 +3,7 @@
            Required: invite_csv (record with sent_at)
 {% endcomment %}
 {% liquid
-  assign sent_date = invite_csv.sent_at | localize: 'short'
+  assign sent_date = invite_csv.sent_at | l: 'short'
 %}
 <div class="container">
   <h2 class="pb-4 font-extrabold text-3xl">{{ 'modules/user_invites/admin.invite_users.already_sent_heading' | t }}</h2>

@@ -1,5 +1,5 @@
 {% liquid
-  assign participants = [current_profile.id, object.to_id] | uniq | compact | sort
+  assign participants = [current_profile.id, object.to_id] | uniq | array_compact | sort
   assign data = { "participant_ids": participants, "conversation_id": object.conversation_id }
 
   return data

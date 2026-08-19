@@ -9,7 +9,7 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'date'
 
   assign name = 'events/' | append: object.type
-  graphql event_check_partials = 'modules/core/events/events_checks', name: name | dig: "admin_liquid_partials", "results"
+  graphql event_check_partials = 'modules/core/events/events_checks', name: name | hash_dig: "admin_liquid_partials", "results"
   for partial in event_check_partials
     assign is_event_definition = partial.path | matches: '^(modules/[^/]+/events/[^/]++|events/[^/]+)$'
     if is_event_definition

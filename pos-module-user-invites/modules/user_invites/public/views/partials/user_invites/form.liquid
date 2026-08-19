@@ -4,7 +4,7 @@
   @param token {string} - signed invite token
   @param registration_fields {array} - fields rendered in the form
   @param values {object} - default values keyed by field name
-  @param errors {object} - per-field error messages
+  @param [errors] {object} - per-field error messages
   @param context {object} - request context (for authenticity_token)
 {% enddoc %}
 <div class="container">
@@ -19,23 +19,29 @@
       {% for field in registration_fields %}
         {% liquid
           assign default_value = values[field.name] | raw_escape_string
-          assign error_messages = '[]' | parse_json
+          assign error_messages = []
           assign has_error = errors[field.name]
           assign validation = null | hash_merge: messages: error_messages
           if has_error
-            hash_assign validation['passed'] = false
-            hash_assign validation['messages'] = errors[field.name]
+            assign validation['passed'] = false
+            assign validation['messages'] = errors[field.name]
           endif
           assign input_params = field | hash_merge: value: default_value, classes: 'w-full'
           assign label_params = null | hash_merge: content: field.label
           assign field_params = null | hash_merge: validation: validation, input_params: input_params, label_params: label_params, classes: 'mb-6'
 
+          # platformos-check-disable MissingPartial
           theme_render_rc 'components/molecules/formfield', params: field_params
+          # platformos-check-enable MissingPartial
         %}
       {% endfor %}
 
       <fieldset class="mt-5">
-        {% theme_render_rc 'components/atoms/button', content: "Sign Up", type: 'submit' %}
+        {% liquid
+          # platformos-check-disable MissingPartial
+          theme_render_rc 'components/atoms/button', content: "Sign Up", type: 'submit'
+          # platformos-check-enable MissingPartial
+        %}
       </fieldset>
     </form>
   </div>

@@ -2,7 +2,7 @@
   @param {object} c - The contract object for collecting validation errors
   @param {string} field_name - The name of the field to validate
   @param {string} url - The URL to redirect to
-  @param {string} key - The translation key for the error message
+  @param {string} [key] - The translation key for the error message
 {% enddoc %}
 {% liquid
   assign key = key | default: 'modules/core/validation.not_url'

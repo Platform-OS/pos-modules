@@ -16,7 +16,7 @@ render 'modules/common-styling/pagination', total_pages: 20
 
   <h3 class="pos-heading-4 styleguide-heading-4">Collapsible list</h3>
   <div class="styleguide-example styleguide-example-narrow">
-    {% parse_json navigation %}
+    {% assign navigation =
       [
         {
           "label": "PlatformOS",
@@ -72,14 +72,14 @@ render 'modules/common-styling/pagination', total_pages: 20
           ]
         }
       ]
-    {% endparse_json %}
+    %}
 
     {% liquid
       render 'modules/common-styling/navigation/collapsible', items: navigation, active: 'https://documentation.platformos.com/get-started', inert: null
     %}
   </div>
   {% capture code %}{% raw %}
-{% parse_json navigation %}
+{% assign navigation =
   [
     {
       "label": "PlatformOS",
@@ -119,7 +119,7 @@ render 'modules/common-styling/pagination', total_pages: 20
       ]
     }
   ]
-{% endparse_json %}
+%}
 
 {% liquid
   render 'modules/common-styling/navigation/collapsible', items: navigation, active: 'https://documentation.platformos.com/get-started'

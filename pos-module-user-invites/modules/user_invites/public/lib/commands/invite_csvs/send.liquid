@@ -5,7 +5,7 @@
   @param csv {string} - invite_csv csv text
 {% enddoc %}
 {% liquid
-  assign object = '{}' | parse_json | hash_merge: id: id, csv: csv
+  assign object = { "id": id, "csv": csv }
 
   function object = 'modules/user_invites/commands/invite_csvs/send/build', object: object
   function object = 'modules/user_invites/commands/invite_csvs/send/check', object: object
