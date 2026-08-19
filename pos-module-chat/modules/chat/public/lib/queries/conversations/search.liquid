@@ -8,12 +8,15 @@
   for conversation in result.results
     assign participants = []
 
-    for participant_id in conversation.participant_ids
-      function profile = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+    for pid in conversation.participant_ids
+      function profile = 'modules/user/queries/profiles/find', id: pid, user_id: null, uuid: null, first_name: null, last_name: null
       assign participants << profile
     endfor
 
     assign conversation.participants = participants
+    # last_message comes back as a 1-item list (related_records + limit: 1) -
+    # flatten it back to a single record for downstream consumers.
+    assign conversation.last_message = conversation.last_message | first
     assign conversations << conversation
   endfor
 
