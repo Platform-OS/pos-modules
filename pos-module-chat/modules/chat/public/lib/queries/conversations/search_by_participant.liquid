@@ -5,17 +5,55 @@
   endif
 
   assign page = page | to_positive_integer: 1
+  assign per_page = limit | to_positive_integer: 20
 
-  graphql r = 'modules/chat/conversations/search', limit: limit, page: page, participant_id: participant_id
+  # "Unread first" is per-participant state, so the database can't sort by it -
+  # it has no single global order to paginate on. Instead we fetch the
+  # participant's whole conversation list once (up to max_conversations),
+  # sort/paginate that in Liquid, and only then resolve participant profiles
+  # for the conversations that actually land on the requested page. Otherwise
+  # sorting/partitioning a single GraphQL page in isolation (as before) could
+  # put an unread conversation on page 2 behind read ones already shown on
+  # page 1.
+  assign max_conversations = 300
+  graphql r = 'modules/chat/conversations/search', limit: max_conversations, page: 1, participant_id: participant_id
 
   assign result = r.conversations
-  assign conversations = []
+  assign unread_conversations = []
+  assign read_conversations = []
 
   for conversation in result.results
+    # last_message comes back as a 1-item list (related_record's own sort isn't
+    # honored by the engine - related_records + limit: 1 is, so that's what the
+    # graphql query uses); flatten it back to a single record here so every
+    # downstream consumer (conversation.last_message.message / .created_at)
+    # keeps working unchanged.
+    assign conversation.last_message = conversation.last_message | first
+
+    # last_message is sorted DESC, so this is the most recent message; fall back
+    # to the conversation's own created_at when it has no messages yet.
+    assign conversation.last_message_at = conversation.last_message.created_at | default: conversation.created_at
+
+    if conversation.participant_read_ids contains participant_id
+      assign read_conversations << conversation
+    else
+      assign unread_conversations << conversation
+    endif
+  endfor
+
+  # Unread conversations first, each group ordered by most recent message.
+  assign unread_conversations = unread_conversations | sort: 'last_message_at' | reverse
+  assign read_conversations = read_conversations | sort: 'last_message_at' | reverse
+  assign sorted_conversations = unread_conversations | concat: read_conversations
+
+  assign page_offset = page | minus: 1 | times: per_page
+  assign conversations = []
+
+  for conversation in sorted_conversations offset: page_offset limit: per_page
     assign participants = []
 
-    for participant_id in conversation.participant_ids
-      function profile = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+    for pid in conversation.participant_ids
+      function profile = 'modules/user/queries/profiles/find', id: pid, user_id: null, uuid: null, first_name: null, last_name: null
       assign participants << profile
     endfor
 
@@ -24,6 +62,18 @@
   endfor
 
   assign result.results = conversations
+  assign result.current_page = page
+
+  # Bound against the size of sorted_conversations (capped at max_conversations),
+  # not the raw total_entries GraphQL reports - total_entries can exceed what we
+  # actually fetched/sorted, and we can't paginate past that.
+  assign available = sorted_conversations | size
+  assign next_page_offset = page_offset | plus: per_page
+  if next_page_offset < available
+    assign result.has_next_page = true
+  else
+    assign result.has_next_page = false
+  endif
 
   return result
  %}
