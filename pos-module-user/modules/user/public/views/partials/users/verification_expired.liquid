@@ -28,6 +28,8 @@ metadata:
       <input type="email" name="email" id="pos-user-verification-email" value="{{ email }}" required>
     </fieldset>
 
+    {% render 'modules/common-styling/forms/hcaptcha' %}
+
     <button type="submit" class="pos-button pos-button-primary">
       {{ 'modules/user/email_verification.expired.resend' | t }}
     </button>

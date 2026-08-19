@@ -24,14 +24,8 @@
     return object
   endif
 
-  function _ = 'modules/user/commands/profiles/mark_email_verified', object: profile
-
-  assign params = { "user": object.user, "profile": profile }
-  function results = 'modules/core/commands/hook/fire', hook: 'user_email_verified', params: params, merge_to_object: null
-  assign object.hook_results = results
-
-  assign event_payload = { "user_id": object.user.id }
-  function _ = 'modules/core/commands/events/publish', type: 'user_email_verified', object: event_payload, delay: null, max_attempts: null
+  function confirmation = 'modules/user/commands/email_verifications/confirm', user: object.user, profile: profile
+  assign object.hook_results = confirmation.hook_results
 
   return object
 %}

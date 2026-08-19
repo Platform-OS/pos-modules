@@ -5,6 +5,7 @@ metadata:
     - url
     - email
     - id
+    - ttl_hours
 ---
 {% parse_json object %}
   {
@@ -15,6 +16,7 @@ metadata:
     "layout": null,
     "data": {
       "url": {% print object.url | json %},
+      "ttl_hours": {% print object.ttl_hours | json %},
       "user": {
         "id": {% print object.id | json %}
       }

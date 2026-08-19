@@ -14,7 +14,15 @@
   endcomment
   function user = 'modules/user/helpers/user_from_temporary_token', token: token, email: email
 
-  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  comment
+    Guarded for the same reason as in create/build: a bad token is an ordinary
+    unauthenticated request, and calling profiles/find with a blank user_id
+    would write an ERROR line for every one of them.
+  endcomment
+  assign profile = null
+  if user.id
+    function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  endif
 
   assign object = { "email": email, "token": token, "user": user, "profile": profile }
 

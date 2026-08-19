@@ -1,7 +1,8 @@
 {% doc %}
-  Covers the verification command directly. The browser journey is covered by
-  the Playwright specs; these assert the parts that are easy to get subtly
-  wrong and invisible from the UI - idempotency, and the fact that a bad token
+  Covers the verification commands directly. The browser journey lives in the
+  "Testing email verification" specs in tests/accounts.spec.ts; what is asserted
+  here is the part that is easy to get subtly wrong and invisible from the UI -
+  idempotency, token lifetime, the resend budget, and the fact that a bad token
   reveals nothing.
 
   @param {object} contract - The test contract object
@@ -10,8 +11,9 @@
   # a fresh registration is unverified, and verifying it sets the timestamp
 
   assign email = 10 | random_string | append: '-verify@example.com'
+  assign password = email | prepend: 'Aa1-'
 
-  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
   function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
 
   function contract = 'modules/tests/assertions/blank', contract: contract, object: profile, field_name: 'email_verified_at'
@@ -27,8 +29,9 @@
   # following the same link twice is harmless
 
   assign email = 10 | random_string | append: '-verify@example.com'
+  assign password = email | prepend: 'Aa1-'
 
-  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
   function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
 
   function _ = 'modules/user/commands/profiles/mark_email_verified', object: profile
@@ -49,7 +52,8 @@
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: unknown, field_name: 'unknown_token'
 
   assign email = 10 | random_string | append: '-verify@example.com'
-  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  assign password = email | prepend: 'Aa1-'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
 
   function real_address_bad_token = 'modules/user/commands/email_verifications/verify', token: 'not-a-real-token', email: email
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: real_address_bad_token, field_name: 'bad_token_real_address'
@@ -67,4 +71,66 @@
   # but a malformed address is still a normal validation error
   function malformed = 'modules/user/commands/email_verifications/create', email: 'not-an-email', host: 'example.com', hcaptcha_params: null
   function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: malformed, field_name: 'resend_malformed_address'
+%}
+
+{% liquid
+  # the resend budget restarts outside the 24h window instead of accumulating.
+  # Incrementing unconditionally made the cap permanent: a user who reached it
+  # once was limited to a single email a day from then on.
+
+  assign now_epoch = 'now' | to_time | date: '%s' | plus: 0
+
+  assign stale_epoch = now_epoch | minus: 90000
+  assign stale_at = stale_epoch | date: '%Y-%m-%dT%H:%M:%S%z'
+  assign stale = { "id": "1", "email_verification_sent_at": stale_at, "email_verification_sent_count": 5 }
+
+  function data = 'modules/user/commands/profiles/mark_verification_sent/build', object: stale
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.email_verification_sent_count, expected: 1, field_name: 'sent_count_restarts_after_24h'
+
+  function throttled = 'modules/user/helpers/email_verification_throttled', profile: stale
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: { "throttled": throttled }, field_name: 'throttled'
+
+  assign recent_epoch = now_epoch | minus: 7200
+  assign recent_at = recent_epoch | date: '%Y-%m-%dT%H:%M:%S%z'
+  assign recent = { "id": "1", "email_verification_sent_at": recent_at, "email_verification_sent_count": 3 }
+
+  function data = 'modules/user/commands/profiles/mark_verification_sent/build', object: recent
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.email_verification_sent_count, expected: 4, field_name: 'sent_count_increments_inside_window'
+
+  assign at_cap = { "id": "1", "email_verification_sent_at": recent_at, "email_verification_sent_count": 5 }
+  function throttled = 'modules/user/helpers/email_verification_throttled', profile: at_cap
+  function contract = 'modules/tests/assertions/true', contract: contract, object: { "throttled": throttled }, field_name: 'throttled'
+%}
+
+{% liquid
+  # the verification token lives for the configured number of HOURS. temporary_token
+  # reads valid_for in hours too, and prefers it over expires_in, so converting the
+  # TTL to minutes and passing it as valid_for produced a token good for 60 days.
+
+  assign email = 10 | random_string | append: '-ttl@example.com'
+  assign password = email | prepend: 'Aa1-'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
+
+  function object = 'modules/user/commands/email_verifications/create/build', email: email, host: 'example.com'
+
+  assign expected_ttl = context.constants.USER_EMAIL_VERIFICATION_TTL_HOURS | default: 24 | plus: 0
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: object.ttl_hours, expected: expected_ttl, field_name: 'ttl_hours'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: object, field_name: 'token'
+%}
+
+{% liquid
+  # confirming reports whether it did anything, so the hook and the event cannot
+  # fire twice for one address however many paths call it.
+
+  assign email = 10 | random_string | append: '-confirm@example.com'
+  assign password = email | prepend: 'Aa1-'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  function first = 'modules/user/commands/email_verifications/confirm', user: user, profile: profile
+  function contract = 'modules/tests/assertions/true', contract: contract, object: first, field_name: 'confirmed'
+
+  function confirmed_profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function second = 'modules/user/commands/email_verifications/confirm', user: user, profile: confirmed_profile
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: second, field_name: 'confirmed'
 %}

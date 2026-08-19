@@ -1,13 +1,11 @@
 {% doc %}
   Looks up the user and mints a temporary token scoped to the verification TTL.
 
-  The token comes straight from the graphql query rather than through
-  queries/user/find, because that wrapper does not expose valid_for/expires_in
-  and its defaults are not the ones this flow wants.
-
-  Both duration arguments are set from the same TTL, following the usage in
-  pos-module-user-invites: valid_for is documented in minutes by
-  commands/authentication_links/create, expires_in in hours.
+  temporary_token takes its lifetime in HOURS, so USER_EMAIL_VERIFICATION_TTL_HOURS
+  is passed straight through as expires_in. (An earlier version converted it to
+  minutes and passed it as valid_for as well; because the platform resolves the
+  lifetime as `valid_for || expires_in`, that produced a token good for 1440
+  HOURS - 60 days - rather than the documented 24.)
 
   The token is not single use - replay is handled in verify.liquid, which
   reports an already confirmed address rather than an error, because mail
@@ -18,14 +16,20 @@
 {% enddoc %}
 {% liquid
   assign ttl_hours = context.constants.USER_EMAIL_VERIFICATION_TTL_HOURS | default: 24 | plus: 0
-  assign ttl_minutes = ttl_hours | times: 60
 
-  graphql r = 'modules/user/user/find', email: email, id: null, with_token: true, valid_for: ttl_minutes, expires_in: ttl_hours, limit: 1
-  assign user = r.users.results.first
+  function user = 'modules/user/queries/user/find', email: email, id: null, with_token: true, expires_in: ttl_hours
 
-  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  comment
+    Only look for a profile once there is a user to look it up by: queries/profiles/find
+    logs an ERROR when every identifier is blank, and an unknown address is a
+    normal, unauthenticated request here - not something worth an error line.
+  endcomment
+  assign profile = null
+  if user.id
+    function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  endif
 
-  assign object = { "email": email, "host": host, "id": user.id, "token": user.token, "profile": profile }
+  assign object = { "email": email, "host": host, "id": user.id, "token": user.token, "profile": profile, "ttl_hours": ttl_hours }
 
   return object
 %}

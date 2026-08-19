@@ -33,5 +33,13 @@ export const users = {
     firstName: 'John',
     lastName: 'Doe',
     email: 'test129@example.com'
+  },
+  // Registered by the email verification spec, which needs an address that has
+  // never been confirmed. Kept separate from newUser so neither spec depends on
+  // the other having run.
+  unverifiedUser: {
+    firstName: 'Ida',
+    lastName: 'Unconfirmed',
+    email: 'test130@example.com'
   }
 };
