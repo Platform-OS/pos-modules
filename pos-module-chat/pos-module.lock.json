@@ -1,8 +1,8 @@
 {
   "dependencies": {
     "core": "2.1.9",
-    "user": "5.2.12",
-    "common-styling": "1.38.5",
+    "user": "5.3.0",
+    "common-styling": "1.38.7",
     "push_notifications": "2.0.1"
   },
   "devDependencies": {},
