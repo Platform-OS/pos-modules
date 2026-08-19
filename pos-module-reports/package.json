@@ -24,8 +24,8 @@
     "rimraf": "^3.0.2",
     "tailwindcss": "^2.2.16",
     "tailwindcss-rtl": "^0.7.3",
-    "webpack": "^5.69.1",
-    "webpack-cli": "^4.9.2",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1",
     "webpack-require-from": "^1.8.6"
   },
   "optionalDependencies": {
@@ -37,9 +37,5 @@
   "description": "reports",
   "author": "platformOS",
   "license": "ISC",
-  "repository": "",
-  "dependencies": {
-    "webpack": "^5.98.0",
-    "webpack-cli": "^6.0.1"
-  }
+  "repository": ""
 }
