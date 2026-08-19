@@ -9,10 +9,10 @@
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
-    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-terser": "^1.0.0",
     "@types/node": "^24.0.10",
     "glob": "^13.0.0",
-    "rollup": "^4.53.3",
+    "rollup": "^4.62.4",
     "rollup-plugin-styler": "^2.0.0"
   },
   "name": "pos-module-common-styling",
