@@ -42,9 +42,18 @@ test.describe('Testing registration', () => {
   test('register new user', async ({ page }) => {
     const homePage = new HomePage(page);
     const registrationPage = new RegistrationPage(page);
+    const testMailBoxPage = new TestMailBox(page);
 
     await registrationPage.goto();
     await registrationPage.registerUser(users.newUser, PASSWORD);
+
+    // The example app opts into email verification, so registration ends on the
+    // interstitial with no session; the account is only usable once the link in
+    // the mail has been followed.
+    await expect(page).toHaveURL(/\/users\/check-email\?email=/);
+    await expect(homePage.headingWithText('Check your inbox')).toBeVisible();
+
+    await testMailBoxPage.confirmEmailAddress(users.newUser.email);
 
     await expect(homePage.headingWithText('Current profile')).toBeVisible();
     await expect(homePage.elementWithText(users.newUser.email).first()).toBeVisible();
@@ -174,6 +183,73 @@ test.describe('Testing login and authentication', () => {
     await expect(loginPage.elementWithText('Invalid email or password')).toBeVisible();
     await loginPage.logIn('wrong@mail.com', PASSWORD);
     await expect(loginPage.elementWithText('Invalid email or password')).toBeVisible();
+  });
+});
+
+test.describe.serial('Testing email verification', () => {
+  test('unverified user is held at the interstitial, then let in by the link', async ({ page }) => {
+    const homePage = new HomePage(page);
+    const loginPage = new LogInPage(page);
+    const registrationPage = new RegistrationPage(page);
+    const testMailBoxPage = new TestMailBox(page);
+
+    await test.step('registering does not start a session', async () => {
+      await registrationPage.goto();
+      await registrationPage.registerUser(users.unverifiedUser, PASSWORD);
+
+      await expect(page).toHaveURL(/\/users\/check-email\?email=/);
+      await expect(homePage.headingWithText('Check your inbox')).toBeVisible();
+
+      // The home page offers "Log in" only to visitors without a session, so it
+      // stands in for "nobody is signed in" throughout this spec.
+      await homePage.goto();
+      await expect(homePage.linkWithText('Log in')).toBeVisible();
+    });
+
+    await test.step('logging in before confirming is refused', async () => {
+      await loginPage.goto();
+      await loginPage.logIn(users.unverifiedUser.email, PASSWORD);
+
+      await expect(page).toHaveURL(/\/users\/check-email\?email=/);
+      await expect(homePage.elementWithText('Please verify your email address before signing in.')).toBeVisible();
+
+      await homePage.goto();
+      await expect(homePage.linkWithText('Log in')).toBeVisible();
+    });
+
+    await test.step('following the link confirms the address and signs the user in', async () => {
+      await testMailBoxPage.confirmEmailAddress(users.unverifiedUser.email);
+
+      await expect(homePage.headingWithText('Current profile')).toBeVisible();
+      await expect(homePage.elementWithText(users.unverifiedUser.email).first()).toBeVisible();
+    });
+
+    await test.step('the same link a second time is not an error', async () => {
+      await testMailBoxPage.confirmEmailAddress(users.unverifiedUser.email);
+
+      await expect(homePage.elementWithText('Your email is already confirmed.')).toBeVisible();
+    });
+
+    await test.step('logging in works once the address is confirmed', async () => {
+      await homePage.goto();
+      await homePage.buttonWithText('Log out').click();
+      await loginPage.goto();
+      await loginPage.logIn(users.unverifiedUser.email, PASSWORD);
+
+      await expect(homePage.headingWithText('Current profile')).toBeVisible();
+    });
+  });
+
+  test('a tampered verification link is refused without revealing anything', async ({ page }) => {
+    const homePage = new HomePage(page);
+
+    await page.goto(`/users/verify?token=not-a-real-token&email=${encodeURIComponent(users.unverifiedUser.email)}`);
+    await expect(homePage.headingWithText('That link has expired')).toBeVisible();
+
+    // An address with no account at all must produce exactly the same screen, or
+    // the endpoint becomes a way to find out who is registered.
+    await page.goto('/users/verify?token=not-a-real-token&email=nobody-here%40example.com');
+    await expect(homePage.headingWithText('That link has expired')).toBeVisible();
   });
 });
 

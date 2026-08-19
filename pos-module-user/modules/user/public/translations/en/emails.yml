@@ -18,8 +18,8 @@ en:
         cta_button: Confirm my email address
         content: Confirm this is your email address and your account is ready to
           go.
-        expires: This link expires in 24 hours. If it does, you can request a new
-          one from the sign-in page.
+        expires: This link expires in %{hours} hours. If it does, you can request
+          a new one from the sign-in page.
         fallback: 'Button not working? Paste this link into your browser:'
         ignore: If you didn’t create an account, you can safely ignore this email
           — nothing will happen.

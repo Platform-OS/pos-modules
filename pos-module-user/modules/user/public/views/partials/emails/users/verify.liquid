@@ -16,7 +16,7 @@
   </tr>
 </table>
 
-<p>{{ 'modules/user/emails.users.verify.expires' | t }}</p>
+<p>{{ 'modules/user/emails.users.verify.expires' | t: hours: data.ttl_hours }}</p>
 
 <p>{{ 'modules/user/emails.users.verify.fallback' | t }}<br>
   <a href="{{ data.url }}">{{ data.url }}</a>

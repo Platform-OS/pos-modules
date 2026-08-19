@@ -18,7 +18,12 @@ slug: users/verification/resend
 
   assign email = context.params.email
 
-  function _ = 'modules/user/commands/email_verifications/create', email: email, host: context.location.host, hcaptcha_params: context.params
+  comment
+    Unlike registration this endpoint renders its own widget (see
+    partials/users/check_email), so it is the one caller that asks for the
+    captcha answer to be checked.
+  endcomment
+  function _ = 'modules/user/commands/email_verifications/create', email: email, host: context.location.host, hcaptcha_params: context.params, verify_hcaptcha: true
 
   function _ = 'modules/user/helpers/flash', notice: 'modules/user/email_verification.check_email.resent', error: null, info: null, force_clear: null
 

@@ -19,7 +19,21 @@ slug: users
         user_created has been published, so consumers still run - what the
         visitor cannot do yet is sign in.
       endcomment
-      function _ = 'modules/user/commands/email_verifications/create', email: context.params.email, host: context.location.host, hcaptcha_params: null
+      comment
+        verify_hcaptcha is false because this endpoint has already validated its
+        own form: asking the command to check the widget answer again would both
+        re-verify a single-use token and, when no params are threaded through,
+        raise inside the hcaptcha filter.
+      endcomment
+      function verification = 'modules/user/commands/email_verifications/create', email: context.params.email, host: context.location.host, hcaptcha_params: null, verify_hcaptcha: false
+
+      unless verification.valid
+        comment
+          The visitor is about to be told to check their inbox, so a request that
+          could not even be attempted must not be swallowed.
+        endcomment
+        log verification.errors, type: 'ERROR: could not send verification email after registration'
+      endunless
 
       assign encoded_email = context.params.email | url_encode
       assign target = '/users/check-email?email=' | append: encoded_email

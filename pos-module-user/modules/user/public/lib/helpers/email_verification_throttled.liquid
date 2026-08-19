@@ -2,8 +2,10 @@
   Whether a verification email to this profile should be suppressed.
 
   Two limits, both configurable: a minimum gap between sends, and a cap per
-  rolling 24 hours. The counter resets once the last send is over 24 hours old,
-  so the cap is a daily budget rather than a lifetime one.
+  rolling 24 hours. The count itself is restarted by
+  commands/profiles/mark_verification_sent once the previous send falls outside
+  that window, so the cap is a daily budget rather than a lifetime one; the
+  window check below also short-circuits a count left over from before.
 
   Callers must respond identically whether or not this returns true - see
   commands/email_verifications/create - otherwise the throttle itself becomes

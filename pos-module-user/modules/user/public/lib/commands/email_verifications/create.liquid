@@ -11,10 +11,11 @@
   @param {string} email - The email address
   @param {string} host - The host the link should point at
   @param {object} hcaptcha_params - The hCaptcha parameters
+  @param {boolean} verify_hcaptcha - Whether the calling endpoint presented an hCaptcha widget whose answer should be checked
 {% enddoc %}
 {% liquid
   function object = 'modules/user/commands/email_verifications/create/build', email: email, host: host
-  function object = 'modules/user/commands/email_verifications/create/check', object: object, hcaptcha_params: hcaptcha_params
+  function object = 'modules/user/commands/email_verifications/create/check', object: object, hcaptcha_params: hcaptcha_params, verify_hcaptcha: verify_hcaptcha
 
   unless object.valid
     return object

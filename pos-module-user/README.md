@@ -601,7 +601,11 @@ Then set the constant in a migration:
 | `USER_EMAIL_VERIFICATION_ENABLED` | off | Master switch |
 | `USER_EMAIL_VERIFICATION_TTL_HOURS` | `24` | How long a verification link stays valid |
 | `USER_EMAIL_VERIFICATION_RESEND_INTERVAL` | `60` | Minimum seconds between resends to one address |
-| `USER_EMAIL_VERIFICATION_RESEND_DAILY_MAX` | `5` | Maximum resends per address per 24 hours |
+| `USER_EMAIL_VERIFICATION_RESEND_DAILY_MAX` | `5` | Maximum resends per address per rolling 24 hours |
+
+If `VERIFY_HCAPTCHA` is on, the resend forms render the widget and the resend
+endpoint checks the answer. Registration does not check it a second time - it has
+already validated its own form, and the token is single use.
 
 #### The flow
 
@@ -613,28 +617,47 @@ Then set the constant in a migration:
 4. Following the link marks the profile verified, signs them in and redirects.
    Following it a second time is not an error - they are told the address is
    already confirmed.
-5. Trying to log in before confirming shows the same "check your inbox" screen
-   with a resend button, and fires neither `user_login` nor `user_signed_in`.
+5. Trying to log in before confirming sends a fresh link (subject to the
+   throttle) and redirects to the same "check your inbox" screen. No
+   `sign_in`, no `user_login` hook and no `user_signed_in` event.
 
-Registrations through an OAuth provider skip all of this: the provider has
-already established that the user controls the address, so those profiles are
-marked verified at creation.
+#### Other ways an address gets confirmed
+
+Following the link is not the only proof that someone holds a mailbox, and every
+route that establishes it ends up in the same command, so the hook and the event
+below fire exactly once per address whichever one it was:
+
+- **OAuth sign-up** - the provider has already established control of the
+  address, so those profiles are confirmed at creation and never see the
+  interstitial.
+- **A completed password reset** - the link was in the same inbox, so a user who
+  never confirmed but did reset their password is confirmed and signed in rather
+  than left with no session.
 
 #### Extending it
 
 - `user_email_verified` event (payload `{user_id}`) - published once, when an
-  address is first confirmed. Use this instead of `user_created` for anything
-  that should only happen for confirmed users.
+  address is first confirmed, by whichever route confirmed it. Use this instead
+  of `user_created` for anything that should only happen for confirmed users.
 - `email_verification_sent` event - published each time a verification email
   goes out.
-- `hook_user_email_verified` - fired synchronously on verification, with
+- `hook_user_email_verified` - fired synchronously on confirmation, with
   `params.user` and `params.profile`.
 
 #### Customising the copy
 
 All strings are translations, so wording can be changed without touching the
 views. The email lives in `emails.users.verify.*` and the screens in
-`email_verification.*`. The views themselves
+`email_verification.*`; both take the link lifetime as `%{hours}` rather than
+naming a fixed number, so changing the TTL keeps the copy honest.
+
+Entries that interpolate a value - the address, the lifetime - must not contain
+HTML. `t` treats a translation as html_safe only when nothing was interpolated
+into it, which is what keeps the address safe to print, and it applies the same
+rule to the translation's own tags, so markup in those entries would reach the
+user as literal text.
+
+The views themselves
 (`views/partials/users/check_email.liquid`,
 `views/partials/users/verification_expired.liquid` and
 `views/partials/emails/users/verify.liquid`) can be overridden the same way as

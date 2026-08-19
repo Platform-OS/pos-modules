@@ -2,10 +2,13 @@ en:
   email_verification:
     check_email:
       title: Check your inbox
-      sent_to_html: We sent a verification link to <strong>%{email}</strong>. Click
-        the link in that email to activate your account.
-      expires: The link is valid for 24 hours. Can't find it? Check your spam or
-        promotions folder.
+      # Keep these two free of HTML: t only marks a translation html_safe when
+      # nothing was interpolated into it, so markup here would reach the user as
+      # literal text. That same rule is what escapes the values themselves.
+      sent_to: We sent a verification link to %{email}. Click the link in that
+        email to activate your account.
+      expires: The link is valid for %{hours} hours. Can't find it? Check your
+        spam or promotions folder.
       resend: Send it again
       resent: Verification email sent again.
       wrong_email: Wrong email address?
