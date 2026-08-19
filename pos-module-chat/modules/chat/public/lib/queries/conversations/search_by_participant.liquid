@@ -47,18 +47,25 @@
   assign sorted_conversations = unread_conversations | concat: read_conversations
 
   assign page_offset = page | minus: 1 | times: per_page
+  assign page_end = page_offset | plus: per_page
   assign conversations = []
 
-  for conversation in sorted_conversations offset: page_offset limit: per_page
-    assign participants = []
+  for conversation in sorted_conversations
+    if forloop.index0 >= page_end
+      break
+    endif
 
-    for pid in conversation.participant_ids
-      function profile = 'modules/user/queries/profiles/find', id: pid, user_id: null, uuid: null, first_name: null, last_name: null
-      assign participants << profile
-    endfor
+    if forloop.index0 >= page_offset
+      assign participants = []
 
-    assign conversation.participants = participants
-    assign conversations << conversation
+      for pid in conversation.participant_ids
+        function profile = 'modules/user/queries/profiles/find', id: pid, user_id: null, uuid: null, first_name: null, last_name: null
+        assign participants << profile
+      endfor
+
+      assign conversation.participants = participants
+      assign conversations << conversation
+    endif
   endfor
 
   assign result.results = conversations
@@ -68,8 +75,7 @@
   # not the raw total_entries GraphQL reports - total_entries can exceed what we
   # actually fetched/sorted, and we can't paginate past that.
   assign available = sorted_conversations | size
-  assign next_page_offset = page_offset | plus: per_page
-  if next_page_offset < available
+  if page_end < available
     assign result.has_next_page = true
   else
     assign result.has_next_page = false
