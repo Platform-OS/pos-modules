@@ -3,6 +3,6 @@
     "core": "^2.1.9"
   },
   "machine_name": "data_export_api",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "name": "pos-module-data-export-api"
 }
