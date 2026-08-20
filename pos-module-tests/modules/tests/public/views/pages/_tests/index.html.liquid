@@ -3,7 +3,7 @@ layout: modules/tests/test
 ---
 {% liquid
   if context.environment == 'staging' or context.environment == 'development'
-    graphql tests = 'modules/tests/test_files/search', path: context.params.name | dig: "admin_liquid_partials" | dig: "results"
+    graphql tests = 'modules/tests/test_files/search', path: context.params.name | hash_dig: "admin_liquid_partials" | hash_dig: "results"
 
     render 'modules/tests/tests/index', tests: tests
   endif

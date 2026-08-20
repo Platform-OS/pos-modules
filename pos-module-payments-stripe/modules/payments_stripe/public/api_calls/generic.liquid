@@ -37,7 +37,7 @@ request_headers: >
   assign _ = data.payload | hash_delete_key: 'stripe_account_name'
 
   if data.payload
-    assign encoded = data.payload | www_form_encode_rc
+    assign encoded = data.payload | www_form_encode
     echo encoded
   endif
 %}

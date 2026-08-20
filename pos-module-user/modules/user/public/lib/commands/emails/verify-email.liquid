@@ -7,24 +7,22 @@ metadata:
     - id
     - ttl_hours
 ---
-{% parse_json object %}
-  {
-    "to": {{ object.email | json }},
-    "from": {% print 'modules/user/emails.from_email' | t: default: 'noreply@platformos.com' | json %},
-    "subject": {% print 'modules/user/emails.users.verify.subject' | t | json %},
+{% liquid
+  assign from = 'modules/user/emails.from_email' | t: default: 'noreply@platformos.com'
+  assign subject = 'modules/user/emails.users.verify.subject' | t
+  assign object = {
+    "to": object.email,
+    "from": from,
+    "subject": subject,
     "partial": "modules/user/emails/users/verify",
     "layout": null,
     "data": {
-      "url": {% print object.url | json %},
-      "ttl_hours": {% print object.ttl_hours | json %},
-      "user": {
-        "id": {% print object.id | json %}
-      }
+      "url": object.url,
+      "ttl_hours": object.ttl_hours,
+      "user": { "id": object.id }
     }
   }
-{% endparse_json %}
 
-{% liquid
   function object = 'modules/core/commands/email/send', object: object
   return object
 %}

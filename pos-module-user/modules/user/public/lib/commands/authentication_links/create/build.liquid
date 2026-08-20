@@ -1,7 +1,7 @@
 {% doc %}
   @param {string} email - The email address
   @param {string} host - The host URL
-  @param {number} valid_for - Token validity duration in HOURS
+  @param {number} [valid_for] - Token validity duration in HOURS
 {% enddoc %}
 {% liquid
   comment
@@ -16,17 +16,13 @@
   endcomment
   assign valid_for = valid_for | default: 1
   function user = 'modules/user/queries/user/find', email: email, with_token: true, id: null, expires_in: valid_for
-%}
 
-{% parse_json object %}
-{
-  "email": "{{ email }}",
-  "id":    "{{ user.id }}",
-  "token": "{{ user.token }}",
-  "host":  "{{ host }}"
-}
-{% endparse_json %}
+  assign object = {
+    "email": email,
+    "id": user.id,
+    "token": user.token,
+    "host": host
+  }
 
-{% liquid
   return object
 %}

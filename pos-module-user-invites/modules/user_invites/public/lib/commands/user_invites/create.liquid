@@ -1,5 +1,5 @@
 {% liquid
-  assign object = '{}' | parse_json | hash_merge: email: email, first_name: first_name, last_name: last_name
+  assign object = { "email": email, "first_name": first_name, "last_name": last_name }
 
   function object = 'modules/user_invites/commands/user_invites/create/build', object: object
   function object = 'modules/user_invites/commands/user_invites/create/check', object: object

@@ -4,17 +4,17 @@
   @param {object} hook_params - Additional parameters to pass to hooks
   @param {string} last_name - The last name
   @param {string} password - The password
-  @param {string} roles - The roles to assign
+  @param roles - The roles to assign; a comma separated string or an array
 {% enddoc %}
-{% parse_json object %}
+{% assign object =
   {
-    "first_name": {{ first_name | json }},
-    "last_name": {{ last_name | json }},
-    "email": {{ email | json }},
-    "password": {{ password | json }},
-    "hook_params": {{ hook_params | json }}
+    "first_name": first_name,
+    "last_name": last_name,
+    "email": email,
+    "password": password,
+    "hook_params": hook_params
   }
-{% endparse_json %}
+%}
 
 {% assign object.roles = roles %}
 

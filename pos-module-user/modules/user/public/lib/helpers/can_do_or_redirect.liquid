@@ -3,7 +3,7 @@
   @param {string} do - The permission to check
   @param {object} entity - The entity to check access against
   @param {object} requester - The user profile requesting access
-  @param {string} return_url - URL to redirect to
+  @param {string} [return_url] - URL to redirect to
 {% enddoc %}
 {% liquid
   function can = 'modules/user/helpers/can_do', requester: requester, entity: entity, do: do, access_callback: access_callback

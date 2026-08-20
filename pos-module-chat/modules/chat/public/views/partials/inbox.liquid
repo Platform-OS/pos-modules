@@ -93,8 +93,8 @@
         {% liquid
           assign participants = current_conversation.participants
           if participants
-            assign current_participants = participants | select: id: current_profile.id
-            assign other_participants = participants | subtract_array: current_participants
+            assign current_participants = participants | array_select: id: current_profile.id
+            assign other_participants = participants | array_subtract: current_participants
             assign from_profile = other_participants | first
             if from_profile
               if from_profile.first_name

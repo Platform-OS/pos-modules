@@ -7,7 +7,7 @@ slug: orders/:order_id
     redirect_to "/"
   endif
 
-  assign payable_ids = '[]' | parse_json | array_add: context.params.order_id
+  assign payable_ids = [context.params.order_id]
   function transactions = 'modules/payments/queries/transactions/search', payer_id: current_profile.id, payable_ids: payable_ids, with_gateway_requests: true, with_statuses: true, page: 1, limit: 20
   render 'order', current_profile: current_profile, transactions: transactions, order_id: context.params.order_id
 %}

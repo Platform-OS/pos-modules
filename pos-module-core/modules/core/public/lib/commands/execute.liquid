@@ -1,7 +1,7 @@
 {% doc %}
   @param {string} mutation_name - The GraphQL mutation name
   @param {object} object - The object to process
-  @param {string} selection - The GraphQL result selection key
+  @param {string} [selection] - The GraphQL result selection key
 {% enddoc %}
 {% liquid
   assign selection = selection | default: 'record'

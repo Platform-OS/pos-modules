@@ -3,12 +3,12 @@
   @param {string} id - The record ID
   @param {string} password - The password
 {% enddoc %}
-{% parse_json object %}
+{% assign object =
   {
-    "id": {{ id | json }},
-    "email": {{ email | json }},
-    "password": {{ password | json }}
+    "id": id,
+    "email": email,
+    "password": password
   }
-{% endparse_json %}
+%}
 
 {% return object %}

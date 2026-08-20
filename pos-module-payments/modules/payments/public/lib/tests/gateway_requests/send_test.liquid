@@ -1,12 +1,12 @@
-{% parse_json data %}
-{
-  "to": "https://{{ context.location.host }}/not_exists",
-  "request_type": "GET",
-  "payload": { "foo": "bar" }
-}
-{% endparse_json %}
 {% liquid
-  function object = 'modules/payments/commands/gateway_requests/send', object: data, template: 'modules/core/generic', name: 'checkout_request,' external_id: "5"
+  assign url = 'https://' | append: context.location.host | append: '/not_exists'
+  assign data = {
+    "to": url,
+    "request_type": "GET",
+    "payload": { "foo": "bar" }
+  }
+
+  function object = 'modules/payments/commands/gateway_requests/send', object: data, template: 'modules/core/generic', name: 'checkout_request', external_id: "5"
 
   function contract = 'modules/tests/assertions/valid_object', contract: contract, object: object, field_name: 'base'
   assign payload = object.request_data | parse_json

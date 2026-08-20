@@ -5,7 +5,7 @@ slug: user_invites/:id/edit
   function user_invite_record = 'modules/user_invites/queries/user_invites/find', id: context.params.id
   assign user_invite_token = context.params.token
 
-  assign requester_roles = '["invited"]' | parse_json
+  assign requester_roles = ["invited"]
   assign requester = null | hash_merge: roles: requester_roles
   assign access_object = null | hash_merge: user_invite_token: user_invite_token, user_invite: user_invite_record, user_id: user_invite_record.properties.user_id
   include 'modules/user/helpers/can_do_or_redirect', entity: access_object, do: 'edit', requester: requester, access_callback: 'modules/user_invites/can/user_invites', return_url: '/'

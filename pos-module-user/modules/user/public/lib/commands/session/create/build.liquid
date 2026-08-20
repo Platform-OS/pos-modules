@@ -1,10 +1,10 @@
 {% doc %}
   @param {string} id - The record ID
 {% enddoc %}
-{% parse_json object %}
+{% assign object =
   {
-    "id": {{ id | json }}
+    "id": id
   }
-{% endparse_json %}
+%}
 
 {% return object %}
