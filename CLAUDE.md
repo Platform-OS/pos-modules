@@ -69,7 +69,7 @@ pos-cli test run <env> [test-name]
 
 Each module is **independently distributable** but shares development infrastructure:
 
-- **Independent**: Own git history, versioning (template-values.json), marketplace distribution
+- **Independent**: Own git history, versioning (pos-module.json), marketplace distribution
 - **Hierarchical**: Complex modules contain `modules/` subdirectory with nested dependency modules
 - **Composable**: Modules integrate via hooks, commands, events without modifying source code
 
@@ -79,25 +79,26 @@ Each module is **independently distributable** but shares development infrastruc
 pos-module-<name>/
 ├── modules/
 │   └── <machine-name>/          # The actual module (distributed part)
-│       ├── public/
-│       │   ├── lib/
-│       │   │   ├── commands/        # Business logic (Build/Check/Execute pattern)
-│       │   │   ├── queries/         # Data access wrappers
-│       │   │   ├── hooks/           # Integration hooks (hook_*.liquid)
-│       │   │   ├── consumers/       # Event consumers
-│       │   │   ├── validations/     # Input validators
-│       │   │   └── helpers/         # Utility functions
-│       │   ├── graphql/             # GraphQL queries/mutations
-│       │   ├── views/
-│       │   │   ├── pages/           # Endpoints
-│       │   │   ├── partials/        # Reusable components
-│       │   │   └── layouts/         # Page templates
-│       │   ├── assets/              # CSS, JS, images
-│       │   ├── schema/              # Database schema
-│       │   ├── translations/        # i18n
-│       │   └── api_calls/           # External API templates
-│       └── template-values.json      # Module metadata & dependencies
+│       └── public/
+│           ├── lib/
+│           │   ├── commands/        # Business logic (Build/Check/Execute pattern)
+│           │   ├── queries/         # Data access wrappers
+│           │   ├── hooks/           # Integration hooks (hook_*.liquid)
+│           │   ├── consumers/       # Event consumers
+│           │   ├── validations/     # Input validators
+│           │   └── helpers/         # Utility functions
+│           ├── graphql/             # GraphQL queries/mutations
+│           ├── views/
+│           │   ├── pages/           # Endpoints
+│           │   ├── partials/        # Reusable components
+│           │   └── layouts/         # Page templates
+│           ├── assets/              # CSS, JS, images
+│           ├── schema/              # Database schema
+│           ├── translations/        # i18n
+│           └── api_calls/           # External API templates
 ├── app/                             # Example application (NOT distributed)
+├── pos-module.json                  # Module manifest: metadata & dependencies
+├── pos-module.lock.json             # Resolved dependency versions
 ├── package.json                     # npm scripts for development
 └── README.md                        # Module documentation
 ```

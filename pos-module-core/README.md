@@ -446,7 +446,7 @@ You can store small data in a session. A session is connected with the current b
 
 ## Module registry
 
-Module information is automatically registered based on the module's `template-values.json` file.
+Module information is automatically registered based on the module's `pos-module.json` manifest.
 
 It is possible to list the registered modules with
 

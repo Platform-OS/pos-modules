@@ -15,6 +15,13 @@
 // core, user first), so a parent module is always published before its
 // dependents and each dependent's lock file picks up the fresh version.
 //
+// After the release loop, every other module in the repo whose dependencies
+// or devDependencies reference a just-released module gets its declared range
+// bumped (same-major releases only — e.g. ^0.0.13 → ^0.0.14, since npm caret
+// semantics pin ^0.0.x to that exact patch) and its pos-module.lock.json
+// refreshed, so the committed locks — and CI's frozen installs — reference
+// what was actually published.
+//
 // Bumps use --no-git because modules share this monorepo's git history and
 // pos-cli's per-module tags (e.g. "2.1.11") would collide between modules.
 // After a successful run the script offers a single combined git commit.
@@ -22,7 +29,7 @@
 // Requires Node.js >= 20.12 (uses node:util styleText). Usage:
 //   node scripts/release.mjs
 
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,9 +79,47 @@ const semverInc = (version, bump) => {
   }
 };
 
+const parseVersion = (version) => {
+  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)/);
+  return match ? match.slice(1).map(Number) : null;
+};
+
+const compareVersions = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+
+// Minimal matcher for the range shapes used in pos-module.json files
+// (^x.y.z, ~x.y.z, >=x.y.z, exact). Follows npm semver semantics — notably
+// ^0.0.x matches only that exact patch. Returns null for shapes it does not
+// understand so callers can warn instead of guessing.
+const rangeIncludes = (range, version) => {
+  const v = parseVersion(version);
+  const match = String(range).trim().match(/^(\^|~|>=)?\s*(\d+\.\d+\.\d+)$/);
+  if (!v || !match) return null;
+  const [, op, base] = match;
+  const b = parseVersion(base);
+  if (compareVersions(v, b) < 0) return false;
+  if (op === '>=') return true;
+  if (op === '~') return v[0] === b[0] && v[1] === b[1];
+  if (op === '^') {
+    if (b[0] > 0) return v[0] === b[0];
+    if (b[1] > 0) return v[0] === 0 && v[1] === b[1];
+    return compareVersions(v, b) === 0;
+  }
+  return compareVersions(v, b) === 0;
+};
+
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const readManifest = async (dir) => {
   try {
     return JSON.parse(await readFile(path.join(dir, 'pos-module.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+const readLock = async (dir) => {
+  try {
+    return JSON.parse(await readFile(path.join(dir, 'pos-module.lock.json'), 'utf8'));
   } catch {
     return null;
   }
@@ -92,7 +137,7 @@ const discoverModules = async () => {
         dir,
         machineName: manifest.machine_name,
         version: manifest.version,
-        dependencyNames: Object.keys(manifest.dependencies ?? {}),
+        dependencyNames: Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }),
         selected: false,
         bump: 'patch',
       };
@@ -103,8 +148,9 @@ const discoverModules = async () => {
 
 // Topological sort by declared dependencies, so parents are released before
 // their dependents. Seeded with the foundation modules first so the overall
-// order starts: common-styling, core, user, then everything else.
-const FOUNDATION_ORDER = ['common-styling', 'core', 'user'];
+// order starts: tests, common-styling, core, user, then everything else.
+// tests goes first so dependents' lock refreshes pick up its fresh version.
+const FOUNDATION_ORDER = ['tests', 'common-styling', 'core', 'user'];
 
 const sortByReleaseOrder = (modules) => {
   const seeded = modules.toSorted((a, b) => {
@@ -294,13 +340,83 @@ const selectModules = (modules) =>
 
 // --- release steps -----------------------------------------------------------
 
-const releaseModule = async (module, email, password) => {
+// Rewrite declared ranges in pos-module.json that cannot resolve to a version
+// released in this run. Without this, caret ranges anchored at 0.0.x keep
+// dependents' lock files on the old version forever (^0.0.13 never matches
+// 0.0.14). Major jumps are left alone: compatibility must be verified by hand
+// (see RELEASE.md).
+const fixDependencyRanges = async (module, released) => {
+  const manifest = await readManifest(module.dir);
+  if (!manifest) return;
+  const file = path.join(module.dir, 'pos-module.json');
+  let raw = await readFile(file, 'utf8');
+  let changed = false;
+  for (const section of ['dependencies', 'devDependencies']) {
+    for (const [dep, range] of Object.entries(manifest[section] ?? {})) {
+      const release = released.get(dep);
+      if (!release || rangeIncludes(range, release.newVersion) === true) continue;
+      const from = parseVersion(release.oldVersion);
+      const to = parseVersion(release.newVersion);
+      const shape = String(range).trim().match(/^([\^~]?)\d+\.\d+\.\d+$/);
+      if (!from || !to || from[0] !== to[0] || !shape) {
+        console.log(styleText('yellow', `  "${dep}": "${range}" does not cover ${release.newVersion} — update the range by hand`));
+        continue;
+      }
+      const newRange = `${shape[1]}${release.newVersion}`;
+      raw = raw.replace(new RegExp(`("${escapeRegExp(dep)}"\\s*:\\s*)"${escapeRegExp(range)}"`), `$1"${newRange}"`);
+      console.log(`  ${dep}: range ${range} ${styleText('dim', '→')} ${styleText('bold', newRange)}`);
+      changed = true;
+    }
+  }
+  if (changed) await writeFile(file, raw);
+};
+
+// After the release loop, other modules in the repo may reference the released
+// modules without having been part of the run — devDependencies especially,
+// since they are not part of the release order (e.g. user's oauth_github).
+// Bump their stale ranges and refresh their lock files so the committed locks
+// — and CI's frozen installs — reference what was actually published.
+const syncDependents = async (allModules, released) => {
+  if (!released.size) return [];
+  const synced = [];
+  for (const module of allModules) {
+    if (released.has(module.machineName)) continue;
+    const manifest = await readManifest(module.dir);
+    if (!manifest) continue;
+    const lock = await readLock(module.dir);
+    const stale = [];
+    for (const [section, flags] of [['dependencies', []], ['devDependencies', ['--dev']]]) {
+      for (const [dep, range] of Object.entries(manifest[section] ?? {})) {
+        const release = released.get(dep);
+        if (!release) continue;
+        const locked = lock?.dependencies?.[dep] ?? lock?.devDependencies?.[dep];
+        if (locked === release.newVersion && rangeIncludes(range, release.newVersion) === true) continue;
+        stale.push({ dep, flags });
+      }
+    }
+    if (!stale.length) continue;
+    process.stdout.write(`\n${styleText('bold', `── ${module.name} ──`)} ${styleText('dim', '(dependent of a released module)')}\n`);
+    await fixDependencyRanges(module, released);
+    let ok = true;
+    for (const { dep, flags } of stale) {
+      const update = spawnSync('pos-cli', ['modules', 'update', dep, ...flags], { cwd: module.dir, stdio: 'inherit' });
+      if (update.status !== 0) ok = false;
+    }
+    synced.push({ ...module, ok });
+  }
+  return synced;
+};
+
+const releaseModule = async (module, email, password, released) => {
   process.stdout.write(`\n${styleText('bold', `── ${module.name} ──`)}\n`);
 
   // Refresh dependencies + pos-module.lock.json so the published archive (and
   // the eventual git commit CI checks) references the just-released parents.
+  // Ranges that cannot reach a parent released earlier in this run (^0.0.x)
+  // are bumped first so the update can pick it up.
   if (module.dependencyNames.length) {
-    const update = spawnSync('pos-cli', ['modules', 'update'], { cwd: module.dir, stdio: 'inherit' });
+    await fixDependencyRanges(module, released);
+    const update = spawnSync('pos-cli', ['modules', 'update', '--dev'], { cwd: module.dir, stdio: 'inherit' });
     if (update.status !== 0) return { ...module, ok: false, stage: 'dependency update' };
   }
 
@@ -325,7 +441,7 @@ const releaseModule = async (module, email, password) => {
   return { ...module, ok: true };
 };
 
-const offerGitCommit = async (results) => {
+const offerGitCommit = async (results, synced) => {
   const released = results.filter((r) => r.ok);
   if (!released.length) return;
   try {
@@ -334,13 +450,13 @@ const offerGitCommit = async (results) => {
     return;
   }
 
-  // Version bumps touch pos-module.json + template-values.json; the update
-  // step touches pos-module.lock.json (even for "push only" releases).
-  const files = released
+  // Version bumps touch pos-module.json; the update step touches
+  // pos-module.lock.json (even for "push only" releases). The dependent sync
+  // can touch both files of modules that were not released themselves.
+  const files = [...released, ...synced]
     .flatMap((r) => [
       path.join(r.name, 'pos-module.json'),
       path.join(r.name, 'pos-module.lock.json'),
-      path.join(r.name, 'modules', r.machineName, 'template-values.json'),
     ])
     .filter((f) => existsSync(path.join(ROOT, f)));
   const quoted = files.map((f) => `'${f}'`).join(' ');
@@ -353,7 +469,11 @@ const offerGitCommit = async (results) => {
   console.log();
   if (!(await promptYesNo('Commit version bumps and lock files to git?'))) return;
 
-  const message = `Release ${released.map((r) => `${r.machineName}@${r.newVersion}`).join(', ')}`;
+  const dirtyDirs = new Set(dirty.split('\n').map((line) => line.slice(3).split('/')[0]));
+  const syncedNames = synced.filter((s) => dirtyDirs.has(s.name)).map((s) => s.machineName);
+  const message =
+    `Release ${released.map((r) => `${r.machineName}@${r.newVersion}`).join(', ')}` +
+    (syncedNames.length ? `; sync ${syncedNames.join(', ')}` : '');
   try {
     execSync(`git add ${quoted}`, { cwd: ROOT, stdio: 'inherit' });
     execSync(`git commit -m '${message}'`, { cwd: ROOT, stdio: 'inherit' });
@@ -403,9 +523,14 @@ for (const m of selected) {
 if (!(await promptYesNo('\nProceed?'))) abort();
 
 const results = [];
+const released = new Map();
 for (const m of selected) {
-  results.push(await releaseModule(m, email, password));
+  const result = await releaseModule(m, email, password, released);
+  results.push(result);
+  if (result.ok) released.set(result.machineName, { oldVersion: result.version, newVersion: result.newVersion });
 }
+
+const synced = await syncDependents(modules, released);
 
 console.log(`\n${styleText('bold', 'Summary')}`);
 for (const r of results) {
@@ -415,6 +540,13 @@ for (const r of results) {
       : `  ${styleText('red', '✖')} ${r.name} ${styleText('red', `failed at ${r.stage}`)}`
   );
 }
+for (const s of synced) {
+  console.log(
+    s.ok
+      ? `  ${styleText('green', '✔')} ${s.name} ${styleText('dim', 'dependency ranges/lock synced')}`
+      : `  ${styleText('red', '✖')} ${s.name} ${styleText('red', 'dependency sync failed — fix with pos-cli modules update')}`
+  );
+}
 
-await offerGitCommit(results);
-process.exit(results.every((r) => r.ok) ? 0 : 1);
+await offerGitCommit(results, synced);
+process.exit(results.every((r) => r.ok) && synced.every((s) => s.ok) ? 0 : 1);

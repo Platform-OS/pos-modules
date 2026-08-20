@@ -52,21 +52,36 @@ node scripts/release.mjs
 4. **Release loop.** For each selected module, in order:
 
    ```
-   pos-cli modules update                    # skipped if the module has no dependencies
+   pos-cli modules update --dev              # skipped if the module has no dependencies
    pos-cli modules version <bump> --no-git   # skipped for "push only"
    pos-cli modules push --email <email>
    ```
 
+   - Before `modules update`, any declared range that cannot reach a parent
+     released earlier in this run is bumped in `pos-module.json` (e.g.
+     `^0.0.13` → `^0.0.14` — npm caret semantics pin `^0.0.x` to that exact
+     patch, so the range would otherwise never resolve to the new version).
+     Major jumps are never auto-bumped.
    - `modules update` refreshes `pos-module.lock.json` so the published
      archive — and the commit CI checks — reference the parents released
      earlier in the same run.
    - A failed step marks the module as failed and **skips its remaining
      steps**, but the loop continues with the next module.
 
-5. **Commit.** After the summary, the script offers a single combined git
-   commit of every released module's `pos-module.json`,
-   `pos-module.lock.json`, and `template-values.json`
-   (e.g. `Release common-styling@1.38.9, core@2.1.11`). Push it so CI picks
+5. **Dependent sync.** After the loop, every module in the repo that was
+   *not* released this run but declares a just-released module in its
+   `dependencies` or `devDependencies` gets the same treatment: stale ranges
+   bumped (same-major releases only) and `pos-cli modules update <name>` run
+   to refresh its lock file. This matters especially for devDependencies —
+   they are not part of the release order, so releasing e.g. `oauth_github`
+   alone would otherwise leave `pos-module-user`'s lock pinned to the old
+   version, and CI (which installs from the frozen lock) would keep checking
+   against it.
+
+6. **Commit.** After the summary, the script offers a single combined git
+   commit of the `pos-module.json` and `pos-module.lock.json` of every
+   released module and every synced dependent
+   (e.g. `Release oauth_github@0.0.14; sync user`). Push it so CI picks
    up the lock-file changes. Tags are intentionally **not** created —
    per-module version tags like `2.1.11` would collide in the shared
    monorepo history.
@@ -94,8 +109,10 @@ is handled for you.
 
 - **Major bumps don't propagate automatically.** If you major-bump a parent
   (e.g. core `2.x` → `3.0.0`), dependents declaring `"core": "^2.1.9"` will
-  correctly keep resolving to `2.x`. Verify compatibility, update the range in
-  each dependent's `pos-module.json` by hand, then release the dependents.
+  correctly keep resolving to `2.x` — the range auto-bump and dependent sync
+  deliberately skip major jumps and print a warning instead. Verify
+  compatibility, update the range in each dependent's `pos-module.json` by
+  hand, then release the dependents.
 - **Version bumps are file-only** (`--no-git`). Until you accept the commit
   offer (or commit manually), the bump exists only in your working tree.
 - **A failed module doesn't stop the run.** Check the summary: if a parent
@@ -103,6 +120,7 @@ is handled for you.
   lock files pointing at the parent's *previous* version. To fix it, release
   the parent, then give each affected dependent a fresh patch release
   (`push only` won't work here — the marketplace already has that version).
-- The version shown in the TUI comes from `pos-module.json`;
-  `modules/<machine_name>/template-values.json` is kept in sync by
-  `pos-cli modules version`.
+- `pos-module.json` is the single source of truth for module metadata.
+  The legacy `modules/<machine_name>/template-values.json` files were removed
+  (`pos-cli modules migrate`); copies of them that appear under `modules/`
+  are vendored dependency downloads — gitignored, never edited by hand.

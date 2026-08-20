@@ -1,6 +1,6 @@
 {
   "machine_name": "user_invites",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "name": "Pos Module User Invites",
   "dependencies": {
     "core": "^2.1.9",

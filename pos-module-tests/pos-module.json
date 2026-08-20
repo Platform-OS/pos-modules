@@ -1,5 +1,6 @@
 {
   "machine_name": "tests",
-  "version": "1.3.4",
-  "name": "Pos Module Tests"
+  "version": "1.3.5",
+  "name": "Pos Module Tests",
+  "dependencies": {}
 }
