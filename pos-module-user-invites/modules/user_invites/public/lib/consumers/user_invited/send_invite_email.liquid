@@ -4,10 +4,8 @@
 
     assign user_invite_token = g.users.results.first.token
 
-    assign object = {}
-    assign object['email'] = email
-    assign object['user_id'] = user_id
-    assign object['sign_up_url'] = "https://" | append: app_host | append: "/user_invites/" | append: user_invite_id | append: "/edit" | append: "?token=" | append: user_invite_token
+    assign sign_up_url = "https://" | append: app_host | append: "/user_invites/" | append: user_invite_id | append: "/edit" | append: "?token=" | append: user_invite_token
+    assign object = { "email": email, "user_id": user_id, "sign_up_url": sign_up_url }
 
     assign now_time = 'now' | to_time: 'UTC'
     assign sent_at = now_time | strftime: "%Y-%m-%dT%H:%M:%S%Z"

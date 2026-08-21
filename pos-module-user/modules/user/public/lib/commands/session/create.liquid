@@ -1,10 +1,10 @@
 {% doc %}
-  @param {string} email - The email address
-  @param {object} hook_params - Additional parameters to pass to hooks
-  @param {string} password - The password
-  @param {boolean} skip_otp - Whether to skip OTP verification
-  @param {string} user_id - The user ID (used when validate_password is false)
-  @param {boolean} validate_password - Whether to validate the password
+  @param {string} [email] - The email address; required unless validate_password is false
+  @param {object} [hook_params] - Additional parameters to pass to hooks
+  @param {string} [password] - The password; required unless validate_password is false
+  @param {boolean} [skip_otp] - Whether to skip OTP verification (default: false)
+  @param {string} [user_id] - The user ID; required when validate_password is false
+  @param {boolean} [validate_password] - Whether to validate the password (default: true)
 {% enddoc %}
 {% liquid
   if validate_password == nil
