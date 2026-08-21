@@ -1,10 +1,10 @@
 {% doc %}
-  @param {string} access_callback - Custom authorization callback path
+  @param {string} [access_callback] - Custom authorization callback path
   @param {string} [anonymous_return_to] - URL to redirect anonymous users to
   @param {string} do - The permission to check
-  @param {object} entity - The entity to check access against
-  @param {string} forbidden_partial - Custom partial to render for forbidden access
-  @param {boolean} redirect_anonymous_to_login - Whether to redirect anonymous users to login
+  @param {object} [entity] - The entity to check access against
+  @param {string} [forbidden_partial] - Custom partial to render for forbidden access
+  @param {boolean} [redirect_anonymous_to_login] - Whether to redirect anonymous users to login
   @param {object} requester - The user profile requesting access
 {% enddoc %}
 {% liquid

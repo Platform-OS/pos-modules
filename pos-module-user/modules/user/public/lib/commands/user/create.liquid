@@ -1,10 +1,10 @@
 {% doc %}
   @param {string} email - The email address
   @param {string} first_name - The first name
-  @param {object} hook_params - Additional parameters to pass to hooks
+  @param {object} [hook_params] - Additional parameters to pass to hooks
   @param {string} last_name - The last name
   @param {string} password - The password
-  @param roles - The roles to assign; a comma separated string or an array
+  @param [roles] - The roles to assign; a comma separated string or an array
 {% enddoc %}
 {% liquid
   function object = 'modules/user/commands/user/create/build', first_name: first_name, last_name: last_name, email: email, password: password, hook_params: hook_params, roles: roles

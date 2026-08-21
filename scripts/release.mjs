@@ -1,30 +1,14 @@
 #!/usr/bin/env node
-// Interactive release tool for pos-module-* packages.
+// Interactive release tool for pos-module-* packages: pick modules and semver
+// bumps in a checklist, then each one is released in dependency order via
 //
-// Lists every pos-module-* directory containing a pos-module.json, lets you
-// pick which ones to release and with what semver bump (patch/minor/major,
-// or "push only" to publish the current version), then asks for your Partner
-// Portal email + password and releases each selected module via:
-//
-//   pos-cli modules update                    (refresh pos-module.lock.json)
+//   pos-cli modules update --dev              (refresh pos-module.lock.json)
 //   pos-cli modules version <bump> --no-git   (skipped for "push only")
 //   pos-cli modules push --email <email>      (password via POS_PORTAL_PASSWORD)
 //
-// Modules are listed and released in dependency order (topological sort of
-// the "dependencies" in each pos-module.json, seeded with common-styling,
-// core, user first), so a parent module is always published before its
-// dependents and each dependent's lock file picks up the fresh version.
-//
-// After the release loop, every other module in the repo whose dependencies
-// or devDependencies reference a just-released module gets its declared range
-// bumped (same-major releases only — e.g. ^0.0.13 → ^0.0.14, since npm caret
-// semantics pin ^0.0.x to that exact patch) and its pos-module.lock.json
-// refreshed, so the committed locks — and CI's frozen installs — reference
-// what was actually published.
-//
-// Bumps use --no-git because modules share this monorepo's git history and
-// pos-cli's per-module tags (e.g. "2.1.11") would collide between modules.
-// After a successful run the script offers a single combined git commit.
+// followed by a dependency-range/lock sync of the repo's other modules and an
+// offer to git-commit the result. See RELEASE.md for the full walkthrough and
+// the rationale behind the ordering, the range bumping, and --no-git.
 //
 // Requires Node.js >= 20.12 (uses node:util styleText). Usage:
 //   node scripts/release.mjs
@@ -63,10 +47,15 @@ const bumpLabel = {
   push: styleText('cyan', 'push only'),
 };
 
+const parseVersion = (version) => {
+  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)/);
+  return match ? match.slice(1).map(Number) : null;
+};
+
 const semverInc = (version, bump) => {
-  const match = version.match(/^(\d+)\.(\d+)\.(\d+)/);
-  if (!match) return null;
-  const [major, minor, patch] = match.slice(1).map(Number);
+  const parsed = parseVersion(version);
+  if (!parsed) return null;
+  const [major, minor, patch] = parsed;
   switch (bump) {
     case 'major':
       return `${major + 1}.0.0`;
@@ -77,11 +66,6 @@ const semverInc = (version, bump) => {
     default:
       return version;
   }
-};
-
-const parseVersion = (version) => {
-  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)/);
-  return match ? match.slice(1).map(Number) : null;
 };
 
 const compareVersions = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
@@ -109,21 +93,16 @@ const rangeIncludes = (range, version) => {
 
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const readManifest = async (dir) => {
+const readJson = async (dir, file) => {
   try {
-    return JSON.parse(await readFile(path.join(dir, 'pos-module.json'), 'utf8'));
+    return JSON.parse(await readFile(path.join(dir, file), 'utf8'));
   } catch {
     return null;
   }
 };
 
-const readLock = async (dir) => {
-  try {
-    return JSON.parse(await readFile(path.join(dir, 'pos-module.lock.json'), 'utf8'));
-  } catch {
-    return null;
-  }
-};
+const readManifest = (dir) => readJson(dir, 'pos-module.json');
+const readLock = (dir) => readJson(dir, 'pos-module.lock.json');
 
 const discoverModules = async () => {
   const entries = (await readdir(ROOT)).filter((name) => name.startsWith('pos-module-')).sort();
@@ -146,10 +125,11 @@ const discoverModules = async () => {
   return sortByReleaseOrder(modules.filter(Boolean));
 };
 
-// Topological sort by declared dependencies, so parents are released before
-// their dependents. Seeded with the foundation modules first so the overall
-// order starts: tests, common-styling, core, user, then everything else.
-// tests goes first so dependents' lock refreshes pick up its fresh version.
+// Topological sort by declared dependencies (devDependencies included), so
+// parents are always released before their dependents. The seed order below
+// only breaks ties between modules with no dependency relationship — it pins
+// the foundation modules to the top of the checklist for readability, while
+// correctness comes from the topological sort alone.
 const FOUNDATION_ORDER = ['tests', 'common-styling', 'core', 'user'];
 
 const sortByReleaseOrder = (modules) => {
@@ -224,7 +204,9 @@ const abort = () => {
   process.exit(130);
 };
 
-const promptText = (question, defaultValue = '') =>
+// mask: echo '*' instead of the typed key and return the buffer verbatim
+// (no trimming, no default) — used for passwords.
+const prompt = (question, { defaultValue = '', mask = false } = {}) =>
   new Promise((resolve) => {
     const suffix = defaultValue ? styleText('dim', ` [${defaultValue}]`) : '';
     process.stdout.write(`${question}${suffix}: `);
@@ -234,7 +216,7 @@ const promptText = (question, defaultValue = '') =>
       if (key === '\r' || key === '\n') {
         process.stdout.write('\n');
         stop();
-        resolve(buffer.trim() || defaultValue);
+        resolve(mask ? buffer : buffer.trim() || defaultValue);
       } else if (key === KEY.backspace || key === '\b') {
         if (buffer.length) {
           buffer = buffer.slice(0, -1);
@@ -242,32 +224,13 @@ const promptText = (question, defaultValue = '') =>
         }
       } else if (key >= ' ') {
         buffer += key;
-        process.stdout.write(key);
+        process.stdout.write(mask ? '*' : key);
       }
     });
   });
 
-const promptHidden = (question) =>
-  new Promise((resolve) => {
-    process.stdout.write(`${question}: `);
-    let buffer = '';
-    const stop = readKeys((key) => {
-      if (key === KEY.ctrlC) abort();
-      if (key === '\r' || key === '\n') {
-        process.stdout.write('\n');
-        stop();
-        resolve(buffer);
-      } else if (key === KEY.backspace || key === '\b') {
-        if (buffer.length) {
-          buffer = buffer.slice(0, -1);
-          process.stdout.write('\b \b');
-        }
-      } else if (key >= ' ') {
-        buffer += key;
-        process.stdout.write('*');
-      }
-    });
-  });
+const promptText = (question, defaultValue = '') => prompt(question, { defaultValue });
+const promptHidden = (question) => prompt(question, { mask: true });
 
 const promptYesNo = async (question) => /^y(es)?$/i.test(await promptText(`${question} (y/N)`));
 
@@ -346,10 +309,16 @@ const selectModules = (modules) =>
 // 0.0.14). Major jumps are left alone: compatibility must be verified by hand
 // (see RELEASE.md).
 const fixDependencyRanges = async (module, released) => {
-  const manifest = await readManifest(module.dir);
-  if (!manifest) return;
+  if (!released.size) return;
   const file = path.join(module.dir, 'pos-module.json');
-  let raw = await readFile(file, 'utf8');
+  let raw;
+  let manifest;
+  try {
+    raw = await readFile(file, 'utf8');
+    manifest = JSON.parse(raw);
+  } catch {
+    return;
+  }
   let changed = false;
   for (const section of ['dependencies', 'devDependencies']) {
     for (const [dep, range] of Object.entries(manifest[section] ?? {})) {
@@ -363,7 +332,12 @@ const fixDependencyRanges = async (module, released) => {
         continue;
       }
       const newRange = `${shape[1]}${release.newVersion}`;
-      raw = raw.replace(new RegExp(`("${escapeRegExp(dep)}"\\s*:\\s*)"${escapeRegExp(range)}"`), `$1"${newRange}"`);
+      const next = raw.replace(new RegExp(`("${escapeRegExp(dep)}"\\s*:\\s*)"${escapeRegExp(range)}"`), `$1"${newRange}"`);
+      if (next === raw) {
+        console.log(styleText('yellow', `  could not rewrite "${dep}": "${range}" in ${file} — update the range by hand`));
+        continue;
+      }
+      raw = next;
       console.log(`  ${dep}: range ${range} ${styleText('dim', '→')} ${styleText('bold', newRange)}`);
       changed = true;
     }
@@ -398,6 +372,9 @@ const syncDependents = async (allModules, released) => {
     process.stdout.write(`\n${styleText('bold', `── ${module.name} ──`)} ${styleText('dim', '(dependent of a released module)')}\n`);
     await fixDependencyRanges(module, released);
     let ok = true;
+    // Update each stale dependency by name rather than a blanket
+    // `modules update --dev`, so a module that is not being released only
+    // picks up versions published in this run, not unrelated newer releases.
     for (const { dep, flags } of stale) {
       const update = spawnSync('pos-cli', ['modules', 'update', dep, ...flags], { cwd: module.dir, stdio: 'inherit' });
       if (update.status !== 0) ok = false;
@@ -420,16 +397,15 @@ const releaseModule = async (module, email, password, released) => {
     if (update.status !== 0) return { ...module, ok: false, stage: 'dependency update' };
   }
 
+  let newVersion = module.version;
   if (module.bump !== 'push') {
     const bump = spawnSync('pos-cli', ['modules', 'version', module.bump, '--no-git'], {
       cwd: module.dir,
       stdio: 'inherit',
     });
     if (bump.status !== 0) return { ...module, ok: false, stage: 'version bump' };
-    module.newVersion = (await readManifest(module.dir))?.version ?? semverInc(module.version, module.bump);
-    console.log(styleText('green', `version bumped to ${module.newVersion}`));
-  } else {
-    module.newVersion = module.version;
+    newVersion = (await readManifest(module.dir))?.version ?? semverInc(module.version, module.bump);
+    console.log(styleText('green', `version bumped to ${newVersion}`));
   }
 
   const push = spawnSync('pos-cli', ['modules', 'push', '--email', email], {
@@ -438,7 +414,7 @@ const releaseModule = async (module, email, password, released) => {
     env: { ...process.env, POS_PORTAL_PASSWORD: password },
   });
   if (push.status !== 0) return { ...module, ok: false, stage: 'push' };
-  return { ...module, ok: true };
+  return { ...module, newVersion, ok: true };
 };
 
 const offerGitCommit = async (results, synced) => {

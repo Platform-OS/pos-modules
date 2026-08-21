@@ -3,6 +3,8 @@
            and a paginated list of past CSV imports.
            Required: invite_csvs (search result), page (current page number), context
 {% endcomment %}
+{% comment %}theme_render_rc components are provided by the host app's theme, so the linter can never resolve them{% endcomment %}
+{% # platformos-check-disable MissingPartial %}
 {% liquid
   assign unnamed_label = 'modules/user_invites/admin.invite_users.unnamed' | t
 %}
@@ -50,9 +52,7 @@
                   if record.status == 'sent'
                     assign chip_variant = 'success'
                   endif
-                  # platformos-check-disable MissingPartial
                   theme_render_rc 'components/molecules/chip', variant: chip_variant, content: record.status
-                  # platformos-check-enable MissingPartial
                 %}
               </td>
               <td class="py-2">
@@ -71,9 +71,7 @@
         assign url_params = null | hash_merge: page: ''
         assign url_template = '/admin/community/invite_users{?page}'
         assign pager_url = url_template | expand_url_template: url_params
-        # platformos-check-disable MissingPartial
         theme_render_rc 'components/molecules/pagination', count: invite_csvs.total_pages, active: page, url: pager_url
-        # platformos-check-enable MissingPartial
       endif
     %}
   </div>

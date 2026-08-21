@@ -7,6 +7,8 @@
   @param [errors] {object} - per-field error messages
   @param context {object} - request context (for authenticity_token)
 {% enddoc %}
+{% comment %}theme_render_rc components are provided by the host app's theme, so the linter can never resolve them{% endcomment %}
+{% # platformos-check-disable MissingPartial %}
 <div class="container">
   <h2 class="pb-8 font-extrabold text-3xl">{{ 'modules/user_invites/user_invites.form.title' | t: site_name: site_name }}</h2>
 
@@ -30,18 +32,12 @@
           assign label_params = null | hash_merge: content: field.label
           assign field_params = null | hash_merge: validation: validation, input_params: input_params, label_params: label_params, classes: 'mb-6'
 
-          # platformos-check-disable MissingPartial
           theme_render_rc 'components/molecules/formfield', params: field_params
-          # platformos-check-enable MissingPartial
         %}
       {% endfor %}
 
       <fieldset class="mt-5">
-        {% liquid
-          # platformos-check-disable MissingPartial
-          theme_render_rc 'components/atoms/button', content: "Sign Up", type: 'submit'
-          # platformos-check-enable MissingPartial
-        %}
+        {% theme_render_rc 'components/atoms/button', content: "Sign Up", type: 'submit' %}
       </fieldset>
     </form>
   </div>
