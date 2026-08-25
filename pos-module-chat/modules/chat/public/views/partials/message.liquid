@@ -1,3 +1,11 @@
+{% doc %}
+  @param {boolean} authored - if current message has been authored by the current user
+  @param {boolean} [show_time] - if the timestamp should be visible or not
+  @param {object} message - text message to be shown
+  @param {string} timezone - current user timezone
+{% enddoc %}
+
+
 {% liquid
   assign msg = message.message | markdown: '{ "elements": [ "br" ] }'
 
