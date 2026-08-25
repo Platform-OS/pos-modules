@@ -1,0 +1,26 @@
+{% comment %}
+  modules/accela_construct/queries/accela_request_response/list
+
+  Lists accela_request_response rows (newest first) - one row per attempt
+  (including background retry attempts) against an accela_request. Filter
+  by `request_id` to see every attempt/response for one logical request,
+  e.g. a full retry chain.
+
+  Params (all optional):
+    request_id - id of an accela_request row
+    success     - true|false
+    limit       - default 25
+    page        - default 1
+
+  Usage:
+    {% function responses = 'modules/accela_construct/queries/accela_request_response/list', request_id: some_id %}
+{% endcomment %}
+
+{% liquid
+  assign limit = limit | default: 25
+  assign page = page | default: 1
+
+  graphql list_result = 'modules/accela_construct/accela_request_response/list', request_id: request_id, success: success, limit: limit, page: page
+  assign responses = list_result.records
+  return responses
+%}

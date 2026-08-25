@@ -1,0 +1,17 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/cancel/build
+
+  Normalizes input and prepares the request for DELETE
+  /v4/inspections/{ids}/cancel: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL). This request has no body.
+
+  Params:
+    object - Hash with `ids` (see inspections/cancel.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.ids | url_encode }}/cancel"
+  return object
+%}

@@ -1,0 +1,24 @@
+{% comment %}
+  modules/accela_construct/queries/inspections/all/build
+
+  Builds the request path for GET /v4/inspections.
+
+  Params:
+    object - Hash with `module`, `types`, `scheduled_date_from`,
+             `scheduled_date_to`, `inspector_ids`, `district_ids`,
+             `offset`, `limit` (see inspections/all.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign qs_params = { "module": object.module, "types": object.types, "scheduledDateFrom": object.scheduled_date_from, "scheduledDateTo": object.scheduled_date_to, "inspectorIds": object.inspector_ids, "districtIds": object.district_ids, "offset": object.offset, "limit": object.limit }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = "/inspections"
+  if qs != blank
+    assign object.path = "{{ object.path }}?{{ qs }}"
+  endif
+
+  return object
+%}

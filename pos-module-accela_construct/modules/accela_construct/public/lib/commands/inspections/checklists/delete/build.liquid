@@ -1,0 +1,17 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/checklists/delete/build
+
+  Normalizes input and prepares the request for DELETE
+  /v4/inspections/{inspectionId}/checklists/{ids}: the request path. This
+  request has no body.
+
+  Params:
+    object - Hash with `inspection_id` and `ids` (see delete.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/checklists/{{ object.ids | url_encode }}"
+  return object
+%}

@@ -1,0 +1,22 @@
+{% comment %}
+  modules/accela_construct/queries/records/get/build
+
+  Builds the request path for GET /v4/records/{ids}.
+
+  Params:
+    object - Hash with `ids`, `expand`, `fields` (see records/get.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign qs_params = { "expand": object.expand, "fields": object.fields }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = "/records/{{ object.ids | url_encode }}"
+  if qs != blank
+    assign object.path = "{{ object.path }}?{{ qs }}"
+  endif
+
+  return object
+%}

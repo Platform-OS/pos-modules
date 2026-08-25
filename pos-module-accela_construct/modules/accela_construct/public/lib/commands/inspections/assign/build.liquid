@@ -1,0 +1,17 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/assign/build
+
+  Normalizes input and prepares the request for PUT
+  /v4/inspections/{ids}/assign: the request path with `ids` and the
+  required `inspectorId` query param. This request has no body.
+
+  Params:
+    object - Hash with `ids` and `inspector_id` (see assign.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.ids | url_encode }}/assign?inspectorId={{ object.inspector_id | url_encode }}"
+  return object
+%}

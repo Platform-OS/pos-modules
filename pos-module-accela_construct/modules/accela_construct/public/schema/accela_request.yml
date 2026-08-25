@@ -1,0 +1,21 @@
+# Table logging one row per logical Accela request this module makes -
+# created once, on that request's first attempt. See
+# lib/accela_client/log_request.liquid. Each request may have multiple
+# accela_request_response rows (one per attempt, including background
+# retries) - see accela_request_response.yml. How many attempts a
+# request has had is derived from that table (filter accela_request_response
+# by request_id and read total_entries - see queries/accela_request_response/list),
+# not stored here.
+name: accela_request
+properties:
+  - name: method
+    type: string
+  - name: path
+    type: string
+  - name: request_payload
+    type: string
+  - name: reference_id
+    type: string          # optional polymorphic association to a caller-defined object
+  - name: reference_schema
+    type: string          # the platformOS table reference_id's row lives in (a real Record.table
+                           # value, not a caller-invented label) - see log_request.liquid

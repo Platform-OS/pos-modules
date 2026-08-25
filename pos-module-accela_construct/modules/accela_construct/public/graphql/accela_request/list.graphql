@@ -1,0 +1,40 @@
+query accela_request_list(
+  $limit: Int!
+  $page: Int!
+  $method: String
+  $path: String
+  $reference_id: String
+  $reference_schema: String
+) {
+  records(
+    per_page: $limit
+    page: $page
+    filter: {
+      table: { value: "modules/accela_construct/accela_request" }
+      properties: [
+        { name: "method", value: $method }
+        { name: "path", value: $path }
+        { name: "reference_id", value: $reference_id }
+        { name: "reference_schema", value: $reference_schema }
+      ]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    has_next_page
+    current_page
+
+    results {
+      id
+      created_at
+      updated_at
+      table
+
+      method: property(name: "method")
+      path: property(name: "path")
+      request_payload: property(name: "request_payload")
+      reference_id: property(name: "reference_id")
+      reference_schema: property(name: "reference_schema")
+    }
+  }
+}

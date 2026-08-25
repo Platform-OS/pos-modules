@@ -1,0 +1,42 @@
+---
+metadata:
+  event:
+    caller
+    method
+    path
+    reference
+    request_id
+    response_id
+    attempt_number
+---
+{% comment %}
+  modules/accela_construct/events/accela_construct_request_succeeded
+
+  Validates the event lib/accela_client/send.liquid broadcasts (via
+  `modules/core/commands/events/publish`) after every successful Accela
+  attempt - see send.liquid's doc comment for the full field-by-field
+  rundown of what identifies "what request that was" and when
+  `request_id`/`response_id` are/aren't known yet.
+
+  Params (the `event` object, per pos-module-core's event convention):
+    caller - the calling query/command's own module path (always present)
+    method - "GET" | "POST" | "PUT" | "DELETE" | "MULTIPART" (always present)
+    path   - request path relative to ACCELA_CONSTRUCT_BASE_URL (always present)
+    reference - optional hash `{ "id", "table" }` this call was made on
+      behalf of - see send.liquid
+    request_id  - the accela_request row id for this logical request,
+      blank only if that write itself failed - see send.liquid
+    response_id - the accela_request_response row id for this specific
+      attempt, blank only if that write itself failed - see send.liquid
+    attempt_number - 1-based attempt counter (always present)
+{% endcomment %}
+
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'caller'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'method'
+  function c = 'modules/core/validations/presence', c: c, object: event, field_name: 'path'
+
+  return c
+%}

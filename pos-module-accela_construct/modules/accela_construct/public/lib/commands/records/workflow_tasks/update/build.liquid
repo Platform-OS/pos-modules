@@ -1,0 +1,19 @@
+{% comment %}
+  modules/accela_construct/commands/records/workflow_tasks/update/build
+
+  Normalizes input and prepares the request for PUT
+  /v4/records/{recordId}/workflowTasks/{id}: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the record and task ids) and the JSON-serialized
+  task body.
+
+  Params:
+    object - Hash with `record_id`, `id`, `task` (see workflow_tasks/update.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/workflowTasks/{{ object.id | url_encode }}"
+  assign object.payload = object.task | json
+  return object
+%}

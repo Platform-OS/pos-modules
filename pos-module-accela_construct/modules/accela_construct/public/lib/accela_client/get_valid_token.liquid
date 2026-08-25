@@ -1,0 +1,74 @@
+{% comment %}
+  modules/accela_construct/accela_client/get_valid_token
+
+  Returns a valid Accela access token, transparently refreshing (or
+  obtaining a brand new one via the password grant) when the cached token
+  has expired. Persists the token in the accela_oauth_token table so it is
+  reused across requests instead of re-authenticating every call.
+
+  Usage:
+    {% function access_token = 'modules/accela_construct/accela_client/get_valid_token' %}
+
+  Returns: String access token, or '' (blank) if authentication failed -
+  callers MUST check for blank and surface an auth error rather than
+  sending a request with an empty Authorization header.
+
+  NOTE ON TOKEN LIFETIME: per Accela's docs (effective 2024-05-31), access
+  tokens expire in 15 minutes and refresh tokens in 8 hours. We refresh
+  60 seconds early to absorb clock drift/network latency.
+{% endcomment %}
+
+{% liquid
+  function token_record = 'modules/accela_construct/queries/accela_oauth_token/find'
+  assign now_ts = 'now' | date: '%s'
+  assign access_token = ''
+
+  if token_record and token_record.access_token != blank and token_record.expires_at != blank and now_ts < token_record.expires_at
+    assign access_token = token_record.access_token
+  else
+    function accela_client_id = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_CLIENT_ID'
+    function accela_client_secret = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_CLIENT_SECRET'
+
+    if token_record and token_record.refresh_token != blank and token_record.refresh_token_expires_at != blank and now_ts < token_record.refresh_token_expires_at
+      assign token_payload = { "grant_type": "refresh_token", "client_id": accela_client_id, "client_secret": accela_client_secret, "refresh_token": token_record.refresh_token }
+    else
+      function accela_username = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_USERNAME'
+      function accela_password = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_PASSWORD'
+      function accela_scope = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_SCOPE'
+      function accela_agency = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_AGENCY'
+      function accela_environment = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_ENVIRONMENT'
+      assign token_payload = { "grant_type": "password", "client_id": accela_client_id, "client_secret": accela_client_secret, "username": accela_username, "password": accela_password, "scope": accela_scope, "agency_name": accela_agency, "environment": accela_environment }
+    endif
+
+    function form_body = 'modules/core/helpers/hash_to_x_form_encoded', payload: token_payload
+    function accela_auth_url = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_AUTH_URL'
+    assign token_data = { "auth_url": accela_auth_url, "form_body": form_body }
+    graphql send_result = 'modules/core/api_calls/send', template: 'modules/accela_construct/accela_token_request', data: token_data
+
+    if send_result.api_call.errors.size == 0 and send_result.api_call.response.status == 200
+      assign body = send_result.api_call.response.body | parse_json
+
+      if body.access_token != blank
+        assign expires_in = body.expires_in | plus: 0
+        if expires_in == 0
+          assign expires_in = 900
+        endif
+        assign expires_at = now_ts | plus: expires_in | minus: 60
+        assign refresh_expires_at = now_ts | plus: 28800 | minus: 60
+
+        if token_record
+          graphql update_result = 'modules/accela_construct/accela_oauth_token/update', id: token_record.id, access_token: body.access_token, refresh_token: body.refresh_token, expires_at: expires_at, refresh_token_expires_at: refresh_expires_at
+        else
+          graphql create_result = 'modules/accela_construct/accela_oauth_token/create', access_token: body.access_token, refresh_token: body.refresh_token, expires_at: expires_at, refresh_token_expires_at: refresh_expires_at
+        endif
+
+        assign access_token = body.access_token
+      endif
+    else
+      log "Payload: {{ token_payload }}. Result: {{ send_result }}", type: "ACCELA GET TOKEN ERROR: accela_client/get_valid_token"
+    endif
+
+  endif
+
+  return access_token
+%}

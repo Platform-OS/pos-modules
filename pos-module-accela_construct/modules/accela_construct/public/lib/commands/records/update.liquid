@@ -1,0 +1,35 @@
+{% comment %}
+  modules/accela_construct/commands/records/update
+  Wraps: PUT /v4/records/{id}  (Accela "Update Record")
+
+  Params:
+    id     - Record id (required)
+    record - Hash of fields to update, e.g. { "description": "...", "status": { "value": "Issued" } }
+    with_retries - optional boolean, default false. When true, retries a
+      failed attempt in the background with increasing delay - see
+      lib/accela_client/send.liquid.
+    reference - optional hash `{ "id", "table" }` forwarded
+      to send.liquid - see send.liquid.
+
+  Follows the pos-module-core build/check/execute command pattern (see
+  update/{build,check}.liquid): build prepares the request URL/body,
+  check validates required params, and this file executes the request
+  itself once valid (rather than delegating to a separate execute.liquid).
+
+  Usage:
+    {% function result = 'modules/accela_construct/commands/records/update', id: record_id, record: changes %}
+{% endcomment %}
+
+{% liquid
+  assign object = { "errors": {}, "valid": true, "id": id, "record": record }
+  function object = 'modules/accela_construct/commands/records/update/build', object: object
+  function object = 'modules/accela_construct/commands/records/update/check', object: object
+
+  if object.valid
+    function result = 'modules/accela_construct/accela_client/send', method: 'PUT', path: object.path, payload: object.payload, with_retries: with_retries, reference: reference, caller: 'modules/accela_construct/commands/records/update'
+  else
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/commands/records/update'
+  endif
+
+  return result
+%}

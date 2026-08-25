@@ -1,0 +1,51 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% comment %}
+  These are contract/shape smoke tests, not path-correctness tests - they
+  assert graceful failure in the absence of live Accela credentials (the
+  expected state for automated test runs); with real credentials
+  configured some assertions here would need to expect success instead.
+{% endcomment %}
+{% liquid
+  function result = 'modules/accela_construct/queries/records/get', ids: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_get_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_get_error'
+
+  assign search_criteria = { "module": "Building" }
+  function result = 'modules/accela_construct/queries/records/search', criteria: search_criteria, limit: 25
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_search_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_search_error'
+
+  function result = 'modules/accela_construct/queries/records/describe_create', type: 'Building/Residential/Alteration/NA'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_describe_create_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_describe_create_error'
+
+  function result = 'modules/accela_construct/queries/records/list', module: 'Building', limit: 25
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_list_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_list_error'
+
+  function result = 'modules/accela_construct/queries/records/mine'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_mine_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_mine_error'
+
+  function result = 'modules/accela_construct/queries/records/additional', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_additional_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_additional_error'
+
+  function result = 'modules/accela_construct/queries/records/related', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_related_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_related_error'
+
+  function result = 'modules/accela_construct/queries/records/usercomments', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_usercomments_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_usercomments_error'
+
+  function result = 'modules/accela_construct/queries/records/votes', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_votes_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_votes_error'
+
+  function result = 'modules/accela_construct/queries/records/votes_summary', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_votes_summary_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'records_votes_summary_error'
+%}

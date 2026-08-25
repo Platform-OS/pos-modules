@@ -1,0 +1,18 @@
+{% comment %}
+  modules/accela_construct/commands/records/update/build
+
+  Normalizes input and prepares the request for PUT /v4/records/{id}: the
+  request path (relative to ACCELA_CONSTRUCT_BASE_URL, with the record id) and the
+  JSON-serialized changes body.
+
+  Params:
+    object - Hash with `id` and `record` (see records/update.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.id | url_encode }}"
+  assign object.payload = object.record | json
+  return object
+%}

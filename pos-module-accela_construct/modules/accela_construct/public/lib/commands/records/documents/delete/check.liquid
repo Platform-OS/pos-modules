@@ -1,0 +1,15 @@
+{% comment %}
+  modules/accela_construct/commands/records/documents/delete/check
+  Validates the object built by build.liquid before it's sent to Accela,
+  using pos-module-core's validation contract convention.
+{% endcomment %}
+
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'record_id'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'document_ids'
+
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

@@ -1,0 +1,6 @@
+mutation accela_constant_set($name: String!, $value: String!) {
+  constant_set(name: $name, value: $value) {
+    name
+    value
+  }
+}

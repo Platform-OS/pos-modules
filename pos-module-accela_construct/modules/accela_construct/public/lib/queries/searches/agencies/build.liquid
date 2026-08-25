@@ -1,0 +1,12 @@
+{% comment %}
+  modules/accela_construct/queries/searches/agencies/build
+
+  No-op for this endpoint - lib/accela_client/post_search.liquid builds
+  the actual request path/body itself from `object.criteria`/offset/limit/
+  expand/fields. Present only for structural consistency with the
+  build/check split used across all queries.
+{% endcomment %}
+
+{% liquid
+  return object
+%}

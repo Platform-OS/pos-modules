@@ -1,0 +1,19 @@
+query accela_request_get($id: ID!) {
+  records(
+    per_page: 1
+    filter: { id: { value: $id }, table: { value: "modules/accela_construct/accela_request" } }
+  ) {
+    results {
+      id
+      created_at
+      updated_at
+      table
+
+      method: property(name: "method")
+      path: property(name: "path")
+      request_payload: property(name: "request_payload")
+      reference_id: property(name: "reference_id")
+      reference_schema: property(name: "reference_schema")
+    }
+  }
+}

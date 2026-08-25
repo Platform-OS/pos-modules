@@ -1,0 +1,28 @@
+{% comment %}
+  modules/accela_construct/accela_client/resolve_reference_table
+
+  Looks up a platformOS record's own `table` field by id alone, with no
+  table filter - `records()` searches across every table in the instance,
+  not just one, so this works regardless of what table the referenced
+  record actually lives in. Used by log_request.liquid when a caller
+  passes `reference: { "id": ... }` without `table` - saves the caller
+  from having to look it up themselves when they only have an id in hand
+  (if they already have the fetched record instead, e.g. from their own
+  GraphQL query that also selected `table`, they can just pass
+  `reference: that_record` directly and skip this lookup entirely).
+
+  Params:
+    id - platformOS record id (required)
+
+  Returns the record's `table` string, or nil if no record with that id
+  exists.
+
+  Usage:
+    {% function table = 'modules/accela_construct/accela_client/resolve_reference_table', id: some_id %}
+{% endcomment %}
+
+{% liquid
+  graphql result = 'modules/accela_construct/reference/get_table', id: id
+  assign record = result.records.results.first
+  return record.table
+%}

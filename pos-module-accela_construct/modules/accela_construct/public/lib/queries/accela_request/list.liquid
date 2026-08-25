@@ -1,0 +1,38 @@
+{% comment %}
+  modules/accela_construct/queries/accela_request/list
+
+  Lists accela_request rows (newest first) - one row per logical Accela
+  request this module has made, created once on that request's first
+  attempt (see lib/accela_client/log_request.liquid). Each request may
+  have multiple accela_request_response rows (one per attempt, including
+  retries) - see queries/accela_request_response/list; filter that query
+  by `request_id` and read its `total_entries` for "how many attempts so
+  far," rather than looking for a stored count here. Each row also
+  carries an optional `reference_id`/`reference_schema` polymorphic
+  association to whatever platformOS record triggered the request - see
+  send.liquid's `reference` param.
+
+  Params (all optional):
+    method    - exact match, e.g. "POST"
+    path      - exact match, e.g. "/records"
+    reference - hash `{ "id", "table" }`, either or both given, to find
+                requests tied to one specific platformOS record (unlike
+                send.liquid's `reference` param, `table` is never
+                auto-resolved here if omitted - filtering by `id` alone
+                is already unambiguous within this table, so there's
+                nothing worth the extra round trip to look up)
+    limit     - default 25
+    page      - default 1
+
+  Usage:
+    {% function requests = 'modules/accela_construct/queries/accela_request/list', reference: { "id": some_id } %}
+{% endcomment %}
+
+{% liquid
+  assign limit = limit | default: 25
+  assign page = page | default: 1
+
+  graphql list_result = 'modules/accela_construct/accela_request/list', method: method, path: path, reference_id: reference.id, reference_schema: reference.table, limit: limit, page: page
+  assign requests = list_result.records
+  return requests
+%}

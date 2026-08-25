@@ -1,0 +1,34 @@
+{% comment %}
+  modules/accela_construct/queries/inspections/conditions/list
+  Wraps: GET /v4/inspections/{inspectionId}/conditions  (Accela "Get All Standard Conditions")
+
+  Params:
+    inspection_id - Inspection id (required)
+    with_retries - optional boolean, default false. When true, retries a
+      failed attempt in the background with increasing delay - see
+      lib/accela_client/send.liquid.
+    reference - optional hash `{ "id", "table" }` forwarded
+      to send.liquid - see send.liquid.
+
+  Follows the pos-module-core build/check command pattern (see
+  list/{build,check}.liquid): build prepares the request path, check
+  validates required params, and this file executes the request itself
+  once valid.
+
+  Usage:
+    {% function result = 'modules/accela_construct/queries/inspections/conditions/list', inspection_id: inspection_id %}
+{% endcomment %}
+
+{% liquid
+  assign object = { "errors": {}, "valid": true, "inspection_id": inspection_id }
+  function object = 'modules/accela_construct/queries/inspections/conditions/list/build', object: object
+  function object = 'modules/accela_construct/queries/inspections/conditions/list/check', object: object
+
+  if object.valid
+    function result = 'modules/accela_construct/accela_client/send', method: 'GET', path: object.path, with_retries: with_retries, reference: reference, caller: 'modules/accela_construct/queries/inspections/conditions/list'
+  else
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/queries/inspections/conditions/list'
+  endif
+
+  return result
+%}

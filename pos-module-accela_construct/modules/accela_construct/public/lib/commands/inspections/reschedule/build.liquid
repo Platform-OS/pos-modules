@@ -1,0 +1,19 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/reschedule/build
+
+  Normalizes input and prepares the request for PUT
+  /v4/inspections/{id}/reschedule: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the inspection id) and the JSON-serialized
+  changes body.
+
+  Params:
+    object - Hash with `id` and `changes` (see inspections/reschedule.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.id | url_encode }}/reschedule"
+  assign object.payload = object.changes | json
+  return object
+%}

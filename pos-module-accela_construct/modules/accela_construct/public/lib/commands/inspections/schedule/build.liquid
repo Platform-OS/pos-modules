@@ -1,0 +1,18 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/schedule/build
+
+  Normalizes input and prepares the request for POST
+  /v4/inspections/schedule: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL) and the JSON-serialized inspection body.
+
+  Params:
+    object - Hash with `inspection` (see inspections/schedule.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = '/inspections/schedule'
+  assign object.payload = object.inspection | json
+  return object
+%}

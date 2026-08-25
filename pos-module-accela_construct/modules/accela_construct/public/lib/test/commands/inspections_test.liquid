@@ -1,0 +1,191 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  # modules/accela_construct/commands/inspections/schedule
+
+  assign schedule_missing = { "errors": {}, "valid": true }
+  function schedule_missing = 'modules/accela_construct/commands/inspections/schedule/check', object: schedule_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: schedule_missing, field_name: 'inspections_schedule_check_invalid_without_inspection'
+
+  assign schedule_ok = { "errors": {}, "valid": true, "inspection": { "inspectorId": "MINSPECTOR" } }
+  function schedule_ok = 'modules/accela_construct/commands/inspections/schedule/check', object: schedule_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: schedule_ok, field_name: 'inspections_schedule_check_valid_with_inspection'
+
+  assign schedule_build_input = { "inspection": { "inspectorId": "MINSPECTOR", "type": { "id": 173 } } }
+  function schedule_built = 'modules/accela_construct/commands/inspections/schedule/build', object: schedule_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: schedule_built.path, expected: '/inspections/schedule', field_name: 'inspections_schedule_build_path'
+  assign schedule_payload = schedule_built.payload | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: schedule_payload.inspectorId, expected: 'MINSPECTOR', field_name: 'inspections_schedule_build_payload_content'
+
+  function schedule_result = 'modules/accela_construct/commands/inspections/schedule', inspection: null
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: schedule_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: schedule_result.error, expected: 'accela_validation_failed', field_name: 'inspections_schedule_without_inspection_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/set_schedule
+
+  assign set_schedule_missing = { "errors": {}, "valid": true, "inspection": { "scheduleDate": "2026-08-05" } }
+  function set_schedule_missing = 'modules/accela_construct/commands/inspections/set_schedule/check', object: set_schedule_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: set_schedule_missing, field_name: 'inspections_set_schedule_check_invalid_without_id'
+
+  assign set_schedule_ok = { "errors": {}, "valid": true, "id": "1001", "inspection": { "scheduleDate": "2026-08-05" } }
+  function set_schedule_ok = 'modules/accela_construct/commands/inspections/set_schedule/check', object: set_schedule_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: set_schedule_ok, field_name: 'inspections_set_schedule_check_valid_with_all_required'
+
+  assign set_schedule_build_input = { "id": "1001", "inspection": { "scheduleDate": "2026-08-05" } }
+  function set_schedule_built = 'modules/accela_construct/commands/inspections/set_schedule/build', object: set_schedule_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: set_schedule_built.path, expected: '/inspections/1001/schedule', field_name: 'inspections_set_schedule_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: set_schedule_built, field_name: 'payload'
+
+  function set_schedule_result = 'modules/accela_construct/commands/inspections/set_schedule', inspection: { "scheduleDate": "2026-08-05" }
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: set_schedule_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: set_schedule_result.error, expected: 'accela_validation_failed', field_name: 'inspections_set_schedule_without_id_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/reschedule
+
+  assign reschedule_missing = { "errors": {}, "valid": true, "id": "1001" }
+  function reschedule_missing = 'modules/accela_construct/commands/inspections/reschedule/check', object: reschedule_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: reschedule_missing, field_name: 'inspections_reschedule_check_invalid_without_changes'
+
+  assign reschedule_ok = { "errors": {}, "valid": true, "id": "1001", "changes": { "scheduleDate": "2026-08-06" } }
+  function reschedule_ok = 'modules/accela_construct/commands/inspections/reschedule/check', object: reschedule_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: reschedule_ok, field_name: 'inspections_reschedule_check_valid_with_all_required'
+
+  assign reschedule_build_input = { "id": "1001", "changes": { "scheduleDate": "2026-08-06" } }
+  function reschedule_built = 'modules/accela_construct/commands/inspections/reschedule/build', object: reschedule_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: reschedule_built.path, expected: '/inspections/1001/reschedule', field_name: 'inspections_reschedule_build_path'
+
+  function reschedule_result = 'modules/accela_construct/commands/inspections/reschedule', id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: reschedule_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: reschedule_result.error, expected: 'accela_validation_failed', field_name: 'inspections_reschedule_without_changes_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/result
+
+  assign result_missing = { "errors": {}, "valid": true, "id": "1001" }
+  function result_missing = 'modules/accela_construct/commands/inspections/result/check', object: result_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: result_missing, field_name: 'inspections_result_check_invalid_without_inspection_result'
+
+  assign result_ok = { "errors": {}, "valid": true, "id": "1001", "inspection_result": { "status": { "value": "Passed" } } }
+  function result_ok = 'modules/accela_construct/commands/inspections/result/check', object: result_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: result_ok, field_name: 'inspections_result_check_valid_with_all_required'
+
+  assign result_build_input = { "id": "1001", "inspection_result": { "status": { "value": "Passed" } } }
+  function result_built = 'modules/accela_construct/commands/inspections/result/build', object: result_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result_built.path, expected: '/inspections/1001/result', field_name: 'inspections_result_build_path'
+
+  function inspection_result_result = 'modules/accela_construct/commands/inspections/result', id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspection_result_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_result_result.error, expected: 'accela_validation_failed', field_name: 'inspections_result_without_inspection_result_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/update
+
+  assign inspections_update_missing = { "errors": {}, "valid": true, "id": "1001" }
+  function inspections_update_missing = 'modules/accela_construct/commands/inspections/update/check', object: inspections_update_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: inspections_update_missing, field_name: 'inspections_update_check_invalid_without_inspection'
+
+  assign inspections_update_ok = { "errors": {}, "valid": true, "id": "1001", "inspection": { "status": { "value": "Scheduled" } } }
+  function inspections_update_ok = 'modules/accela_construct/commands/inspections/update/check', object: inspections_update_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: inspections_update_ok, field_name: 'inspections_update_check_valid_with_all_required'
+
+  assign inspections_update_build_input = { "id": "1001", "inspection": { "status": { "value": "Scheduled" } } }
+  function inspections_update_built = 'modules/accela_construct/commands/inspections/update/build', object: inspections_update_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_update_built.path, expected: '/inspections/1001', field_name: 'inspections_update_build_path'
+
+  function inspections_update_result = 'modules/accela_construct/commands/inspections/update', id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspections_update_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_update_result.error, expected: 'accela_validation_failed', field_name: 'inspections_update_without_inspection_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/assign
+
+  assign assign_missing = { "errors": {}, "valid": true, "ids": "1001" }
+  function assign_missing = 'modules/accela_construct/commands/inspections/assign/check', object: assign_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: assign_missing, field_name: 'inspections_assign_check_invalid_without_inspector_id'
+
+  assign assign_ok = { "errors": {}, "valid": true, "ids": "1001", "inspector_id": "MINSPECTOR" }
+  function assign_ok = 'modules/accela_construct/commands/inspections/assign/check', object: assign_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: assign_ok, field_name: 'inspections_assign_check_valid_with_all_required'
+
+  assign assign_build_input = { "ids": "1001", "inspector_id": "MINSPECTOR" }
+  function assign_built = 'modules/accela_construct/commands/inspections/assign/build', object: assign_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: assign_built.path, expected: '/inspections/1001/assign?inspectorId=MINSPECTOR', field_name: 'inspections_assign_build_path_includes_inspector_id_query_param'
+  function contract = 'modules/tests/assertions/not_presence', contract: contract, object: assign_built, field_name: 'payload'
+
+  function assign_result = 'modules/accela_construct/commands/inspections/assign', ids: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: assign_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: assign_result.error, expected: 'accela_validation_failed', field_name: 'inspections_assign_without_inspector_id_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/cancel
+
+  assign inspections_cancel_missing = { "errors": {}, "valid": true }
+  function inspections_cancel_missing = 'modules/accela_construct/commands/inspections/cancel/check', object: inspections_cancel_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: inspections_cancel_missing, field_name: 'inspections_cancel_check_invalid_without_ids'
+
+  assign inspections_cancel_ok = { "errors": {}, "valid": true, "ids": "1001" }
+  function inspections_cancel_ok = 'modules/accela_construct/commands/inspections/cancel/check', object: inspections_cancel_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: inspections_cancel_ok, field_name: 'inspections_cancel_check_valid_with_ids'
+
+  assign inspections_cancel_build_input = { "ids": "1001" }
+  function inspections_cancel_built = 'modules/accela_construct/commands/inspections/cancel/build', object: inspections_cancel_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_cancel_built.path, expected: '/inspections/1001/cancel', field_name: 'inspections_cancel_build_path'
+
+  function inspections_cancel_result = 'modules/accela_construct/commands/inspections/cancel', ids: null
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspections_cancel_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_cancel_result.error, expected: 'accela_validation_failed', field_name: 'inspections_cancel_without_ids_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/delete
+
+  assign inspections_delete_missing = { "errors": {}, "valid": true }
+  function inspections_delete_missing = 'modules/accela_construct/commands/inspections/delete/check', object: inspections_delete_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: inspections_delete_missing, field_name: 'inspections_delete_check_invalid_without_ids'
+
+  assign inspections_delete_ok = { "errors": {}, "valid": true, "ids": "1001" }
+  function inspections_delete_ok = 'modules/accela_construct/commands/inspections/delete/check', object: inspections_delete_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: inspections_delete_ok, field_name: 'inspections_delete_check_valid_with_ids'
+
+  assign inspections_delete_build_input = { "ids": "1001" }
+  function inspections_delete_built = 'modules/accela_construct/commands/inspections/delete/build', object: inspections_delete_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_delete_built.path, expected: '/inspections/1001', field_name: 'inspections_delete_build_path'
+
+  function inspections_delete_result = 'modules/accela_construct/commands/inspections/delete', ids: null
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspections_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_delete_result.error, expected: 'accela_validation_failed', field_name: 'inspections_delete_without_ids_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/related/create
+
+  assign related_create_missing = { "errors": {}, "valid": true, "id": "1001" }
+  function related_create_missing = 'modules/accela_construct/commands/inspections/related/create/check', object: related_create_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: related_create_missing, field_name: 'inspections_related_create_check_invalid_without_related_inspection_ids'
+
+  assign related_create_ok = { "errors": {}, "valid": true, "id": "1001", "related_inspection_ids": "2001,2002" }
+  function related_create_ok = 'modules/accela_construct/commands/inspections/related/create/check', object: related_create_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: related_create_ok, field_name: 'inspections_related_create_check_valid_with_all_required'
+
+  assign related_create_build_input = { "id": "1001", "related_inspection_ids": "2001,2002" }
+  function related_create_built = 'modules/accela_construct/commands/inspections/related/create/build', object: related_create_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_create_built.path, expected: '/inspections/1001/related', field_name: 'inspections_related_create_build_path'
+  assign related_create_payload = related_create_built.payload | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_create_payload.relatedInspectionIds.size, expected: 2, field_name: 'inspections_related_create_build_payload_array_size'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_create_payload.relatedInspectionIds.first, expected: '2001', field_name: 'inspections_related_create_build_payload_first_id'
+
+  function related_create_result = 'modules/accela_construct/commands/inspections/related/create', id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: related_create_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_create_result.error, expected: 'accela_validation_failed', field_name: 'inspections_related_create_without_related_inspection_ids_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/related/delete
+
+  assign related_delete_missing = { "errors": {}, "valid": true, "id": "1001" }
+  function related_delete_missing = 'modules/accela_construct/commands/inspections/related/delete/check', object: related_delete_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: related_delete_missing, field_name: 'inspections_related_delete_check_invalid_without_child_ids'
+
+  assign related_delete_ok = { "errors": {}, "valid": true, "id": "1001", "child_ids": "2001" }
+  function related_delete_ok = 'modules/accela_construct/commands/inspections/related/delete/check', object: related_delete_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: related_delete_ok, field_name: 'inspections_related_delete_check_valid_with_all_required'
+
+  assign related_delete_build_input = { "id": "1001", "child_ids": "2001" }
+  function related_delete_built = 'modules/accela_construct/commands/inspections/related/delete/build', object: related_delete_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_delete_built.path, expected: '/inspections/1001/related/2001', field_name: 'inspections_related_delete_build_path'
+
+  function related_delete_result = 'modules/accela_construct/commands/inspections/related/delete', id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: related_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_delete_result.error, expected: 'accela_validation_failed', field_name: 'inspections_related_delete_without_child_ids_returns_validation_failed'
+%}

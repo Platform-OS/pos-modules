@@ -1,0 +1,18 @@
+{% comment %}
+  modules/accela_construct/commands/records/owners/create/build
+
+  Normalizes input and prepares the request for POST
+  /v4/records/{recordId}/owners: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the record id) and the JSON-serialized owner body.
+
+  Params:
+    object - Hash with `record_id` and `owner` (see owners/create.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/owners"
+  assign object.payload = object.owner | json
+  return object
+%}

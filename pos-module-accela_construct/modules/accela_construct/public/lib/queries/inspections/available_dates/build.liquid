@@ -1,0 +1,23 @@
+{% comment %}
+  modules/accela_construct/queries/inspections/available_dates/build
+
+  Builds the request path for GET /v4/inspections/availableDates.
+
+  Params:
+    object - Hash with `type_id`, `record_id`, `start_date`, `offset`,
+             `limit`, `fields` (see inspections/available_dates.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign qs_params = { "typeId": object.type_id, "recordId": object.record_id, "startDate": object.start_date, "offset": object.offset, "limit": object.limit, "fields": object.fields }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = "/inspections/availableDates"
+  if qs != blank
+    assign object.path = "{{ object.path }}?{{ qs }}"
+  endif
+
+  return object
+%}

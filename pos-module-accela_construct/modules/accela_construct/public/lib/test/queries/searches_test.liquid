@@ -1,0 +1,67 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% comment %}
+  Contract/shape smoke tests, not path-correctness tests - they assert
+  graceful failure in the absence of live Accela credentials (the expected
+  state for automated test runs); with real credentials configured some
+  assertions here would need to expect success instead.
+{% endcomment %}
+{% liquid
+  assign criteria = { "module": "Building" }
+
+  # queries/searches/addresses
+  function result = 'modules/accela_construct/queries/searches/addresses', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_addresses_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_addresses_error'
+
+  # queries/searches/agencies
+  function result = 'modules/accela_construct/queries/searches/agencies', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_agencies_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_agencies_error'
+
+  # queries/searches/global (plain GET, no criteria hash)
+  function result = 'modules/accela_construct/queries/searches/global', query: 'main street'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_global_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_global_error'
+
+  # queries/searches/assessments
+  function result = 'modules/accela_construct/queries/searches/assessments', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_assessments_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_assessments_error'
+
+  # queries/searches/contacts
+  function result = 'modules/accela_construct/queries/searches/contacts', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_contacts_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_contacts_error'
+
+  # queries/searches/costs
+  function result = 'modules/accela_construct/queries/searches/costs', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_costs_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_costs_error'
+
+  # queries/searches/inspections
+  function result = 'modules/accela_construct/queries/searches/inspections', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_inspections_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_inspections_error'
+
+  # queries/searches/owners
+  function result = 'modules/accela_construct/queries/searches/owners', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_owners_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_owners_error'
+
+  # queries/searches/parcels
+  function result = 'modules/accela_construct/queries/searches/parcels', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_parcels_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_parcels_error'
+
+  # queries/searches/parts
+  function result = 'modules/accela_construct/queries/searches/parts', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_parts_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_parts_error'
+
+  # queries/searches/professionals
+  function result = 'modules/accela_construct/queries/searches/professionals', criteria: criteria
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'searches_professionals_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'searches_professionals_error'
+%}

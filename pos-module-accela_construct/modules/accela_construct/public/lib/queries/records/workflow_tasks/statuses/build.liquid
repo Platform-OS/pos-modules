@@ -1,0 +1,15 @@
+{% comment %}
+  modules/accela_construct/queries/records/workflow_tasks/statuses/build
+
+  Builds the request path for GET /v4/records/{recordId}/workflowTasks/{id}/statuses.
+
+  Params:
+    object - Hash with `record_id`, `id` (see records/workflow_tasks/statuses.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/workflowTasks/{{ object.id | url_encode }}/statuses"
+  return object
+%}

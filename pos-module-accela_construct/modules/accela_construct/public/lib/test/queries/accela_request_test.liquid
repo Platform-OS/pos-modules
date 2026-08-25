@@ -1,0 +1,19 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% comment %}
+  Like accela_oauth_token_test.liquid, this doesn't touch Accela - it's a
+  local GraphQL read of the accela_request table. Filters by a path that
+  can't exist rather than asserting the table is empty, since real usage
+  of this module writes rows to this table continuously (see
+  lib/accela_client/log_request.liquid) - asserting global emptiness
+  would be flaky against anything but a brand new, never-used environment.
+{% endcomment %}
+{% liquid
+  function requests = 'modules/accela_construct/queries/accela_request/list', path: '/accela_construct_test_nonexistent_path'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: requests.results.size, expected: 0, field_name: 'accela_request_list_filters_by_path'
+
+  assign nonexistent_reference = { "id": "accela_construct_test_nonexistent_id", "table": "accela_construct_test_nonexistent_type" }
+  function requests_by_reference = 'modules/accela_construct/queries/accela_request/list', reference: nonexistent_reference
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: requests_by_reference.results.size, expected: 0, field_name: 'accela_request_list_filters_by_reference'
+%}

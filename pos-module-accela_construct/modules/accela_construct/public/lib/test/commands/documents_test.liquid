@@ -1,0 +1,47 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  # modules/accela_construct/commands/records/documents/upload
+
+  assign upload_missing = { "errors": {}, "valid": true, "file_field": "binary-data", "file_name": "plan.pdf", "content_type": "application/pdf" }
+  function upload_missing = 'modules/accela_construct/commands/records/documents/upload/check', object: upload_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: upload_missing, field_name: 'documents_upload_check_invalid_without_record_id'
+
+  assign upload_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "file_field": "binary-data", "file_name": "plan.pdf", "content_type": "application/pdf" }
+  function upload_ok = 'modules/accela_construct/commands/records/documents/upload/check', object: upload_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: upload_ok, field_name: 'documents_upload_check_valid_with_all_required'
+
+  assign upload_build_input = { "record_id": "TEST-0000-00001", "file_field": "binary-data", "file_name": "plan.pdf", "content_type": "application/pdf", "category": "Plans" }
+  function upload_built = 'modules/accela_construct/commands/records/documents/upload/build', object: upload_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: upload_built.path, expected: '/records/TEST-0000-00001/documents', field_name: 'documents_upload_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: upload_built, field_name: 'file_info'
+  assign upload_file_info = upload_built.file_info | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: upload_file_info.size, expected: 1, field_name: 'documents_upload_build_file_info_is_single_item_array'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: upload_file_info.first.fileName, expected: 'plan.pdf', field_name: 'documents_upload_build_file_info_file_name'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: upload_file_info.first.type, expected: 'application/pdf', field_name: 'documents_upload_build_file_info_content_type'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: upload_file_info.first.category, expected: 'Plans', field_name: 'documents_upload_build_file_info_category'
+
+  function upload_result = 'modules/accela_construct/commands/records/documents/upload', file_field: 'binary-data', file_name: 'plan.pdf', content_type: 'application/pdf'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: upload_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: upload_result.error, expected: 'accela_validation_failed', field_name: 'documents_upload_without_record_id_returns_validation_failed'
+
+  # modules/accela_construct/commands/records/documents/delete
+
+  assign delete_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function delete_missing = 'modules/accela_construct/commands/records/documents/delete/check', object: delete_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: delete_missing, field_name: 'documents_delete_check_invalid_without_document_ids'
+
+  assign delete_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "document_ids": "9001" }
+  function delete_ok = 'modules/accela_construct/commands/records/documents/delete/check', object: delete_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: delete_ok, field_name: 'documents_delete_check_valid_with_all_required'
+
+  assign delete_build_input = { "record_id": "TEST-0000-00001", "document_ids": "9001" }
+  function delete_built = 'modules/accela_construct/commands/records/documents/delete/build', object: delete_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: delete_built.path, expected: '/records/TEST-0000-00001/documents/9001', field_name: 'documents_delete_build_path'
+  function contract = 'modules/tests/assertions/not_presence', contract: contract, object: delete_built, field_name: 'payload'
+
+  function delete_result = 'modules/accela_construct/commands/records/documents/delete', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: delete_result.error, expected: 'accela_validation_failed', field_name: 'documents_delete_without_document_ids_returns_validation_failed'
+%}

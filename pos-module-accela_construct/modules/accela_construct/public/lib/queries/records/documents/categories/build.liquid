@@ -1,0 +1,15 @@
+{% comment %}
+  modules/accela_construct/queries/records/documents/categories/build
+
+  Builds the request path for GET /v4/records/{recordId}/documentCategories.
+
+  Params:
+    object - Hash with `record_id` (see documents/categories.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/documentCategories"
+  return object
+%}

@@ -1,0 +1,26 @@
+{% comment %}
+  modules/accela_construct/commands/records/additional/update/build
+
+  Normalizes input and prepares the request for PUT
+  /v4/records/{recordId}/additional: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the record id) and the JSON-serialized body.
+  Accela documents `recordId` as a required body field on this endpoint
+  (in addition to it being part of the path) - merged in here so callers
+  only ever pass `record_id` once.
+
+  Params:
+    object - Hash with `record_id` and optional `additional` (see
+             records/additional/update.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/additional"
+
+  assign body = object.additional | default: {}
+  assign body.recordId = object.record_id
+  assign object.payload = body | json
+
+  return object
+%}

@@ -1,0 +1,14 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% comment %}
+  Unlike the other query tests in this suite, this one does NOT touch
+  Accela at all - it's a local GraphQL read of the accela_oauth_token
+  table, so it's safe to assert concretely rather than as a smoke test.
+  In a fresh test environment the table is empty, so the query should
+  return a blank/nil record.
+{% endcomment %}
+{% liquid
+  function token_record = 'modules/accela_construct/queries/accela_oauth_token/find'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, value: token_record, field_name: 'accela_oauth_token_find_returns_blank_when_table_empty'
+%}

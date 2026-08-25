@@ -1,0 +1,43 @@
+{% comment %}
+  modules/accela_construct/queries/inspections/all
+  Wraps: GET /v4/inspections  (Accela "Get All Inspections")
+
+  General filterable inspection listing, not scoped to a single record -
+  see lib/queries/records/inspections/list for GET /v4/records/{recordId}/inspections.
+
+  Params (all optional):
+    module              - string, filter by module
+    types                - comma-separated inspection type values
+    scheduled_date_from  - string date
+    scheduled_date_to    - string date
+    inspector_ids        - comma-separated inspector ids
+    district_ids         - comma-separated district ids
+    offset, limit        - pagination
+    with_retries         - optional boolean, default false. When true,
+      retries a failed attempt in the background with increasing delay -
+      see lib/accela_client/send.liquid.
+    reference - optional hash `{ "id", "table" }` forwarded
+      to send.liquid - see send.liquid.
+
+  Follows the pos-module-core build/check command pattern (see
+  all/{build,check}.liquid): build prepares the request path, check
+  validates required params (none for this endpoint - see check.liquid)
+  and this file executes the request itself once valid.
+
+  Usage:
+    {% function result = 'modules/accela_construct/queries/inspections/all', module: 'Building' %}
+{% endcomment %}
+
+{% liquid
+  assign object = { "errors": {}, "valid": true, "module": module, "types": types, "scheduled_date_from": scheduled_date_from, "scheduled_date_to": scheduled_date_to, "inspector_ids": inspector_ids, "district_ids": district_ids, "offset": offset, "limit": limit }
+  function object = 'modules/accela_construct/queries/inspections/all/build', object: object
+  function object = 'modules/accela_construct/queries/inspections/all/check', object: object
+
+  if object.valid
+    function result = 'modules/accela_construct/accela_client/send', method: 'GET', path: object.path, with_retries: with_retries, reference: reference, caller: 'modules/accela_construct/queries/inspections/all'
+  else
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/queries/inspections/all'
+  endif
+
+  return result
+%}

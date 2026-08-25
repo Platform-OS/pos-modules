@@ -1,0 +1,172 @@
+{% comment %}
+  modules/accela_construct/accela_client/send
+
+  Generic authenticated Accela API request. Handles token retrieval,
+  builds the api_call_send `data` hash, and normalizes the result.
+  GET/POST/PUT/DELETE all share one API Call Notification template
+  (`api_calls/accela_generic.liquid`), with `method` passed through as
+  `data.request_type`; only MULTIPART needs its own template
+  (`accela_post_multipart.liquid`) since its body/headers shape differs.
+  Fires the request through pos-module-core's generic api_call_send
+  wrapper (modules/core/api_calls/send) rather than a module-owned
+  GraphQL mutation.
+
+  Params:
+    method  - "GET" | "POST" | "PUT" | "DELETE" | "MULTIPART" (required)
+    path    - Request path relative to ACCELA_CONSTRUCT_BASE_URL, e.g. "/records" or
+              "/records/123?expand=parcels" (required). The api_calls/*
+              templates prepend ACCELA_CONSTRUCT_BASE_URL themselves - callers here
+              never reference that constant directly.
+    payload - JSON string request body (POST/PUT only)
+    file_info - JSON string array, required for MULTIPART (see commands/records/documents/upload/build.liquid)
+    file_field - raw file content, required for MULTIPART
+    with_retries - optional boolean, default false/blank. When true and
+      this attempt fails, schedules up to `ACCELA_CONSTRUCT_MAX_RETRIES` background
+      retries (see schedule_retry.liquid) with linearly increasing delay
+      (`ACCELA_CONSTRUCT_RETRY_DELAY_MINUTES * retry number` minutes each). This
+      attempt's result is still returned synchronously either way -
+      retries never block the original call, and their eventual outcome
+      is only observable via the accela_request/accela_request_response
+      tables (see below), not through this function's return value. Not
+      supported for MULTIPART requests - file content can't be safely
+      re-sent from a detached background job. Retries don't carry
+      `method`/`path`/`payload` through the chain - `schedule_retry.liquid`/
+      `perform_retry_attempt.liquid` only pass around this accela_request's
+      id, looking the request itself back up from the accela_request row
+      when it's time to resend (see schedule_retry.liquid).
+    attempt_number - optional integer, default 1. The same absolute,
+      1-based counter used throughout the retry chain - 1 for the
+      original synchronous call, 2 for the first retry, 3 for the
+      second, etc. Callers normally never set this; it's passed
+      internally by perform_retry_attempt.liquid.
+    request_id - optional. Id of the accela_request row this attempt
+      belongs to, so every attempt of a retry chain (each its own
+      accela_request_response row) points back at the same logical
+      request. Leave blank for a fresh call (attempt 1) - a new
+      accela_request row is created for it; passed internally by
+      perform_retry_attempt.liquid for attempts 2+, which reuse it rather
+      than creating another accela_request row.
+    reference - optional hash `{ "id": ..., "table": ... }`. Polymorphic
+      association from the accela_request row this call creates back to
+      whatever platformOS record triggered it. `table` is the record's
+      actual `table` value (not a caller-invented label) - if you already
+      have the fetched record in hand (and its own query selected
+      `table`), just pass it directly, e.g. `reference: application`;
+      if you only have an id, pass `reference: { "id": application_id }`
+      and `table` is looked up automatically (one extra GraphQL read - see
+      accela_client/resolve_reference_table.liquid) since `records()` can
+      look up any record by id regardless of which table it's in. Only
+      meaningful on attempt 1 (a fresh call, `request_id` blank); ignored
+      on retries, since the accela_request row already has it set from
+      creation. Every query/command wrapper function forwards this the
+      same way it forwards `with_retries`.
+    caller - optional. The calling query/command's own module path
+      (verbatim from its own doc comment header), forwarded to
+      error_result.liquid if this attempt fails, so a live Accela failure
+      gets logged with the same "which endpoint was this" context a local
+      validation failure already gets - see error_result.liquid.
+
+  Every attempt (success or failure) is written via
+  lib/accela_client/log_request.liquid: one accela_request row per
+  logical request (created once, on attempt 1) plus one
+  accela_request_response row per attempt, including every retry - see
+  the schema files for the exact columns. A failed log write never fails
+  or blocks the underlying Accela request. The write happens synchronously
+  and its result IS consumed whenever something downstream needs the id(s)
+  it produces: when this attempt is about to trigger a retry (the
+  accela_request id becomes the chain's `request_id`, needed before
+  scheduling - a blank id from a failed write just means the chain loses
+  correlation, not that anything here fails - see README's Known Gaps),
+  and when this attempt succeeded (the event below needs both ids). Only
+  a non-retried *failure* has nothing waiting on the write, so that's the
+  one case the log write still runs in the background, unread by anything.
+
+  Every successful attempt (this one or a retry) also broadcasts a
+  `modules/core/commands/events/publish` event of type
+  `accela_construct_request_succeeded` - see
+  lib/events/accela_construct_request_succeeded.liquid for its validated
+  shape. Its payload identifies which request this was via `caller`,
+  `method`, `path` (always present), `reference`, `attempt_number`, and
+  the ids of the log rows this attempt itself just wrote synchronously:
+  `request_id` (the accela_request row) and `response_id` (this specific
+  attempt's accela_request_response row) - both blank only in the rare
+  case the corresponding write itself failed. No event fires on failure -
+  use the `accela_request`/`accela_request_response` rows (or
+  `with_retries`) to react to those instead.
+
+  Returns a hash:
+    {
+      "success": true|false,
+      "status": <http status or null>,
+      "body": <parsed JSON response, or null>,
+      "raw": <raw response body string>,
+      "error": <error message, nil when success is true>
+    }
+{% endcomment %}
+
+{% liquid
+  function access_token = 'modules/accela_construct/accela_client/get_valid_token'
+
+  assign attempt_number = attempt_number | default: 1
+
+  if access_token == blank
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_authentication_failed: unable to obtain an access token - check ACCELA_* constants', caller: caller
+  else
+    assign template = 'modules/accela_construct/accela_generic'
+    if method == 'MULTIPART'
+      assign template = 'modules/accela_construct/accela_post_multipart'
+    endif
+
+    function accela_app_id = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_APP_ID'
+    assign request_data = { "app_id": accela_app_id, "access_token": access_token, "path": path, "payload": payload, "file_info": file_info, "file_field": file_field, "request_type": method }
+    graphql send_result = 'modules/core/api_calls/send', template: template, data: request_data
+    assign response = send_result.api_call.response
+    assign call_errors = send_result.api_call.errors
+
+    if call_errors.size > 0
+      function result = 'modules/accela_construct/accela_client/error_result', error: call_errors.first.message, caller: caller
+    else
+      assign is_success = false
+      if response.status and response.status >= 200 and response.status < 300
+        assign is_success = true
+      endif
+
+      assign parsed_body = response.body | parse_json
+      assign error_message = nil
+      unless is_success
+        assign error_message = parsed_body.message | default: parsed_body.error_description | default: 'accela_request_failed'
+      endunless
+
+      assign result = { "success": is_success, "status": response.status, "raw": response.body, "body": parsed_body, "error": error_message }
+    endif
+  endif
+
+  assign log_data = { "method": method, "path": path, "request_payload": payload, "attempt_number": attempt_number, "request_id": request_id, "status": result.status, "response_body": result.raw, "success": result.success, "error": result.error, "reference": reference }
+
+  assign will_retry = false
+  if with_retries and result.success != true and method != 'MULTIPART'
+    function accela_max_retries = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_MAX_RETRIES', type: 'integer'
+    assign accela_max_retries = accela_max_retries | default: 3
+    if accela_max_retries > 0
+      assign will_retry = true
+    endif
+  endif
+
+  if will_retry
+    function log_record = 'modules/accela_construct/accela_client/log_request', data: log_data
+    assign correlation_id = request_id | default: log_record.request_id
+
+    function schedule_result = 'modules/accela_construct/accela_client/schedule_retry', attempt_number: 2, last_error: result.error, request_id: correlation_id
+  elsif result.success == true
+    function log_record = 'modules/accela_construct/accela_client/log_request', data: log_data
+  else
+    background log_job = 'modules/accela_construct/accela_client/log_request', data: log_data, priority: 'low', max_attempts: 1
+  endif
+
+  if result.success == true
+    assign event_payload = { "caller": caller, "method": method, "path": path, "reference": reference, "request_id": log_record.request_id, "response_id": log_record.response_id, "attempt_number": attempt_number }
+    function _ = 'modules/core/commands/events/publish', type: 'accela_construct_request_succeeded', object: event_payload, delay: nil, max_attempts: nil
+  endif
+
+  return result
+%}

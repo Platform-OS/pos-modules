@@ -1,0 +1,22 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% comment %}
+  These are contract/shape smoke tests, not path-correctness tests - they
+  assert graceful failure in the absence of live Accela credentials (the
+  expected state for automated test runs); with real credentials
+  configured some assertions here would need to expect success instead.
+{% endcomment %}
+{% liquid
+  function result = 'modules/accela_construct/queries/records/documents/list', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'documents_list_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'documents_list_error'
+
+  function result = 'modules/accela_construct/queries/records/documents/categories', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'documents_categories_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'documents_categories_error'
+
+  function result = 'modules/accela_construct/queries/documents/download', document_id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'documents_download_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result, field_name: 'documents_download_error'
+%}

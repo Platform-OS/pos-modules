@@ -1,0 +1,12 @@
+{% comment %}
+  modules/accela_construct/queries/searches/assessments/check
+  No required params for this endpoint - every field Accela documents
+  for "Search Assessments" is individually optional. Kept for structural
+  consistency with the build/check split used across all queries.
+{% endcomment %}
+
+{% liquid
+  assign object.valid = true
+  assign object.errors = {}
+  return object
+%}

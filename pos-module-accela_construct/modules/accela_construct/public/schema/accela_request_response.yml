@@ -1,0 +1,18 @@
+# Table logging one row per attempt against an accela_request - the
+# original synchronous attempt and every background retry. Written by
+# lib/accela_client/log_request.liquid right after send.liquid computes
+# each attempt's result.
+name: accela_request_response
+properties:
+  - name: request_id
+    belongs_to: accela_request
+  - name: attempt_number
+    type: integer        # 1 = the original synchronous call, 2+ = background retries
+  - name: status
+    type: integer
+  - name: response_body
+    type: string
+  - name: success
+    type: boolean
+  - name: error
+    type: string

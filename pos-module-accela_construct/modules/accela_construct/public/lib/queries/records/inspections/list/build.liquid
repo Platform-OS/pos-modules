@@ -1,0 +1,23 @@
+{% comment %}
+  modules/accela_construct/queries/records/inspections/list/build
+
+  Builds the request path for GET /v4/records/{recordId}/inspections.
+
+  Params:
+    object - Hash with `record_id`, `offset`, `limit`, `fields`
+             (see inspections/list.liquid)
+
+  Returns object with `path` added.
+{% endcomment %}
+
+{% liquid
+  assign object.offset = object.offset | default: 0
+  assign object.limit = object.limit | default: 25
+
+  assign qs_params = { "offset": object.offset, "limit": object.limit, "fields": object.fields }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = "/records/{{ object.record_id | url_encode }}/inspections?{{ qs }}"
+
+  return object
+%}

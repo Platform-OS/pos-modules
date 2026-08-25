@@ -1,0 +1,18 @@
+{% comment %}
+  modules/accela_construct/commands/records/parcels/create/build
+
+  Normalizes input and prepares the request for POST
+  /v4/records/{recordId}/parcels: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the record id) and the JSON-serialized parcel body.
+
+  Params:
+    object - Hash with `record_id` and `parcel` (see parcels/create.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/parcels"
+  assign object.payload = object.parcel | json
+  return object
+%}

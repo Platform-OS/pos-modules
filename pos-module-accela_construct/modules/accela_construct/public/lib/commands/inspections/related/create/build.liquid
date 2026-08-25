@@ -1,0 +1,19 @@
+{% comment %}
+  modules/accela_construct/commands/inspections/related/create/build
+
+  Normalizes input and prepares the request for POST
+  /v4/inspections/{id}/related: the request path and the JSON-serialized
+  `relatedInspectionIds` array body.
+
+  Params:
+    object - Hash with `id` and `related_inspection_ids` (see related/create.liquid)
+
+  Returns object with `path` and `payload` added.
+{% endcomment %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.id | url_encode }}/related"
+  assign related_inspection_ids_array = object.related_inspection_ids | split: ','
+  assign object.payload = { "relatedInspectionIds": related_inspection_ids_array } | json
+  return object
+%}
