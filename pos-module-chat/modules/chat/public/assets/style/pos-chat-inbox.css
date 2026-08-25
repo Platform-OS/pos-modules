@@ -381,6 +381,10 @@
   align-items: end;
 }
 
+.pos-chat-message:not(:first-child) time {
+  margin-block-start: .5em;
+}
+
 .pos-chat-message time {
   font-size: .9rem;
   color: var(--pos-color-content-text-supplementary);
