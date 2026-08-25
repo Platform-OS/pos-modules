@@ -1,14 +1,17 @@
 {% liquid
   assign msg = message.message | markdown: '{ "elements": [ "br" ] }'
+
+  # show_time defaults to true - callers only pass false when this message sits
+  # within 7 minutes of the previous one and the timestamp would be redundant
+  assign display_time = true
+  if show_time == false
+    assign display_time = false
+  endif
 %}
 
 <li class="pos-chat-message {% if authored %} pos-chat-message-authored {% endif %}">
 
-  <time datetime="{{ message.created_at }}">
-    {% if message.created_at %}
-      {{ message.created_at | l: 'long', timezone }}
-    {% endif %}
-  </time>
+  <time datetime="{{ message.created_at }}">{%- if display_time and message.created_at -%}{{ message.created_at | l: 'long', timezone }}{%- endif -%}</time>
 
   <div class="pos-chat-message-content">
     {{ msg }}

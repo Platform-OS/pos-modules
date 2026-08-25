@@ -386,6 +386,10 @@
   color: var(--pos-color-content-text-supplementary);
 }
 
+.pos-chat-message time:empty {
+  display: none;
+}
+
 .pos-chat-message-content {
   max-width: 100%;
   padding: calc(var(--pos-padding-cell) / 2) calc(var(--pos-padding-cell) / 1.5);

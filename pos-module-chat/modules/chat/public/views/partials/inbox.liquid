@@ -117,6 +117,11 @@
         <ul class="pos-chat-messages" id="chat-messagesList">
           {% liquid
             assign list = current_conversation.messages | reverse
+            # 7 minutes, in seconds - a message only repeats the timestamp once the gap
+            # since the previous message grows past this
+            assign time_group_threshold = 420
+            assign previous_created_at = null
+
             for message in list
               if message.autor_id == current_profile.id
                 assign authored = true
@@ -124,7 +129,19 @@
                 assign authored = false
               endif
 
-              render 'modules/chat/message', message: message, authored: authored, timezone: current_profile.properties.timezone
+              assign show_time = true
+              if previous_created_at
+                assign current_epoch = message.created_at | to_time | date: '%s' | plus: 0
+                assign previous_epoch = previous_created_at | to_time | date: '%s' | plus: 0
+                assign gap_seconds = current_epoch | minus: previous_epoch
+
+                if gap_seconds < time_group_threshold
+                  assign show_time = false
+                endif
+              endif
+              assign previous_created_at = message.created_at
+
+              render 'modules/chat/message', message: message, authored: authored, timezone: current_profile.properties.timezone, show_time: show_time
             endfor
           %}
         </ul>
