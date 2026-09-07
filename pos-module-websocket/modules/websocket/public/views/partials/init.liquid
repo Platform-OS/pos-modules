@@ -85,34 +85,26 @@ metadata:
 
       source.onerror = function() { if (callbacks.disconnected) callbacks.disconnected(); };
 
+      source.addEventListener('confirm_subscription', function() {
+        if (callbacks.connected) callbacks.connected();
+      });
+      source.addEventListener('reject_subscription', function() {
+        if (callbacks.rejected) callbacks.rejected();
+        source.close();
+        delete sseSubscriptions[roomId];
+      });
+      source.addEventListener('disconnect', function() {
+        if (callbacks.disconnected) callbacks.disconnected();
+      });
+
       source.onmessage = function(e) {
-        var envelope;
+        let data;
         try {
-          envelope = JSON.parse(e.data);
+          data = JSON.parse(e.data);
         } catch (err) {
           return;
         }
-
-        switch (envelope.type) {
-          case 'welcome':
-          case 'ping':
-            return;
-          case 'confirm_subscription':
-            if (callbacks.connected) callbacks.connected();
-            return;
-          case 'reject_subscription':
-            if (callbacks.rejected) callbacks.rejected();
-            source.close();
-            delete sseSubscriptions[roomId];
-            return;
-          case 'disconnect':
-            if (callbacks.disconnected) callbacks.disconnected();
-            return;
-          default:
-            if (envelope.message !== undefined && callbacks.received) {
-              callbacks.received(envelope.message);
-            }
-        }
+        if (callbacks.received) callbacks.received(data);
       };
 
       sseSubscriptions[roomId] = source;
