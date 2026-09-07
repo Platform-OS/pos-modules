@@ -1,0 +1,41 @@
+---
+slug: api/chat/uploads
+method: post
+---
+
+{% doc %}
+  Create an upload attached to a conversation
+
+  @param {string} conversation_id - the ID of the conversation the upload belongs to
+  @param {string} upload - the URL of the previously (presigned) uploaded file
+  @param {object} [metadata] - arbitrary metadata for the upload (e.g. file name, dimensions)
+{% enddoc %}
+
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+
+  assign conversation_id = context.params.conversation_id
+
+  function conversation = 'modules/chat/queries/conversations/find_by_participant', id: conversation_id, participant_id: current_profile.id, include_messages: null
+  if conversation == blank
+    response_status 404
+    assign res = { "errors": { "conversation_id": ["not found"] } }
+    echo res
+    break
+  endif
+
+  assign object = { "conversation_id": conversation.id, "uploader_id": current_profile.id, "upload": context.params.upload, "metadata": context.params.metadata }
+  function object = 'modules/chat/commands/uploads/create', object: object
+
+  if object.valid
+    echo object
+  else
+    response_status 422
+    assign res = { "errors": object.errors }
+    echo res
+  endif
+%}

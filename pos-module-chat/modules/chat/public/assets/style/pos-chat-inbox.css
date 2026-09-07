@@ -5,6 +5,7 @@
   search
   converstations list
   conversation
+  uploader
 */
 
 
@@ -416,7 +417,7 @@
 .pos-chat-conversation-new {
   padding: var(--pos-padding-cell) var(--pos-padding-cell) var(--pos-padding-cell);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: min-content 1fr auto;
   gap: var(--pos-gap-button-button);
   overflow: auto;
   scrollbar-gutter: stable;
@@ -486,3 +487,11 @@
       display: none;
     }
   }
+
+
+
+/* uploader
+============================================================================ */
+.pos-chat-uploader {
+  padding-inline: var(--pos-padding-page);
+}

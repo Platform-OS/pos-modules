@@ -1,0 +1,10 @@
+name: uploads
+properties:
+  - name: conversation_id
+    type: string
+  - name: uploader_id
+    type: string
+  - name: upload
+    type: upload
+  - name: metadata
+    type: string

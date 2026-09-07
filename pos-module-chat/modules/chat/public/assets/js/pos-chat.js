@@ -99,6 +99,11 @@ window.pos.modules.chat = function(userSettings = {}){
   // clearing the search results button (dom node)
   module.settings.search.clear = document.querySelector('.pos-chat-search-clear');
 
+  // stores all the upload related stuff (object)
+  module.settings.upload = {};
+  // url to create the uploaded file record in the database (string)
+  module.settings.upload.createUrl = '/api/chat/uploads';
+
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
 
@@ -110,7 +115,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.errorNotification = null;
 
   // to enable debug mode (bool)
-  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
 
 
 
@@ -224,6 +229,12 @@ window.pos.modules.chat = function(userSettings = {}){
     // keyboard navigation between the search input and its results
     module.settings.search.input?.addEventListener('keydown', module.search.keyboard);
     module.settings.search.results?.addEventListener('keydown', module.search.keyboard);
+
+    // store record for uploaded file
+    document.addEventListener('pos-upload-file-uploaded', event => {
+      module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: event.detail.file.meta });
+    });
+
 
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Chat initialized', module.settings.inbox);
@@ -561,6 +572,13 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
+  // purpose:		adds file to uploader
+  // ------------------------------------------------------------------------
+  module.addFile = () => {
+    pos.modules.active['chat-upload'];
+  };
+
+
   // conversations
   // ------------------------------------------------------------------------
   module.conversations = {};
@@ -729,6 +747,39 @@ window.pos.modules.chat = function(userSettings = {}){
           links[links.length - 1].focus();
         }
         break;
+    }
+  };
+
+
+
+  // purpose:		handles file uploading
+  // ------------------------------------------------------------------------
+  module.upload = {};
+
+
+  // purpose:		stores uploaded file record in the database
+  // ------------------------------------------------------------------------
+  module.upload.save = async ({ conversationId, uploadUrl, metadata }) => {
+    const response = await fetch(module.settings.upload.createUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.pos.csrfToken  
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        upload: uploadUrl,
+        metadata: metadata
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Failed to save uploaded file record in the database', data);
+    } else {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Successfully saved uploaded file record in the database', data);
     }
   };
 

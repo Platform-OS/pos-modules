@@ -10,6 +10,7 @@ en:
   message_input_placeholder: Write a message...
   send: Send
   back: Back
+  upload: Attach a file or image
   error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.
   search:
     placeholder: Search for a person
