@@ -3,6 +3,7 @@ query (
 ) {
   records(
     per_page: 1
+    sort: { created_at: { order: ASC } }
     filter: {
       table: { value: "modules/websocket/room" }
       properties: [{ name: "room_id", value: $room_id }]

@@ -27,6 +27,14 @@
     assign room = room.record
     assign object = object | hash_merge: room
 
+    # A concurrent request may have created a room with the same room_id at
+    # the same time (no uniqueness constraint on room_id). rooms/find always
+    # returns the oldest matching room, so re-fetching here converges every
+    # racing caller onto the same canonical record instead of each keeping
+    # its own duplicate.
+    function canonical = 'modules/websocket/queries/rooms/find', room_id: object.room_id
+    assign object = object | hash_merge: canonical
+
     unless object.public
       function _ = 'modules/websocket/commands/rooms/members/add', room_id: object.room_id, user_id: object.created_by
     endunless

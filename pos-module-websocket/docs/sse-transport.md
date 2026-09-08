@@ -8,10 +8,10 @@
 
 AnyCable-go can terminate [Server-Sent Events](https://docs.anycable.io/anycable-go/sse)
 directly (`--sse`, default path `/events`), as an alternative to the WebSocket
-upgrade described in [WEBSOCKETS.md](WEBSOCKETS.md). Confirmed by a local
-spike (real RPC server + real `anycable-go --sse`, no stubs): an SSE
-connection drives the **exact same** `Connect`/`Command` RPC calls as a
-WebSocket one. That means everything in `WEBSOCKETS.md` — the
+upgrade described in [the module README](../modules/websocket/README.md).
+Confirmed by a local spike (real RPC server + real `anycable-go --sse`, no
+stubs): an SSE connection drives the **exact same** `Connect`/`Command` RPC
+calls as a WebSocket one. That means everything in the module README — the
 `subscribed`/`receive` partial contract, the `subscription_error` payload,
 the room identifier format, `websockets_require_subscribed_partial` — applies
 **unchanged** over SSE. `WebNotificationsChannel` required zero code changes
@@ -42,7 +42,7 @@ client-side. `pos-module-websocket`'s `modules/websocket/init` partial
 
 ## 2. Same-origin detection needs `Origin` proxied to RPC
 
-`same_origin?` (see `WEBSOCKETS.md`) depends on `env['HTTP_ORIGIN']`.
+`same_origin?` (see [the module README](../modules/websocket/README.md)) depends on `env['HTTP_ORIGIN']`.
 anycable-go only proxies the `Cookie` header to the RPC server by default
 (`--headers` default: `"cookie"`). Without `--headers=cookie,origin` (or
 equivalent) in the anycable-go config, `HTTP_ORIGIN` is **always empty** for
@@ -87,7 +87,7 @@ for the write half; SSE is only ever the read half.
 - Feature flag: `app/models/instance.rb` (`sse_enabled`)
 - Deploy config: `app/services/app_builder/converters/instance_config_converter.rb`
 - Tests: `test/action_cable/connection_test.rb` ("SSE transport gating" context)
-- Channel contract this transport reuses unchanged: `WEBSOCKETS.md`
+- Channel contract this transport reuses unchanged: [the module README](../modules/websocket/README.md)
 
 ## Module reference
 

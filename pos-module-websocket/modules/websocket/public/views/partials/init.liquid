@@ -114,7 +114,7 @@ metadata:
     send: function(roomId, payload) {
       var subscription = subscriptions[roomId];
       if (!subscription) return false;
-      subscription.send(Object.assign({}, payload, { room_id: roomId, authenticity_token: csrfToken }));
+      subscription.send(Object.assign({}, payload, { room_id: roomId }));
       return true;
     },
 
