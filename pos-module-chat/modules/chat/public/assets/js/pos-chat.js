@@ -103,6 +103,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload = {};
   // url to create the uploaded file record in the database (string)
   module.settings.upload.createUrl = '/api/chat/uploads';
+  // media info staged from finished uploads, sent as message(s) on the next Send (array of { type, name, size, url })
+  module.settings.upload.pending = [];
 
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
@@ -115,7 +117,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.errorNotification = null;
 
   // to enable debug mode (bool)
-  module.settings.debug = (userSettings?.debug) ? userSettings.debug : true;
+  module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
 
 
 
@@ -147,10 +149,10 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling what will happen on pressing enter in the input
     module.settings.messageInput?.addEventListener('keypress', (event) => {
-      if(event.which == 13 && is_desktop && !event.shiftKey && module.settings.messageInput.value.trim()){
+      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length)){
         event.preventDefault();
 
-        module.sendMessage(module.settings.messageInput.value.trim());
+        module.upload.flushAndSend(module.settings.messageInput.value.trim());
         setTimeout(() => {
           module.settings.messageInput.value = '';
         }, 100);
@@ -165,8 +167,8 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling send button click
     module.settings.sendButton?.addEventListener('click', () => {
-      if(module.settings.messageInput.value.trim()) {
-        module.sendMessage(module.settings.messageInput.value.trim());
+      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length) {
+        module.upload.flushAndSend(module.settings.messageInput.value.trim());
         setTimeout(() => {
           module.settings.messageInput.value = '';
         }, 100);
@@ -230,9 +232,25 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.search.input?.addEventListener('keydown', module.search.keyboard);
     module.settings.search.results?.addEventListener('keydown', module.search.keyboard);
 
-    // store record for uploaded file
+    // store record for uploaded file, and stage its media info to go out with the next sent message
     document.addEventListener('pos-upload-file-uploaded', event => {
       module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: event.detail.file.meta });
+
+      const media = {
+        type: event.detail.file.type,
+        name: event.detail.file.name,
+        size: event.detail.file.size,
+        url: event.detail.url
+      };
+
+      // width/height are read from the image and set on file.meta by pos-upload.js's
+      // 'file-added' handler before the upload finishes - only present for images
+      if(event.detail.file.type && event.detail.file.type.startsWith('image/')){
+        media.width = event.detail.file.meta.width;
+        media.height = event.detail.file.meta.height;
+      }
+
+      module.settings.upload.pending.push(media);
     });
 
 
@@ -394,15 +412,20 @@ window.pos.modules.chat = function(userSettings = {}){
 
 
   // purpose:		sends the message through the Action Cable
-  // arguments:	the message to send (string)
+  // arguments:	the message to send (string), media items to attach - array of
+  //				    { type, name, size, url } (array, optional)
   // ------------------------------------------------------------------------
-  module.sendMessage = (message) => {
+  module.sendMessage = (message, media = null) => {
     let messageData = {
       message: encodeHtml(message),
       autor_id: module.settings.currentUserId,
       sender_name: module.settings.currentUserName,
       created_at: new Date()
     };
+
+    if(media){
+      messageData.media = media;
+    }
 
     module.channel.send(Object.assign(messageData, { create: true }));
 
@@ -765,7 +788,7 @@ window.pos.modules.chat = function(userSettings = {}){
       credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': window.pos.csrfToken  
+        'X-CSRF-Token': window.pos.csrfToken
       },
       body: JSON.stringify({
         conversation_id: conversationId,
@@ -781,6 +804,26 @@ window.pos.modules.chat = function(userSettings = {}){
     } else {
       pos.modules.debug(module.settings.debug, module.settings.id, 'Successfully saved uploaded file record in the database', data);
     }
+  };
+
+
+  // purpose:		sends the typed text together with any uploads staged since the last
+  //				    send, as a single message - media holds an array of every staged
+  //				    upload (usually one, but a message can carry several)
+  // arguments:	the typed message text (string)
+  // ------------------------------------------------------------------------
+  module.upload.flushAndSend = (text) => {
+    const pending = module.settings.upload.pending;
+
+    if(pending.length === 0){
+      module.sendMessage(text);
+      return;
+    }
+
+    module.sendMessage(text, pending);
+
+    module.settings.upload.pending = [];
+    pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
   };
 
 

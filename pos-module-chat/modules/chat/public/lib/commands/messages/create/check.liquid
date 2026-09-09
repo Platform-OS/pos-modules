@@ -3,7 +3,10 @@
 
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'conversation_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'autor_id'
-  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'message'
+
+  if object.message == blank and object.media == blank
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'message', key: 'modules/core/validation.blank'
+  endif
 
   assign object.valid = c.valid
   assign object.errors = c.errors

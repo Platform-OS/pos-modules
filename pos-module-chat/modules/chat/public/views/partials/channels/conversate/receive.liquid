@@ -32,7 +32,7 @@
       echo "false"
     else
       assign message_safe = context.params.message | raw_escape_string
-      assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": message_safe }
+      assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": message_safe, "media": context.params.media }
       function message = 'modules/chat/commands/messages/create', object: object
       if message.valid != true
         log message, 'ERROR receive message'

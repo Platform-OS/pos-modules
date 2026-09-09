@@ -3,4 +3,6 @@ name: message
 properties:
   - name: conversation_id
   - name: message
+  - name: media
+    type: string
   - name: autor_id
