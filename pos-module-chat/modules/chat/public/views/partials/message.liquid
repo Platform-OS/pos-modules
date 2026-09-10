@@ -21,8 +21,34 @@
 
   <time datetime="{{ message.created_at }}">{%- if display_time and message.created_at -%}{{ message.created_at | l: 'long', timezone }}{%- endif -%}</time>
 
-  <div class="pos-chat-message-content">
-    {{ msg }}
-  </div>
+  {% if message.media.size > 0 %}
+    {% for attachment in message.media %}
+      {% if attachment.type contains 'image/' %}
+        <div class="pos-chat-message-content pos-chat-message-image">
+          <img src="{{ attachment.url }}" alt="" width="{{ attachment.width }}" height="{{ attachment.height }}">
+        </div>
+      {% else %}
+        {% liquid
+          assign display_size = attachment.size | divided_by: 1024.0 | round: 1 | append: ' KB'
+          if attachment.size >= 1048576
+            assign display_size = attachment.size | divided_by: 1048576.0 | round: 1 | append: ' MB'
+          endif
+        %}
+        <div class="pos-chat-message-content pos-chat-message-file">
+          <a href="{{ attachment.url }}" target="_blank" rel="noopener noreferrer">
+            {% render 'modules/common-styling/icon', icon: 'fileEmpty' %}
+            {{ attachment.name }}
+            <small>({{ display_size }})</small>
+          </a>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {% if message.message %}
+    <div class="pos-chat-message-content">
+      {{ msg }}
+    </div>
+  {% endif %}
 
 </li>

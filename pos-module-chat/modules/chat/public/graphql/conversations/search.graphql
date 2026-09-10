@@ -38,6 +38,7 @@ query search(
         created_at
         message: property(name: "message")
         autor_id: property(name: "autor_id")
+        media: property_json(name: "media")
       }
       last_message: related_records(table: "modules/chat/message" join_on_property: "id" foreign_property: "conversation_id" sort: {created_at: {order: DESC}} limit: 1){
         created_at

@@ -1,4 +1,4 @@
-mutation create($conversation_id: String!, $message: String!, $autor_id: String!) {
+mutation create($conversation_id: String!, $message: String!, $autor_id: String!, $media: JSONPayload) {
   record_create(
     record: {
     table: "modules/chat/message"
@@ -6,6 +6,7 @@ mutation create($conversation_id: String!, $message: String!, $autor_id: String!
       { name: "conversation_id", value: $conversation_id }
       { name: "message", value: $message }
       { name: "autor_id", value: $autor_id }
+      { name: "media", value_json: $media }
     ]
     }
   ) {

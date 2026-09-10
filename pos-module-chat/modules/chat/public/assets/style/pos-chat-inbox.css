@@ -5,6 +5,7 @@
   search
   converstations list
   conversation
+  uploader
 */
 
 
@@ -410,13 +411,44 @@
     color: var(--pos-color-highlight-text);
   }
 
+  .pos-chat-message-image {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .pos-chat-message-image img {
+    width: 100%;
+    max-width: 400px;
+    max-height: 60vh;
+    height: auto;
+    display: block;
+  }
+
+  .pos-chat-message-file a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--pos-gap-button-button-small);
+  }
+
+  .pos-chat-message-file svg {
+    width: 32px;
+    height: 32px;
+  }
+
+    .pos-chat-message-file small {
+      margin-block-start: -.5em;
+      font-size: .8rem;
+      color: var(--pos-color-content-text-supplementary);
+    }
+
 
 /* new message panel
 ============================================================================ */
 .pos-chat-conversation-new {
   padding: var(--pos-padding-cell) var(--pos-padding-cell) var(--pos-padding-cell);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: min-content 1fr auto;
   gap: var(--pos-gap-button-button);
   overflow: auto;
   scrollbar-gutter: stable;
@@ -485,4 +517,40 @@
     .pos-chat-conversation-messages-blank {
       display: none;
     }
+  }
+
+
+
+/* uploader
+============================================================================ */
+.pos-chat-uploader {
+  padding-inline: var(--pos-padding-page);
+  position: relative;
+
+  display: none;
+}
+
+  .pos-chat-uploader:has(#chat-uploaderToggle:checked) {
+    display: block;
+  }
+
+  #chat-uploaderToggle {
+    position: absolute;
+    left: -200%;
+  }
+
+  /* cancel button */
+  .pos-chat-uploader .pos-button[for="chat-uploaderToggle"] {
+    width: 1.4rem;
+    height: 1.4rem;
+    padding: 0;
+    position: absolute;
+    z-index: 1010;
+    inset-block-start: calc(var(--pos-padding-page) / -2);
+    inset-inline-start: calc(var(--pos-padding-page) / 2); 
+  }
+
+  .pos-chat-uploader .pos-button[for="chat-uploaderToggle"] svg {
+    width: .65rem;
+    height: .65rem;
   }

@@ -1,0 +1,21 @@
+query uploads {
+  uploads: records(
+    per_page: 10,
+    filter: {
+      table: {
+        value: "uploads"
+      }
+    }
+  ) {
+    results {
+      id
+      upload: property_upload(name: "upload"){
+        file_name
+        url
+        versions
+        extension
+      }
+      metadata: property_json(name: "metadata")
+    }
+  }
+}
