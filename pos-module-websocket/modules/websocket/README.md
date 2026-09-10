@@ -16,6 +16,18 @@ pos-cli modules install websocket
 
 ## Setup
 
+### Quick start with the `install` generator
+
+The fastest way to wire things up is the bundled `install` generator. It asks whether to add the init
+partial to your layout(s) and whether to register a starter room via a migration on an environment —
+and does either (or both) for you if you say yes:
+
+```bash
+pos-cli generate run modules/websocket/generators/install
+```
+
+Prefer to do it by hand, or need to understand what it's doing under the hood? The manual steps are below.
+
 ### 1. Add the init partial to your layout
 
 ```liquid
