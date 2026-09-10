@@ -525,4 +525,31 @@
 ============================================================================ */
 .pos-chat-uploader {
   padding-inline: var(--pos-padding-page);
+  position: relative;
+
+  display: none;
 }
+
+  .pos-chat-uploader:has(#chat-uploaderToggle:checked) {
+    display: block;
+  }
+
+  #chat-uploaderToggle {
+    position: absolute;
+    left: -200%;
+  }
+
+  /* cancel button */
+  .pos-chat-uploader .pos-button[for="chat-uploaderToggle"] {
+    width: 1.4rem;
+    height: 1.4rem;
+    padding: 0;
+    position: absolute;
+    inset-block-start: calc(var(--pos-padding-page) / -2);
+    inset-inline-start: calc(var(--pos-padding-page) / 2); 
+  }
+
+  .pos-chat-uploader .pos-button[for="chat-uploaderToggle"] svg {
+    width: .65rem;
+    height: .65rem;
+  }

@@ -11,6 +11,7 @@ en:
   send: Send
   back: Back
   upload: Attach a file or image
+  upload_cancel: Remove attachments
   error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.
   search:
     placeholder: Search for a person

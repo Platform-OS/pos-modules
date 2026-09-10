@@ -147,6 +147,11 @@
         </ul>
       </div>
       <div class="pos-chat-uploader" id="chat-uploader">
+        <input type="checkbox" id="chat-uploaderToggle">
+        <label for="chat-uploaderToggle" class="pos-button pos-button-small" title="{{ 'modules/chat/upload_cancel' | t }}">
+          <span class="pos-label">{{ 'modules/chat/upload_cancel' | t }}</span>
+          {% render 'modules/common-styling/icon', icon: 'x' %}
+        </label>
         {% render 'modules/common-styling/forms/upload',
           id: 'chat-upload',
           presigned_upload: context.presigned_upload,
@@ -154,10 +159,10 @@
         %}
       </div>
       <footer class="pos-form pos-chat-conversation-new">
-        <button type="button" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
+        <label for="chat-uploaderToggle" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
           <span class="pos-label">{{ 'modules/chat/upload' | t }}</span>
           {% render 'modules/common-styling/icon', icon: 'imageFileUpload' %}
-        </button>
+        </label>
         <textarea
         placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
           class="pos-chat-conversation-input"
