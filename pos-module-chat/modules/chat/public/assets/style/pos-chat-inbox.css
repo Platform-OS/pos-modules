@@ -545,6 +545,7 @@
     height: 1.4rem;
     padding: 0;
     position: absolute;
+    z-index: 1010;
     inset-block-start: calc(var(--pos-padding-page) / -2);
     inset-inline-start: calc(var(--pos-padding-page) / 2); 
   }

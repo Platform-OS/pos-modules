@@ -105,6 +105,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.createUrl = '/api/chat/uploads';
   // media info staged from finished uploads, sent as message(s) on the next Send (array of { type, name, size, url })
   module.settings.upload.pending = [];
+  // button that clears the staged uploads (dom node)
+  module.settings.upload.clear = document.querySelector('#chat-uploaderToggle');
 
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
@@ -152,28 +154,33 @@ window.pos.modules.chat = function(userSettings = {}){
       if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length)){
         event.preventDefault();
 
-        module.upload.flushAndSend(module.settings.messageInput.value.trim());
+        module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
         setTimeout(() => {
           module.settings.messageInput.value = '';
         }, 100);
-      }
-    });
 
-    module.settings.messageInput?.addEventListener("paste", (event) => {
-      event.preventDefault();
-      const text = event.clipboardData.getData("text/plain");
-      document.execCommand("insertHTML", false, text);
+        module.settings.upload.clear.checked = false;
+      }
     });
 
     // handling send button click
     module.settings.sendButton?.addEventListener('click', () => {
       if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length) {
-        module.upload.flushAndSend(module.settings.messageInput.value.trim());
+        module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
         setTimeout(() => {
           module.settings.messageInput.value = '';
         }, 100);
+
+        module.settings.upload.clear.checked = false;
       }
     });
+
+    // scroll to bottom after a new image loads in the chat
+    module.settings.messagesList?.addEventListener('load', (event) => {
+      if(event.target.tagName === 'IMG'){
+        scrollBottom('smooth');
+      }
+    }, true);
 
     // load previous messages when user scrolls to top
     let messagesListTimeout = '';
@@ -251,6 +258,16 @@ window.pos.modules.chat = function(userSettings = {}){
       }
 
       module.settings.upload.pending.push(media);
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Added file to pending uploads', media);
+    });
+
+    // clear all staged uploads
+    module.settings.upload.clear?.addEventListener('change', () => {
+      module.settings.upload.pending = [];
+      pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Cleared all pending uploads');
     });
 
 
@@ -412,8 +429,8 @@ window.pos.modules.chat = function(userSettings = {}){
 
 
   // purpose:		sends the message through the Action Cable
-  // arguments:	the message to send (string), media items to attach - array of
-  //				    { type, name, size, url } (array, optional)
+  // arguments:	the message to send (string)
+  //            media items to attach - array of { type, name, size, url } (array, optional)
   // ------------------------------------------------------------------------
   module.sendMessage = (message, media = null) => {
     let messageData = {
@@ -428,6 +445,10 @@ window.pos.modules.chat = function(userSettings = {}){
     }
 
     module.channel.send(Object.assign(messageData, { create: true }));
+
+    // clear all pending uploads after sending the message
+    module.settings.upload.pending = [];
+    pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Message sent', messageData);
   };
@@ -780,7 +801,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.upload = {};
 
 
-  // purpose:		stores uploaded file record in the database
+  // purpose:		stores uploaded file record in the database in a separate table
   // ------------------------------------------------------------------------
   module.upload.save = async ({ conversationId, uploadUrl, metadata }) => {
     const response = await fetch(module.settings.upload.createUrl, {
@@ -804,26 +825,6 @@ window.pos.modules.chat = function(userSettings = {}){
     } else {
       pos.modules.debug(module.settings.debug, module.settings.id, 'Successfully saved uploaded file record in the database', data);
     }
-  };
-
-
-  // purpose:		sends the typed text together with any uploads staged since the last
-  //				    send, as a single message - media holds an array of every staged
-  //				    upload (usually one, but a message can carry several)
-  // arguments:	the typed message text (string)
-  // ------------------------------------------------------------------------
-  module.upload.flushAndSend = (text) => {
-    const pending = module.settings.upload.pending;
-
-    if(pending.length === 0){
-      module.sendMessage(text);
-      return;
-    }
-
-    module.sendMessage(text, pending);
-
-    module.settings.upload.pending = [];
-    pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
   };
 
 
