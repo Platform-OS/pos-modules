@@ -1,0 +1,21 @@
+{% doc %}
+  Sends a message to every current subscriber of `room_id` on the generic
+  `pos_websocket` channel — for server-initiated pushes (background jobs,
+  event consumers, admin actions) where there is no client "sender" to relay
+  through receive.liquid. Client-to-room messages don't need this command;
+  they flow automatically once `receive.liquid` lets ActionCable broadcast
+  them.
+
+  @param {string} room_id - Target room
+  @param {object} payload - Arbitrary JSON-serializable payload delivered to subscribers
+  @returns {object} {sent: true}
+{% enddoc %}
+{% liquid
+  graphql _result = 'modules/websocket/messages/broadcast', room_id: room_id, payload: payload
+
+  assign event_payload = { "room_id": room_id, "payload": payload }
+  function _ = 'modules/core/commands/events/publish', type: 'websocket_message_sent', object: event_payload, delay: null, max_attempts: null
+
+  assign result = { "sent": true }
+  return result
+%}

@@ -1,0 +1,137 @@
+---
+metadata:
+  name: Websocket Init
+  params:
+    websocket_url: "/websocket"
+    events_url: "/events"
+---
+{% doc %}
+  Sets up window.pos.modules.websocket, a thin generalized wrapper around
+  both ways platformOS can push into the `pos_websocket` channel's rooms:
+
+    - subscribe    - real WebSocket, via @rails/actioncable (loaded directly
+                      from a CDN as an ES module, the same way pos-module-chat
+                      does it — no npm bundling required). Two-way: also
+                      supports send().
+    - subscribeSSE - AnyCable-go's native SSE gateway (`/events`), a plain
+                      EventSource under the hood. Read-only: there is no
+                      working way to invoke a channel's `receive` partial
+                      over this transport, so there is no sseSend — use
+                      commands/messages/broadcast for server-initiated
+                      pushes into a room an SSE client is reading (see
+                      docs/sse-transport.md).
+
+  Both transports drive the exact same Connect/Command RPC server-side and
+  therefore the exact same `pos_websocket` channel and room authorization
+  (`views/partials/channels/pos_websocket/subscribed.liquid`) — picking one
+  over the other is purely a client concern. Render this once per page, in
+  <head> or just before </body>.
+
+  API:
+    window.pos.modules.websocket.subscribe(roomId, {received, connected, disconnected, rejected})
+    window.pos.modules.websocket.subscribeSSE(roomId, {received, connected, disconnected, rejected})
+    window.pos.modules.websocket.send(roomId, payload)   // WebSocket-subscribed rooms only
+    window.pos.modules.websocket.unsubscribe(roomId)     // closes whichever transport roomId used
+
+  Subscriptions are keyed by room_id regardless of transport, so a single
+  page can hold several concurrent room subscriptions at once, mixing
+  transports freely (e.g. one room read via SSE, another joined over
+  WebSocket for two-way chat).
+{% enddoc %}
+{% liquid
+  assign websocket_url = websocket_url | default: '/websocket'
+  assign events_url = events_url | default: '/events'
+%}
+<script type="module">
+  import { createConsumer } from "https://unpkg.com/@rails/actioncable@8.0.100/app/assets/javascripts/actioncable.esm.js";
+
+  if (!window.pos) window.pos = {};
+  if (!window.pos.modules) window.pos.modules = {};
+  if (!window.pos.modules.active) window.pos.modules.active = {};
+
+  var csrfToken = '{{ context.authenticity_token }}';
+  var consumer = null;
+  var subscriptions = {};
+  var sseSubscriptions = {};
+
+  function getConsumer() {
+    if (!consumer) {
+      consumer = createConsumer('{{ websocket_url }}?authenticity_token=' + encodeURIComponent(csrfToken));
+    }
+    return consumer;
+  }
+
+  window.pos.modules.websocket = {
+    subscribe: function(roomId, callbacks) {
+      callbacks = callbacks || {};
+      var subscription = getConsumer().subscriptions.create(
+        { channel: 'pos_websocket', room_id: roomId },
+        {
+          received: function(data) { if (callbacks.received) callbacks.received(data); },
+          connected: function() { if (callbacks.connected) callbacks.connected(); },
+          disconnected: function() { if (callbacks.disconnected) callbacks.disconnected(); },
+          rejected: function() { if (callbacks.rejected) callbacks.rejected(); }
+        }
+      );
+      subscriptions[roomId] = subscription;
+      return subscription;
+    },
+
+    subscribeSSE: function(roomId, callbacks) {
+      callbacks = callbacks || {};
+      var identifier = JSON.stringify({ channel: 'pos_websocket', room_id: roomId });
+      var url = '{{ events_url }}' + '?identifier=' + encodeURIComponent(identifier) + '&authenticity_token=' + encodeURIComponent(csrfToken);
+      var source = new EventSource(url);
+
+      source.onerror = function() { if (callbacks.disconnected) callbacks.disconnected(); };
+
+      source.addEventListener('confirm_subscription', function() {
+        if (callbacks.connected) callbacks.connected();
+      });
+      source.addEventListener('reject_subscription', function() {
+        if (callbacks.rejected) callbacks.rejected();
+        source.close();
+        delete sseSubscriptions[roomId];
+      });
+      source.addEventListener('disconnect', function() {
+        if (callbacks.disconnected) callbacks.disconnected();
+      });
+
+      source.onmessage = function(e) {
+        let data;
+        try {
+          data = JSON.parse(e.data);
+        } catch (err) {
+          return;
+        }
+        if (callbacks.received) callbacks.received(data);
+      };
+
+      sseSubscriptions[roomId] = source;
+      return source;
+    },
+
+    send: function(roomId, payload) {
+      var subscription = subscriptions[roomId];
+      if (!subscription) return false;
+      subscription.send(Object.assign({}, payload, { room_id: roomId }));
+      return true;
+    },
+
+    unsubscribe: function(roomId) {
+      var subscription = subscriptions[roomId];
+      if (subscription) {
+        subscription.unsubscribe();
+        delete subscriptions[roomId];
+      }
+
+      var source = sseSubscriptions[roomId];
+      if (source) {
+        source.close();
+        delete sseSubscriptions[roomId];
+      }
+    }
+  };
+
+  window.pos.modules.active.websocket = window.pos.modules.websocket;
+</script>

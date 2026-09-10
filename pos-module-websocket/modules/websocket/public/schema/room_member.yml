@@ -1,0 +1,6 @@
+name: room_member
+properties:
+  - name: room_id
+    type: string
+  - name: user_id
+    type: string

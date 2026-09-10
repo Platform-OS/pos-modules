@@ -1,0 +1,32 @@
+---
+slug: websocket/join
+method: post
+---
+{% doc %}
+  Registers (or idempotently re-joins) a demo room, then redirects into it.
+  Room visibility is fixed at creation time by commands/rooms/find_or_create
+  — re-submitting this form for a room that already exists just returns it
+  as-is, checkbox state ignored, since a room's own creator can't quietly
+  flip a private room public from here.
+{% enddoc %}
+{% liquid
+  if context.current_user == blank
+    redirect_to '/sessions/new'
+    return
+  endif
+
+  assign room = context.params.room | default: 'lobby'
+  assign room_id = 'demo-' | append: room
+  assign is_public = false
+  if context.params.public == 'true'
+    assign is_public = true
+  endif
+
+  function result = 'modules/websocket/commands/rooms/find_or_create',
+    room_id: room_id,
+    public: is_public,
+    created_by: context.current_user.id
+
+  assign redirect_url = '/websocket/demo?room=' | append: room
+  redirect_to redirect_url
+%}
