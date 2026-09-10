@@ -70,6 +70,20 @@ jobs:
               - 'pos-module-payments-stripe/**'
             payments-example-gateway:
               - 'pos-module-payments-example-gateway/**'
+            captchas:
+              - 'pos-module-captchas/**'
+            captchas-hcaptcha:
+              - 'pos-module-captchas-hcaptcha/**'
+            captchas-recaptcha:
+              - 'pos-module-captchas-recaptcha/**'
+            captchas-recaptcha3:
+              - 'pos-module-captchas-recaptcha3/**'
+            captchas-turnstile:
+              - 'pos-module-captchas-turnstile/**'
+            push-notifications:
+              - 'pos-module-push-notifications/**'
+            user-invites:
+              - 'pos-module-user-invites/**'
 
       - name: Set matrix for changed modules
         id: set-matrix

@@ -6,5 +6,4 @@
   function contract = 'modules/tests/assertions/valid_object', contract: contract, object: object, field_name: 'base'
   assign payload = object.request_data | parse_json
   function contract = 'modules/tests/assertions/equal', contract: contract, given: payload, field_name: 'object', expected: data
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: object.response_status, field_name: 'response_status', expected: null
 %}

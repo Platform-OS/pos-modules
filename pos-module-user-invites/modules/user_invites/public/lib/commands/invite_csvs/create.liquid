@@ -5,7 +5,7 @@
   @param created_by_id {string} - user id of uploader
 {% enddoc %}
 {% liquid
-  assign object = '{}' | parse_json | hash_merge: csv: csv, filename: filename, created_by_id: created_by_id
+  assign object = { "csv": csv, "filename": filename, "created_by_id": created_by_id }
 
   function object = 'modules/user_invites/commands/invite_csvs/create/build', object: object
   function object = 'modules/user_invites/commands/invite_csvs/create/check', object: object

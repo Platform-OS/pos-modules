@@ -12,7 +12,7 @@
 {%- liquid
   assign site_key = context.constants.CAPTCHA_DEFAULT_SITE_KEY
   assign secret = context.constants.CAPTCHA_DEFAULT_SECRET
-  assign widget_options = '{"action": "demo_submit"}' | parse_json
+  assign widget_options = {"action": "demo_submit"}
   assign configured = false
   if site_key != blank and secret != blank
     assign configured = true

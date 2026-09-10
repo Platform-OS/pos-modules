@@ -7,7 +7,7 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'email'
   function c = 'modules/core/validations/email', c: c, object: object, field_name: 'email'
   if object.email != blank and object.email != current_user.email
-    graphql emails_count = 'modules/user/user/emails_count', email: object.email | dig: 'users', 'total_entries'
+    graphql emails_count = 'modules/user/user/emails_count', email: object.email | hash_dig: 'users', 'total_entries'
     if emails_count > 0
       render 'modules/core/helpers/register_error', contract: c, field_name: 'email', key: 'app.errors.taken', message: null
     endif

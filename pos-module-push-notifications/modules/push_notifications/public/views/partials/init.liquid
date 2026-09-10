@@ -1,106 +1,61 @@
----
-metadata:
-  name: Push Notifications Init
-  params:
-    subscribe_url: "/push_notifications/subscriptions"
-    destroy_url: "/push_notifications/subscriptions/destroy"
-    service_worker_path: "" # defaults to /sw.js (root scope; platformOS serves assets/sw-X.js at the domain root)
-    rotate_url: "" # defaults to /push_notifications/subscriptions/rotate
----
+{% doc %}
+  Initializes push notifications module by registering corresponding JavaScript and CSS
+
+  @param {string} [subscribe_url] - endpoint URL for creating a subscription
+  @param {string} [destroy_url] - endpoint URL for removing a subscription
+  @param {string} [rotate_url] - endpoint URL to refresh the subscription
+  @param {string} [service_worker_path] - path to the service worker that handles push notifications
+  @param {string} [vapid_public_key] - public VAPID key used to sign push notification data; defaults to the modules/push_notifications/VAPID_PUBLIC_KEY constant
+{% enddoc %}
+
+
 {% liquid
   assign subscribe_url = subscribe_url | default: '/push_notifications/subscriptions'
   assign destroy_url = destroy_url | default: '/push_notifications/subscriptions/destroy'
   assign rotate_url = rotate_url | default: '/push_notifications/subscriptions/rotate'
-  assign default_service_worker_path = '/sw.js'
-  assign service_worker_path = service_worker_path | default: default_service_worker_path
-  assign vapid_public_key = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
+  assign service_worker_path = service_worker_path | default: '/sw.js'
+  assign vapid_public_key = vapid_public_key | default: context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
 %}
+
+<link rel="stylesheet" href="{{ 'modules/push_notifications/style/pos-push.css' | asset_url }}">
+
 <script>
-  (function() {
-    if (!window.pos) window.pos = {};
-    if (!window.pos.modules) window.pos.modules = {};
-    if (!window.pos.modules.active) window.pos.modules.active = {};
+  /* selectively load modules */
+  document.addEventListener('DOMContentLoaded', () => {
 
-    window.pos.modules.pushNotifications = class PushNotifications {
-      constructor(opts) {
-        this.subscribeUrl = opts.subscribeUrl || '/push_notifications/subscriptions';
-        this.destroyUrl = opts.destroyUrl || (this.subscribeUrl + '/destroy');
-        this.serviceWorkerPath = opts.serviceWorkerPath || '{{ default_service_worker_path }}';
-        this.rotateUrl = opts.rotateUrl || '/push_notifications/subscriptions/rotate';
-        this.vapidPublicKey = opts.vapidPublicKey || '';
-        this.csrfToken = opts.csrfToken || '';
-        this._registration = null;
-      }
-
-      async register() {
-        if (!('serviceWorker' in navigator)) return null;
-        var sep = this.serviceWorkerPath.indexOf('?') === -1 ? '?' : '&';
-        var url = this.serviceWorkerPath + sep + new URLSearchParams({
-          vapid: this.vapidPublicKey,
-          rotate_url: this.rotateUrl
-        }).toString();
-        this._registration = await navigator.serviceWorker.register(url);
-        return this._registration;
-      }
-
-      _urlBase64ToUint8Array(base64String) {
-        var padding = '='.repeat((4 - base64String.length % 4) % 4);
-        var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-        var rawData = atob(base64);
-        var output = new Uint8Array(rawData.length);
-        for (var i = 0; i < rawData.length; i++) output[i] = rawData.charCodeAt(i);
-        return output;
-      }
-
-      async subscribe() {
-        var reg = this._registration || await this.register();
-        if (!reg) return null;
-        var permission = await Notification.requestPermission();
-        if (permission !== 'granted') return null;
-        var sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: this._urlBase64ToUint8Array(this.vapidPublicKey)
+    /* subscribe/unsubscribe toggle button */
+    if(document.querySelector('.pos-push-toggle') || document.querySelector('.pos-push-subscriptions')){
+      import('{{ 'modules/push_notifications/js/pos-push.js' | asset_url }}').then(module => {
+        window.pos.modules.active['pos-push'] = new window.pos.modules.push({
+          id: `pos-push`,
+          subscribeUrl: '{{ subscribe_url }}',
+          destroyUrl: '{{ destroy_url }}',
+          serviceWorkerPath: '{{ service_worker_path }}',
+          rotateUrl: '{{ rotate_url }}',
+          vapidPublicKey: '{{ vapid_public_key }}'
         });
-        var json = sub.toJSON();
-        var body = new URLSearchParams({
-          'subscription[endpoint]': sub.endpoint,
-          'subscription[keys][p256dh]': json.keys.p256dh,
-          'subscription[keys][auth]': json.keys.auth,
-          'authenticity_token': this.csrfToken
-        });
-        var resp = await fetch(this.subscribeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body.toString()
-        });
-        return resp.ok ? resp.json() : null;
-      }
 
-      async unsubscribe(id) {
-        var body = new URLSearchParams({
-          'id': id,
-          'authenticity_token': this.csrfToken
+        document.querySelectorAll('.pos-push-toggle').forEach((element, index) => {
+          window.pos.modules.active[element.id || `pos-push-toggle-${index}`] = new window.pos.modules.push.toggle({
+            container: element,
+            id: element.id || `pos-push-toggle-${index}`
+          });
         });
-        await fetch(this.destroyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body.toString()
+      });
+    }
+
+    /* subscriptions list, highlights the current browser's row */
+    if(document.querySelector('.pos-push-list')){
+      import('{{ 'modules/push_notifications/js/pos-push.js' | asset_url }}').then(module => {
+        document.querySelectorAll('.pos-push-list').forEach((element, index) => {
+          window.pos.modules.active[element.id || `pos-push-list-${index}`] = new window.pos.modules.push.list({
+            container: element,
+            id: element.id || `pos-push-list-${index}`,
+            subscribeUrl: '{{ subscribe_url }}'
+          });
         });
-      }
+      });
+    }
 
-      getPermissionState() {
-        if (!('Notification' in window)) return 'denied';
-        return Notification.permission;
-      }
-    };
-
-    window.pos.modules.active.pushNotifications = new window.pos.modules.pushNotifications({
-      subscribeUrl: '{{ subscribe_url }}',
-      destroyUrl: '{{ destroy_url }}',
-      serviceWorkerPath: '{{ service_worker_path }}',
-      rotateUrl: '{{ rotate_url }}',
-      vapidPublicKey: '{{ vapid_public_key }}',
-      csrfToken: '{{ context.authenticity_token }}'
-    });
-  })();
+  });
 </script>

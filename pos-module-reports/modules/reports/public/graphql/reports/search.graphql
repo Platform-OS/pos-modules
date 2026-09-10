@@ -43,6 +43,7 @@ query search(
       user_id: property(name: "user_id")
       options: property_object(name: "options")
       retrieve_all_command: property(name: "retrieve_all_command")
+      file_name: property(name: "file_name")
 
       status: property(name: "c__status")
 

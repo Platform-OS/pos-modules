@@ -9,7 +9,7 @@ metadata:
 {% liquid
   function current_profile = 'modules/user_invites/helpers/current_profile'
   # platformos-check-disable UnreachableCode
-  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: context.page.metadata.permission
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: context.page.metadata.permission, access_callback: null, entity: null, forbidden_partial: null, redirect_anonymous_to_login: null
   # platformos-check-enable UnreachableCode
 
   assign page = context.params.page | default: 1 | plus: 0

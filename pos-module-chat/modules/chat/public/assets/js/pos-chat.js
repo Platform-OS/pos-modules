@@ -76,6 +76,9 @@ window.pos.modules.chat = function(userSettings = {}){
   // are there more pages (bool)
   module.settings.morePages = true;
 
+  // gap (ms) since the previous message after which a timestamp is shown again (number)
+  module.settings.timeGroupThreshold = 7 * 60 * 1000;
+
   // stores all the conversation list related stuff (object)
   module.settings.conversations = {};
   // container for the conversations list (dom node)
@@ -241,6 +244,40 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
+  // purpose:		decides whether a message's timestamp should be shown, given the
+  //				    timestamp of the message right before it in chronological order
+  // arguments:	the current message's date (Date), the previous message's date (Date/null)
+  // returns:		true if there is no previous message or the gap exceeds the threshold (bool)
+  // ------------------------------------------------------------------------
+  module.settings.shouldShowTime = (currentDate, previousDate) => {
+    if(!previousDate){
+      return true;
+    }
+
+    return (currentDate - previousDate) > module.settings.timeGroupThreshold;
+  };
+
+
+  // purpose:		reads the date of a rendered message from its time element
+  // arguments:	the message's <li> (dom node/null)
+  // returns:		the message's created_at as a Date, or null if unavailable
+  // ------------------------------------------------------------------------
+  module.settings.dateOf = (li) => {
+    const time = li ? li.querySelector(module.settings.messageTemplate.dateSelector) : null;
+    return (time && time.dateTime) ? new Date(time.dateTime) : null;
+  };
+
+
+  // purpose:		fills in a message's time element, hiding the text (but keeping
+  //				    datetime, used for ordering/gap comparisons) when it shouldn't show
+  // arguments:	the time element (dom node), the message's date (Date), whether to show it (bool)
+  // ------------------------------------------------------------------------
+  module.settings.setMessageTime = (timeEl, date, show) => {
+    timeEl.dateTime = date.toISOString();
+    timeEl.textContent = show ? module.settings.timezonedDate(date) : '';
+  };
+
+
   // purpose:		scrolls the chat window to the bottom
   // arguments:	scroll behavior - 'auto' (instant) or 'smooth' (string, default: 'auto')
   // ------------------------------------------------------------------------
@@ -371,26 +408,40 @@ window.pos.modules.chat = function(userSettings = {}){
     // clone message template
     const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
     // fill template with data
-    messageHtml.querySelector(module.settings.messageTemplate.dateSelector).textContent = module.settings.timezonedDate(new Date(messageData.created_at));
-    messageHtml.querySelector(module.settings.messageTemplate.dateSelector).dateTime = messageData.created_at;
     messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
 
     // Insert in chronological order (by created_at) rather than by arrival order, so a
     // burst of messages renders correctly even if channel delivery arrives out of order.
     // Falls back to appending at the end (the common case: the newest message).
     const messageDate = new Date(messageData.created_at);
-    let appendedAtEnd = true;
+    let insertBeforeLi = null;
     for(const li of module.settings.messagesList.querySelectorAll(':scope > li')){
-      const time = li.querySelector(module.settings.messageTemplate.dateSelector);
-      const liDate = (time && time.dateTime) ? new Date(time.dateTime) : null;
+      const liDate = module.settings.dateOf(li);
       if(liDate && liDate > messageDate){
-        module.settings.messagesList.insertBefore(messageHtml, li);
-        appendedAtEnd = false;
+        insertBeforeLi = li;
         break;
       }
     }
 
-    if(appendedAtEnd){
+    // the timestamp is only shown when it's been more than 7 minutes since the message
+    // that precedes this one chronologically (not necessarily the previous sibling in the DOM,
+    // though in the common append-at-the-end case it is the same thing)
+    const previousLi = insertBeforeLi ? insertBeforeLi.previousElementSibling : module.settings.messagesList.lastElementChild;
+    const timeEl = messageHtml.querySelector(module.settings.messageTemplate.dateSelector);
+    module.settings.setMessageTime(timeEl, messageDate, module.settings.shouldShowTime(messageDate, module.settings.dateOf(previousLi)));
+
+    if(insertBeforeLi){
+      module.settings.messagesList.insertBefore(messageHtml, insertBeforeLi);
+
+      // this message now sits between the old previous message and insertBeforeLi, so
+      // insertBeforeLi's own timestamp visibility (based on the gap to its predecessor) may
+      // need to be rechecked - the gap to its new, closer predecessor can only have shrunk
+      const nextTimeEl = insertBeforeLi.querySelector(module.settings.messageTemplate.dateSelector);
+      const nextDate = module.settings.dateOf(insertBeforeLi);
+      if(nextDate){
+        module.settings.setMessageTime(nextTimeEl, nextDate, module.settings.shouldShowTime(nextDate, messageDate));
+      }
+    } else {
       // append the message to the chat
       module.settings.messagesList.append(messageHtml);
     }
@@ -426,20 +477,32 @@ window.pos.modules.chat = function(userSettings = {}){
     .then((data) => {
       // construct HTML elements for messages
       let html = document.createDocumentFragment();
+      // tracks the chronologically previous message within this (older) batch, oldest first -
+      // the very first message of a batch has no known predecessor yet, so it always shows its time
+      let previousDate = null;
 
       Object.entries(data.results).reverse().forEach(([key, messageData]) => {
         messageData = Object.assign(messageData, { status: (module.settings.currentUserId == messageData.autor_id) ? 'sent' : 'received'});
 
         // clone message template
         const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
+        const messageDate = new Date(messageData.created_at);
         // fill template with data
-        messageHtml.querySelector(module.settings.messageTemplate.dateSelector).textContent = module.settings.timezonedDate(new Date(messageData.created_at));
-        messageHtml.querySelector(module.settings.messageTemplate.dateSelector).dateTime = messageData.created_at;
+        module.settings.setMessageTime(messageHtml.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
         messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
 
         html.append(messageHtml);
+
+        previousDate = messageDate;
       });
 
+      // the message that used to be the oldest one visible now follows the newest message of
+      // this freshly-loaded (older) batch instead of having no predecessor - recheck its timestamp
+      const oldFirstLi = module.settings.messagesList.firstElementChild;
+      const oldFirstDate = module.settings.dateOf(oldFirstLi);
+      if(oldFirstDate && previousDate){
+        module.settings.setMessageTime(oldFirstLi.querySelector(module.settings.messageTemplate.dateSelector), oldFirstDate, module.settings.shouldShowTime(oldFirstDate, previousDate));
+      }
 
       // put the messages on top
       module.settings.messagesList.prepend(html);
@@ -484,9 +547,16 @@ window.pos.modules.chat = function(userSettings = {}){
   // purpose:		parses the dates outputted from BE with JS so that everyting uses browser locale
   // ------------------------------------------------------------------------
   module.parseDates = () => {
-    document.querySelectorAll('.pos-chat-message time').forEach(date => {
-      let currentDate = new Date(date.dateTime);
-      date.innerText = module.settings.timezonedDate(currentDate);
+    document.querySelectorAll('.pos-chat-message time').forEach(time => {
+      // the back-end already decided whether this timestamp should be visible (grouping
+      // messages less than 7 minutes apart) - an empty one means it decided to hide it,
+      // so leave it alone instead of reinstating it here
+      if(!time.dateTime || !time.textContent.trim()){
+        return;
+      }
+
+      let currentDate = new Date(time.dateTime);
+      time.innerText = module.settings.timezonedDate(currentDate);
     });
   };
 

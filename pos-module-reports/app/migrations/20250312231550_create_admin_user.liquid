@@ -7,9 +7,9 @@
       "first_name": "Alex",
       "last_name": "Admin",
       "email": "alex.admin@example.com",
-      "password": {{ 12 | random_string | append: 'Pw123!' | to_json }},
+      "password": {{ 12 | random_string | append: 'Pw123!' | json }},
       "profile": {
-        "uuid": {{ "" | uuid | to_json }},
+        "uuid": {{ "" | uuid | json }},
         "name": "Alex Admin",
         "first_name": "Alex",
         "last_name": "Admin",

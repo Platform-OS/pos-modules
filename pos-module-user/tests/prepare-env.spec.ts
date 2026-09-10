@@ -1,5 +1,6 @@
 import { BrowserContext, expect, test } from '@playwright/test';
 import { RegistrationPage } from './pages/registration';
+import { TestMailBox } from './pages/testMailBox';
 import { executeShellCommand } from './helper';
 import process from 'process';
 import { users } from './data/users';
@@ -11,7 +12,10 @@ if (!PASSWORD) {
 
 test.describe('Register users', () => {
   for (const dataSet of Object.values(users)) {
-    if (dataSet.firstName !== 'John' && dataSet.firstName !== 'Juliet') {
+    // John is newUser and Juliet is test4Edited, both of which specs create or
+    // rename themselves; Ida is registered by the email verification spec, which
+    // needs an address that has never been confirmed.
+    if (!['John', 'Juliet', 'Ida'].includes(dataSet.firstName)) {
       test(`Register test profile for ${dataSet.email}`, async ({ page }) => {
         const signUpPage = new RegistrationPage(page);
 
@@ -24,6 +28,15 @@ test.describe('Register users', () => {
             { email: dataSet.email, firstName: dataSet.firstName, lastName: dataSet.lastName },
             PASSWORD
           );
+        });
+
+        await test.step(`Confirm the address for ${dataSet.email}`, async () => {
+          // Registration leaves no session while email verification is enabled,
+          // so the state saved below would be an anonymous one. Following the
+          // link in the mail is what turns it into a usable login.
+          const mailBox = new TestMailBox(page);
+          await mailBox.confirmEmailAddress(dataSet.email);
+          await expect(page.getByText('Log out')).toBeVisible();
 
           await page.context().storageState({ path: `tests/.auth/${dataSet.email}.json` });
         }); 

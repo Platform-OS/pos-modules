@@ -30,7 +30,7 @@
     assign token = object.token
   endif
 
-  assign empty_errors = '{}' | parse_json
+  assign empty_errors = {}
   assign object = object | hash_merge: provider: provider, secret: secret, token: token, token_field: token_field, valid: true, errors: empty_errors
   return object
 %}

@@ -7,17 +7,17 @@
 {% liquid
   function parsed = 'modules/user_invites/queries/invite_csvs/parse', csv: csv
 
-  assign existing_lookup = '{}' | parse_json
+  assign existing_lookup = {}
   if parsed.csv_emails.size > 0
     graphql existing = 'modules/user/profiles/search', emails: parsed.csv_emails, limit: parsed.csv_emails.size
     for profile in existing.records.results
       assign existing_email = profile.email | downcase
-      hash_assign existing_lookup[existing_email] = true
+      assign existing_lookup[existing_email] = true
     endfor
   endif
 
-  assign to_invite = '[]' | parse_json
-  assign skipped = '[]' | parse_json
+  assign to_invite = []
+  assign skipped = []
   for row in parsed.parsed_rows
     if existing_lookup[row.email]
       assign skipped = skipped | array_add: row

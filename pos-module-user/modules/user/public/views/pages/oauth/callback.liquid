@@ -90,7 +90,22 @@ slug: oauth/:provider/callback
   
   # sign in as user
   if current_user.id == blank
-    function _ = "modules/user/commands/session/create", validate_password: false, skip_otp: true, email: null, password: null, hook_params: null, user_id: found_user_id
+    function res = "modules/user/commands/session/create", validate_password: false, skip_otp: true, email: null, password: null, hook_params: null, user_id: found_user_id
+
+    if res.email_verification_required
+      comment
+        An account that predates the provider link, or one from before
+        verification was switched on, can still be unverified here. The provider
+        has just established that this person controls the address, so confirm it
+        and sign in - otherwise the notice below announces a session that was
+        never created.
+      endcomment
+      function user = 'modules/user/queries/user/load', id: found_user_id
+      function profile = 'modules/user/queries/profiles/find', user_id: found_user_id, id: null, uuid: null, first_name: null, last_name: null
+      function _ = 'modules/user/commands/email_verifications/confirm', user: user, profile: profile
+
+      function res = "modules/user/commands/session/create", validate_password: false, skip_otp: true, email: null, password: null, hook_params: null, user_id: found_user_id
+    endif
     # platformos-check-disable DeprecatedTag
     include 'modules/core/helpers/redirect_to', notice: "modules/user/oauth.app.signed_in", default: null, error: null, format: null, info: null, object: null, url: null
     # platformos-check-enable DeprecatedTag

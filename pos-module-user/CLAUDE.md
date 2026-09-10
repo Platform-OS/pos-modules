@@ -25,7 +25,7 @@ npm run version
 
 This command:
 1. Prompts for version selection
-2. Updates `modules/user/template-values.json`
+2. Updates `pos-module.json`
 3. Auto-generates CHANGELOG entries from git commits
 4. Stages changes for commit
 

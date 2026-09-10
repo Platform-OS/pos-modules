@@ -1,8 +1,8 @@
 {% doc %}
-  @param {string} container_class - CSS class for the pagination container
-  @param {string} button_attrs - HTML attributes for pagination buttons
+  @param {string} [container_class] - CSS class for the pagination container
+  @param {string} [button_attrs] - HTML attributes for pagination buttons
   @param {object} collection - paginated collection object
-  @param {string} page_name - name of the page query parameter
+  @param {string} [page_name] - name of the page query parameter
 {% enddoc %}
 {% liquid
   assign container_class = container_class | default: "subtitle flex justify-center md:justify-end items-center mt-8 mx-auto md:mr-0 md:ms-auto"

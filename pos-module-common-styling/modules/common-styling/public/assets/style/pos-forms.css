@@ -35,7 +35,8 @@
   }
 
   .pos-form-simple fieldset:has(label + input),
-  .pos-form-simple fieldset:has(label + textarea) {
+  .pos-form-simple fieldset:has(label + textarea),
+  .pos-form-simple fieldset:has(label + .pos-form-multiselect) {
     display: flex;
     flex-direction: column;
     gap: .2em;
@@ -48,10 +49,9 @@
     align-items: start;
   }
 
-    .pos-form-simple fieldset:has([type="checkbox"] + label) input,
-    .pos-form-simple fieldset:has([type="radio"] + label) input {
+    .pos-form-simple fieldset:has([type="checkbox"] + label) input[type="checkbox"],
+    .pos-form-simple fieldset:has([type="radio"] + label) input[type="checkbox"] {
       height: 1lh;
-      margin-block-start: 1px;
     }
 
   /* combined fieldset */
@@ -85,7 +85,8 @@
   .pos-form-simple fieldset:has(label + input) label,
   .pos-form-simple fieldset:has(label + textarea) label,
   .pos-form-simple fieldset:has(label + .hashtag-container) label,
-  .pos-form-simple fieldset:has(label + .uppy-container) label {
+  .pos-form-simple fieldset:has(label + .uppy-container) label,
+  .pos-form-simple fieldset:has(label + .pos-form-multiselect) label {
     margin-inline-start: -.1ex;
     margin-block-end: .1em;
     align-self: start;
@@ -637,7 +638,7 @@
 
   /* filter input */
   .pos-form-multiselect-filter {
-    border: 0;
+    border: 0 !important;
   }
 
   .pos-form-multiselect-filter + .pos-form-multiselect-list {

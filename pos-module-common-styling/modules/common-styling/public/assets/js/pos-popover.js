@@ -112,7 +112,9 @@ window.pos.modules.popover = function(container, userSettings = {}){
 
     // polyfill for Firefox and Safari lacking support for anchor positioning
     // can be deleted from code as is when all browsers support it
-    if(!('anchorName' in document.documentElement.style)){
+    // only applies to popovers opened via a [popovertarget] trigger - popovers positioned
+    // programmatically (e.g. the @mention popup) have no trigger and manage their own position
+    if(!('anchorName' in document.documentElement.style) && module.settings.trigger){
       module.settings.popover.addEventListener('toggle', event => {
         if(event.newState == 'open'){
           module.positionPopoverFallback();

@@ -23,9 +23,9 @@
     endif
   endfor
 
-  assign parsed_rows = '[]' | parse_json
-  assign csv_emails = '[]' | parse_json
-  assign invalid = '[]' | parse_json
+  assign parsed_rows = []
+  assign csv_emails = []
+  assign invalid = []
 
   if email_index >= 0
     for cols in rows offset: 1

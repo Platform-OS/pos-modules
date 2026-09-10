@@ -1,0 +1,10 @@
+{% comment %}
+  Example only: turns email verification on for the example application.
+
+  Do NOT copy this into an existing app before running the backfill migration,
+  or current users will be locked out at their next login.
+{% endcomment %}
+{% liquid
+  function result = 'modules/core/commands/variable/set', name: 'USER_EMAIL_VERIFICATION_ENABLED', value: 'true'
+  log result, type: 'setup_email_verification result'
+%}

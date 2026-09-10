@@ -1,10 +1,10 @@
 {% doc %}
-  @param {string} array - The array of allowed values
+  @param {array} array - The array of allowed values
   @param {object} c - The contract object for collecting validation errors
   @param {string} field_name - The name of the field to validate
   @param {object} object - The object to process
   @param {string} [key] - The translation key for the error message
-  @param {string} value - The value
+  @param {string} [value] - The value
 {% enddoc %}
 {% liquid
   log 'Use modules/core/validations/included instead of modules/core/lib/validations/included ', type: 'DEPRECATION'

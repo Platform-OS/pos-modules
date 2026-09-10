@@ -2,11 +2,11 @@
   @param {string} current_user_id - The current user ID
   @param {object} user - The user object
 {% enddoc %}
-{% parse_json object %}
+{% assign object =
   {
-    "id": {{ user.id | json }},
-    "current_user_id": {{ current_user_id | json }}
+    "id": user.id,
+    "current_user_id": current_user_id
   }
-{% endparse_json %}
+%}
 
 {% return object %}

@@ -11,7 +11,7 @@
 
   if object.valid
     graphql response = 'modules/payments_stripe/api_call', template: 'modules/payments_stripe/generic', data: object
-    assign response = response | dig: 'api_call', 'response'
+    assign response = response | hash_dig: 'api_call', 'response'
     assign object = object | hash_merge: response
   endif
 

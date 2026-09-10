@@ -4,7 +4,7 @@
   assign response = {"status": 200}
   assign gateway_transaction_ids = params.data.object.id | split: '!!'
   assign gateway_transaction_ids << params.data.object.payment_intent
-  assign gateway_transaction_ids = gateway_transaction_ids | compact
+  assign gateway_transaction_ids = gateway_transaction_ids | array_compact
   if params.data.object.metadata.transaction_id
     function transaction = 'modules/payments/queries/transactions/find', id: params.data.object.metadata.transaction_id
   elsif gateway_transaction_ids.size > 0

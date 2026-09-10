@@ -5,6 +5,6 @@
   @returns {object} config hash: { response_field }
 {% enddoc %}
 {% liquid
-  assign config = '{"response_field": "h-captcha-response"}' | parse_json
+  assign config = {"response_field": "h-captcha-response"}
   return config
 %}

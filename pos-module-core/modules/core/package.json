@@ -4,7 +4,7 @@
   "description": "Module description",
   "type": "module",
   "scripts": {
-    "version": "(cd ../../ && pos-cli modules version core -p) && git add template-values.json && auto-changelog -p && git add CHANGELOG.md"
+    "version": "(cd ../.. && pos-cli modules version --no-git && git add pos-module.json) && auto-changelog -p && git add CHANGELOG.md"
   },
   "repository": {
     "type": "git",

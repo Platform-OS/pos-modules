@@ -1,10 +1,11 @@
-{% parse_json object %}
-  {
-    "profile_id": {{ object.profile_id | json }},
-    "amount": {{ object.amount | json }},
-    "currency": {{ object.currency | json }},
-    "idempotency_key": {{ '' | uuid | json }}
+{% liquid
+  assign idempotency_key = '' | uuid
+  assign object = {
+    "profile_id": object.profile_id,
+    "amount": object.amount,
+    "currency": object.currency,
+    "idempotency_key": idempotency_key
   }
-{% endparse_json %}
 
-{% return object %}
+  return object
+%}

@@ -1,23 +1,26 @@
 /*
-  styling for the push notifications demo app, mirroring the layout
-  conventions used in pos-module-user/app (pos-app shell, centered intro
-  page for logged-out visitors, a fixed-width page area with a top nav
-  for logged-in users)
+  styling for the push notifications demo app
 
-  page background and font
+  layout
   intro page
-  logged in page
+  header
 */
 
 
 
-/* page background and font
+/* layout
 ============================================================================ */
-.pos-app body {
-  min-height: 100vh;
-  padding: 0;
+.app-page {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
 
-  background-color: var(--pos-color-page-background);
+.app-container {
+  width: 100%;
+  max-width: 700px;
+  margin-block: auto;
+  margin-inline: auto;
 }
 
 
@@ -36,10 +39,15 @@
 
 .app-intro-content .pos-heading-2 {
   margin-block-end: var(--pos-padding-page);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pos-gap-button-button);
 }
 
 .app-intro-nav {
   display: flex;
+  position: relative;
   justify-content: center;
 
   font-weight: 500;
@@ -49,11 +57,55 @@
     height: var(--pos-height-button);
     padding-inline: calc(var(--pos-padding-button) * 2);
     display: flex;
+    position: relative;
     align-items: center;
+    justify-content: center;
+
+    transition-delay: 0s;
   }
 
-  .app-intro-nav a:hover {
+  .app-intro-nav a:hover,
+  .app-intro-nav a:active {
     color: var(--pos-color-highlight-text);
+
+    transition-delay: .1s;
+  }
+
+  .app-intro-nav li:hover,
+  .app-intro-nav li:has(a:focus-visible) {
+    anchor-name: --app-user-intro-nav-active;
+  }
+
+  .app-intro-nav:before {
+    width: 10px;
+    height: 10px;
+    position: absolute;
+    z-index: -1;
+
+    border-radius: var(--pos-radius-button);
+    background-color: transparent;
+
+    transition: all .2s ease-in-out;
+
+    content: '';
+  }
+
+  .app-intro-nav:has(li:hover):before,
+  .app-intro-nav:has(a:focus-visible):before {
+    background-color: var(--pos-color-highlight-background);
+  }
+
+  @supports (anchor-name: --app-user-intro-nav-active) {
+    .app-intro-nav:before {
+      width: anchor-size(width);
+      height: anchor-size(height);
+      position-anchor: --app-user-intro-nav-active;
+      inset-inline-start: anchor(start);
+    }
+  }
+
+  .app-intro-nav:has(a:active):before {
+    scale: .96;
   }
 
 .app-intro-footer {
@@ -66,18 +118,12 @@
 
 
 
-/* logged in page
+/* header
 ============================================================================ */
-.app-page {
-  width: 640px;
-  max-width: 100%;
-  padding: var(--pos-padding-page);
-  margin-inline: auto;
-}
-
 .app-nav {
-  padding-block-end: var(--pos-padding-page);
+  margin-block-end: var(--pos-padding-page);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--pos-gap-button-button);
 }
@@ -95,34 +141,9 @@
 }
 
 .app-nav-link {
-  height: var(--pos-height-button);
   padding-inline: var(--pos-padding-button);
   display: inline-flex;
   align-items: center;
 
   font-weight: 500;
-}
-
-.app-nav-link:hover {
-  color: var(--pos-color-highlight-text);
-}
-
-.app-page .pos-card + .pos-card {
-  margin-block-start: var(--pos-gap-section-section);
-}
-
-
-
-/* push notifications demo form
-============================================================================ */
-.pos-form-simple fieldset:has(label + .pos-form-multiselect) {
-  display: flex;
-  flex-direction: column;
-  gap: .2em;
-}
-
-.pos-form-simple fieldset:has(label + .pos-form-multiselect) label {
-  margin-inline-start: -.1ex;
-  margin-block-end: .1em;
-  align-self: start;
 }

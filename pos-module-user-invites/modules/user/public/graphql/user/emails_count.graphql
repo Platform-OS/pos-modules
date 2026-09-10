@@ -1,5 +1,0 @@
-query emails_count($email: String!){
-  users(filter: { email: { value: $email} }, per_page:1){
-    total_entries
-  }
-}

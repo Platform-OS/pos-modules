@@ -11,8 +11,8 @@
 {% for conversation in conversations.results %}
   {% liquid
     assign participants = conversation.participants
-    assign current_participants = participants | select: id: current_profile.id
-    assign other_participants = participants | subtract_array: current_participants
+    assign current_participants = participants | array_select: id: current_profile.id
+    assign other_participants = participants | array_subtract: current_participants
     assign from_profile = other_participants | first
     log current
 

@@ -33,6 +33,20 @@ This command installs the User Module along with its dependencies (such as [pos-
 
 ### Setup
 
+#### Quick start with the `install` generator
+
+The fastest way to wire things up is the bundled `install` generator. It asks which of the steps
+below you want done — layout wiring, the `USER_DEFAULT_ROLE` migration, overriding the RBAC
+permissions file, creating a superadmin — and performs whichever you say yes to:
+
+```bash
+pos-cli generate run modules/user/generators/install
+```
+
+It never writes the superadmin password to a file: that step runs the `user_create` mutation
+directly against the environment you choose. Prefer to do it by hand, or want to understand what
+it's doing under the hood? The manual steps are below.
+
 1.  **Install the module** using the [pos-cli](https://github.com/Platform-OS/pos-cli).
 
 2. Configure the [common-styling](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-common-styling) to include default styles. It is recommended that you familiarize with the common-styling module by reading its README file. At ensures that your [Layout](https://documentation.platformos.com/developer-guide/pages/layouts) includes:
@@ -556,6 +570,98 @@ To implement a custom OAuth2 provider, you must provide two helper methods:
 | last_name | User's last name. |
 | email | User's email. |
 | valid | A boolean indicating whether the flow was successful or not. |
+
+### Email verification
+
+Optionally require new users to confirm their email address before they can log
+in. It exists to stop signups with addresses the registrant does not control -
+throwaway accounts, typos, and bots.
+
+**The feature is off by default.** Upgrading the module does not change
+registration or login for an application that does not opt in.
+
+#### Enabling it
+
+Before switching it on in an application that already has users, backfill their
+profiles so they count as verified - otherwise everyone is locked out at their
+next login. See [MIGRATIONS.md](MIGRATIONS.md) for the ordered steps.
+
+Then set the constant in a migration:
+
+```
+{% liquid
+  function result = 'modules/core/commands/variable/set', name: 'USER_EMAIL_VERIFICATION_ENABLED', value: 'true'
+%}
+```
+
+#### Configuration
+
+| Constant | Default | Meaning |
+| :--- | :--- | :--- |
+| `USER_EMAIL_VERIFICATION_ENABLED` | off | Master switch |
+| `USER_EMAIL_VERIFICATION_TTL_HOURS` | `24` | How long a verification link stays valid |
+| `USER_EMAIL_VERIFICATION_RESEND_INTERVAL` | `60` | Minimum seconds between resends to one address |
+| `USER_EMAIL_VERIFICATION_RESEND_DAILY_MAX` | `5` | Maximum resends per address per rolling 24 hours |
+
+If `VERIFY_HCAPTCHA` is on, the resend forms render the widget and the resend
+endpoint checks the answer. Registration does not check it a second time - it has
+already validated its own form, and the token is single use.
+
+#### The flow
+
+1. The visitor registers. The account is created but **no session is started**.
+2. They land on `/users/check-email`, which tells them to go and click the link
+   and offers a throttled resend.
+3. They get an email with a link to `/users/verify`, valid for the configured
+   TTL.
+4. Following the link marks the profile verified, signs them in and redirects.
+   Following it a second time is not an error - they are told the address is
+   already confirmed.
+5. Trying to log in before confirming sends a fresh link (subject to the
+   throttle) and redirects to the same "check your inbox" screen. No
+   `sign_in`, no `user_login` hook and no `user_signed_in` event.
+
+#### Other ways an address gets confirmed
+
+Following the link is not the only proof that someone holds a mailbox, and every
+route that establishes it ends up in the same command, so the hook and the event
+below fire exactly once per address whichever one it was:
+
+- **OAuth sign-up** - the provider has already established control of the
+  address, so those profiles are confirmed at creation and never see the
+  interstitial.
+- **A completed password reset** - the link was in the same inbox, so a user who
+  never confirmed but did reset their password is confirmed and signed in rather
+  than left with no session.
+
+#### Extending it
+
+- `user_email_verified` event (payload `{user_id}`) - published once, when an
+  address is first confirmed, by whichever route confirmed it. Use this instead
+  of `user_created` for anything that should only happen for confirmed users.
+- `email_verification_sent` event - published each time a verification email
+  goes out.
+- `hook_user_email_verified` - fired synchronously on confirmation, with
+  `params.user` and `params.profile`.
+
+#### Customising the copy
+
+All strings are translations, so wording can be changed without touching the
+views. The email lives in `emails.users.verify.*` and the screens in
+`email_verification.*`; both take the link lifetime as `%{hours}` rather than
+naming a fixed number, so changing the TTL keeps the copy honest.
+
+Entries that interpolate a value - the address, the lifetime - must not contain
+HTML. `t` treats a translation as html_safe only when nothing was interpolated
+into it, which is what keeps the address safe to print, and it applies the same
+rule to the translation's own tags, so markup in those entries would reach the
+user as literal text.
+
+The views themselves
+(`views/partials/users/check_email.liquid`,
+`views/partials/users/verification_expired.liquid` and
+`views/partials/emails/users/verify.liquid`) can be overridden the same way as
+any other module file.
 
 ### 2FA
 

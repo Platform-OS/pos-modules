@@ -2,12 +2,12 @@
   @param {string} email - The email address
   @param {string} password - The password
 {% enddoc %}
-{% parse_json object %}
+{% assign object =
   {
-    "email":       {{ email | json }},
-    "password":    {{ password | json }}
+    "email":       email,
+    "password":    password
   }
-{% endparse_json %}
+%}
 
 {% liquid
   return object

@@ -8,7 +8,7 @@ method: post
     endif
 
     assign total = 0
-    assign line_items = '[]' | parse_json
+    assign line_items = []
     for item in context.params.line_items
         assign line_price = item.price_data.unit_amount | times: 100 | times: item.quantity
         assign total = total | plus: line_price
@@ -23,7 +23,7 @@ method: post
     function order = 'commands/orders/create', object: object
 
     if order.valid
-        assign ids = '[]' | parse_json | array_add: order.id
+        assign ids = [order.id]
         assign object = null | hash_merge: gateway: 'stripe', payable_ids: ids, amount_cents: total, currency: context.params.currency, payer_id: current_profile.id
         function object = 'modules/payments/commands/transactions/create', object: object
 

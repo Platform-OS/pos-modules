@@ -9,7 +9,7 @@
 {% liquid
   assign result = errors
   if result == blank
-    assign result = '{}' | parse_json
+    assign result = {}
   endif
   return result
 %}

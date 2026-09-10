@@ -39,7 +39,7 @@ query search(
         message: property(name: "message")
         autor_id: property(name: "autor_id")
       }
-      last_message: related_record(table: "modules/chat/message" join_on_property: "id" foreign_property: "conversation_id" sort: {created_at: {order: ASC}}){
+      last_message: related_records(table: "modules/chat/message" join_on_property: "id" foreign_property: "conversation_id" sort: {created_at: {order: DESC}} limit: 1){
         created_at
         message: property(name: "message")
       }

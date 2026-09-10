@@ -11,13 +11,13 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: merged.token, expected: 'x', field_name: 'nil_becomes_mergeable_hash'
 
   # an empty hash input stays mergeable
-  assign empty_hash = '{}' | parse_json
+  assign empty_hash = {}
   function from_empty = 'modules/captchas/helpers/errors_hash', errors: empty_hash
   assign merged_empty = from_empty | hash_merge: secret: 'y'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: merged_empty.secret, expected: 'y', field_name: 'empty_hash_mergeable'
 
   # a populated hash passes through: existing keys survive a subsequent merge
-  assign existing = '{"token":["The captcha challenge was not completed."]}' | parse_json
+  assign existing = {"token":["The captcha challenge was not completed."]}
   function preserved = 'modules/captchas/helpers/errors_hash', errors: existing
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'token', object: preserved
   assign merged_more = preserved | hash_merge: secret: 'z'

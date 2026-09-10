@@ -1,0 +1,8 @@
+{
+  "name": "push_notifications",
+  "version": "1.0.2",
+  "description": "Web Push notifications for platformOS.",
+  "peerDependencies": {
+    "yeoman-generator": "^7.0.0"
+  }
+}

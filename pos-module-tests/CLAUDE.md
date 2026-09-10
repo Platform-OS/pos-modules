@@ -48,7 +48,7 @@ modules/tests/
 │       ├── layouts/      # Test and mailer layouts
 │       ├── pages/        # Test runner endpoints (/_tests/*)
 │       └── partials/     # HTML/text formatters for test output
-└── template-values.json  # Module metadata
+└── pos-module.json       # Module manifest (at repo root)
 ```
 
 ### Writing Tests

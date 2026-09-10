@@ -29,7 +29,7 @@
 
     <div>
       <div class="styleguide-example">
-        {% parse_json files %}
+        {% assign files =
           [
             {
               "id": "1",
@@ -44,7 +44,7 @@
               }
             }
           ]
-        {% endparse_json %}
+        %}
         {% render 'modules/common-styling/forms/upload',
           id: 'styleguide-upload-2',
           presigned_upload: context.presigned_upload,
@@ -57,7 +57,7 @@
         %}
       </div>
 {% capture code %}{% raw %}
-{% parse_json files %}
+{% assign files =
   [
     {
       "id": "1",
@@ -72,7 +72,7 @@
       }
     }
   ]
-{% endparse_json %}
+%}
 
 {% render 'modules/common-styling/forms/upload',
   id: 'styleguide-upload-2',

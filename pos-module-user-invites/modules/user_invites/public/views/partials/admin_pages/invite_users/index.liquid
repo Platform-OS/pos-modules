@@ -3,6 +3,8 @@
            and a paginated list of past CSV imports.
            Required: invite_csvs (search result), page (current page number), context
 {% endcomment %}
+{% comment %}theme_render_rc components are provided by the host app's theme, so the linter can never resolve them{% endcomment %}
+{% # platformos-check-disable MissingPartial %}
 {% liquid
   assign unnamed_label = 'modules/user_invites/admin.invite_users.unnamed' | t
 %}
@@ -35,7 +37,7 @@
           {% for record in invite_csvs.results %}
             {% liquid
               assign filename_label = record.filename | default: unnamed_label
-              assign uploaded_at = record.created_at | localize: 'short'
+              assign uploaded_at = record.created_at | l: 'short'
               assign action_label = 'modules/user_invites/admin.invite_users.action_view' | t
               if record.status == 'pending'
                 assign action_label = 'modules/user_invites/admin.invite_users.action_resume' | t

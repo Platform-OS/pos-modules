@@ -20,34 +20,39 @@ pos-cli modules install push_notifications
 
 ## Setup
 
-### 1. Generate VAPID keys
+### Quick start with the `install` generator
+
+The fastest way to wire things up is the bundled `install` generator. It asks whether to add the init
+partial to your layout(s) and whether to generate the VAPID/sender keys and store them as constants on
+an environment — and does either (or both) for you if you say yes:
 
 ```bash
-npx web-push generate-vapid-keys
+pos-cli generate run modules/push_notifications/generators/install
 ```
 
-### 2. Generate a sender keypair (encrypts message bodies)
+Prefer to do it by hand, or need to understand what it's doing under the hood? The manual steps are below.
+
+### 1. Generate VAPID keys, generate a sender keypair, and store everything as platformOS constants
+
+Run against every environment (including local dev) before testing — there is no migration in this repo that does it for you. `commands/notifications/send` fails fast with a `configuration` error if any of the five constants are missing. Replace `<env>` with the target environment name:
 
 ```bash
+VAPID_KEYS=$(npx web-push generate-vapid-keys)
+VAPID_PUBLIC=$(echo "$VAPID_KEYS" | grep -A1 "Public Key:" | tail -1)
+VAPID_PRIVATE=$(echo "$VAPID_KEYS" | grep -A1 "Private Key:" | tail -1)
+
+pos-cli constants set <env> --name "modules/push_notifications/VAPID_PUBLIC_KEY" --value "$VAPID_PUBLIC"
+pos-cli constants set <env> --name "modules/push_notifications/VAPID_PRIVATE_KEY" --value "$VAPID_PRIVATE"
+pos-cli constants set <env> --name "modules/push_notifications/VAPID_SUBJECT" --value "mailto:admin@yoursite.com"
+
 openssl ecparam -name prime256v1 -genkey -noout -out sender_private.pem
-openssl ec -in sender_private.pem -pubout -conv_form uncompressed -outform DER | tail -c 65 | base64
+pos-cli constants set <env> --name "modules/push_notifications/PUSH_SENDER_PRIVATE_KEY_PEM" --value "$(cat sender_private.pem)"
+
+PUSH_SENDER_PUBLIC=$(openssl ec -in sender_private.pem -pubout -conv_form uncompressed -outform DER | tail -c 65 | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '=')
+pos-cli constants set <env> --name "modules/push_notifications/PUSH_SENDER_PUBLIC_KEY" --value "$PUSH_SENDER_PUBLIC"
 ```
 
-Store the PEM contents as `PUSH_SENDER_PRIVATE_KEY_PEM` and the base64 output (converted to base64url) as `PUSH_SENDER_PUBLIC_KEY`.
-
-### 3. Store configuration as platformOS constants
-
-```liquid
-function _ = 'modules/core/commands/variable/set', name: 'modules/push_notifications/VAPID_PUBLIC_KEY', value: '<base64url public key>'
-function _ = 'modules/core/commands/variable/set', name: 'modules/push_notifications/VAPID_PRIVATE_KEY', value: '<base64url private key>'
-function _ = 'modules/core/commands/variable/set', name: 'modules/push_notifications/VAPID_SUBJECT', value: 'mailto:admin@yoursite.com'
-function _ = 'modules/core/commands/variable/set', name: 'modules/push_notifications/PUSH_SENDER_PRIVATE_KEY_PEM', value: '<sender private key PEM>'
-function _ = 'modules/core/commands/variable/set', name: 'modules/push_notifications/PUSH_SENDER_PUBLIC_KEY', value: '<sender public key, base64url>'
-```
-
-Run these against every environment (including local dev) before testing — there is no migration in this repo that does it for you. `commands/notifications/send` fails fast with a `configuration` error if any of the five constants are missing.
-
-### 4. Add the init partial to your layout `<head>`
+### 2. Add the init partial to your layout `<head>`
 
 ```liquid
 {% render 'modules/push_notifications/init' %}
@@ -55,7 +60,7 @@ Run these against every environment (including local dev) before testing — the
 
 This sets up `window.pos.modules.active.pushNotifications` with `register()`, `subscribe()`, `unsubscribe(id)`, and `getPermissionState()`.
 
-### 5. Embed the subscribe button and subscriptions table
+### 3. Embed the subscribe button and subscriptions table
 
 The module ships no page of its own for this — both pieces are partials meant to be dropped directly into your app's own settings page:
 
@@ -78,7 +83,7 @@ That's the entire integration surface — see `app/views/pages/settings.liquid` 
 
 Both partials style entirely with real `common-styling` classes (`pos-button`/`pos-button-primary`, `pos-table`, `pos-tag`, `pos-supplementary`) — no styling of your own is required, and none of the classes used are invented.
 
-### 6. Get site-wide scope for the service worker
+### 4. Get site-wide scope for the service worker
 
 Copy the file to your own app's **top-level** `assets/` directory — not a subfolder, keeping the `sw.js`/`sw-X.js` naming — then pass its root-served path as `service_worker_path`:
 

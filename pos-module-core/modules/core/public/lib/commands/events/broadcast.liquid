@@ -11,7 +11,7 @@
   assign priorities = 'low,default,high' | split: ','
 
   assign name = 'consumers/' | append: object.type | append: '/'
-  graphql consumers = 'modules/core/events/consumers', name: name | dig: "admin_liquid_partials", "results"
+  graphql consumers = 'modules/core/events/consumers', name: name | hash_dig: "admin_liquid_partials", "results"
 
   assign object.consumers = consumers
   for consumer in consumers

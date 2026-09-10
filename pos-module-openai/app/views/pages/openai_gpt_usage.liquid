@@ -7,16 +7,16 @@
 {% comment %}
  - Forced format of response that we want to get from OpenAI API.
 {% endcomment %}
-{%- parse_json response_format_schema_json -%}
-{
-  "tags": {
-    "type": "array",
-    "items": {
-      "type": "string"
+{%- assign response_format_schema_json =
+  {
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   }
-}
-{%- endparse_json -%}
+-%}
 
 
 {%- capture user_message -%}
@@ -34,17 +34,16 @@ Exciting times ahead for designers and developers.
 {%- liquid
   # from app/partials/img_base64.liquid
   function img = 'img_base64'
--%}
 
-{%- parse_json request_object -%}
-{
-  "system_message": "You are helpful professional copywriter. You help tagging content of posts.",
-  "user_message": "{{user_message}}",
-  "user_images": ["{{ img }}", "{{ 'images/image_example.png' | asset_url  }}"],
-  "response_format_schema_json": {{ response_format_schema_json }},
-  "model": "gpt-4o-mini"
-}
-{%- endparse_json -%}
+  assign example_image = 'images/image_example.png' | asset_url
+  assign request_object = {
+    "system_message": "You are helpful professional copywriter. You help tagging content of posts.",
+    "user_message": user_message,
+    "user_images": [img, example_image],
+    "response_format_schema_json": response_format_schema_json,
+    "model": "gpt-4o-mini"
+  }
+-%}
 
 {%- liquid
   if c.valid
