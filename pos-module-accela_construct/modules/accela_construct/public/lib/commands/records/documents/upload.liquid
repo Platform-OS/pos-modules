@@ -16,18 +16,36 @@
 
   Params:
     record_id   - Record id (required)
-    file_field  - Raw file content or a reference to already-uploaded file data (required)
-    file_name   - Original file name, e.g. "site_plan.pdf" (required)
+    file_field  - Raw file content or a reference to already-uploaded file data
+    file_name   - Original file name, e.g. "site_plan.pdf"
     content_type- MIME type, e.g. "application/pdf" (required)
     category    - optional, must match a value from documents/categories
     description - optional description string
     reference - optional hash `{ "id", "table" }` forwarded to
       send.liquid - see send.liquid.
+    with_retries - optional boolean, default false. When true, retries a
+      failed attempt in the background with increasing delay - see
+      lib/accela_client/send.liquid. Only meaningful when
+      `file_object_id`/`file_object_property` are also given (see below) -
+      otherwise this MULTIPART request still can't be retried, since raw
+      file bytes can't be carried through a background job.
+    file_object_id, file_object_property - optional, given together.
+      Identify a platformOS generic_object record and the file property
+      on it holding this upload's file content (already stored there by
+      an earlier upload step), as an alternative to relying on
+      `file_field`'s raw bytes surviving into a background retry.
+      Forwarded to send.liquid as `metadata.file_object_id`/
+      `metadata.file_object_property` - when both are present,
+      send.liquid re-downloads the file fresh from that generic_object
+      on every attempt (this call and any retries) instead of needing
+      the file content itself carried down the retry chain. This is what
+      makes `with_retries` viable for a MULTIPART upload - see
+      lib/accela_client/send.liquid.
 
-  No with_retries param here - MULTIPART requests are never retried since
-  file content can't be safely re-sent from a detached background job
-  (see lib/accela_client/send.liquid), so exposing the flag would be a
-  documented no-op.
+  MULTIPART requests are only retried when `file_object_id`/
+  `file_object_property` are given alongside `with_retries` - file
+  content otherwise can't be safely re-sent from a detached background
+  job (see lib/accela_client/send.liquid).
 
   Follows the pos-module-core build/check/execute command pattern (see
   upload/{build,check}.liquid): build prepares the request URL and the
@@ -47,7 +65,8 @@
   function object = 'modules/accela_construct/commands/records/documents/upload/check', object: object
 
   if object.valid
-    function result = 'modules/accela_construct/accela_client/send', method: 'MULTIPART', path: object.path, file_field: object.file_field, file_info: object.file_info, reference: reference, caller: 'modules/accela_construct/commands/records/documents/upload'
+    assign metadata = { "file_object_id": file_object_id, "file_object_property": file_object_property }
+    function result = 'modules/accela_construct/accela_client/send', method: 'MULTIPART', path: object.path, file_field: object.file_field, file_info: object.file_info, reference: reference, caller: 'modules/accela_construct/commands/records/documents/upload', with_retries: with_retries, metadata: metadata
   else
     function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/commands/records/documents/upload'
   endif

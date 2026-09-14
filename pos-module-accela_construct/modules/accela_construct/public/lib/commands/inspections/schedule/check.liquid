@@ -1,12 +1,19 @@
 {% comment %}
   modules/accela_construct/commands/inspections/schedule/check
   Validates the object built by build.liquid before it's sent to Accela,
-  using pos-module-core's validation contract convention.
+  using pos-module-core's validation contract convention. An Accela
+  schedule request is only actually actionable with a resolvable
+  inspection type and target record, so those nested `inspection` fields
+  are validated too rather than just checking the top-level hash is
+  present.
 {% endcomment %}
 
 {% liquid
   assign c = { "errors": {}, "valid": true }
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'inspection'
+  function c = 'modules/core/validations/presence', c: c, object: object.inspection.type, field_name: 'id'
+  function c = 'modules/core/validations/presence', c: c, object: object.inspection.recordId, field_name: 'id'
+  function c = 'modules/core/validations/presence', c: c, object: object.inspection, field_name: 'scheduleDate'
 
   assign object.valid = c.valid
   assign object.errors = c.errors

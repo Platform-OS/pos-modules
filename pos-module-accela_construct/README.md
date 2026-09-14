@@ -709,6 +709,40 @@ later. Before relying on it, verify:
   name, before trusting this for anything beyond the one record shape it
   was built from.
 
+- **MULTIPART retry via `metadata.file_object_id`/`metadata.file_object_property`**
+  (`lib/accela_client/send.liquid`, `commands/records/documents/upload.liquid`,
+  `lib/queries/generic_objects/find.liquid`) is new and only fully exercises
+  the first, synchronous attempt. The idea: since raw file bytes can't be
+  carried through a background retry, a caller can instead point at a
+  platformOS `generic_object` record + file property already holding the
+  file (`file_object_id`/`file_object_property`); `send.liquid`
+  re-downloads that file fresh (via `property_upload`/`download_file`) and
+  rebuilds `payload.file_field` before every attempt, instead of needing
+  the bytes themselves passed down the chain. Two gaps remain before this
+  is reliable end-to-end:
+  - `perform_retry_attempt.liquid` (the function actually invoked for
+    attempt 2+ once a retry has been handed off to the background chain)
+    only forwards `method`/`path`/`payload`/`attempt_number`/`request_id`
+    to `send.liquid` - it doesn't read `accela_request.metadata` back out
+    (even though the `accela_request` table and its `create`/`get`/`list`
+    GraphQL now store and return it) and pass it along as `metadata:`. So
+    once a retry reaches `perform_retry_attempt.liquid`, it runs without
+    `file_object_id`/`file_object_property` and without a file body at
+    all - fix by having it fetch `accela_request.metadata` alongside
+    `method`/`path`/`payload` and forward it.
+  - Inside `send.liquid`, when the file download itself fails, that branch
+    schedules its own retry using `correlation_id` - a variable normally
+    only assigned inside the `will_retry` branch further down (from
+    `request_id | default: log_record.request_id`). On this path it's
+    never assigned first, so `schedule_retry` is called with a blank
+    `request_id`, which makes `perform_retry_attempt.liquid` immediately
+    log `accela_retry_exhausted` and give up (see the `accela_request`
+    write gap above for the same failure shape) instead of actually
+    retrying the download.
+  Verify both against a live instance (or fix them) before relying on
+  `with_retries` for a MULTIPART upload that uses `file_object_id`/
+  `file_object_property`.
+
 ## Running the test suite
 
 Tests use [pos-module-tests](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-tests)

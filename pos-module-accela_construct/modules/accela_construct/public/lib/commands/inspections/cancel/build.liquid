@@ -6,12 +6,12 @@
   ACCELA_CONSTRUCT_BASE_URL). This request has no body.
 
   Params:
-    object - Hash with `ids` (see inspections/cancel.liquid)
+    ids - String, comma-separated inspection id(s) (required)
 
   Returns object with `path` added.
 {% endcomment %}
 
 {% liquid
-  assign object.path = "/inspections/{{ object.ids | url_encode }}/cancel"
+  assign object = { "path": "/inspections/{{ ids | url_encode }}/cancel", ids: ids }
   return object
 %}

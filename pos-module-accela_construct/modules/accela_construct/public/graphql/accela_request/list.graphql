@@ -30,11 +30,13 @@ query accela_request_list(
       updated_at
       table
 
+      caller: property(name: "caller")
       method: property(name: "method")
       path: property(name: "path")
       request_payload: property(name: "request_payload")
       reference_id: property(name: "reference_id")
       reference_schema: property(name: "reference_schema")
+      metadata: property_json(name: "metadata")
     }
   }
 }

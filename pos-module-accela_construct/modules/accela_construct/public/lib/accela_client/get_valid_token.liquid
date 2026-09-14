@@ -20,7 +20,7 @@
 
 {% liquid
   function token_record = 'modules/accela_construct/queries/accela_oauth_token/find'
-  assign now_ts = 'now' | date: '%s'
+  assign now_ts = 'now' | date: '%s' | plus: 0
   assign access_token = ''
 
   if token_record and token_record.access_token != blank and token_record.expires_at != blank and now_ts < token_record.expires_at

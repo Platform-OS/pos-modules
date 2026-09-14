@@ -12,8 +12,8 @@ query accela_oauth_token_find_latest {
 
       access_token: property(name: "access_token")
       refresh_token: property(name: "refresh_token")
-      expires_at: property(name: "expires_at")
-      refresh_token_expires_at: property(name: "refresh_token_expires_at")
+      expires_at: property_int(name: "expires_at")
+      refresh_token_expires_at: property_int(name: "refresh_token_expires_at")
     }
   }
 }

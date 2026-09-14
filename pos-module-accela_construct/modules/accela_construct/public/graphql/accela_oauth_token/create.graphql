@@ -1,8 +1,8 @@
 mutation accela_oauth_token_create(
   $access_token: String!
   $refresh_token: String
-  $expires_at: String!
-  $refresh_token_expires_at: String
+  $expires_at: Int!
+  $refresh_token_expires_at: Int
 ) {
   record_create(
     record: {
@@ -10,8 +10,8 @@ mutation accela_oauth_token_create(
       properties: [
         { name: "access_token", value: $access_token }
         { name: "refresh_token", value: $refresh_token }
-        { name: "expires_at", value: $expires_at }
-        { name: "refresh_token_expires_at", value: $refresh_token_expires_at }
+        { name: "expires_at", value_int: $expires_at }
+        { name: "refresh_token_expires_at", value_int: $refresh_token_expires_at }
       ]
     }
   ) {
@@ -22,7 +22,7 @@ mutation accela_oauth_token_create(
 
     access_token: property(name: "access_token")
     refresh_token: property(name: "refresh_token")
-    expires_at: property(name: "expires_at")
-    refresh_token_expires_at: property(name: "refresh_token_expires_at")
+    expires_at: property_int(name: "expires_at")
+    refresh_token_expires_at: property_int(name: "refresh_token_expires_at")
   }
 }

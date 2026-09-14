@@ -24,8 +24,7 @@
 {% endcomment %}
 
 {% liquid
-  assign object = { "errors": {}, "valid": true, "ids": ids }
-  function object = 'modules/accela_construct/commands/inspections/cancel/build', object: object
+  function object = 'modules/accela_construct/commands/inspections/cancel/build', ids: ids
   function object = 'modules/accela_construct/commands/inspections/cancel/check', object: object
 
   if object.valid

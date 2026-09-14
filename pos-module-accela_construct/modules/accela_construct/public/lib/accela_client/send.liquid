@@ -27,10 +27,11 @@
       attempt's result is still returned synchronously either way -
       retries never block the original call, and their eventual outcome
       is only observable via the accela_request/accela_request_response
-      tables (see below), not through this function's return value. Not
-      supported for MULTIPART requests - file content can't be safely
-      re-sent from a detached background job. Retries don't carry
-      `method`/`path`/`payload` through the chain - `schedule_retry.liquid`/
+      tables (see below), not through this function's return value. For
+      a MULTIPART request, only safe to use alongside `metadata.file_object_id`/
+      `metadata.file_object_property` (see below) - otherwise the file
+      content itself can't be safely re-sent from a detached background
+      job. Retries don't carry `method`/`path`/`payload` through the chain - `schedule_retry.liquid`/
       `perform_retry_attempt.liquid` only pass around this accela_request's
       id, looking the request itself back up from the accela_request row
       when it's time to resend (see schedule_retry.liquid).
@@ -65,6 +66,24 @@
       error_result.liquid if this attempt fails, so a live Accela failure
       gets logged with the same "which endpoint was this" context a local
       validation failure already gets - see error_result.liquid.
+    metadata - optional hash. Stored as-is on the accela_request row (see
+      log_request.liquid) for callers that want to stash their own
+      context alongside a logged request. Like `reference`, only stored
+      on attempt 1 (a fresh call, `request_id` blank) - ignored on
+      retries, since the accela_request row already has it set from
+      creation.
+      Two keys are also special-cased by this function itself, not just
+      logged: `file_object_id`/`file_object_property`, given together,
+      identify a platformOS generic_object record and the file property
+      on it holding a file's content. When both are present, that file
+      is downloaded fresh (via queries/generic_objects/find) and
+      base64-encoded into `payload.file_field` before every attempt
+      (this call and any retries) - letting a MULTIPART upload be
+      resent on retry without carrying raw file bytes through the retry
+      chain. If that download fails, this attempt schedules its own
+      retry directly rather than going through the `with_retries`
+      handling below. See commands/records/documents/upload.liquid for
+      the intended caller-facing usage.
 
   Every attempt (success or failure) is written via
   lib/accela_client/log_request.liquid: one accela_request row per
@@ -117,6 +136,20 @@
       assign template = 'modules/accela_construct/accela_post_multipart'
     endif
 
+    if metadata.file_object_id != blank and metadata.file_object_property != blank
+      function file_object = 'modules/accela_construct/queries/generic_objects/find', id: metadata.file_object_id, file_property: metadata.file_object_property
+      if file_object.file.url
+        assign file_content = file_object.file.url | download_file: 50 | base64_encode
+        if file_content == blank
+          assign last_error = "Failed to download file from generic_object {{metadata.file_object_id}} property {{metadata.file_object_property}}"
+          function _schedule_result = 'modules/accela_construct/accela_client/schedule_retry', attempt_number: 2, last_error: last_error, request_id: correlation_id
+          return { "success": false, "status": 400, "raw": "", "body": nil, "error": last_error }
+        endif
+        #assign file_field = file_content
+        assign file_field = "<file content placeholder>"
+      endif
+    endif
+
     function accela_app_id = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_APP_ID'
     assign request_data = { "app_id": accela_app_id, "access_token": access_token, "path": path, "payload": payload, "file_info": file_info, "file_field": file_field, "request_type": method }
     graphql send_result = 'modules/core/api_calls/send', template: template, data: request_data
@@ -141,10 +174,10 @@
     endif
   endif
 
-  assign log_data = { "method": method, "path": path, "request_payload": payload, "attempt_number": attempt_number, "request_id": request_id, "status": result.status, "response_body": result.raw, "success": result.success, "error": result.error, "reference": reference }
+  assign log_data = { "caller": caller, "method": method, "path": path, "request_payload": payload, "attempt_number": attempt_number, "request_id": request_id, "status": result.status, "response_body": result.raw, "success": result.success, "error": result.error, "reference": reference, "metadata": metadata }
 
   assign will_retry = false
-  if with_retries and result.success != true and method != 'MULTIPART'
+  if with_retries and result.success != true
     function accela_max_retries = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_MAX_RETRIES', type: 'integer'
     assign accela_max_retries = accela_max_retries | default: 3
     if accela_max_retries > 0
@@ -156,7 +189,7 @@
     function log_record = 'modules/accela_construct/accela_client/log_request', data: log_data
     assign correlation_id = request_id | default: log_record.request_id
 
-    function schedule_result = 'modules/accela_construct/accela_client/schedule_retry', attempt_number: 2, last_error: result.error, request_id: correlation_id
+    function _schedule_result = 'modules/accela_construct/accela_client/schedule_retry', attempt_number: 2, last_error: result.error, request_id: correlation_id
   elsif result.success == true
     function log_record = 'modules/accela_construct/accela_client/log_request', data: log_data
   else

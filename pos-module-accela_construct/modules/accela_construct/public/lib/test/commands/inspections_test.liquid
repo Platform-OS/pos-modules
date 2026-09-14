@@ -8,9 +8,13 @@
   function schedule_missing = 'modules/accela_construct/commands/inspections/schedule/check', object: schedule_missing
   function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: schedule_missing, field_name: 'inspections_schedule_check_invalid_without_inspection'
 
-  assign schedule_ok = { "errors": {}, "valid": true, "inspection": { "inspectorId": "MINSPECTOR" } }
+  assign schedule_incomplete = { "errors": {}, "valid": true, "inspection": { "inspectorId": "MINSPECTOR" } }
+  function schedule_incomplete = 'modules/accela_construct/commands/inspections/schedule/check', object: schedule_incomplete
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: schedule_incomplete, field_name: 'inspections_schedule_check_invalid_without_type_id_record_id_schedule_date'
+
+  assign schedule_ok = { "errors": {}, "valid": true, "inspection": { "inspectorId": "MINSPECTOR", "type": { "id": 173 }, "recordId": { "id": "TEST-0000-00001" }, "scheduleDate": "2026-08-05" } }
   function schedule_ok = 'modules/accela_construct/commands/inspections/schedule/check', object: schedule_ok
-  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: schedule_ok, field_name: 'inspections_schedule_check_valid_with_inspection'
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: schedule_ok, field_name: 'inspections_schedule_check_valid_with_all_required'
 
   assign schedule_build_input = { "inspection": { "inspectorId": "MINSPECTOR", "type": { "id": 173 } } }
   function schedule_built = 'modules/accela_construct/commands/inspections/schedule/build', object: schedule_build_input
