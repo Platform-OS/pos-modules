@@ -289,8 +289,7 @@ window.pos.modules.chat = function(userSettings = {}){
   function encodeHtml(string){
     const element = document.createElement('div');
     element.textContent = string;
-    string = element.textContent;
-    return string;
+    return element.innerHTML;
   };
 
 
@@ -514,7 +513,10 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.sendMessage = (message, media = null) => {
     let messageData = {
-      message: encodeHtml(message),
+      // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement),
+      // not here, so the raw text round-trips correctly through the server (raw_escape_string)
+      // and the markdown filter used by the server-rendered message.liquid partial
+      message: message,
       autor_id: module.settings.currentUserId,
       sender_name: module.settings.currentUserName,
       created_at: new Date()
