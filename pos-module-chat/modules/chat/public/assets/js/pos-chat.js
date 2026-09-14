@@ -62,8 +62,12 @@ window.pos.modules.chat = function(userSettings = {}){
     received: document.querySelector('#pos-chat-template-message-received'),
     // selector for date field in the template (string)
     dateSelector: 'time',
-    // selector for the message container (string)
-    messageSelector: '.pos-chat-message-content'
+    // selector for the message text container (string)
+    messageSelector: '.pos-chat-message-text',
+    // selector for the image container (string)
+    imageSelector: '.pos-chat-message-image',
+    // selector for the file container (string)
+    fileSelector: '.pos-chat-message-file'
   };
   // the id of the currently logged user (string)
   module.settings.currentUserId = window.pos.profile.id;
@@ -324,6 +328,82 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
+  // purpose:		formats a byte size the same way message.liquid does server-side
+  //				    (KB below 1MB, MB at/above), for the file attachment size label
+  // arguments:	the size in bytes (number)
+  // returns:		the formatted size, e.g. '12.3 KB' / '1.4 MB' (string)
+  // ------------------------------------------------------------------------
+  module.settings.formatFileSize = (size) => {
+    if(size >= 1048576){
+      return `${(size / 1048576).toFixed(1)} MB`;
+    }
+
+    return `${(size / 1024).toFixed(1)} KB`;
+  };
+
+
+  // purpose:		builds a fully-populated message <li> (text + attachments) from message
+  //				    data, shared by showMessage() (live receive) and loadPage() (pagination)
+  //				    so both stay in sync instead of duplicating/diverging this logic
+  // arguments:	the message data - message, media, status ('sent'/'received') (object)
+  // returns:		the message's <li> element, detached from any list (dom node)
+  // ------------------------------------------------------------------------
+  module.settings.buildMessageElement = (messageData) => {
+    const fragment = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
+    const li = fragment.querySelector('li');
+
+    // the template always carries one image and one file placeholder (baked in via
+    // as_template) - keep them as clone sources for real attachments below, then strip
+    // them from the base <li> so a message without that kind of attachment doesn't show
+    // a leftover blank placeholder
+    const imageTemplate = li.querySelector(module.settings.messageTemplate.imageSelector);
+    const fileTemplate = li.querySelector(module.settings.messageTemplate.fileSelector);
+    imageTemplate?.remove();
+    fileTemplate?.remove();
+
+    // like the media placeholders, the template always carries the text div too (baked in
+    // via as_template) - message.liquid only renders it server-side when there's actually
+    // a message, so mirror that here rather than leaving an empty bubble for a media-only message
+    let textEl = li.querySelector(module.settings.messageTemplate.messageSelector);
+    if(messageData.message && messageData.message.trim().length){
+      textEl.innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+    } else {
+      textEl.remove();
+      textEl = null;
+    }
+
+    if(messageData.media && messageData.media.length){
+      messageData.media.forEach(item => {
+        let mediaElement;
+
+        if(item.type && item.type.startsWith('image/')){
+          mediaElement = imageTemplate.cloneNode(true);
+          const img = mediaElement.querySelector('img');
+          img.src = item.url;
+          img.width = item.width;
+          img.height = item.height;
+        } else {
+          mediaElement = fileTemplate.cloneNode(true);
+          mediaElement.querySelector('a').href = item.url;
+          mediaElement.querySelector('.pos-chat-message-file-name').textContent = item.name;
+          mediaElement.querySelector('small').textContent = `(${module.settings.formatFileSize(item.size)})`;
+        }
+
+        // attachments render before the text bubble, same order as message.liquid, and
+        // are inserted into the <li> itself (not appended to the fragment root) - falls
+        // back to appending at the end when there's no text bubble to insert before
+        if(textEl){
+          li.insertBefore(mediaElement, textEl);
+        } else {
+          li.appendChild(mediaElement);
+        }
+      });
+    }
+
+    return li;
+  };
+
+
   // purpose:		scrolls the chat window to the bottom
   // arguments:	scroll behavior - 'auto' (instant) or 'smooth' (string, default: 'auto')
   // ------------------------------------------------------------------------
@@ -459,21 +539,18 @@ window.pos.modules.chat = function(userSettings = {}){
   //				    according to the template in messageTemplate (object)
   // ------------------------------------------------------------------------
   module.showMessage = (messageData) => {
-
-    // clone message template
-    const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
-    // fill template with data
-    messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+    // build the message's <li> (text + attachments)
+    const li = module.settings.buildMessageElement(messageData);
 
     // Insert in chronological order (by created_at) rather than by arrival order, so a
     // burst of messages renders correctly even if channel delivery arrives out of order.
     // Falls back to appending at the end (the common case: the newest message).
     const messageDate = new Date(messageData.created_at);
     let insertBeforeLi = null;
-    for(const li of module.settings.messagesList.querySelectorAll(':scope > li')){
-      const liDate = module.settings.dateOf(li);
+    for(const existingLi of module.settings.messagesList.querySelectorAll(':scope > li')){
+      const liDate = module.settings.dateOf(existingLi);
       if(liDate && liDate > messageDate){
-        insertBeforeLi = li;
+        insertBeforeLi = existingLi;
         break;
       }
     }
@@ -482,11 +559,11 @@ window.pos.modules.chat = function(userSettings = {}){
     // that precedes this one chronologically (not necessarily the previous sibling in the DOM,
     // though in the common append-at-the-end case it is the same thing)
     const previousLi = insertBeforeLi ? insertBeforeLi.previousElementSibling : module.settings.messagesList.lastElementChild;
-    const timeEl = messageHtml.querySelector(module.settings.messageTemplate.dateSelector);
+    const timeEl = li.querySelector(module.settings.messageTemplate.dateSelector);
     module.settings.setMessageTime(timeEl, messageDate, module.settings.shouldShowTime(messageDate, module.settings.dateOf(previousLi)));
 
     if(insertBeforeLi){
-      module.settings.messagesList.insertBefore(messageHtml, insertBeforeLi);
+      module.settings.messagesList.insertBefore(li, insertBeforeLi);
 
       // this message now sits between the old previous message and insertBeforeLi, so
       // insertBeforeLi's own timestamp visibility (based on the gap to its predecessor) may
@@ -498,7 +575,7 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     } else {
       // append the message to the chat
-      module.settings.messagesList.append(messageHtml);
+      module.settings.messagesList.append(li);
     }
 
     scrollBottom('smooth');
@@ -539,14 +616,12 @@ window.pos.modules.chat = function(userSettings = {}){
       Object.entries(data.results).reverse().forEach(([key, messageData]) => {
         messageData = Object.assign(messageData, { status: (module.settings.currentUserId == messageData.autor_id) ? 'sent' : 'received'});
 
-        // clone message template
-        const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
+        // build the message's <li> (text + attachments) - shared with showMessage()
+        const li = module.settings.buildMessageElement(messageData);
         const messageDate = new Date(messageData.created_at);
-        // fill template with data
-        module.settings.setMessageTime(messageHtml.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
-        messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+        module.settings.setMessageTime(li.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
 
-        html.append(messageHtml);
+        html.append(li);
 
         previousDate = messageDate;
       });

@@ -450,9 +450,19 @@
   display: grid;
   grid-template-columns: min-content 1fr auto;
   gap: var(--pos-gap-button-button);
-  overflow: auto;
-  scrollbar-gutter: stable;
 }
+
+@media (max-width: 768px) {
+  .pos-chat-conversation-new {
+    grid-template-columns: 1fr;
+  }
+}
+
+  .pos-chat-conversation-new-input-container {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--pos-gap-button-button);
+  }
 
 .pos-chat-conversation-input {
   padding: calc(var(--pos-padding-input) / 2) calc(var(--pos-padding-input) / 1.5);
@@ -524,6 +534,7 @@
 /* uploader
 ============================================================================ */
 .pos-chat-uploader {
+  padding-block-start: var(--pos-padding-page);
   padding-inline: var(--pos-padding-page);
   position: relative;
 
@@ -546,11 +557,19 @@
     padding: 0;
     position: absolute;
     z-index: 1010;
-    inset-block-start: calc(var(--pos-padding-page) / -2);
-    inset-inline-start: calc(var(--pos-padding-page) / 2); 
+    inset-block-start: .4rem;
+    inset-inline-start: .4rem; 
   }
 
   .pos-chat-uploader .pos-button[for="chat-uploaderToggle"] svg {
-    width: .65rem;
-    height: .65rem;
+    width: .69rem;
+    height: .69rem;
+  }
+
+  /* smaller uppy height for mobile */
+  @media (max-width: 768px) {
+    .uppy-Dashboard-inner {
+      height: 200px !important; /* Ensure it takes 100% of its parent container's height */
+      min-height: unset !important; /* Remove the default min-height */
+    }
   }
