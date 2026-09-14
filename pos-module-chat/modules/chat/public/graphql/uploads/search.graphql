@@ -3,7 +3,7 @@ query uploads {
     per_page: 10,
     filter: {
       table: {
-        value: "uploads"
+        value: "modules/chat/uploads"
       }
     }
   ) {
