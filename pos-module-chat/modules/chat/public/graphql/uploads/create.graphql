@@ -1,0 +1,29 @@
+mutation create(
+  $conversation_id: String!
+  $uploader_id: String!
+  $upload: String!
+  $metadata: JSONPayload
+) {
+  record_create(
+    record: {
+      table: "modules/chat/uploads"
+      properties: [
+        { name: "conversation_id", value: $conversation_id }
+        { name: "uploader_id", value: $uploader_id }
+        { name: "upload", value: $upload }
+        { name: "metadata", value_json: $metadata }
+      ]
+    }
+  ) {
+    id
+    conversation_id: property(name: "conversation_id")
+    uploader_id: property(name: "uploader_id")
+    metadata: property_json(name: "metadata")
+    upload: property_upload(name: "upload") {
+      file_name
+      extension
+      url
+      versions
+    }
+  }
+}

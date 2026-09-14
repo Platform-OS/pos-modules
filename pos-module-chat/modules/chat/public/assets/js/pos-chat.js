@@ -62,8 +62,12 @@ window.pos.modules.chat = function(userSettings = {}){
     received: document.querySelector('#pos-chat-template-message-received'),
     // selector for date field in the template (string)
     dateSelector: 'time',
-    // selector for the message container (string)
-    messageSelector: '.pos-chat-message-content'
+    // selector for the message text container (string)
+    messageSelector: '.pos-chat-message-text',
+    // selector for the image container (string)
+    imageSelector: '.pos-chat-message-image',
+    // selector for the file container (string)
+    fileSelector: '.pos-chat-message-file'
   };
   // the id of the currently logged user (string)
   module.settings.currentUserId = window.pos.profile.id;
@@ -98,6 +102,15 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.search.results = document.querySelector('.pos-chat-search-results');
   // clearing the search results button (dom node)
   module.settings.search.clear = document.querySelector('.pos-chat-search-clear');
+
+  // stores all the upload related stuff (object)
+  module.settings.upload = {};
+  // url to create the uploaded file record in the database (string)
+  module.settings.upload.createUrl = '/api/chat/uploads';
+  // media info staged from finished uploads, sent as message(s) on the next Send (array of { type, name, size, url })
+  module.settings.upload.pending = [];
+  // button that clears the staged uploads (dom node)
+  module.settings.upload.clear = document.querySelector('#chat-uploaderToggle');
 
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
@@ -142,31 +155,36 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling what will happen on pressing enter in the input
     module.settings.messageInput?.addEventListener('keypress', (event) => {
-      if(event.which == 13 && is_desktop && !event.shiftKey && module.settings.messageInput.value.trim()){
+      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length)){
         event.preventDefault();
 
-        module.sendMessage(module.settings.messageInput.value.trim());
+        module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
         setTimeout(() => {
           module.settings.messageInput.value = '';
         }, 100);
-      }
-    });
 
-    module.settings.messageInput?.addEventListener("paste", (event) => {
-      event.preventDefault();
-      const text = event.clipboardData.getData("text/plain");
-      document.execCommand("insertHTML", false, text);
+        module.settings.upload.clear.checked = false;
+      }
     });
 
     // handling send button click
     module.settings.sendButton?.addEventListener('click', () => {
-      if(module.settings.messageInput.value.trim()) {
-        module.sendMessage(module.settings.messageInput.value.trim());
+      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length) {
+        module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
         setTimeout(() => {
           module.settings.messageInput.value = '';
         }, 100);
+
+        module.settings.upload.clear.checked = false;
       }
     });
+
+    // scroll to bottom after a new image loads in the chat
+    module.settings.messagesList?.addEventListener('load', (event) => {
+      if(event.target.tagName === 'IMG'){
+        scrollBottom('smooth');
+      }
+    }, true);
 
     // load previous messages when user scrolls to top
     let messagesListTimeout = '';
@@ -225,6 +243,38 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.search.input?.addEventListener('keydown', module.search.keyboard);
     module.settings.search.results?.addEventListener('keydown', module.search.keyboard);
 
+    // store record for uploaded file, and stage its media info to go out with the next sent message
+    document.addEventListener('pos-upload-file-uploaded', event => {
+      module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: event.detail.file.meta });
+
+      const media = {
+        type: event.detail.file.type,
+        name: event.detail.file.name,
+        size: event.detail.file.size,
+        url: event.detail.url
+      };
+
+      // width/height are read from the image and set on file.meta by pos-upload.js's
+      // 'file-added' handler before the upload finishes - only present for images
+      if(event.detail.file.type && event.detail.file.type.startsWith('image/')){
+        media.width = event.detail.file.meta.width;
+        media.height = event.detail.file.meta.height;
+      }
+
+      module.settings.upload.pending.push(media);
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Added file to pending uploads', media);
+    });
+
+    // clear all staged uploads
+    module.settings.upload.clear?.addEventListener('change', () => {
+      module.settings.upload.pending = [];
+      pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Cleared all pending uploads');
+    });
+
+
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Chat initialized', module.settings.inbox);
 
@@ -239,8 +289,7 @@ window.pos.modules.chat = function(userSettings = {}){
   function encodeHtml(string){
     const element = document.createElement('div');
     element.textContent = string;
-    string = element.textContent;
-    return string;
+    return element.innerHTML;
   };
 
 
@@ -275,6 +324,82 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.setMessageTime = (timeEl, date, show) => {
     timeEl.dateTime = date.toISOString();
     timeEl.textContent = show ? module.settings.timezonedDate(date) : '';
+  };
+
+
+  // purpose:		formats a byte size the same way message.liquid does server-side
+  //				    (KB below 1MB, MB at/above), for the file attachment size label
+  // arguments:	the size in bytes (number)
+  // returns:		the formatted size, e.g. '12.3 KB' / '1.4 MB' (string)
+  // ------------------------------------------------------------------------
+  module.settings.formatFileSize = (size) => {
+    if(size >= 1048576){
+      return `${(size / 1048576).toFixed(1)} MB`;
+    }
+
+    return `${(size / 1024).toFixed(1)} KB`;
+  };
+
+
+  // purpose:		builds a fully-populated message <li> (text + attachments) from message
+  //				    data, shared by showMessage() (live receive) and loadPage() (pagination)
+  //				    so both stay in sync instead of duplicating/diverging this logic
+  // arguments:	the message data - message, media, status ('sent'/'received') (object)
+  // returns:		the message's <li> element, detached from any list (dom node)
+  // ------------------------------------------------------------------------
+  module.settings.buildMessageElement = (messageData) => {
+    const fragment = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
+    const li = fragment.querySelector('li');
+
+    // the template always carries one image and one file placeholder (baked in via
+    // as_template) - keep them as clone sources for real attachments below, then strip
+    // them from the base <li> so a message without that kind of attachment doesn't show
+    // a leftover blank placeholder
+    const imageTemplate = li.querySelector(module.settings.messageTemplate.imageSelector);
+    const fileTemplate = li.querySelector(module.settings.messageTemplate.fileSelector);
+    imageTemplate?.remove();
+    fileTemplate?.remove();
+
+    // like the media placeholders, the template always carries the text div too (baked in
+    // via as_template) - message.liquid only renders it server-side when there's actually
+    // a message, so mirror that here rather than leaving an empty bubble for a media-only message
+    let textEl = li.querySelector(module.settings.messageTemplate.messageSelector);
+    if(messageData.message && messageData.message.trim().length){
+      textEl.innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+    } else {
+      textEl.remove();
+      textEl = null;
+    }
+
+    if(messageData.media && messageData.media.length){
+      messageData.media.forEach(item => {
+        let mediaElement;
+
+        if(item.type && item.type.startsWith('image/')){
+          mediaElement = imageTemplate.cloneNode(true);
+          const img = mediaElement.querySelector('img');
+          img.src = item.url;
+          img.width = item.width;
+          img.height = item.height;
+        } else {
+          mediaElement = fileTemplate.cloneNode(true);
+          mediaElement.querySelector('a').href = item.url;
+          mediaElement.querySelector('.pos-chat-message-file-name').textContent = item.name;
+          mediaElement.querySelector('small').textContent = `(${module.settings.formatFileSize(item.size)})`;
+        }
+
+        // attachments render before the text bubble, same order as message.liquid, and
+        // are inserted into the <li> itself (not appended to the fragment root) - falls
+        // back to appending at the end when there's no text bubble to insert before
+        if(textEl){
+          li.insertBefore(mediaElement, textEl);
+        } else {
+          li.appendChild(mediaElement);
+        }
+      });
+    }
+
+    return li;
   };
 
 
@@ -384,16 +509,28 @@ window.pos.modules.chat = function(userSettings = {}){
 
   // purpose:		sends the message through the Action Cable
   // arguments:	the message to send (string)
+  //            media items to attach - array of { type, name, size, url } (array, optional)
   // ------------------------------------------------------------------------
-  module.sendMessage = (message) => {
+  module.sendMessage = (message, media = null) => {
     let messageData = {
-      message: encodeHtml(message),
+      // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement),
+      // not here, so the raw text round-trips correctly through the server (raw_escape_string)
+      // and the markdown filter used by the server-rendered message.liquid partial
+      message: message,
       autor_id: module.settings.currentUserId,
       sender_name: module.settings.currentUserName,
       created_at: new Date()
     };
 
+    if(media){
+      messageData.media = media;
+    }
+
     module.channel.send(Object.assign(messageData, { create: true }));
+
+    // clear all pending uploads after sending the message
+    module.settings.upload.pending = [];
+    pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Message sent', messageData);
   };
@@ -404,21 +541,18 @@ window.pos.modules.chat = function(userSettings = {}){
   //				    according to the template in messageTemplate (object)
   // ------------------------------------------------------------------------
   module.showMessage = (messageData) => {
-
-    // clone message template
-    const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
-    // fill template with data
-    messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+    // build the message's <li> (text + attachments)
+    const li = module.settings.buildMessageElement(messageData);
 
     // Insert in chronological order (by created_at) rather than by arrival order, so a
     // burst of messages renders correctly even if channel delivery arrives out of order.
     // Falls back to appending at the end (the common case: the newest message).
     const messageDate = new Date(messageData.created_at);
     let insertBeforeLi = null;
-    for(const li of module.settings.messagesList.querySelectorAll(':scope > li')){
-      const liDate = module.settings.dateOf(li);
+    for(const existingLi of module.settings.messagesList.querySelectorAll(':scope > li')){
+      const liDate = module.settings.dateOf(existingLi);
       if(liDate && liDate > messageDate){
-        insertBeforeLi = li;
+        insertBeforeLi = existingLi;
         break;
       }
     }
@@ -427,11 +561,11 @@ window.pos.modules.chat = function(userSettings = {}){
     // that precedes this one chronologically (not necessarily the previous sibling in the DOM,
     // though in the common append-at-the-end case it is the same thing)
     const previousLi = insertBeforeLi ? insertBeforeLi.previousElementSibling : module.settings.messagesList.lastElementChild;
-    const timeEl = messageHtml.querySelector(module.settings.messageTemplate.dateSelector);
+    const timeEl = li.querySelector(module.settings.messageTemplate.dateSelector);
     module.settings.setMessageTime(timeEl, messageDate, module.settings.shouldShowTime(messageDate, module.settings.dateOf(previousLi)));
 
     if(insertBeforeLi){
-      module.settings.messagesList.insertBefore(messageHtml, insertBeforeLi);
+      module.settings.messagesList.insertBefore(li, insertBeforeLi);
 
       // this message now sits between the old previous message and insertBeforeLi, so
       // insertBeforeLi's own timestamp visibility (based on the gap to its predecessor) may
@@ -443,7 +577,7 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     } else {
       // append the message to the chat
-      module.settings.messagesList.append(messageHtml);
+      module.settings.messagesList.append(li);
     }
 
     scrollBottom('smooth');
@@ -484,14 +618,12 @@ window.pos.modules.chat = function(userSettings = {}){
       Object.entries(data.results).reverse().forEach(([key, messageData]) => {
         messageData = Object.assign(messageData, { status: (module.settings.currentUserId == messageData.autor_id) ? 'sent' : 'received'});
 
-        // clone message template
-        const messageHtml = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
+        // build the message's <li> (text + attachments) - shared with showMessage()
+        const li = module.settings.buildMessageElement(messageData);
         const messageDate = new Date(messageData.created_at);
-        // fill template with data
-        module.settings.setMessageTime(messageHtml.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
-        messageHtml.querySelector(module.settings.messageTemplate.messageSelector).innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
+        module.settings.setMessageTime(li.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
 
-        html.append(messageHtml);
+        html.append(li);
 
         previousDate = messageDate;
       });
@@ -558,6 +690,13 @@ window.pos.modules.chat = function(userSettings = {}){
       let currentDate = new Date(time.dateTime);
       time.innerText = module.settings.timezonedDate(currentDate);
     });
+  };
+
+
+  // purpose:		adds file to uploader
+  // ------------------------------------------------------------------------
+  module.addFile = () => {
+    pos.modules.active['chat-upload'];
   };
 
 
@@ -729,6 +868,39 @@ window.pos.modules.chat = function(userSettings = {}){
           links[links.length - 1].focus();
         }
         break;
+    }
+  };
+
+
+
+  // purpose:		handles file uploading
+  // ------------------------------------------------------------------------
+  module.upload = {};
+
+
+  // purpose:		stores uploaded file record in the database in a separate table
+  // ------------------------------------------------------------------------
+  module.upload.save = async ({ conversationId, uploadUrl, metadata }) => {
+    const response = await fetch(module.settings.upload.createUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.pos.csrfToken
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        upload: uploadUrl,
+        metadata: metadata
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Failed to save uploaded file record in the database', data);
+    } else {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Successfully saved uploaded file record in the database', data);
     }
   };
 
