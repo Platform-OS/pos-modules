@@ -1,0 +1,176 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  # records/{parcels,owners,addresses}/{create,update,delete} all share an
+  # identical shape (record_id + <body_param> [+ id for update/delete]), so
+  # this file exercises all 9 commands with the same pattern per resource.
+  # Only build.liquid/check.liquid are called directly, plus each
+  # orchestrator's validation-FAILURE path (missing a required param, which
+  # short-circuits before any network call) - never a full success call.
+
+  # ============ parcels (body param: parcel) ============
+
+  assign parcels_create_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function parcels_create_check_missing = 'modules/accela_construct/commands/records/parcels/create/check', object: parcels_create_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: parcels_create_check_missing, field_name: 'records_parcels_create_check_invalid_without_parcel'
+
+  assign parcels_create_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "parcel": { "parcelNumber": "005020018" } }
+  function parcels_create_check_ok = 'modules/accela_construct/commands/records/parcels/create/check', object: parcels_create_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: parcels_create_check_ok, field_name: 'records_parcels_create_check_valid_with_parcel'
+
+  assign parcels_create_build_input = { "record_id": "TEST-0000-00001", "parcel": { "parcelNumber": "005020018" } }
+  function parcels_create_build_output = 'modules/accela_construct/commands/records/parcels/create/build', object: parcels_create_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_create_build_output.path, expected: '/records/TEST-0000-00001/parcels', field_name: 'records_parcels_create_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: parcels_create_build_output, field_name: 'payload'
+
+  function parcels_create_result = 'modules/accela_construct/commands/records/parcels/create', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: parcels_create_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_create_result.error, expected: 'accela_validation_failed', field_name: 'records_parcels_create_returns_validation_failed_without_parcel'
+
+  assign parcels_update_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1" }
+  function parcels_update_check_missing = 'modules/accela_construct/commands/records/parcels/update/check', object: parcels_update_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: parcels_update_check_missing, field_name: 'records_parcels_update_check_invalid_without_parcel'
+
+  assign parcels_update_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1", "parcel": { "isPrimary": "Y" } }
+  function parcels_update_check_ok = 'modules/accela_construct/commands/records/parcels/update/check', object: parcels_update_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: parcels_update_check_ok, field_name: 'records_parcels_update_check_valid_with_parcel'
+
+  assign parcels_update_build_input = { "record_id": "TEST-0000-00001", "id": "1", "parcel": { "isPrimary": "Y" } }
+  function parcels_update_build_output = 'modules/accela_construct/commands/records/parcels/update/build', object: parcels_update_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_update_build_output.path, expected: '/records/TEST-0000-00001/parcels/1', field_name: 'records_parcels_update_build_path'
+
+  function parcels_update_result = 'modules/accela_construct/commands/records/parcels/update', record_id: 'TEST-0000-00001', id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: parcels_update_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_update_result.error, expected: 'accela_validation_failed', field_name: 'records_parcels_update_returns_validation_failed_without_parcel'
+
+  assign parcels_delete_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function parcels_delete_check_missing = 'modules/accela_construct/commands/records/parcels/delete/check', object: parcels_delete_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: parcels_delete_check_missing, field_name: 'records_parcels_delete_check_invalid_without_ids'
+
+  assign parcels_delete_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "ids": "1" }
+  function parcels_delete_check_ok = 'modules/accela_construct/commands/records/parcels/delete/check', object: parcels_delete_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: parcels_delete_check_ok, field_name: 'records_parcels_delete_check_valid_with_ids'
+
+  assign parcels_delete_build_input = { "record_id": "TEST-0000-00001", "ids": "1,2" }
+  function parcels_delete_build_output = 'modules/accela_construct/commands/records/parcels/delete/build', object: parcels_delete_build_input
+  # build.liquid url_encodes the ids, so compare against url_encode's own
+  # output rather than assuming the comma stays literal
+  assign parcels_delete_expected_ids = parcels_delete_build_input.ids | url_encode
+  assign parcels_delete_expected_path = "/records/TEST-0000-00001/parcels/{{ parcels_delete_expected_ids }}"
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_delete_build_output.path, expected: parcels_delete_expected_path, field_name: 'records_parcels_delete_build_path'
+
+  function parcels_delete_result = 'modules/accela_construct/commands/records/parcels/delete', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: parcels_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_delete_result.error, expected: 'accela_validation_failed', field_name: 'records_parcels_delete_returns_validation_failed_without_ids'
+
+  # ============ owners (body param: owner) ============
+
+  assign owners_create_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function owners_create_check_missing = 'modules/accela_construct/commands/records/owners/create/check', object: owners_create_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: owners_create_check_missing, field_name: 'records_owners_create_check_invalid_without_owner'
+
+  assign owners_create_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "owner": { "lastName": "Smith" } }
+  function owners_create_check_ok = 'modules/accela_construct/commands/records/owners/create/check', object: owners_create_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: owners_create_check_ok, field_name: 'records_owners_create_check_valid_with_owner'
+
+  assign owners_create_build_input = { "record_id": "TEST-0000-00001", "owner": { "lastName": "Smith" } }
+  function owners_create_build_output = 'modules/accela_construct/commands/records/owners/create/build', object: owners_create_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_create_build_output.path, expected: '/records/TEST-0000-00001/owners', field_name: 'records_owners_create_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: owners_create_build_output, field_name: 'payload'
+
+  function owners_create_result = 'modules/accela_construct/commands/records/owners/create', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: owners_create_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_create_result.error, expected: 'accela_validation_failed', field_name: 'records_owners_create_returns_validation_failed_without_owner'
+
+  assign owners_update_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1" }
+  function owners_update_check_missing = 'modules/accela_construct/commands/records/owners/update/check', object: owners_update_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: owners_update_check_missing, field_name: 'records_owners_update_check_invalid_without_owner'
+
+  assign owners_update_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1", "owner": { "isPrimary": "Y" } }
+  function owners_update_check_ok = 'modules/accela_construct/commands/records/owners/update/check', object: owners_update_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: owners_update_check_ok, field_name: 'records_owners_update_check_valid_with_owner'
+
+  assign owners_update_build_input = { "record_id": "TEST-0000-00001", "id": "1", "owner": { "isPrimary": "Y" } }
+  function owners_update_build_output = 'modules/accela_construct/commands/records/owners/update/build', object: owners_update_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_update_build_output.path, expected: '/records/TEST-0000-00001/owners/1', field_name: 'records_owners_update_build_path'
+
+  function owners_update_result = 'modules/accela_construct/commands/records/owners/update', record_id: 'TEST-0000-00001', id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: owners_update_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_update_result.error, expected: 'accela_validation_failed', field_name: 'records_owners_update_returns_validation_failed_without_owner'
+
+  assign owners_delete_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function owners_delete_check_missing = 'modules/accela_construct/commands/records/owners/delete/check', object: owners_delete_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: owners_delete_check_missing, field_name: 'records_owners_delete_check_invalid_without_ids'
+
+  assign owners_delete_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "ids": "1" }
+  function owners_delete_check_ok = 'modules/accela_construct/commands/records/owners/delete/check', object: owners_delete_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: owners_delete_check_ok, field_name: 'records_owners_delete_check_valid_with_ids'
+
+  assign owners_delete_build_input = { "record_id": "TEST-0000-00001", "ids": "1,2" }
+  function owners_delete_build_output = 'modules/accela_construct/commands/records/owners/delete/build', object: owners_delete_build_input
+  # build.liquid url_encodes the ids, so compare against url_encode's own
+  # output rather than assuming the comma stays literal
+  assign owners_delete_expected_ids = owners_delete_build_input.ids | url_encode
+  assign owners_delete_expected_path = "/records/TEST-0000-00001/owners/{{ owners_delete_expected_ids }}"
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_delete_build_output.path, expected: owners_delete_expected_path, field_name: 'records_owners_delete_build_path'
+
+  function owners_delete_result = 'modules/accela_construct/commands/records/owners/delete', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: owners_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_delete_result.error, expected: 'accela_validation_failed', field_name: 'records_owners_delete_returns_validation_failed_without_ids'
+
+  # ============ addresses (body param: address) ============
+
+  assign addresses_create_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function addresses_create_check_missing = 'modules/accela_construct/commands/records/addresses/create/check', object: addresses_create_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: addresses_create_check_missing, field_name: 'records_addresses_create_check_invalid_without_address'
+
+  assign addresses_create_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "address": { "streetName": "Main St" } }
+  function addresses_create_check_ok = 'modules/accela_construct/commands/records/addresses/create/check', object: addresses_create_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: addresses_create_check_ok, field_name: 'records_addresses_create_check_valid_with_address'
+
+  assign addresses_create_build_input = { "record_id": "TEST-0000-00001", "address": { "streetName": "Main St" } }
+  function addresses_create_build_output = 'modules/accela_construct/commands/records/addresses/create/build', object: addresses_create_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_create_build_output.path, expected: '/records/TEST-0000-00001/addresses', field_name: 'records_addresses_create_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: addresses_create_build_output, field_name: 'payload'
+
+  function addresses_create_result = 'modules/accela_construct/commands/records/addresses/create', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: addresses_create_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_create_result.error, expected: 'accela_validation_failed', field_name: 'records_addresses_create_returns_validation_failed_without_address'
+
+  assign addresses_update_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1" }
+  function addresses_update_check_missing = 'modules/accela_construct/commands/records/addresses/update/check', object: addresses_update_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: addresses_update_check_missing, field_name: 'records_addresses_update_check_invalid_without_address'
+
+  assign addresses_update_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1", "address": { "city": "Pleasanton" } }
+  function addresses_update_check_ok = 'modules/accela_construct/commands/records/addresses/update/check', object: addresses_update_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: addresses_update_check_ok, field_name: 'records_addresses_update_check_valid_with_address'
+
+  assign addresses_update_build_input = { "record_id": "TEST-0000-00001", "id": "1", "address": { "city": "Pleasanton" } }
+  function addresses_update_build_output = 'modules/accela_construct/commands/records/addresses/update/build', object: addresses_update_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_update_build_output.path, expected: '/records/TEST-0000-00001/addresses/1', field_name: 'records_addresses_update_build_path'
+
+  function addresses_update_result = 'modules/accela_construct/commands/records/addresses/update', record_id: 'TEST-0000-00001', id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: addresses_update_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_update_result.error, expected: 'accela_validation_failed', field_name: 'records_addresses_update_returns_validation_failed_without_address'
+
+  assign addresses_delete_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function addresses_delete_check_missing = 'modules/accela_construct/commands/records/addresses/delete/check', object: addresses_delete_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: addresses_delete_check_missing, field_name: 'records_addresses_delete_check_invalid_without_ids'
+
+  assign addresses_delete_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "ids": "1" }
+  function addresses_delete_check_ok = 'modules/accela_construct/commands/records/addresses/delete/check', object: addresses_delete_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: addresses_delete_check_ok, field_name: 'records_addresses_delete_check_valid_with_ids'
+
+  assign addresses_delete_build_input = { "record_id": "TEST-0000-00001", "ids": "1,2" }
+  function addresses_delete_build_output = 'modules/accela_construct/commands/records/addresses/delete/build', object: addresses_delete_build_input
+  # build.liquid url_encodes the ids, so compare against url_encode's own
+  # output rather than assuming the comma stays literal
+  assign addresses_delete_expected_ids = addresses_delete_build_input.ids | url_encode
+  assign addresses_delete_expected_path = "/records/TEST-0000-00001/addresses/{{ addresses_delete_expected_ids }}"
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_delete_build_output.path, expected: addresses_delete_expected_path, field_name: 'records_addresses_delete_build_path'
+
+  function addresses_delete_result = 'modules/accela_construct/commands/records/addresses/delete', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: addresses_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_delete_result.error, expected: 'accela_validation_failed', field_name: 'records_addresses_delete_returns_validation_failed_without_ids'
+%}

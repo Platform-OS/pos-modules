@@ -1,0 +1,33 @@
+mutation accela_oauth_token_update(
+  $id: ID!
+  $access_token: String!
+  $refresh_token: String
+  $expires_at: Int!
+  $refresh_token_expires_at: Int
+) {
+  record_update(
+    id: $id
+    record: {
+      table: "modules/accela_construct/accela_oauth_token"
+      properties: [
+        { name: "access_token", value: $access_token }
+        { name: "refresh_token", value: $refresh_token }
+        { name: "expires_at", value_int: $expires_at }
+        {
+          name: "refresh_token_expires_at"
+          value_int: $refresh_token_expires_at
+        }
+      ]
+    }
+  ) {
+    id
+    created_at
+    updated_at
+    table
+
+    access_token: property(name: "access_token")
+    refresh_token: property(name: "refresh_token")
+    expires_at: property_int(name: "expires_at")
+    refresh_token_expires_at: property_int(name: "refresh_token_expires_at")
+  }
+}
