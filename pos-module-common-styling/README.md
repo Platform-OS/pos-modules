@@ -52,6 +52,18 @@ After installation, visit `/style-guide` on your instance. (Make sure you deploy
 
 ### Setup
 
+#### Quick start with the `install` generator
+
+The fastest way to wire things up is the bundled `install` generator. It asks which of the steps
+below you want done — layout wiring (`pos-app` class, `init` partial) and the required
+`escape_output_instead_of_sanitize` instance setting — and performs whichever you say yes to:
+
+```bash
+pos-cli generate run modules/common-styling/generators/install
+```
+
+Prefer to do it by hand, or want to understand what it's doing under the hood? The manual steps are below.
+
 1. **Install the module** using the [pos-cli](https://github.com/Platform-OS/pos-cli).
 
 2. **Include the following partial** into your [layout](https://documentation.platformos.com/developer-guide/pages/layouts)'s `<head>` section:

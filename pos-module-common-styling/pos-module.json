@@ -1,5 +1,8 @@
 {
   "machine_name": "common-styling",
   "version": "1.38.8",
-  "name": "platformOS common styling"
+  "name": "platformOS common styling",
+  "postInstall": {
+    "message": "common-styling installed.\n\nWire up your layout (pos-app class, init partial) and the required instance\nsetting in one interactive step:\n\n  pos-cli generate run modules/common-styling/generators/install\n\nPrefer to wire things up by hand? See the module README, Setup section, for the manual steps:\nhttps://github.com/Platform-OS/pos-modules/blob/master/pos-module-common-styling/README.md"
+  }
 }

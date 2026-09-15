@@ -1,0 +1,18 @@
+{
+  "name": "common-styling",
+  "version": "1.38.8",
+  "description": "Reusable CSS and JavaScript design system for platformOS.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Platform-OS/pos-module-common-styling.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Platform-OS/pos-module-common-styling/issues"
+  },
+  "homepage": "https://github.com/Platform-OS/pos-module-common-styling#readme",
+  "peerDependencies": {
+    "yeoman-generator": "^7.0.0"
+  }
+}
