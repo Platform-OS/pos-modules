@@ -1,10 +1,9 @@
-{% comment %}
-  modules/accela_construct/commands/records/related/create/check
+{% doc %}
   Validates the object built by build.liquid before it's sent to Accela,
   using pos-module-core's validation contract convention. Both fields
   checked here are genuinely Accela-required (not just this module's own
   sanity check) - see build.liquid's comment.
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign c = { "errors": {}, "valid": true }

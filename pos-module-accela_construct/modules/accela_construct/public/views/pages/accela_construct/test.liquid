@@ -1,12 +1,12 @@
 ---
 slug: accela_construct/test
 ---
-{% comment %}
+{% doc %}
   Manual smoke-test page for the module. Visit /accela_construct/test?module=Building
   once ACCELA_* constants are configured. Remove or protect this page
   (e.g. with an authorization_policy limiting it to admins) before
   shipping to production - it exposes raw Accela responses.
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign search_module = context.params.module | default: 'Building'

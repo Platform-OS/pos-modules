@@ -1,22 +1,18 @@
-{% comment %}
-  modules/accela_construct/accela_client/get_valid_token
+{% doc %}
+  @description Returns a valid Accela access token, transparently refreshing (or
+    obtaining a brand new one via the password grant) when the cached token
+    has expired. Persists the token in the accela_oauth_token table so it is
+    reused across requests instead of re-authenticating every call.
 
-  Returns a valid Accela access token, transparently refreshing (or
-  obtaining a brand new one via the password grant) when the cached token
-  has expired. Persists the token in the accela_oauth_token table so it is
-  reused across requests instead of re-authenticating every call.
-
-  Usage:
+    NOTE ON TOKEN LIFETIME: per Accela's docs (effective 2024-05-31), access
+    tokens expire in 15 minutes and refresh tokens in 8 hours. We refresh
+    60 seconds early to absorb clock drift/network latency.
+  @returns {string} access token, or '' (blank) if authentication failed -
+    callers MUST check for blank and surface an auth error rather than
+    sending a request with an empty Authorization header.
+  @example
     {% function access_token = 'modules/accela_construct/accela_client/get_valid_token' %}
-
-  Returns: String access token, or '' (blank) if authentication failed -
-  callers MUST check for blank and surface an auth error rather than
-  sending a request with an empty Authorization header.
-
-  NOTE ON TOKEN LIFETIME: per Accela's docs (effective 2024-05-31), access
-  tokens expire in 15 minutes and refresh tokens in 8 hours. We refresh
-  60 seconds early to absorb clock drift/network latency.
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   function token_record = 'modules/accela_construct/queries/accela_oauth_token/find'

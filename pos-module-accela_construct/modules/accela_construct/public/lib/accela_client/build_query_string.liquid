@@ -1,18 +1,12 @@
-{% comment %}
-  modules/accela_construct/accela_client/build_query_string
-
-  Joins a hash of query params into a URL query string, url-encoding each
-  value and skipping blank ones. Shared by every query wrapper that takes
-  optional filter params, instead of each one hand-rolling `&`-joining.
-
-  Params:
-    params - hash of param name => value (blank values are skipped)
-
-  Returns: "key1=val1&key2=val2", or '' if every value was blank.
-
-  Usage:
+{% doc %}
+  @description Joins a hash of query params into a URL query string, url-encoding each
+    value and skipping blank ones. Shared by every query wrapper that takes
+    optional filter params, instead of each one hand-rolling `&`-joining.
+  @param {object} params - hash of param name => value (blank values are skipped)
+  @returns {string} "key1=val1&key2=val2", or '' if every value was blank.
+  @example
     {% function qs = 'modules/accela_construct/accela_client/build_query_string', params: { "offset": 0, "limit": 25, "expand": expand } %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign qs = ''

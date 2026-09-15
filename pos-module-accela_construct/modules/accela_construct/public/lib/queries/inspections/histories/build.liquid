@@ -1,13 +1,8 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/histories/build
-
+{% doc %}
   Builds the request path for GET /v4/inspections/{inspectionIds}/histories.
-
-  Params:
-    object - Hash with `inspection_ids` (see inspections/histories.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `inspection_ids` (see inspections/histories.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/inspections/{{ object.inspection_ids | url_encode }}/histories"

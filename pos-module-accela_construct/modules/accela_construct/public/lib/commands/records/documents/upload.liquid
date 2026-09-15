@@ -1,63 +1,72 @@
-{% comment %}
-  modules/accela_construct/commands/records/documents/upload
-  Wraps: POST /v4/records/{recordId}/documents  (Accela "Create Record Documents")
-  Accela requires multipart/form-data with two parts: `uploadedFile`
-  (the binary) and `fileInfo` (a JSON string array of metadata).
+{% doc %}
+  @description Wraps POST /v4/records/{recordId}/documents (Accela "Create Record Documents").
 
-  *** VERIFY BEFORE PRODUCTION USE ***
-  platformOS API Call Notifications support a `post_multipart` request
-  type, but the exact Liquid syntax for attaching a raw file part inside
-  the notification template is not clearly documented. The current
-  implementation in public/api_calls/accela_post_multipart.liquid is a
-  best-effort scaffold - confirm against your platformOS instance/support
-  how binary file uploads should be represented in an API Call
-  Notification body (likely needs the file made available via a prior
-  file-upload mutation and referenced by URL/id rather than inlined).
+    Accela requires multipart/form-data with two parts: `uploadedFile`
+    (the binary) and `fileInfo` (a JSON string array of metadata).
 
-  Params:
-    record_id   - Record id (required)
-    file_field  - Raw file content or a reference to already-uploaded file data
-    file_name   - Original file name, e.g. "site_plan.pdf"
-    content_type- MIME type, e.g. "application/pdf" (required)
-    category    - optional, must match a value from documents/categories
-    description - optional description string
-    reference - optional hash `{ "id", "table" }` forwarded to
-      send.liquid - see send.liquid.
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid. Only meaningful when
-      `file_object_id`/`file_object_property` are also given (see below) -
-      otherwise this MULTIPART request still can't be retried, since raw
-      file bytes can't be carried through a background job.
-    file_object_id, file_object_property - optional, given together.
-      Identify a platformOS generic_object record and the file property
-      on it holding this upload's file content (already stored there by
-      an earlier upload step), as an alternative to relying on
-      `file_field`'s raw bytes surviving into a background retry.
-      Forwarded to send.liquid as `metadata.file_object_id`/
-      `metadata.file_object_property` - when both are present,
-      send.liquid re-downloads the file fresh from that generic_object
-      on every attempt (this call and any retries) instead of needing
-      the file content itself carried down the retry chain. This is what
-      makes `with_retries` viable for a MULTIPART upload - see
-      lib/accela_client/send.liquid.
+    *** VERIFY BEFORE PRODUCTION USE ***
+    platformOS API Call Notifications support a `post_multipart` request
+    type, but the exact Liquid syntax for attaching a raw file part inside
+    the notification template is not clearly documented. The current
+    implementation in public/api_calls/accela_post_multipart.liquid is a
+    best-effort scaffold - confirm against your platformOS instance/support
+    how binary file uploads should be represented in an API Call
+    Notification body (likely needs the file made available via a prior
+    file-upload mutation and referenced by URL/id rather than inlined).
 
-  MULTIPART requests are only retried when `file_object_id`/
-  `file_object_property` are given alongside `with_retries` - file
-  content otherwise can't be safely re-sent from a detached background
-  job (see lib/accela_client/send.liquid).
+    MULTIPART requests are only retried when `file_object_id`/
+    `file_object_property` are given alongside `with_retries` - file
+    content otherwise can't be safely re-sent from a detached background
+    job (see lib/accela_client/send.liquid).
 
-  Follows the pos-module-core build/check/execute command pattern (see
-  upload/{build,check}.liquid): build prepares the request URL and the
-  `fileInfo` body, check validates required params, and this file
-  executes the request itself once valid (rather than delegating to a
-  separate execute.liquid).
-
-  Usage:
+    Follows the pos-module-core build/check/execute command pattern (see
+    upload/{build,check}.liquid): build prepares the request URL and the
+    `fileInfo` body, check validates required params, and this file
+    executes the request itself once valid (rather than delegating to a
+    separate execute.liquid).
+  @param {string} record_id - Record id (required)
+  @param {string} [file_field] - Raw file content or a reference to already-uploaded file data
+  @param {string} file_name - Original file name, e.g. "site_plan.pdf"
+  @param {string} content_type - MIME type, e.g. "application/pdf" (required)
+  @param {string} [category] - must match a value from documents/categories
+  @param {string} [description] - description string
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded to
+    send.liquid - see send.liquid.
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid. Only meaningful when
+    `file_object_id`/`file_object_property` are also given (see below) -
+    otherwise this MULTIPART request still can't be retried, since raw
+    file bytes can't be carried through a background job.
+  @param {string} [file_object_id] - optional, given together with
+    file_object_property. Identify a platformOS generic_object record and
+    the file property on it holding this upload's file content (already
+    stored there by an earlier upload step), as an alternative to relying
+    on `file_field`'s raw bytes surviving into a background retry.
+    Forwarded to send.liquid as `metadata.file_object_id`/
+    `metadata.file_object_property` - when both are present,
+    send.liquid re-downloads the file fresh from that generic_object
+    on every attempt (this call and any retries) instead of needing
+    the file content itself carried down the retry chain. This is what
+    makes `with_retries` viable for a MULTIPART upload - see
+    lib/accela_client/send.liquid.
+  @param {string} [file_object_property] - optional, given together with
+    file_object_id. Identify a platformOS generic_object record and
+    the file property on it holding this upload's file content (already
+    stored there by an earlier upload step), as an alternative to relying
+    on `file_field`'s raw bytes surviving into a background retry.
+    Forwarded to send.liquid as `metadata.file_object_id`/
+    `metadata.file_object_property` - when both are present,
+    send.liquid re-downloads the file fresh from that generic_object
+    on every attempt (this call and any retries) instead of needing
+    the file content itself carried down the retry chain. This is what
+    makes `with_retries` viable for a MULTIPART upload - see
+    lib/accela_client/send.liquid.
+  @example
     {% function result = 'modules/accela_construct/commands/records/documents/upload',
        record_id: record_id, file_field: file_content, file_name: 'site_plan.pdf',
        content_type: 'application/pdf', description: 'Site plan' %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "record_id": record_id, "file_field": file_field, "file_name": file_name, "content_type": content_type, "category": category, "description": description }

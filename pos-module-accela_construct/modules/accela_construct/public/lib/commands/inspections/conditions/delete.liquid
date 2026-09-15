@@ -1,24 +1,20 @@
-{% comment %}
-  modules/accela_construct/commands/inspections/conditions/delete
-  Wraps: DELETE /v4/inspections/{inspectionId}/conditions/{ids}  (Accela "Delete Inspection Conditions")
+{% doc %}
+  @description Wraps DELETE /v4/inspections/{inspectionId}/conditions/{ids} (Accela "Delete Inspection Conditions").
 
-  Params:
-    inspection_id - Inspection id (required)
-    ids           - String, comma-separated condition id(s) (required)
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check/execute command pattern (see
-  delete/{build,check}.liquid): build prepares the request path, check
-  validates required params, and this file executes the request itself
-  once valid (rather than delegating to a separate execute.liquid).
-
-  Usage:
+    Follows the pos-module-core build/check/execute command pattern (see
+    delete/{build,check}.liquid): build prepares the request path, check
+    validates required params, and this file executes the request itself
+    once valid (rather than delegating to a separate execute.liquid).
+  @param {string} inspection_id - Inspection id (required)
+  @param {string} ids - comma-separated condition id(s) (required)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/commands/inspections/conditions/delete', inspection_id: inspection_id, ids: condition_ids %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "inspection_id": inspection_id, "ids": ids }

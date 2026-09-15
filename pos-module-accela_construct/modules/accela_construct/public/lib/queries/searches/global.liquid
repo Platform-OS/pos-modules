@@ -1,32 +1,29 @@
-{% comment %}
-  modules/accela_construct/queries/searches/global
-  Wraps: GET /v4/search/global  (Accela "Search All")
-  Unlike the other searches/* queries, this one is a plain GET with
-  query-string params only - Accela documents no request body for it.
+{% doc %}
+  @description Wraps GET /v4/search/global (Accela "Search All").
 
-  Params:
-    query   - optional search term
-    type    - optional, the type of entity to query
-    modules - optional comma-separated string, confines the search to
-              specific modules
-    offset  - optional, default 0
-    limit   - optional, default 25
-    sort     - optional, field name to sort by
-    direction - optional, "ASC" or "DESC" (Accela default is ASC)
-    with_retries - optional boolean, default false. When true, retries a
-              failed attempt in the background with increasing delay -
-              see lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-              to send.liquid - see send.liquid.
+    Unlike the other searches/* queries, this one is a plain GET with
+    query-string params only - Accela documents no request body for it.
 
-  Follows the pos-module-core build/check command pattern (see
-  global/{build,check}.liquid): build prepares the request path, check
-  validates required params (none for this endpoint - see check.liquid)
-  and this file executes the request itself once valid.
-
-  Usage:
+    Follows the pos-module-core build/check command pattern (see
+    global/{build,check}.liquid): build prepares the request path, check
+    validates required params (none for this endpoint - see check.liquid)
+    and this file executes the request itself once valid.
+  @param {string} [query] - optional search term
+  @param {string} [type] - optional, the type of entity to query
+  @param {string} [modules] - optional comma-separated string, confines the search to
+    specific modules
+  @param {number} [offset] - optional, default 0
+  @param {number} [limit] - optional, default 25
+  @param {string} [sort] - optional, field name to sort by
+  @param {string} [direction] - optional, "ASC" or "DESC" (Accela default is ASC)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay -
+    see lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/queries/searches/global', query: 'main street' %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "query": query, "type": type, "modules": modules, "offset": offset, "limit": limit, "sort": sort, "direction": direction }

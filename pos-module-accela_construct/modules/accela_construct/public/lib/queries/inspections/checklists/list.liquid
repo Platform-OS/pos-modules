@@ -1,23 +1,19 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/checklists/list
-  Wraps: GET /v4/inspections/{inspectionId}/checklists  (Accela "Get All Checklists")
+{% doc %}
+  @description Wraps GET /v4/inspections/{inspectionId}/checklists (Accela "Get All Checklists").
 
-  Params:
-    inspection_id - Inspection id (required)
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check command pattern (see
-  list/{build,check}.liquid): build prepares the request path, check
-  validates required params, and this file executes the request itself
-  once valid.
-
-  Usage:
+    Follows the pos-module-core build/check command pattern (see
+    list/{build,check}.liquid): build prepares the request path, check
+    validates required params, and this file executes the request itself
+    once valid.
+  @param {string} inspection_id - Inspection id (required)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/queries/inspections/checklists/list', inspection_id: inspection_id %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "inspection_id": inspection_id }

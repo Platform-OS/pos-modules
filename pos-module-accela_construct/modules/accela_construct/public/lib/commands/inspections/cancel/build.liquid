@@ -1,15 +1,10 @@
-{% comment %}
-  modules/accela_construct/commands/inspections/cancel/build
-
+{% doc %}
   Normalizes input and prepares the request for DELETE
   /v4/inspections/{ids}/cancel: the request path (relative to
   ACCELA_CONSTRUCT_BASE_URL). This request has no body.
-
-  Params:
-    ids - String, comma-separated inspection id(s) (required)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {string} ids - comma-separated inspection id(s) (required)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object = { "path": "/inspections/{{ ids | url_encode }}/cancel", ids: ids }

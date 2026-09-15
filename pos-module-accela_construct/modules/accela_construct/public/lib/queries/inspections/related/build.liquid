@@ -1,13 +1,8 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/related/build
-
+{% doc %}
   Builds the request path for GET /v4/inspections/{id}/related.
-
-  Params:
-    object - Hash with `id` (see inspections/related.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `id` (see inspections/related.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/inspections/{{ object.id | url_encode }}/related"

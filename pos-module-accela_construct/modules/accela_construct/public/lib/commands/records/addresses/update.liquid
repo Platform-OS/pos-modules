@@ -1,27 +1,23 @@
-{% comment %}
-  modules/accela_construct/commands/records/addresses/update
-  Wraps: PUT /v4/records/{recordId}/addresses/{id}  (Accela "Update Record Address")
+{% doc %}
+  @description Wraps PUT /v4/records/{recordId}/addresses/{id} (Accela "Update Record Address").
 
-  Params:
-    record_id - Record id (required)
-    id        - Address id (required)
-    address   - Hash of address fields to update (required by this module
-                as a sanity check - Accela's own docs mark every address
-                field Optional at the schema level)
-    with_retries - optional boolean, default false. When true, retries a
-                failed attempt in the background with increasing delay -
-                see lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check/execute command pattern (see
-  update/{build,check}.liquid): build prepares the request path/body,
-  check validates required params, and this file executes the request
-  itself once valid (rather than delegating to a separate execute.liquid).
-
-  Usage:
+    Follows the pos-module-core build/check/execute command pattern (see
+    update/{build,check}.liquid): build prepares the request path/body,
+    check validates required params, and this file executes the request
+    itself once valid (rather than delegating to a separate execute.liquid).
+  @param {string} record_id - Record id (required)
+  @param {string} id - Address id (required)
+  @param {object} address - Hash of address fields to update (required by this module
+    as a sanity check - Accela's own docs mark every address
+    field Optional at the schema level)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay -
+    see lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/commands/records/addresses/update', record_id: record_id, id: address_id, address: changes %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "record_id": record_id, "id": id, "address": address }

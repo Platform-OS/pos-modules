@@ -1,14 +1,9 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/available_dates/build
-
+{% doc %}
   Builds the request path for GET /v4/inspections/availableDates.
-
-  Params:
-    object - Hash with `type_id`, `record_id`, `start_date`, `offset`,
-             `limit`, `fields` (see inspections/available_dates.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `type_id`, `record_id`, `start_date`, `offset`,
+    `limit`, `fields` (see inspections/available_dates.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign qs_params = { "typeId": object.type_id, "recordId": object.record_id, "startDate": object.start_date, "offset": object.offset, "limit": object.limit, "fields": object.fields }

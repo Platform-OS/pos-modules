@@ -1,26 +1,21 @@
-{% comment %}
-  modules/accela_construct/queries/records/describe_create
-  Wraps: GET /v4/records/describe/create?type={type}
-  (Accela "Describe Required Record Attributes") - the authoritative,
-  per-agency, per-record-type list of required fields/elements. Call this
-  before records/create to build a valid payload.
+{% doc %}
+  @description Wraps GET /v4/records/describe/create?type={type} (Accela "Describe Required Record Attributes") - the authoritative,
+    per-agency, per-record-type list of required fields/elements. Call this
+    before records/create to build a valid payload.
 
-  Params:
-    type - record type string, e.g. "Building/Residential/Alteration/NA" (required)
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check command pattern (see
-  describe_create/{build,check}.liquid): build prepares the request path,
-  check validates required params, and this file executes the request
-  itself once valid.
-
-  Usage:
+    Follows the pos-module-core build/check command pattern (see
+    describe_create/{build,check}.liquid): build prepares the request path,
+    check validates required params, and this file executes the request
+    itself once valid.
+  @param {string} type - record type string, e.g. "Building/Residential/Alteration/NA" (required)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/queries/records/describe_create', type: 'Building/Residential/Alteration/NA' %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "type": type }

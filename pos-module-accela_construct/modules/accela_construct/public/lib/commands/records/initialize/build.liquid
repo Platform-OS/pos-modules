@@ -1,15 +1,10 @@
-{% comment %}
-  modules/accela_construct/commands/records/initialize/build
-
+{% doc %}
   Normalizes input and prepares the request for POST /v4/records/initialize:
   the request path (relative to ACCELA_CONSTRUCT_BASE_URL) and the JSON-serialized
   record body.
-
-  Params:
-    object - Hash with `record` (see records/initialize.liquid)
-
-  Returns object with `path` and `payload` added.
-{% endcomment %}
+  @param {object} object - Hash with `record` (see records/initialize.liquid)
+  @returns {object} object with `path` and `payload` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = '/records/initialize'

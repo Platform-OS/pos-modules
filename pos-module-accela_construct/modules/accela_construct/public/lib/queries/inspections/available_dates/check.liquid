@@ -1,10 +1,9 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/available_dates/check
+{% doc %}
   Validates the object built by build.liquid before it's sent to Accela,
   using pos-module-core's validation contract convention. type_id/record_id/
   start_date are Accela-required for this endpoint even though they're
   query-string params rather than path segments.
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign c = { "errors": {}, "valid": true }

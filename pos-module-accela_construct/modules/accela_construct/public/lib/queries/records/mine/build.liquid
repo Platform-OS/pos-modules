@@ -1,13 +1,9 @@
-{% comment %}
-  modules/accela_construct/queries/records/mine/build
-
+{% doc %}
   Builds the request path for GET /v4/records/mine.
-
-  Params:
-    object - Hash with `offset`, `limit`, `fields` (see records/mine.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `offset`, `limit`, `fields` (see
+    records/mine.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign qs_params = { "offset": object.offset, "limit": object.limit, "fields": object.fields }

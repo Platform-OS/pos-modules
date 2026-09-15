@@ -1,28 +1,24 @@
-{% comment %}
-  modules/accela_construct/commands/records/additional/update
-  Wraps: PUT /v4/records/{recordId}/additional  (Accela "Update Additional Details")
+{% doc %}
+  @description Wraps PUT /v4/records/{recordId}/additional (Accela "Update Additional Details").
 
-  Params:
-    record_id  - Record id (required)
-    additional - Hash of additional-detail fields, e.g.
-                 { "buildingCount": 2, "estimatedValue": 150000 }. Every
-                 field Accela documents here is Optional except `recordId`
-                 itself, which build.liquid populates automatically from
-                 `record_id` - callers never need to pass it twice.
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check/execute command pattern (see
-  update/{build,check}.liquid): build prepares the request path/body,
-  check validates required params, and this file executes the request
-  itself once valid (rather than delegating to a separate execute.liquid).
-
-  Usage:
+    Follows the pos-module-core build/check/execute command pattern (see
+    update/{build,check}.liquid): build prepares the request path/body,
+    check validates required params, and this file executes the request
+    itself once valid (rather than delegating to a separate execute.liquid).
+  @param {string} record_id - Record id (required)
+  @param {object} additional - Hash of additional-detail fields, e.g.
+    { "buildingCount": 2, "estimatedValue": 150000 }. Every
+    field Accela documents here is Optional except `recordId`
+    itself, which build.liquid populates automatically from
+    `record_id` - callers never need to pass it twice.
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/commands/records/additional/update', record_id: record_id, additional: additional %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "record_id": record_id, "additional": additional }

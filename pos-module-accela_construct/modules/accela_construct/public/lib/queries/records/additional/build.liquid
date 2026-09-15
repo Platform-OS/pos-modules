@@ -1,13 +1,8 @@
-{% comment %}
-  modules/accela_construct/queries/records/additional/build
-
+{% doc %}
   Builds the request path for GET /v4/records/{recordId}/additional.
-
-  Params:
-    object - Hash with `record_id` (see records/additional.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `record_id` (see records/additional.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/records/{{ object.record_id | url_encode }}/additional"

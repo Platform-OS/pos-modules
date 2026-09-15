@@ -1,12 +1,10 @@
 {% doc %}
+  @description These are contract/shape smoke tests, not path-correctness tests - they
+    assert graceful failure in the absence of live Accela credentials (the
+    expected state for automated test runs); with real credentials
+    configured some assertions here would need to expect success instead.
   @param {object} contract - test contract object tracking results
 {% enddoc %}
-{% comment %}
-  These are contract/shape smoke tests, not path-correctness tests - they
-  assert graceful failure in the absence of live Accela credentials (the
-  expected state for automated test runs); with real credentials
-  configured some assertions here would need to expect success instead.
-{% endcomment %}
 {% liquid
   function result = 'modules/accela_construct/queries/records/get', ids: 'TEST-0000-00001'
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'records_get_success'

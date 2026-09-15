@@ -1,32 +1,29 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/all
-  Wraps: GET /v4/inspections  (Accela "Get All Inspections")
+{% doc %}
+  @description Wraps GET /v4/inspections (Accela "Get All Inspections").
 
-  General filterable inspection listing, not scoped to a single record -
-  see lib/queries/records/inspections/list for GET /v4/records/{recordId}/inspections.
+    General filterable inspection listing, not scoped to a single record -
+    see lib/queries/records/inspections/list for GET /v4/records/{recordId}/inspections.
 
-  Params (all optional):
-    module              - string, filter by module
-    types                - comma-separated inspection type values
-    scheduled_date_from  - string date
-    scheduled_date_to    - string date
-    inspector_ids        - comma-separated inspector ids
-    district_ids         - comma-separated district ids
-    offset, limit        - pagination
-    with_retries         - optional boolean, default false. When true,
-      retries a failed attempt in the background with increasing delay -
-      see lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check command pattern (see
-  all/{build,check}.liquid): build prepares the request path, check
-  validates required params (none for this endpoint - see check.liquid)
-  and this file executes the request itself once valid.
-
-  Usage:
+    Follows the pos-module-core build/check command pattern (see
+    all/{build,check}.liquid): build prepares the request path, check
+    validates required params (none for this endpoint - see check.liquid)
+    and this file executes the request itself once valid.
+  @param {string} [module] - string, filter by module
+  @param {string} [types] - comma-separated inspection type values
+  @param {string} [scheduled_date_from] - string date
+  @param {string} [scheduled_date_to] - string date
+  @param {string} [inspector_ids] - comma-separated inspector ids
+  @param {string} [district_ids] - comma-separated district ids
+  @param {number} [offset] - pagination
+  @param {number} [limit] - pagination
+  @param {boolean} [with_retries] - default false. When true,
+    retries a failed attempt in the background with increasing delay -
+    see lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/queries/inspections/all', module: 'Building' %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "module": module, "types": types, "scheduled_date_from": scheduled_date_from, "scheduled_date_to": scheduled_date_to, "inspector_ids": inspector_ids, "district_ids": district_ids, "offset": offset, "limit": limit }

@@ -1,14 +1,9 @@
-{% comment %}
-  modules/accela_construct/commands/records/delete/build
-
+{% doc %}
   Normalizes input and prepares the request for DELETE /v4/records/{ids}:
   the request path (relative to ACCELA_CONSTRUCT_BASE_URL). This request has no body.
-
-  Params:
-    object - Hash with `ids` (see records/delete.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `ids` (see records/delete.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/records/{{ object.ids | url_encode }}"

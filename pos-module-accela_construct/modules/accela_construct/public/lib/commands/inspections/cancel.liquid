@@ -1,27 +1,23 @@
-{% comment %}
-  modules/accela_construct/commands/inspections/cancel
-  Wraps: DELETE /v4/inspections/{ids}/cancel  (Accela "Cancel Inspections")
+{% doc %}
+  @description Wraps DELETE /v4/inspections/{ids}/cancel (Accela "Cancel Inspections").
 
-  Params:
-    ids - String, comma-separated inspection id(s) (required)
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
+    NOTE: Accela returns HTTP 200 with a per-id result array
+    [{ code, id, isSuccess, message }] even for partial failures - always
+    check result.body.result[].isSuccess, don't rely on the HTTP status alone.
 
-  NOTE: Accela returns HTTP 200 with a per-id result array
-  [{ code, id, isSuccess, message }] even for partial failures - always
-  check result.body.result[].isSuccess, don't rely on the HTTP status alone.
-
-  Follows the pos-module-core build/check/execute command pattern (see
-  cancel/{build,check}.liquid): build prepares the request URL, check
-  validates required params, and this file executes the request itself
-  once valid (rather than delegating to a separate execute.liquid).
-
-  Usage:
+    Follows the pos-module-core build/check/execute command pattern (see
+    cancel/{build,check}.liquid): build prepares the request URL, check
+    validates required params, and this file executes the request itself
+    once valid (rather than delegating to a separate execute.liquid).
+  @param {string} ids - comma-separated inspection id(s) (required)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/commands/inspections/cancel', ids: inspection_id %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   function object = 'modules/accela_construct/commands/inspections/cancel/build', ids: ids

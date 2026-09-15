@@ -1,25 +1,22 @@
-{% comment %}
-  modules/accela_construct/commands/inspections/result
-  Wraps: PUT /v4/inspections/{id}/result  (Accela "Result Inspection")
-  Agency-app auth only (not available to citizen/CivicID accounts).
+{% doc %}
+  @description Wraps PUT /v4/inspections/{id}/result (Accela "Result Inspection").
 
-  Params:
-    id            - Inspection id (required)
-    inspection_result - Hash, e.g. { "status": { "value": "Passed", "text": "Passed" }, "resultComment": "All requirements met." }
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
+    Agency-app auth only (not available to citizen/CivicID accounts).
 
-  Follows the pos-module-core build/check/execute command pattern (see
-  result/{build,check}.liquid): build prepares the request URL/body,
-  check validates required params, and this file executes the request
-  itself once valid (rather than delegating to a separate execute.liquid).
-
-  Usage:
+    Follows the pos-module-core build/check/execute command pattern (see
+    result/{build,check}.liquid): build prepares the request URL/body,
+    check validates required params, and this file executes the request
+    itself once valid (rather than delegating to a separate execute.liquid).
+  @param {string} id - Inspection id (required)
+  @param {object} inspection_result - Hash, e.g. { "status": { "value": "Passed", "text": "Passed" }, "resultComment": "All requirements met." }
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/commands/inspections/result', id: inspection_id, inspection_result: inspection_result %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "id": id, "inspection_result": inspection_result }

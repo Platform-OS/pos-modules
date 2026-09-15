@@ -1,14 +1,9 @@
-{% comment %}
-  modules/accela_construct/queries/searches/global/build
-
+{% doc %}
   Builds the request path for GET /v4/search/global.
-
-  Params:
-    object - Hash with `query`, `type`, `modules`, `offset`, `limit`,
-             `sort`, `direction` (see searches/global.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `query`, `type`, `modules`, `offset`, `limit`,
+    `sort`, `direction` (see searches/global.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object.offset = object.offset | default: 0

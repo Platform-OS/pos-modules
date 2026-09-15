@@ -1,13 +1,8 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/get/build
-
+{% doc %}
   Builds the request path for GET /v4/inspections/{ids}.
-
-  Params:
-    object - Hash with `ids`, `fields` (see inspections/get.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `ids`, `fields` (see inspections/get.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign qs_params = { "fields": object.fields }

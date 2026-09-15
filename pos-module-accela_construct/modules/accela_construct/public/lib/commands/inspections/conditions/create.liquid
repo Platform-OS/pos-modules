@@ -1,27 +1,23 @@
-{% comment %}
-  modules/accela_construct/commands/inspections/conditions/create
-  Wraps: POST /v4/inspections/{inspectionId}/conditions  (Accela "Create Inspection Standard Conditions")
+{% doc %}
+  @description Wraps POST /v4/inspections/{inspectionId}/conditions (Accela "Create Inspection Standard Conditions").
 
-  Params:
-    inspection_id - Inspection id (required)
-    condition     - Hash of condition fields (required by this module's own
-                    interface contract - Accela's documented request body
-                    fields for this endpoint are all individually optional;
-                    not independently verified against a live sandbox)
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check/execute command pattern (see
-  create/{build,check}.liquid): build prepares the request path/body,
-  check validates required params, and this file executes the request
-  itself once valid (rather than delegating to a separate execute.liquid).
-
-  Usage:
+    Follows the pos-module-core build/check/execute command pattern (see
+    create/{build,check}.liquid): build prepares the request path/body,
+    check validates required params, and this file executes the request
+    itself once valid (rather than delegating to a separate execute.liquid).
+  @param {string} inspection_id - Inspection id (required)
+  @param {object} condition - Hash of condition fields (required by this module's own
+    interface contract - Accela's documented request body
+    fields for this endpoint are all individually optional;
+    not independently verified against a live sandbox)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/commands/inspections/conditions/create', inspection_id: inspection_id, condition: condition %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "inspection_id": inspection_id, "condition": condition }

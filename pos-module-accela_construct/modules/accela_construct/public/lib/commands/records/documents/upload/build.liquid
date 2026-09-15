@@ -1,17 +1,12 @@
-{% comment %}
-  modules/accela_construct/commands/records/documents/upload/build
-
+{% doc %}
   Normalizes input and prepares the request for POST
   /v4/records/{recordId}/documents: the request path (relative to
   ACCELA_CONSTRUCT_BASE_URL) and the `fileInfo` JSON body Accela expects alongside
   the uploaded file part.
-
-  Params:
-    object - Hash with `record_id`, `file_name`, `content_type`, and
-             optional `category`/`description` (see documents/upload.liquid)
-
-  Returns object with `path` and `file_info` added.
-{% endcomment %}
+  @param {object} object - Hash with `record_id`, `file_name`, `content_type`, and
+    optional `category`/`description` (see documents/upload.liquid)
+  @returns {object} object with `path` and `file_info` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/records/{{ object.record_id | url_encode }}/documents"

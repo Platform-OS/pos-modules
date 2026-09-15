@@ -1,14 +1,9 @@
-{% comment %}
-  modules/accela_construct/queries/records/search/build
-
+{% doc %}
   Builds the request path and payload for POST /v4/search/records.
-
-  Params:
-    object - Hash with `criteria`, `offset`, `limit`, `expand`, `fields`
-             (see records/search.liquid)
-
-  Returns object with `path` and `payload` added.
-{% endcomment %}
+  @param {object} object - Hash with `criteria`, `offset`, `limit`, `expand`, `fields`
+    (see records/search.liquid)
+  @returns {object} object with `path` and `payload` added.
+{% enddoc %}
 
 {% liquid
   assign object.offset = object.offset | default: 0

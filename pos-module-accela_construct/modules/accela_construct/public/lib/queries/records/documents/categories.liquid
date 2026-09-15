@@ -1,26 +1,21 @@
-{% comment %}
-  modules/accela_construct/queries/records/documents/categories
-  Wraps: GET /v4/records/{recordId}/documentCategories
-  (Accela "Get Document Categories for Record") - document categories are
-  agency-configured, not a fixed enum; look them up before uploading so
-  fileInfo.category matches an accepted value.
+{% doc %}
+  @description Wraps GET /v4/records/{recordId}/documentCategories (Accela "Get Document Categories for Record") - document categories are
+    agency-configured, not a fixed enum; look them up before uploading so
+    fileInfo.category matches an accepted value.
 
-  Params:
-    record_id - Record id (required)
-    with_retries - optional boolean, default false. When true, retries a
-      failed attempt in the background with increasing delay - see
-      lib/accela_client/send.liquid.
-    reference - optional hash `{ "id", "table" }` forwarded
-      to send.liquid - see send.liquid.
-
-  Follows the pos-module-core build/check command pattern (see
-  categories/{build,check}.liquid): build prepares the request path, check
-  validates required params, and this file executes the request itself
-  once valid.
-
-  Usage:
+    Follows the pos-module-core build/check command pattern (see
+    categories/{build,check}.liquid): build prepares the request path, check
+    validates required params, and this file executes the request itself
+    once valid.
+  @param {string} record_id - Record id (required)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
     {% function result = 'modules/accela_construct/queries/records/documents/categories', record_id: record_id %}
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign object = { "errors": {}, "valid": true, "record_id": record_id }

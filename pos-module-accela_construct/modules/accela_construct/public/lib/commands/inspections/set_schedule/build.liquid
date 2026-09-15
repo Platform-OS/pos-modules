@@ -1,15 +1,10 @@
-{% comment %}
-  modules/accela_construct/commands/inspections/set_schedule/build
-
+{% doc %}
   Normalizes input and prepares the request for PUT
   /v4/inspections/{id}/schedule: the request path (with the inspection
   id) and the JSON-serialized inspection body.
-
-  Params:
-    object - Hash with `id` and `inspection` (see set_schedule.liquid)
-
-  Returns object with `path` and `payload` added.
-{% endcomment %}
+  @param {object} object - Hash with `id` and `inspection` (see set_schedule.liquid)
+  @returns {object} object with `path` and `payload` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/inspections/{{ object.id | url_encode }}/schedule"

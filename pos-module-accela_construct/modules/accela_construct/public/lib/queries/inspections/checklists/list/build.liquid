@@ -1,13 +1,9 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/checklists/list/build
-
+{% doc %}
   Builds the request path for GET /v4/inspections/{inspectionId}/checklists.
-
-  Params:
-    object - Hash with `inspection_id` (see inspections/checklists/list.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `inspection_id` (see
+    inspections/checklists/list.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/checklists"

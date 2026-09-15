@@ -1,8 +1,7 @@
-{% comment %}
-  modules/accela_construct/queries/inspections/histories/check
+{% doc %}
   Validates the object built by build.liquid before it's sent to Accela,
   using pos-module-core's validation contract convention.
-{% endcomment %}
+{% enddoc %}
 
 {% liquid
   assign c = { "errors": {}, "valid": true }

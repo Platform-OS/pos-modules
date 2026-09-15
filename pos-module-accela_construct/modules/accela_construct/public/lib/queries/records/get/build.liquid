@@ -1,13 +1,8 @@
-{% comment %}
-  modules/accela_construct/queries/records/get/build
-
+{% doc %}
   Builds the request path for GET /v4/records/{ids}.
-
-  Params:
-    object - Hash with `ids`, `expand`, `fields` (see records/get.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `ids`, `expand`, `fields` (see records/get.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign qs_params = { "expand": object.expand, "fields": object.fields }

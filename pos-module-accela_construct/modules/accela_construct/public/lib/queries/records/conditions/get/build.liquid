@@ -1,13 +1,9 @@
-{% comment %}
-  modules/accela_construct/queries/records/conditions/get/build
-
+{% doc %}
   Builds the request path for GET /v4/records/{recordId}/conditions/{id}.
-
-  Params:
-    object - Hash with `record_id`, `id` (see records/conditions/get.liquid)
-
-  Returns object with `path` added.
-{% endcomment %}
+  @param {object} object - Hash with `record_id`, `id` (see
+    records/conditions/get.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
 
 {% liquid
   assign object.path = "/records/{{ object.record_id | url_encode }}/conditions/{{ object.id | url_encode }}"

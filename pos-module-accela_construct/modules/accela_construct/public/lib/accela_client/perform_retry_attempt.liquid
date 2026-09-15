@@ -1,30 +1,25 @@
-{% comment %}
-  modules/accela_construct/accela_client/perform_retry_attempt
-
-  Runs one retry attempt from inside the background job scheduled by
-  `schedule_retry.liquid`. Looks up the original method/path/payload/caller
-  from the accela_request row (`data.request_id`) via `queries/accela_request/get`
-  rather than having them passed down through the chain, then re-sends
-  the request via `send.liquid` - reconstructing `reference` from the row's
-  `reference_id`/`reference_schema` (the flat columns `log_request.liquid`
-  stored them as on attempt 1) so a retried success still publishes a
-  `caller`/`reference`-complete `accela_construct_request_succeeded` event,
-  the same as the original synchronous attempt (never with `with_retries: true` itself -
-  this file owns the retry loop explicitly, rather than letting
-  send.liquid re-trigger its own scheduling on top of this one). On
-  success, logs and stops. On failure, logs and either schedules the next
-  attempt (if `retry_number < data.max_retries`) or gives up.
-
-  Params:
-    data - Hash with `request_id`, `attempt_number`- the exact shape `schedule_retry.liquid`
-           builds and passes as this function's `data` argument via
-           `{% background %}`.
-
-  Returns the attempt's result hash, or nil if the accela_request row
-  couldn't be found (see below) - either way, nothing reads the return
-  value, since this runs detached from whatever request originally
-  triggered the retry chain.
-{% endcomment %}
+{% doc %}
+  @description Runs one retry attempt from inside the background job scheduled by
+    `schedule_retry.liquid`. Looks up the original method/path/payload/caller
+    from the accela_request row (`data.request_id`) via `queries/accela_request/get`
+    rather than having them passed down through the chain, then re-sends
+    the request via `send.liquid` - reconstructing `reference` from the row's
+    `reference_id`/`reference_schema` (the flat columns `log_request.liquid`
+    stored them as on attempt 1) so a retried success still publishes a
+    `caller`/`reference`-complete `accela_construct_request_succeeded` event,
+    the same as the original synchronous attempt (never with `with_retries: true` itself -
+    this file owns the retry loop explicitly, rather than letting
+    send.liquid re-trigger its own scheduling on top of this one). On
+    success, logs and stops. On failure, logs and either schedules the next
+    attempt (if `retry_number < data.max_retries`) or gives up.
+  @param {object} data - Hash with `request_id`, `attempt_number`- the exact shape `schedule_retry.liquid`
+    builds and passes as this function's `data` argument via
+    `{% background %}`.
+  @returns {object} the attempt's result hash, or nil if the accela_request row
+    couldn't be found (see below) - either way, nothing reads the return
+    value, since this runs detached from whatever request originally
+    triggered the retry chain.
+{% enddoc %}
 
 {% liquid
   assign retry_number = data.attempt_number | minus: 1
