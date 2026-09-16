@@ -2,10 +2,13 @@ import Generator from 'yeoman-generator';
 import fs from 'fs';
 import path from 'path';
 
+const ESCAPE_FLAG = 'escape_output_instead_of_sanitize: true';
+const ESCAPE_FLAG_CONFIGURED_REGEX = /escape_output_instead_of_sanitize\s*:\s*true\b/;
+
 const MANUAL_ESCAPE_STEP = `Add this to app/config.yml yourself (see README Setup step 4):
 
 ---
-escape_output_instead_of_sanitize: true
+${ESCAPE_FLAG}
 ---`;
 
 export default class extends Generator {
@@ -22,8 +25,8 @@ export default class extends Generator {
       : [];
 
     const configPath = this.destinationPath('app/config.yml');
-    this.escapeAlreadyConfigured = fs.existsSync(configPath)
-      && /escape_output_instead_of_sanitize\s*:/.test(fs.readFileSync(configPath, 'utf8'));
+    this.configContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : null;
+    this.escapeAlreadyConfigured = this.configContent !== null && ESCAPE_FLAG_CONFIGURED_REGEX.test(this.configContent);
   }
 
   async prompting() {
@@ -66,12 +69,12 @@ export default class extends Generator {
   }
 
   writing() {
+    let layoutSetupDone = false;
+
     if (this.layoutFiles.length > 0) {
       const selected = this.answers.layoutsToPatch || [];
-      if (selected.length === 0) {
-        console.log('Skipped layout setup — see README Setup steps 2-3 for the manual snippet.');
-      }
       selected.forEach((file) => this._patchLayout(file));
+      layoutSetupDone = selected.length > 0;
     } else if (this.answers.createLayout) {
       this.fs.copyTpl(
         this.templatePath('./views/layouts/application.liquid'),
@@ -79,7 +82,10 @@ export default class extends Generator {
         { reset: this.answers.reset }
       );
       console.log('Layout generated: app/views/layouts/application.liquid');
-    } else {
+      layoutSetupDone = true;
+    }
+
+    if (!layoutSetupDone) {
       console.log('Skipped layout setup — see README Setup steps 2-3 for the manual snippet.');
     }
 
@@ -101,9 +107,13 @@ export default class extends Generator {
     if (htmlTagMatch && !/\bpos-app\b/.test(htmlTagMatch[1])) {
       const attrs = htmlTagMatch[1];
       const classMatch = attrs.match(/class=(["'])(.*?)\1/i);
-      const newAttrs = classMatch
-        ? attrs.replace(classMatch[0], `class=${classMatch[1]}${classMatch[2]} pos-app${classMatch[1]}`)
-        : `${attrs} class="pos-app"`;
+      let newAttrs;
+      if (classMatch) {
+        const quote = classMatch[1];
+        newAttrs = attrs.replace(classMatch[0], `class=${quote}${classMatch[2]} pos-app${quote}`);
+      } else {
+        newAttrs = `${attrs} class="pos-app"`;
+      }
       content = content.replace(htmlTagMatch[0], `<html${newAttrs}>`);
       changed = true;
     }
@@ -127,19 +137,17 @@ export default class extends Generator {
 
   _ensureEscapeConfig() {
     const configPath = this.destinationPath('app/config.yml');
-    const flag = 'escape_output_instead_of_sanitize: true';
 
-    if (!fs.existsSync(configPath)) {
+    if (this.configContent === null) {
       fs.mkdirSync(path.dirname(configPath), { recursive: true });
-      fs.writeFileSync(configPath, `---\n${flag}\n---\n`);
+      fs.writeFileSync(configPath, `---\n${ESCAPE_FLAG}\n---\n`);
       console.log('Created app/config.yml with escape_output_instead_of_sanitize: true');
       return;
     }
 
-    const content = fs.readFileSync(configPath, 'utf8');
-    const updated = /^---\s*\n/.test(content)
-      ? content.replace(/^---\s*\n/, `---\n${flag}\n`)
-      : `---\n${flag}\n---\n\n${content}`;
+    const updated = /^---\s*\n/.test(this.configContent)
+      ? this.configContent.replace(/^---\s*\n/, `---\n${ESCAPE_FLAG}\n`)
+      : `---\n${ESCAPE_FLAG}\n${this.configContent}`;
 
     fs.writeFileSync(configPath, updated);
     console.log('Updated app/config.yml: escape_output_instead_of_sanitize is now true');
