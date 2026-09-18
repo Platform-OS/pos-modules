@@ -4,9 +4,10 @@ request_type: POST
 format: http
 enabled: true
 trigger_condition: true
-request_headers: '{
-  "Content-Type": "application/json"
-}'
+request_headers: >
+  {
+    "Content-Type": "application/json"
+  }
 ---
 {
   "secret": {{ data.secret | json }},
