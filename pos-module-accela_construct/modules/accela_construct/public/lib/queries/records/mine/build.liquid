@@ -1,0 +1,18 @@
+{% doc %}
+  Builds the request path for GET /v4/records/mine.
+  @param {object} object - Hash with `offset`, `limit`, `fields` (see
+    records/mine.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
+
+{% liquid
+  assign qs_params = { "offset": object.offset, "limit": object.limit, "fields": object.fields }
+  function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
+
+  assign object.path = '/records/mine'
+  if qs != blank
+    assign object.path = "{{ object.path }}?{{ qs }}"
+  endif
+
+  return object
+%}

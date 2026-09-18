@@ -1,0 +1,11 @@
+{% doc %}
+  No required params for this endpoint - every filter Accela documents
+  for "Get All Records" is individually optional. Kept for structural
+  consistency with the build/check split used across all queries.
+{% enddoc %}
+
+{% liquid
+  assign object.valid = true
+  assign object.errors = {}
+  return object
+%}

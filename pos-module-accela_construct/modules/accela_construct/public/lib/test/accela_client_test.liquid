@@ -1,0 +1,49 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  # modules/accela_construct/accela_client/error_result
+
+  function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_something_failed'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, value: result.success, field_name: 'error_result_without_errors_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.status, expected: null, field_name: 'error_result_without_errors_status'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.error, expected: 'accela_something_failed', field_name: 'error_result_without_errors_message'
+  function contract = 'modules/tests/assertions/not_presence', contract: contract, object: result, field_name: 'errors'
+
+  assign field_errors = { "record": ["cannot be blank"] }
+  function result_with_errors = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: field_errors
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: result_with_errors, field_name: 'errors'
+  function contract = 'modules/tests/assertions/object_contains_object', contract: contract, given: result_with_errors, contains: { "success": false, "error": "accela_validation_failed" }, field_name: 'error_result_with_errors_shape'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result_with_errors.errors.record.first, expected: 'cannot be blank', field_name: 'error_result_with_errors_content'
+
+  # caller is log-only (see error_result.liquid's {% log %} call) - it
+  # never appears in the returned envelope, so this only asserts that
+  # passing it doesn't change the envelope shape, not that logging happened
+  function result_with_caller = 'modules/accela_construct/accela_client/error_result', error: 'accela_something_failed', caller: 'modules/accela_construct/queries/records/get'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result_with_caller.error, expected: 'accela_something_failed', field_name: 'error_result_with_caller_unchanged_envelope'
+  function contract = 'modules/tests/assertions/not_presence', contract: contract, object: result_with_caller, field_name: 'caller'
+
+  # modules/accela_construct/accela_client/build_query_string
+
+  assign all_blank_params = { "offset": null, "fields": "" }
+  function qs_blank = 'modules/accela_construct/accela_client/build_query_string', params: all_blank_params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: qs_blank, expected: '', field_name: 'build_query_string_all_blank_returns_empty'
+
+  assign single_param = { "offset": 0, "limit": null }
+  function qs_single = 'modules/accela_construct/accela_client/build_query_string', params: single_param
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: qs_single, expected: 'offset=0', field_name: 'build_query_string_single_param_no_ampersand'
+
+  assign multi_params = { "offset": 0, "limit": 25, "fields": null }
+  function qs_multi = 'modules/accela_construct/accela_client/build_query_string', params: multi_params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: qs_multi, expected: 'offset=0&limit=25', field_name: 'build_query_string_skips_blank_joins_present'
+
+  # compares against the `url_encode` filter's own output rather than a
+  # hardcoded escape sequence, since the exact percent-encoding of spaces
+  # vs "+" isn't something this module asserts an opinion on elsewhere
+  assign raw_value = 'name,type description'
+  assign expected_encoded_value = raw_value | url_encode
+  assign encode_params = { "fields": raw_value }
+  function qs_encoded = 'modules/accela_construct/accela_client/build_query_string', params: encode_params
+  assign expected_qs = "fields={{ expected_encoded_value }}"
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: qs_encoded, expected: expected_qs, field_name: 'build_query_string_url_encodes_values'
+%}

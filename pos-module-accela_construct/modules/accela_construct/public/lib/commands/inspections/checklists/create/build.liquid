@@ -1,0 +1,13 @@
+{% doc %}
+  Normalizes input and prepares the request for POST
+  /v4/inspections/{inspectionId}/checklists: the request path and the
+  JSON-serialized checklist body.
+  @param {object} object - Hash with `inspection_id` and `checklist` (see create.liquid)
+  @returns {object} object with `path` and `payload` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/checklists"
+  assign object.payload = object.checklist | json
+  return object
+%}

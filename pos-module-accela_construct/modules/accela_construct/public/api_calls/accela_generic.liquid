@@ -1,0 +1,17 @@
+---
+name: accela_generic
+delay: '0'
+format: https
+request_headers: >
+  {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "x-accela-appid": "{{ data.app_id }}",
+    "Authorization": "{{ data.access_token }}"
+  }
+request_type: "{{ data.request_type }}"
+to: >
+  {% function accela_base_url = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_BASE_URL' %}
+  {{ accela_base_url }}{{ data.path }}
+---
+{{ data.payload  }}

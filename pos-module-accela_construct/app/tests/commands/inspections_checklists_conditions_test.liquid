@@ -1,0 +1,95 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  # modules/accela_construct/commands/inspections/checklists/create
+
+  assign checklist_create_missing = { "errors": {}, "valid": true, "inspection_id": "1001" }
+  function checklist_create_missing = 'modules/accela_construct/commands/inspections/checklists/create/check', object: checklist_create_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: checklist_create_missing, field_name: 'inspections_checklists_create_check_invalid_without_checklist'
+
+  assign checklist_create_ok = { "errors": {}, "valid": true, "inspection_id": "1001", "checklist": { "name": "Site Visit" } }
+  function checklist_create_ok = 'modules/accela_construct/commands/inspections/checklists/create/check', object: checklist_create_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: checklist_create_ok, field_name: 'inspections_checklists_create_check_valid_with_all_required'
+
+  assign checklist_create_build_input = { "inspection_id": "1001", "checklist": { "name": "Site Visit" } }
+  function checklist_create_built = 'modules/accela_construct/commands/inspections/checklists/create/build', object: checklist_create_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: checklist_create_built.path, expected: '/inspections/1001/checklists', field_name: 'inspections_checklists_create_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: checklist_create_built, field_name: 'payload'
+
+  function checklist_create_result = 'modules/accela_construct/commands/inspections/checklists/create', inspection_id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: checklist_create_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: checklist_create_result.error, expected: 'accela_validation_failed', field_name: 'inspections_checklists_create_without_checklist_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/checklists/delete
+
+  assign checklist_delete_missing = { "errors": {}, "valid": true, "inspection_id": "1001" }
+  function checklist_delete_missing = 'modules/accela_construct/commands/inspections/checklists/delete/check', object: checklist_delete_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: checklist_delete_missing, field_name: 'inspections_checklists_delete_check_invalid_without_ids'
+
+  assign checklist_delete_ok = { "errors": {}, "valid": true, "inspection_id": "1001", "ids": "3001" }
+  function checklist_delete_ok = 'modules/accela_construct/commands/inspections/checklists/delete/check', object: checklist_delete_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: checklist_delete_ok, field_name: 'inspections_checklists_delete_check_valid_with_all_required'
+
+  assign checklist_delete_build_input = { "inspection_id": "1001", "ids": "3001" }
+  function checklist_delete_built = 'modules/accela_construct/commands/inspections/checklists/delete/build', object: checklist_delete_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: checklist_delete_built.path, expected: '/inspections/1001/checklists/3001', field_name: 'inspections_checklists_delete_build_path'
+
+  function checklist_delete_result = 'modules/accela_construct/commands/inspections/checklists/delete', inspection_id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: checklist_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: checklist_delete_result.error, expected: 'accela_validation_failed', field_name: 'inspections_checklists_delete_without_ids_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/conditions/create
+
+  assign inspection_condition_create_missing = { "errors": {}, "valid": true, "inspection_id": "1001" }
+  function inspection_condition_create_missing = 'modules/accela_construct/commands/inspections/conditions/create/check', object: inspection_condition_create_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: inspection_condition_create_missing, field_name: 'inspections_conditions_create_check_invalid_without_condition'
+
+  assign inspection_condition_create_ok = { "errors": {}, "valid": true, "inspection_id": "1001", "condition": { "description": "Must fix wiring" } }
+  function inspection_condition_create_ok = 'modules/accela_construct/commands/inspections/conditions/create/check', object: inspection_condition_create_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: inspection_condition_create_ok, field_name: 'inspections_conditions_create_check_valid_with_all_required'
+
+  assign inspection_condition_create_build_input = { "inspection_id": "1001", "condition": { "description": "Must fix wiring" } }
+  function inspection_condition_create_built = 'modules/accela_construct/commands/inspections/conditions/create/build', object: inspection_condition_create_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_condition_create_built.path, expected: '/inspections/1001/conditions', field_name: 'inspections_conditions_create_build_path'
+
+  function inspection_condition_create_result = 'modules/accela_construct/commands/inspections/conditions/create', inspection_id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspection_condition_create_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_condition_create_result.error, expected: 'accela_validation_failed', field_name: 'inspections_conditions_create_without_condition_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/conditions/update
+
+  assign inspection_condition_update_missing = { "errors": {}, "valid": true, "inspection_id": "1001", "id": "5001" }
+  function inspection_condition_update_missing = 'modules/accela_construct/commands/inspections/conditions/update/check', object: inspection_condition_update_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: inspection_condition_update_missing, field_name: 'inspections_conditions_update_check_invalid_without_condition'
+
+  assign inspection_condition_update_ok = { "errors": {}, "valid": true, "inspection_id": "1001", "id": "5001", "condition": { "description": "Fixed" } }
+  function inspection_condition_update_ok = 'modules/accela_construct/commands/inspections/conditions/update/check', object: inspection_condition_update_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: inspection_condition_update_ok, field_name: 'inspections_conditions_update_check_valid_with_all_required'
+
+  assign inspection_condition_update_build_input = { "inspection_id": "1001", "id": "5001", "condition": { "description": "Fixed" } }
+  function inspection_condition_update_built = 'modules/accela_construct/commands/inspections/conditions/update/build', object: inspection_condition_update_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_condition_update_built.path, expected: '/inspections/1001/conditions/5001', field_name: 'inspections_conditions_update_build_path'
+
+  function inspection_condition_update_result = 'modules/accela_construct/commands/inspections/conditions/update', inspection_id: '1001', id: '5001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspection_condition_update_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_condition_update_result.error, expected: 'accela_validation_failed', field_name: 'inspections_conditions_update_without_condition_returns_validation_failed'
+
+  # modules/accela_construct/commands/inspections/conditions/delete
+
+  assign inspection_condition_delete_missing = { "errors": {}, "valid": true, "inspection_id": "1001" }
+  function inspection_condition_delete_missing = 'modules/accela_construct/commands/inspections/conditions/delete/check', object: inspection_condition_delete_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: inspection_condition_delete_missing, field_name: 'inspections_conditions_delete_check_invalid_without_ids'
+
+  assign inspection_condition_delete_ok = { "errors": {}, "valid": true, "inspection_id": "1001", "ids": "5001" }
+  function inspection_condition_delete_ok = 'modules/accela_construct/commands/inspections/conditions/delete/check', object: inspection_condition_delete_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: inspection_condition_delete_ok, field_name: 'inspections_conditions_delete_check_valid_with_all_required'
+
+  assign inspection_condition_delete_build_input = { "inspection_id": "1001", "ids": "5001" }
+  function inspection_condition_delete_built = 'modules/accela_construct/commands/inspections/conditions/delete/build', object: inspection_condition_delete_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_condition_delete_built.path, expected: '/inspections/1001/conditions/5001', field_name: 'inspections_conditions_delete_build_path'
+
+  function inspection_condition_delete_result = 'modules/accela_construct/commands/inspections/conditions/delete', inspection_id: '1001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspection_condition_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_condition_delete_result.error, expected: 'accela_validation_failed', field_name: 'inspections_conditions_delete_without_ids_returns_validation_failed'
+%}
