@@ -1,6 +1,6 @@
 # Lint this module only.
 #
-# Everything under modules/ other than modules/chat is a dependency installed by
+# Everything under modules/ other than modules/oauth_facebook is a dependency installed by
 # `pos-cli modules install`. Its offenses belong to that module's own repository,
 # and linting them here fails this repo's CI for code this repo cannot fix —
 # the fix has to be released there first.
@@ -12,13 +12,4 @@
 # UnusedPartial, ...); only offenses reported inside them are suppressed.
 # app/ is first-party code and stays linted, including app/modules/* overrides.
 ignore:
-  - "modules/!(chat)/**"
-
-UnusedPartial:
-  ignore:
-    - modules/chat/public/views/partials/channels/*
-    - modules/chat/public/lib/events/*
-    - modules/chat/public/lib/consumers/*
-    - modules/chat/public/lib/queries/*
-    - app/modules/*
-    - modules/chat/public/views/partials/theme/simple/message_button.liquid
+  - "modules/!(oauth_facebook)/**"

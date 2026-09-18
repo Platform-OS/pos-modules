@@ -1,11 +1,13 @@
-{% parse_json data %}
-{
-  {% if context.constants.USER_DEFAULT_ROLE != blank %}
-  "{{ context.constants.USER_DEFAULT_ROLE }}": [],
-  {% endif %}
-  "anonymous": ["sessions.create", "users.register"],
-  "authenticated": ["sessions.destroy", "chat.inbox"]
-}
-{% endparse_json %}
+{% liquid
+  assign data = {
+    "anonymous": ["sessions.create", "users.register"],
+    "authenticated": ["sessions.destroy", "chat.inbox"]
+  }
 
-{% return data %}
+  assign default_role = context.constants.USER_DEFAULT_ROLE
+  if default_role != blank and data[default_role] == null
+    assign data[default_role] = []
+  endif
+
+  return data
+%}
