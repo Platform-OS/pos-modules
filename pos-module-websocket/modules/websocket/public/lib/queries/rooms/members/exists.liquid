@@ -1,0 +1,14 @@
+{% doc %}
+  @param {string} room_id
+  @param {string} user_id
+  @returns {boolean} True if user_id is a registered member of room_id
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/websocket/rooms/members/search', room_id: room_id, user_id: user_id
+  assign count = r.records.total_entries | default: 0
+  assign result = false
+  if count > 0
+    assign result = true
+  endif
+  return result
+%}

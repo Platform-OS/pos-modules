@@ -1,0 +1,11 @@
+{
+  "machine_name": "websocket",
+  "name": "Websocket",
+  "version": "0.1.0",
+  "dependencies": {
+    "core": "^2.1.9"
+  },
+  "postInstall": {
+    "message": "websocket installed.\n\nWire up the init partial in your layout and (optionally) register a starter\nroom in one interactive step:\n\n  pos-cli generate run modules/websocket/generators/install\n\nPrefer to wire things up by hand? See the module README for the manual steps:\nhttps://github.com/Platform-OS/pos-modules/blob/master/pos-module-websocket/README.md"
+  }
+}

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
+    <title>{% if context.page.metadata.title %}{{ context.page.metadata.title }}{% else %}platformOS{% endif %}</title>
+
+    {% comment %} platformOS websocket: sets up window.pos.modules.active.websocket {% endcomment %}
+    {% render 'modules/websocket/init' %}
+  </head>
+  <body>
+    {{ content_for_layout }}
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{% doc %}
+  @param {string} room_id
+  @param {string} user_id
+{% enddoc %}
+{% liquid
+  assign object = { "room_id": room_id, "user_id": user_id }
+  return object
+%}

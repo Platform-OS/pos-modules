@@ -1,0 +1,39 @@
+---
+slug: /
+method: get
+layout: application
+---
+{% if context.current_user %}
+  <section class="pos-card pos-card-highlighted">
+    <h1 class="pos-heading-3">Create or join a live room</h1>
+    <p class="pos-supplementary">Rooms are private by default — creating "lobby" makes you its only member, and only you can join it again later. Check "Public" to let any logged-in user join by name, or open this page in two tabs as yourself to test a private room.</p>
+    <form method="post" action="/websocket/join" class="pos-form pos-form-simple">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <fieldset>
+        <label for="ws-room">Room name</label>
+        <input type="text" id="ws-room" name="room" value="lobby" class="pos-form-input" required>
+      </fieldset>
+      <fieldset>
+        <label>
+          <input type="checkbox" name="public" value="true">
+          Public — any logged-in user may join
+        </label>
+      </fieldset>
+      <fieldset class="pos-form-actions">
+        <button type="submit" class="pos-button pos-button-primary">Create / join room</button>
+      </fieldset>
+    </form>
+  </section>
+{% else %}
+  <section class="app-intro-content">
+    <h2 class="pos-heading-2">Websocket Demo</h2>
+    <nav>
+      <ul class="app-intro-nav">
+        <li><a href="/sessions/new">Log in</a></li>
+      </ul>
+    </nav>
+  </section>
+  <footer class="app-intro-footer">
+    Powered by <a href="https://platformos.com">platformOS</a>
+  </footer>
+{% endif %}

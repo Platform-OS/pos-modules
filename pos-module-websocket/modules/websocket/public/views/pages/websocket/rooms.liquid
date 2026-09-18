@@ -1,0 +1,29 @@
+---
+slug: websocket/rooms
+method: post
+format: json
+layout: ''
+---
+{% doc %}
+  Registers a room, or idempotently returns it if it already exists. Body
+  params: room_id (required), public (optional, default false/private). The
+  current user becomes the room's creator and, if private, its first
+  member — see commands/rooms/find_or_create.
+{% enddoc %}
+{% liquid
+  if context.current_user == blank
+    print '{"ok":false,"error":"unauthorized"}'
+    return
+  endif
+
+  assign is_public = false
+  if context.params.public == 'true' or context.params.public == true
+    assign is_public = true
+  endif
+
+  function result = 'modules/websocket/commands/rooms/find_or_create',
+    room_id: context.params.room_id,
+    public: is_public,
+    created_by: context.current_user.id
+%}
+{% if result.valid %}{"ok":true,"room_id":"{{ result.room_id }}","public":{% if result.public %}true{% else %}false{% endif %}}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}

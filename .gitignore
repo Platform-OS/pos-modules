@@ -81,6 +81,9 @@ pos-module-user/modules/*
 pos-module-user-invites/modules/*
 !pos-module-user-invites/modules/user_invites/
 
+pos-module-websocket/modules/*
+!pos-module-websocket/modules/websocket/
+
 **/.pos-supervisor/**
 **/pos-supervisor.jsonl
 pos-module-push-notifications/modules/*
