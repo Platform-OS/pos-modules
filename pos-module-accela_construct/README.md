@@ -172,9 +172,7 @@ of manually `url_encode`-ing and concatenating each field.
 1. Copy `modules/accela_construct` into your instance's `modules/` directory
    (sibling to `app/`), or install/push it through the Partner Portal
    Marketplace per platformOS module conventions.
-2. Fill in real values in `template-values.json` (or set them directly as
-   Constants — see below) — **do not commit real secrets**.
-3. Deploy:
+2. Deploy:
    ```
    pos-cli deploy <env>
    ```
@@ -182,12 +180,12 @@ of manually `url_encode`-ing and concatenating each field.
    creates and syncs the `accela_oauth_token`/`accela_request`/
    `accela_request_response` tables directly from their `schema/*.yml`
    files as part of a normal deploy.
-4. Seed the `ACCELA_CONSTRUCT_*` constants from `template-values.json` by
-   running the one migration this module ships (`public/migrations/..._set_accela_constants.liquid`,
-   which does need an explicit migration since it's seeding Constants
-   data, not creating a table):
+3. Set the `ACCELA_CONSTRUCT_*` constants by running the module's install
+   generator, which prompts for each value (with sane defaults where one
+   exists) and stores them via `pos-cli constants set` — **do not commit
+   real secrets**:
    ```
-   pos-cli migrations run 20260730120100 <env>
+   pos-cli generate run modules/accela_construct/generators/install
    ```
 5. Verify the tables/constants exist (GraphiQL console):
    ```graphql
@@ -201,7 +199,7 @@ of manually `url_encode`-ing and concatenating each field.
 ## Required constants
 
 Set these as encrypted platformOS Constants (`constant_set` mutation, or via
-the seed migration + `template-values.json`):
+the `generators/install` generator - see Install step 3 above):
 
 | Constant | Example | Notes |
 |---|---|---|
@@ -525,10 +523,6 @@ later. Before relying on it, verify:
   independently confirmed in the docs pulled for this module); if not,
   switch to explicit string concatenation or `to_json`/`hash_to_json` if
   that's what your instance provides.
-- **`constant_set` from a migration** with `<%= template_value %>`
-  interpolation: observed in other shipped modules (e.g. `payments-stripe`)
-  but not documented as an official pattern. Confirm it works, or set
-  constants manually via GraphiQL instead.
 - **No `client_credentials` OAuth grant**: Accela's docs only document
   `password`, `authorization_code`, `token` (implicit), and `refresh_token`.
   This module uses `password` grant (resource owner credentials) since
@@ -796,13 +790,14 @@ Run via browser at `/_tests` (staging/development only) or in CI with
 ```
 modules/accela_construct/
 ├── pos-module.json
+├── package.json
 ├── template-values.json
 ├── README.md
+├── generators/
+│   └── install/index.js                 (prompts for + sets the ACCELA_CONSTRUCT_* constants)
 └── public/
     ├── schema/{accela_oauth_token,accela_request,accela_request_response}.yml
     │                                       (tables created/synced from these directly on deploy - no migration needed)
-    ├── migrations/
-    │   └── ..._set_accela_constants.liquid   (seeds Constants data - the one thing migrations are actually for here)
     ├── graphql/
     │   ├── accela_oauth_token/{create,update,find_latest}.graphql
     │   ├── accela_request/{create,get,list}.graphql
