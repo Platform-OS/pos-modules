@@ -45,10 +45,10 @@
 <!-- message templates -->
 {% assign dummy_message = { "message": "", "created_at": null } %}
 <template id="pos-chat-template-message-received">
-  {% render 'modules/chat/message', message: dummy_message, authored: false, timezone: null %}
+  {% render 'modules/chat/message', message: dummy_message, authored: false, timezone: null, as_template: true %}
 </template>
 <template id="pos-chat-template-message-sent">
-  {% render 'modules/chat/message', message: dummy_message, authored: true, timezone: null %}
+  {% render 'modules/chat/message', message: dummy_message, authored: true, timezone: null, as_template: true %}
 </template>
 <!-- end message templates -->
 
@@ -146,14 +146,35 @@
           %}
         </ul>
       </div>
+      <div class="pos-chat-uploader" id="chat-uploader">
+        <input type="checkbox" id="chat-uploaderToggle">
+        <label for="chat-uploaderToggle" class="pos-button pos-button-small" title="{{ 'modules/chat/upload_cancel' | t }}">
+          <span class="pos-label">{{ 'modules/chat/upload_cancel' | t }}</span>
+          {% render 'modules/common-styling/icon', icon: 'x' %}
+        </label>
+        {% render 'modules/common-styling/forms/upload',
+          id: 'chat-upload',
+          presigned_upload: context.presigned_upload,
+          name: 'chat-upload',
+          max_number_of_files: 5
+        %}
+      </div>
       <footer class="pos-form pos-chat-conversation-new">
-        <textarea
-        placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
-          class="pos-chat-conversation-input"
-          id="chat-messageInput"
-          disabled
-        ></textarea>
-        <button type="submit" id="chat-sendButton" class="pos-button">{{ 'modules/chat/send' | t }}</button>
+        <div class="pos-chat-conversation-new-tools">
+          <label for="chat-uploaderToggle" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
+            <span class="pos-label">{{ 'modules/chat/upload' | t }}</span>
+            {% render 'modules/common-styling/icon', icon: 'imageFileUpload' %}
+          </label>
+        </div>
+        <div class="pos-chat-conversation-new-input-container">
+          <textarea
+          placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
+            class="pos-chat-conversation-input"
+            id="chat-messageInput"
+            disabled
+          ></textarea>
+          <button type="submit" id="chat-sendButton" class="pos-button">{{ 'modules/chat/send' | t }}</button>
+        </div>
       </footer>
     </div>
   {% else %}

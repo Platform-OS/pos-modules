@@ -14,6 +14,9 @@ slug: inbox
   assign object = {"to_id": record.id, "conversation_id": context.params.conversation_id}
   if record or context.params.conversation_id
     function current_conversation = 'modules/chat/commands/conversations/find_or_create', object: object, current_profile: current_profile
+
+    function presigned_upload = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
+    assign context.presigned_upload = presigned_upload
   endif
   if current_conversation.valid == false
     assign current_conversation = null

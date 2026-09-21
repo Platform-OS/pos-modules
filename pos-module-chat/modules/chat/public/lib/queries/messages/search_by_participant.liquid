@@ -6,5 +6,9 @@
 
   graphql r = 'modules/chat/messages/search', limit: limit, page: page, participant_id: participant_id, conversation_id: conversation_id
 
-  return r.messages
+  assign result = r.messages
+  function resolved_results = 'modules/chat/queries/messages/with_media', messages: result.results, conversation_id: conversation_id
+  assign result.results = resolved_results
+
+  return result
 %}

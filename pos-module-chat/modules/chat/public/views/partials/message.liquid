@@ -3,6 +3,8 @@
   @param {boolean} [show_time] - if the timestamp should be visible or not
   @param {object} message - text message to be shown
   @param {string} timezone - current user timezone
+  
+  @param {boolean} [as_template] - if true, the message will be rendered as an empty template
 {% enddoc %}
 
 
@@ -15,14 +17,44 @@
   if show_time == false
     assign display_time = false
   endif
+
+  if as_template
+    assign message.media = [ { "type": "image/png", "url": "", "width": 0, "height": 0 }, { "type": "application/pdf", "url": "", "name": "", "size": 0 } ]
+  endif
 %}
 
 <li class="pos-chat-message {% if authored %} pos-chat-message-authored {% endif %}">
 
   <time datetime="{{ message.created_at }}">{%- if display_time and message.created_at -%}{{ message.created_at | l: 'long', timezone }}{%- endif -%}</time>
 
-  <div class="pos-chat-message-content">
-    {{ msg }}
-  </div>
+  {% if message.media.size > 0 or as_template %}
+    {% for attachment in message.media %}
+      {% if attachment.type contains 'image/' %}
+        <div class="pos-chat-message-content pos-chat-message-image">
+          <img src="{{ attachment.url }}" alt="" width="{{ attachment.width }}" height="{{ attachment.height }}">
+        </div>
+      {% else %}
+        {% liquid
+          assign display_size = attachment.size | divided_by: 1024.0 | round: 1 | append: ' KB'
+          if attachment.size >= 1048576
+            assign display_size = attachment.size | divided_by: 1048576.0 | round: 1 | append: ' MB'
+          endif
+        %}
+        <div class="pos-chat-message-content pos-chat-message-file">
+          <a href="{{ attachment.url }}" target="_blank" rel="noopener noreferrer">
+            {% render 'modules/common-styling/icon', icon: 'fileEmpty' %}
+            <span class="pos-chat-message-file-name">{{ attachment.name }}</span>
+            <small>({{ display_size }})</small>
+          </a>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {% if message.message or as_template %}
+    <div class="pos-chat-message-content pos-chat-message-text">
+      {{ msg }}
+    </div>
+  {% endif %}
 
 </li>
