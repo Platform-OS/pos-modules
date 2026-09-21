@@ -4,5 +4,5 @@ properties:
   - name: conversation_id
   - name: message
   - name: media
-    type: string
+    type: array
   - name: autor_id

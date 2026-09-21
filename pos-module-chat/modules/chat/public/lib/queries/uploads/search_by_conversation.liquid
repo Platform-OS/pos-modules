@@ -1,0 +1,18 @@
+{% doc %}
+  Resolves every modules/chat/uploads record belonging to the given conversation -
+  metadata plus a freshly-signed, time-limited URL (the upload property's ACL is
+  private, per modules/chat/public/schema/uploads.yml). Filters by conversation_id
+  rather than by upload id, since platformOS's records filter only supports
+  matching id against a single value, not a list.
+
+  @param {string} conversation_id - the conversation id
+{% enddoc %}
+{% liquid
+  if conversation_id == blank
+    return blank
+  endif
+
+  graphql r = 'modules/chat/uploads/search_by_conversation', conversation_id: [conversation_id]
+
+  return r.uploads.results
+%}

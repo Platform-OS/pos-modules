@@ -1,0 +1,50 @@
+{% doc %}
+  Resolves each message's `media` (an array of modules/chat/uploads record ids) into
+  full attachment data ready for rendering - metadata plus a freshly-signed,
+  time-limited URL. Fetches every upload belonging to the given conversation(s) in a
+  single query (scoped by conversation_id, not by the individual media ids - see
+  modules/chat/queries/uploads/search_by_conversation), then matches each message's
+  media ids against that set in Liquid.
+
+  @param {array} messages - messages as returned by modules/chat/messages/search,
+    each with a `media` property holding an array of modules/chat/uploads ids
+  @param {string} conversation_id - the conversation the messages belong to
+{% enddoc %}
+{% liquid
+  function uploads = 'modules/chat/queries/uploads/search_by_conversation', conversation_id: conversation_id
+
+  assign resolved_messages = []
+
+  for message in messages
+    assign msg_media = message.media
+    unless msg_media
+      assign msg_media = []
+    endunless
+
+    assign attachments = []
+
+    for upload_id in msg_media
+      assign matches = uploads | array_select: id: upload_id
+      assign upload = matches | first
+
+      if upload
+        assign metadata = upload.metadata
+        assign attachment = {
+          "id": upload.id,
+          "type": metadata.type,
+          "name": metadata.name,
+          "size": metadata.size,
+          "width": metadata.width,
+          "height": metadata.height,
+          "url": upload.upload.url
+        }
+        assign attachments << attachment
+      endif
+    endfor
+
+    assign message.media = attachments
+    assign resolved_messages << message
+  endfor
+
+  return resolved_messages
+%}

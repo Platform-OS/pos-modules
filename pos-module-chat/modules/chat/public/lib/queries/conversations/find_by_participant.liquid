@@ -22,6 +22,11 @@
     endfor
 
     assign conversation.participants = participants
+
+    if conversation.messages
+      function resolved_messages = 'modules/chat/queries/messages/with_media', messages: conversation.messages, conversation_id: conversation.id
+      assign conversation.messages = resolved_messages
+    endif
   endif
 
   return conversation

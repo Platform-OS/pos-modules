@@ -109,6 +109,10 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.createUrl = '/api/chat/uploads';
   // media info staged from finished uploads, sent as message(s) on the next Send (array of { type, name, size, url })
   module.settings.upload.pending = [];
+  // in-flight promises from module.upload.save() - saving an upload record (and getting
+  // back its id + signed URL) is a round-trip, so a Send triggered before it resolves has
+  // to wait for these rather than silently going out without the attachment
+  module.settings.upload.pendingSaves = [];
   // button that clears the staged uploads (dom node)
   module.settings.upload.clear = document.querySelector('#chat-uploaderToggle');
 
@@ -155,27 +159,17 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling what will happen on pressing enter in the input
     module.settings.messageInput?.addEventListener('keypress', (event) => {
-      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length)){
+      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length)){
         event.preventDefault();
 
-        module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
-        setTimeout(() => {
-          module.settings.messageInput.value = '';
-        }, 100);
-
-        module.settings.upload.clear.checked = false;
+        module.triggerSend();
       }
     });
 
     // handling send button click
     module.settings.sendButton?.addEventListener('click', () => {
-      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length) {
-        module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
-        setTimeout(() => {
-          module.settings.messageInput.value = '';
-        }, 100);
-
-        module.settings.upload.clear.checked = false;
+      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length) {
+        module.triggerSend();
       }
     });
 
@@ -245,25 +239,41 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // store record for uploaded file, and stage its media info to go out with the next sent message
     document.addEventListener('pos-upload-file-uploaded', event => {
-      module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: event.detail.file.meta });
-
-      const media = {
+      const metadata = {
         type: event.detail.file.type,
         name: event.detail.file.name,
-        size: event.detail.file.size,
-        url: event.detail.url
+        size: event.detail.file.size
       };
 
       // width/height are read from the image and set on file.meta by pos-upload.js's
       // 'file-added' handler before the upload finishes - only present for images
       if(event.detail.file.type && event.detail.file.type.startsWith('image/')){
-        media.width = event.detail.file.meta.width;
-        media.height = event.detail.file.meta.height;
+        metadata.width = event.detail.file.meta.width;
+        metadata.height = event.detail.file.meta.height;
       }
 
-      module.settings.upload.pending.push(media);
+      // Saving the upload record (module.upload.save) is a round-trip - it's what gets us
+      // the id and signed URL a Send needs (see receive.liquid/with_media, the upload's
+      // ACL is private). Tracked in pendingSaves so triggerSend can wait for it instead of
+      // sending before this attachment has actually landed in `pending`.
+      const savePromise = module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: metadata })
+        .then(media => {
+          if(!media){
+            return;
+          }
 
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Added file to pending uploads', media);
+          module.settings.upload.pending.push(media);
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Added file to pending uploads', media);
+        })
+        .finally(() => {
+          const index = module.settings.upload.pendingSaves.indexOf(savePromise);
+          if(index !== -1){
+            module.settings.upload.pendingSaves.splice(index, 1);
+          }
+        });
+
+      module.settings.upload.pendingSaves.push(savePromise);
     });
 
     // clear all staged uploads
@@ -504,6 +514,25 @@ window.pos.modules.chat = function(userSettings = {}){
         }
       }
     );
+  };
+
+
+  // purpose:		waits for any attachments still being saved (see the
+  //				    pos-upload-file-uploaded listener/pendingSaves) before actually
+  //				    sending, so a Send that follows an attach too quickly doesn't go
+  //				    out with an empty/incomplete media list
+  // ------------------------------------------------------------------------
+  module.triggerSend = async () => {
+    if(module.settings.upload.pendingSaves.length){
+      await Promise.allSettled(module.settings.upload.pendingSaves);
+    }
+
+    module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
+    setTimeout(() => {
+      module.settings.messageInput.value = '';
+    }, 100);
+
+    module.settings.upload.clear.checked = false;
   };
 
 
@@ -879,6 +908,11 @@ window.pos.modules.chat = function(userSettings = {}){
 
 
   // purpose:		stores uploaded file record in the database in a separate table
+  //            (modules/chat/uploads), and returns the attachment info to stage for
+  //            the next sent message - including the freshly-signed, time-limited
+  //            URL the server hands back (the upload's ACL is private, so a client
+  //            can't just keep using the URL it uploaded to)
+  // returns:		{ id, type, name, size, width, height, url } (object), or null on failure
   // ------------------------------------------------------------------------
   module.upload.save = async ({ conversationId, uploadUrl, metadata }) => {
     const response = await fetch(module.settings.upload.createUrl, {
@@ -899,9 +933,20 @@ window.pos.modules.chat = function(userSettings = {}){
 
     if(!response.ok){
       pos.modules.debug(module.settings.debug, module.settings.id, 'Failed to save uploaded file record in the database', data);
-    } else {
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Successfully saved uploaded file record in the database', data);
+      return null;
     }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Successfully saved uploaded file record in the database', data);
+
+    return {
+      id: data.id,
+      type: metadata.type,
+      name: metadata.name,
+      size: metadata.size,
+      width: metadata.width,
+      height: metadata.height,
+      url: data.upload && data.upload.url
+    };
   };
 
 

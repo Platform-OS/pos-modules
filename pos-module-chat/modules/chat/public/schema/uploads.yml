@@ -6,5 +6,7 @@ properties:
     type: string
   - name: upload
     type: upload
+    options:
+      acl: private
   - name: metadata
     type: string

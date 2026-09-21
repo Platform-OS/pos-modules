@@ -32,7 +32,35 @@
       echo "false"
     else
       assign message_safe = context.params.message | raw_escape_string
-      assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": message_safe, "media": context.params.media }
+
+      # The client sends its own uploaded attachments as { id, ... } (the id is a
+      # modules/chat/uploads record - see pos-chat.js's pos-upload-file-uploaded
+      # handler). Only the id is trusted here: each is resolved against
+      # modules/chat/uploads and dropped unless it actually belongs to this sender
+      # and this conversation, before being persisted on the message as a plain
+      # array of ids (media is no longer a JSON blob of attachment details/URLs -
+      # those are resolved fresh, with a signed time-limited URL, on every read -
+      # see modules/chat/queries/messages/with_media).
+      assign requested_ids = []
+      if context.params.media
+        assign requested_ids = context.params.media | map: 'id' | array_compact
+      endif
+
+      assign media_ids = []
+      if requested_ids.size > 0
+        # Scoped by conversation_id (platformOS's records filter can't match id
+        # against a list) - see modules/chat/queries/uploads/search_by_conversation.
+        function candidates = 'modules/chat/queries/uploads/search_by_conversation', conversation_id: conversation.id
+        for id in requested_ids
+          assign matches = candidates | array_select: id: id
+          assign candidate = matches | first
+          if candidate and candidate.uploader_id == current_profile.id
+            assign media_ids << candidate.id
+          endif
+        endfor
+      endif
+
+      assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": message_safe, "media": media_ids }
       function message = 'modules/chat/commands/messages/create', object: object
       if message.valid != true
         log message, 'ERROR receive message'
@@ -43,6 +71,13 @@
         # Recipients are notified of the new message by the chat_message_created consumer
         # (lib/consumers/chat_message_created/broadcast_new_message), which runs in a
         # retryable background job. messages/create publishes that event on persist.
+        #
+        # The default rebroadcast-to-room (this partial doesn't echo "false") relays
+        # context.params - the client's own message/media payload - verbatim to every
+        # room subscriber for the live view. That's safe to keep as-is: the client
+        # already has a signed, time-limited URL for each attachment from POST
+        # /api/chat/uploads (modules/chat/commands/uploads/create), which is what it put
+        # in context.params.media in the first place.
       endif
     endif
   else
