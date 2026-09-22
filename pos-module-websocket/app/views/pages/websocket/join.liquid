@@ -10,7 +10,8 @@ method: post
   flip a private room public from here.
 {% enddoc %}
 {% liquid
-  if context.current_user == blank
+  function current_profile = 'modules/user/helpers/current_profile'
+  if current_profile.user == null
     redirect_to '/sessions/new'
     return
   endif
@@ -25,7 +26,7 @@ method: post
   function result = 'modules/websocket/commands/rooms/find_or_create',
     room_id: room_id,
     public: is_public,
-    created_by: context.current_user.id
+    created_by: current_profile.user.id
 
   assign redirect_url = '/websocket/demo?room=' | append: room
   redirect_to redirect_url
