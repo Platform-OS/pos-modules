@@ -1,0 +1,17 @@
+{% doc %}
+  Resolves a single modules/chat/uploads record's metadata by id. Used where only the
+  attachment's type is needed (e.g. summarizing a media-only last message in the
+  conversations list) - cheap because id filtering matches a single value, unlike
+  modules/chat/queries/uploads/search_by_conversation which has to scan by conversation_id.
+
+  @param {string} id - the modules/chat/uploads record id
+{% enddoc %}
+{% liquid
+  if id == blank
+    return blank
+  endif
+
+  graphql r = 'modules/chat/uploads/find', id: id
+
+  return r.uploads.results | first
+%}

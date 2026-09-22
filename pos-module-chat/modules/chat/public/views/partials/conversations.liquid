@@ -24,6 +24,20 @@
     assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | default: from_profile.name
     assign image_src = from_profile.avatar.photo.versions.sm
     assign last_message = conversation.last_message.message
+
+    # A media-only message (no text) has nothing to show in the sidebar preview -
+    # summarize it instead. Only the first attachment's type is checked (a single
+    # upload lookup, not a full conversation scan - see queries/uploads/find).
+    if last_message == blank and conversation.last_message.media.size > 0
+      assign first_media_id = conversation.last_message.media | first
+      function last_media = 'modules/chat/queries/uploads/find', id: first_media_id
+      if last_media.metadata.type contains 'image/'
+        assign last_message = 'modules/chat/sent_image' | t
+      else
+        assign last_message = 'modules/chat/sent_attachment' | t
+      endif
+    endif
+
     assign unread = true
     if conversation.participant_read_ids contains current_profile.id
       assign unread = false
