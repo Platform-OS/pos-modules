@@ -1,0 +1,14 @@
+query find($id: ID!) {
+  uploads: records(
+    per_page: 1,
+    filter: {
+      table: { exact: "modules/chat/uploads" }
+      id: { value: $id }
+    }
+  ) {
+    results {
+      id
+      metadata: property_json(name: "metadata")
+    }
+  }
+}
