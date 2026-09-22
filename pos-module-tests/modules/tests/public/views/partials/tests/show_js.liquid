@@ -8,7 +8,7 @@
   assign total_assertions = 0
 
   assign tests_array = []
-  for contract in tests_array
+  for contract in contracts
     assign total_assertions = total_assertions | plus: contract.total
 
     assign test_result = { "name": contract.test_path, "success": contract.success, "assertions": contract.total, "errors": contract.errors }
