@@ -26,9 +26,9 @@
 
 <script type="module">
   (function() {
-    var roomId = {{ room_id | json }};
-    var viaSSE = {{ via_sse | json }};
-    var senderName = {{ sender_name | json }};
+    var roomId = {% print room_id | json %};
+    var viaSSE = {% print via_sse | json %};
+    var senderName = {% print sender_name | json %};
     var status = document.getElementById('pos-ws-status');
     var list = document.getElementById('pos-ws-messages');
     var form = document.getElementById('pos-ws-form');
@@ -42,7 +42,7 @@
     }
 
     var callbacks = {
-      connected: function() { status.textContent = 'Connected to "' + {{ room | json }} + '".'; },
+      connected: function() { status.textContent = 'Connected to "' + {% print room | json %} + '".'; },
       disconnected: function() { status.textContent = 'Disconnected.'; },
       rejected: function() { status.textContent = 'Could not join this room — it may be private and you\'re not a member.'; },
       received: function(data) { appendMessage(data); }
