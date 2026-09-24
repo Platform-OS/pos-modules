@@ -1,0 +1,10 @@
+mutation (
+  $room_id: String!
+  $payload: JSONPayload!
+) {
+  channel_send_message(
+    channel_name: "pos_websocket"
+    room_id: $room_id
+    payload: $payload
+  )
+}

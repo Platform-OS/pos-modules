@@ -1,0 +1,31 @@
+{% doc %}
+  Shared authorization check used by both channels/pos_websocket/subscribed
+  and .../receive, so the two never drift apart.
+
+  @param {string} room_id
+  @param {string} user_id
+  @returns {boolean} True if user_id may join/post to room_id: the room has
+    been registered (via commands/rooms/find_or_create) and is either public,
+    or user_id is a registered member (commands/rooms/members/add).
+    Unregistered rooms are never joinable by anyone — private by default.
+{% enddoc %}
+{% liquid
+  assign authorized = false
+
+  if room_id != blank and user_id != blank
+    function room = 'modules/websocket/queries/rooms/find', room_id: room_id
+
+    if room != blank
+      if room.public
+        assign authorized = true
+      else
+        function is_member = 'modules/websocket/queries/rooms/members/exists', room_id: room_id, user_id: user_id
+        if is_member
+          assign authorized = true
+        endif
+      endif
+    endif
+  endif
+
+  return authorized
+%}

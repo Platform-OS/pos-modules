@@ -1,0 +1,32 @@
+{% doc %}
+  Adds user_id to room_id's member list (idempotent — adding an existing
+  member is a no-op that returns the existing membership). This only
+  matters for private rooms: it's what commands/rooms/authorized checks to
+  let someone into a private room besides its creator. Callers are
+  responsible for their own invite policy (who's allowed to add whom) —
+  see views/pages/websocket/rooms/members.liquid for the HTTP endpoint's
+  policy (existing members may add others).
+
+  @param {string} room_id
+  @param {string} user_id
+  @returns {object} The membership record (with .valid and .errors on failure)
+{% enddoc %}
+{% liquid
+  function object = 'modules/websocket/commands/rooms/members/add/build', room_id: room_id, user_id: user_id
+  function object = 'modules/websocket/commands/rooms/members/add/check', object: object
+
+  if object.valid
+    function already_member = 'modules/websocket/queries/rooms/members/exists', room_id: object.room_id, user_id: object.user_id
+
+    if already_member
+      return object
+    endif
+
+    graphql member = 'modules/websocket/rooms/members/create', room_id: object.room_id, user_id: object.user_id
+    assign object = object | hash_merge: member.record
+
+    return object
+  endif
+
+  return object
+%}

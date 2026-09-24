@@ -1,0 +1,7 @@
+escape_output_instead_of_sanitize: true
+sse_enabled: true
+modules_that_allow_delete_on_deploy:
+  - websocket
+  - core
+  - common-styling
+  - user

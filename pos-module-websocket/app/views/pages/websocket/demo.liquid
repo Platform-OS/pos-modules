@@ -1,0 +1,31 @@
+---
+slug: websocket/demo
+method: get
+layout: application
+---
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+  if current_profile.user == null
+    redirect_to '/sessions/new'
+    return
+  endif
+
+  assign room = context.params.room | default: 'lobby'
+  assign room_id = 'demo-' | append: room
+  assign via_sse = false
+  if context.params.transport == 'sse'
+    assign via_sse = true
+  endif
+  assign room_param = room | url_encode
+  assign other_transport_url = '/websocket/demo?room=' | append: room_param
+  unless via_sse
+    assign other_transport_url = other_transport_url | append: '&transport=sse'
+  endunless
+
+  render 'websocket/demo',
+    room: room,
+    room_id: room_id,
+    via_sse: via_sse,
+    other_transport_url: other_transport_url,
+    sender_name: current_profile.email
+%}

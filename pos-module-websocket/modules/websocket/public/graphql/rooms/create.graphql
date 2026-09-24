@@ -1,0 +1,22 @@
+mutation (
+  $room_id: String!
+  $public: Boolean
+  $created_by: String!
+) {
+  record: record_create(
+    record: {
+      table: "modules/websocket/room"
+      properties: [
+        { name: "room_id", value: $room_id }
+        { name: "public", value_boolean: $public }
+        { name: "created_by", value: $created_by }
+      ]
+    }
+  ) {
+    id
+    created_at
+    room_id: property(name: "room_id")
+    public: property_boolean(name: "public")
+    created_by: property(name: "created_by")
+  }
+}

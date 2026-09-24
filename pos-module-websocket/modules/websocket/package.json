@@ -1,0 +1,8 @@
+{
+  "name": "websocket",
+  "version": "0.1.0",
+  "description": "Generic, reusable WebSocket (and SSE) pub/sub for platformOS.",
+  "peerDependencies": {
+    "yeoman-generator": "^7.0.0"
+  }
+}

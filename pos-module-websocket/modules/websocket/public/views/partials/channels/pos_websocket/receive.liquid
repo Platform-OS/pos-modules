@@ -1,0 +1,41 @@
+{% doc %}
+  Handles messages sent by a client via `subscription.send(...)` on the
+  `pos_websocket` channel. Re-runs the exact same authorization check as
+  `subscribed.liquid` (membership can change after a client subscribed —
+  e.g. a room going from public back to... it can't currently, but a
+  member being removed is plausible in an app-specific override — and a
+  client could otherwise call `send` on a room_id it never actually
+  subscribed to) and, unless rejected, lets ActionCable's default behavior
+  broadcast the payload to every current subscriber of `room_id` —
+  returning anything other than the literal string 'false' means "broadcast
+  it" per platformOS's channel convention, so there is no explicit
+  `channel_send_message` call needed for this client-to-room relay path
+  (that mutation is only needed for server-initiated pushes — see
+  commands/messages/broadcast.liquid).
+
+  Also publishes `websocket_message_received` via the core Event System so
+  consuming apps can react (persist it, moderate it, fan it out elsewhere)
+  by adding a consumer under lib/consumers/websocket_message_received/,
+  without touching this file. Override this file directly (Module Override
+  System) if you need to reject/transform messages before they broadcast.
+{% enddoc %}
+{% liquid
+  assign room_id = context.params.room_id
+
+  if context.current_user == blank
+    echo 'false'
+  else
+    function authorized = 'modules/websocket/queries/rooms/authorized', room_id: room_id, user_id: context.current_user.id
+
+    unless authorized
+      echo 'false'
+    else
+      assign event_payload = {
+        "room_id": room_id,
+        "user_id": context.current_user.id,
+        "payload": context.params
+      }
+      function _ = 'modules/core/commands/events/publish', type: 'websocket_message_received', object: event_payload, delay: null, max_attempts: null
+    endunless
+  endif
+%}
