@@ -13,11 +13,8 @@ const FLASH_SNIPPET = `  {% liquid
     render 'modules/common-styling/toasts', autohide: null, delay: null, message: flash.message, severity: flash.severity
   %}`;
 
-const MANUAL_DEFAULT_ROLE_STEP = `Run this yourself to give every new user a default role (see README Setup step 3):
-
-  pos-cli migrations generate <env> setup_user_default_role
-
-Add this to the generated migration file:
+const MANUAL_DEFAULT_ROLE_STEP = `To give every new user a default role (see README Setup step 3), create
+app/migrations/<YYYYMMDDHHMMSS>_setup_user_default_role.liquid with:
 
   {% liquid
     function result = 'modules/core/commands/variable/set', name: 'USER_DEFAULT_ROLE', value: 'member'
@@ -62,6 +59,23 @@ export default class extends Generator {
     this.permissionsTarget = this.destinationPath('app/modules/user/public/lib/queries/role_permissions/permissions.liquid');
     this.permissionsSourceExists = fs.existsSync(this.permissionsSource);
     this.permissionsAlreadyOverridden = fs.existsSync(this.permissionsTarget);
+
+    this.environments = this._readEnvironments();
+  }
+
+  // Parses `pos-cli env list` output, where each environment is a `- [name] url` line.
+  _readEnvironments() {
+    try {
+      const output = execFileSync('pos-cli', ['env', 'list'], {
+        cwd: this.destinationPath(),
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+      return [...output.matchAll(/^-\s+\[([^\]]+)\]/gm)].map((m) => m[1]);
+    } catch (e) {
+      console.log(`Could not list pos-cli environments (${e.message.split('\n')[0]}).`);
+      return [];
+    }
   }
 
   async prompting() {
@@ -97,7 +111,7 @@ export default class extends Generator {
       {
         type: 'confirm',
         name: 'setupDefaultRole',
-        message: 'Set a USER_DEFAULT_ROLE constant via a migration (assigned automatically to every new user)?',
+        message: 'Generate a migration that sets the USER_DEFAULT_ROLE constant (assigned automatically to every new user)?',
         default: true
       },
       {
@@ -107,19 +121,28 @@ export default class extends Generator {
         default: 'member',
         when: (answers) => answers.setupDefaultRole,
         validate: (value) => /^[a-zA-Z0-9_-]+$/.test(value) || 'Use only letters, numbers, - and _'
-      },
+      }
+    );
+
+    if (this.environments.length === 0) {
+      console.log('No pos-cli environments found — superadmin creation will be skipped (run `pos-cli env add` first to enable it).');
+      this.answers = await this.prompt(questions);
+      return;
+    }
+
+    questions.push(
       {
         type: 'confirm',
         name: 'createSuperadmin',
-        message: 'Create a superadmin user now? (creates a real user + profile on the target environment)',
+        message: 'Create a superadmin user now? (deploys to the target environment, then creates a real user + profile there)',
         default: false
       },
       {
-        type: 'input',
-        name: 'environment',
-        message: 'Target environment (e.g. staging, production):',
-        when: (answers) => answers.setupDefaultRole || answers.createSuperadmin,
-        validate: (value) => (value && value.trim().length > 0) || 'Environment name is required'
+        type: 'list',
+        name: 'superadminEnvironment',
+        message: 'Environment to create the superadmin on:',
+        choices: this.environments,
+        when: (answers) => answers.createSuperadmin
       },
       {
         type: 'input',
@@ -163,6 +186,12 @@ export default class extends Generator {
       console.log('app/modules/user/public/lib/queries/role_permissions/permissions.liquid already exists — left untouched');
     } else if (this.answers.overridePermissions) {
       this._overridePermissions();
+    }
+
+    if (this.answers.setupDefaultRole) {
+      this._writeDefaultRoleMigration(this.answers.defaultRole.trim());
+    } else {
+      console.log(`Skipped default role setup.\n\n${MANUAL_DEFAULT_ROLE_STEP}`);
     }
   }
 
@@ -255,19 +284,24 @@ export default class extends Generator {
 
   end() {
     if (this.answers.setupDefaultRole) {
-      try {
-        this._setupDefaultRole(this.answers.environment.trim(), this.answers.defaultRole.trim());
-      } catch (e) {
-        console.error(`\nDefault role setup failed: ${e.message}`);
-        console.log(`\n${MANUAL_DEFAULT_ROLE_STEP}`);
-      }
-    } else {
-      console.log(`\nSkipped default role setup.\n\n${MANUAL_DEFAULT_ROLE_STEP}`);
+      console.log('\nThe USER_DEFAULT_ROLE migration runs on your next deploy: pos-cli deploy <env>');
+    }
+
+    if (this.environments.length === 0) {
+      console.log(`
+WARNING: No pos-cli environments found, so superadmin creation was skipped — it needs a target environment.
+
+Add an environment first, then re-run this generator or follow the manual steps below:
+
+  pos-cli env add <env> --url <instance-url>
+
+${MANUAL_SUPERADMIN_STEP}`);
+      return;
     }
 
     if (this.answers.createSuperadmin) {
       try {
-        this._createSuperadmin(this.answers.environment.trim(), this.answers.superadminEmail.trim(), this.answers.superadminPassword);
+        this._createSuperadmin(this.answers.superadminEnvironment, this.answers.superadminEmail.trim(), this.answers.superadminPassword);
       } catch (e) {
         console.error(`\nSuperadmin creation failed: ${e.message}`);
         console.log(`\n${MANUAL_SUPERADMIN_STEP}`);
@@ -277,29 +311,27 @@ export default class extends Generator {
     }
   }
 
-  _setupDefaultRole(env, role) {
-    console.log(`Generating migration to set USER_DEFAULT_ROLE="${role}" on "${env}"...`);
-    execFileSync('pos-cli', ['migrations', 'generate', env, 'setup_user_default_role'], { stdio: 'inherit' });
-
+  // Mirrors the `<timestamp>_<name>.liquid` file `pos-cli migrations generate` would create, without needing an environment.
+  _writeDefaultRoleMigration(role) {
     const migrationsDir = this.destinationPath('app/migrations');
-    const candidates = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('setup_user_default_role.liquid'));
-    const latest = candidates.sort().pop();
-    if (!latest) {
-      throw new Error('could not locate the generated migration file in app/migrations');
+    const existing = fs.existsSync(migrationsDir)
+      ? fs.readdirSync(migrationsDir).filter((f) => f.endsWith('_setup_user_default_role.liquid'))
+      : [];
+    if (existing.length > 0) {
+      console.log(`app/migrations/${existing.sort().pop()} already exists — left untouched. Generate a new migration if you want to change the default role.`);
+      return;
     }
 
-    const migrationPath = path.join(migrationsDir, latest);
+    const timestamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+    const fileName = `${timestamp}_setup_user_default_role.liquid`;
     const body = `{% liquid
   function result = 'modules/core/commands/variable/set', name: 'USER_DEFAULT_ROLE', value: '${role}'
   log result, type: 'setup_user_default_role_result'
 %}
 `;
-    fs.writeFileSync(migrationPath, body);
-    console.log(`Wrote migration: app/migrations/${latest}`);
-
-    console.log(`Deploying to "${env}"...`);
-    execFileSync('pos-cli', ['deploy', env], { stdio: 'inherit' });
-    console.log(`USER_DEFAULT_ROLE is now "${role}" on "${env}".`);
+    fs.mkdirSync(migrationsDir, { recursive: true });
+    fs.writeFileSync(path.join(migrationsDir, fileName), body);
+    console.log(`Wrote migration: app/migrations/${fileName} (sets USER_DEFAULT_ROLE="${role}")`);
   }
 
   _createSuperadmin(env, email, password) {
@@ -309,6 +341,10 @@ export default class extends Generator {
     if (!fs.existsSync(userCreateFile) || !fs.existsSync(profileCreateFile)) {
       throw new Error('could not find modules/user/public/graphql/{user/create,profiles/create}.graphql — is the user module installed here?');
     }
+
+    // The user module (profile schema, GraphQL) must be on the instance before we can create records there.
+    console.log(`Deploying to "${env}"...`);
+    execFileSync('pos-cli', ['deploy', env], { stdio: 'inherit' });
 
     console.log(`Creating user "${email}" on "${env}"...`);
     const userResultRaw = execFileSync(
