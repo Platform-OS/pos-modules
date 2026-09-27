@@ -14,7 +14,6 @@
     assign current_participants = participants | array_select: id: current_profile.id
     assign other_participants = participants | array_subtract: current_participants
     assign from_profile = other_participants | first
-    log current
 
     if conversation.id == current.id
       assign conversation['current'] = true
