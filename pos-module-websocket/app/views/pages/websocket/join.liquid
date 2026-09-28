@@ -11,10 +11,9 @@ method: post
 {% enddoc %}
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
-  if current_profile.user == null
-    redirect_to '/sessions/new'
-    return
-  endif
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'websocket.demo', redirect_anonymous_to_login: true, entity: null, access_callback: null, forbidden_partial: null, anonymous_return_to: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
   assign room = context.params.room | default: 'lobby'
   assign room_id = 'demo-' | append: room
