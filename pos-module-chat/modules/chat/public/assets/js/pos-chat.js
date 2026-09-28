@@ -107,7 +107,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload = {};
   // url to create the uploaded file record in the database (string)
   module.settings.upload.createUrl = '/api/chat/uploads';
-  // media info staged from finished uploads, sent as message(s) on the next Send (array of { type, name, size, url })
+  // media info staged from finished uploads, sent as message(s) on the next Send, keyed by
+  // the uppy file id so removing a file from the uploader unstages it (array of { fileId, media: { type, name, size, url } })
   module.settings.upload.pending = [];
   // in-flight promises from module.upload.save() - saving an upload record (and getting
   // back its id + signed URL) is a round-trip, so a Send triggered before it resolves has
@@ -239,6 +240,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // store record for uploaded file, and stage its media info to go out with the next sent message
     document.addEventListener('pos-upload-file-uploaded', event => {
+      const fileId = event.detail.file.id;
       const metadata = {
         type: event.detail.file.type,
         name: event.detail.file.name,
@@ -262,7 +264,13 @@ window.pos.modules.chat = function(userSettings = {}){
             return;
           }
 
-          module.settings.upload.pending.push(media);
+          // the file could have been removed from the uploader while its record was being saved
+          if(!pos.modules.active['chat-upload']?.settings.uppy.getFile(fileId)){
+            pos.modules.debug(module.settings.debug, module.settings.id, 'Skipped staging a file removed from the uploader before its record was saved', media);
+            return;
+          }
+
+          module.settings.upload.pending.push({ fileId: fileId, media: media });
 
           pos.modules.debug(module.settings.debug, module.settings.id, 'Added file to pending uploads', media);
         })
@@ -274,6 +282,13 @@ window.pos.modules.chat = function(userSettings = {}){
         });
 
       module.settings.upload.pendingSaves.push(savePromise);
+    });
+
+    // unstage a file removed from the uploader so it doesn't go out with the next sent message
+    document.addEventListener('pos-upload-file-removed', event => {
+      module.settings.upload.pending = module.settings.upload.pending.filter(item => item.fileId !== event.detail.file.id);
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Removed file from pending uploads', event.detail.file.id);
     });
 
     // clear all staged uploads
@@ -527,7 +542,7 @@ window.pos.modules.chat = function(userSettings = {}){
       await Promise.allSettled(module.settings.upload.pendingSaves);
     }
 
-    module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending);
+    module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending.map(item => item.media));
     setTimeout(() => {
       module.settings.messageInput.value = '';
     }, 100);
