@@ -1,0 +1,13 @@
+{%- comment -%}
+  Authorization policy: members_can_write (Layer-2, app-owned; spec §12.2).
+  Permits any AUTHENTICATED principal to perform a write. Every bearer is bound to
+  a real member, so an authenticated caller is a member. Named separately from
+  public_read so write access is a distinct, visible decision in review. Fail-closed
+  by construction (the engine denies if this partial is missing or errors).
+{%- endcomment -%}
+{% liquid
+  assign r = '{}' | parse_json
+  hash_assign r['allow'] = true
+  hash_assign r['reason'] = 'member'
+  return r
+%}

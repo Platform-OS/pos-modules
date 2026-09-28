@@ -1,0 +1,78 @@
+{%- comment -%}
+  Handler — create_event (COMMAND MODE; handler contract §7.3). Wraps the community
+  module's OWN command `modules/community/commands/events/create` instead of a raw
+  record_create — so an agent-created event is IDENTICAL to a UI-created one: it runs
+  the same build→check validations, lands in the moderation queue (status: pending),
+  and is wired with the owner / event:going relationships + the event_created feed
+  event. Runs inside the engine transaction (mutating), as the calling principal.
+
+  Arguments are passed as typed values into the command's object; the command owns
+  all GraphQL. The command's {valid, errors} contract maps to the handler contract,
+  so field-level validation errors flow back to the agent for self-correction.
+{%- endcomment -%}
+{% liquid
+  # Resolve the community profile for the calling principal (the command acts as it).
+  function profile = 'modules/community/queries/profiles/find', user_id: principal.user_id, uuid: null, id: null, slug: null, anonymous_session_id: null, relationships: null
+  if profile == blank
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = 403
+    hash_assign err['message'] = 'No community profile for the calling user.'
+    hash_assign err['retryable'] = false
+    assign out = '{}' | parse_json
+    hash_assign out['ok'] = false
+    hash_assign out['error'] = err
+    return out
+  endif
+
+  # Build the command input object from validated arguments. end_date defaults to
+  # start_date (community listings filter end_date >= now); uuid is generated.
+  assign obj = '{}' | parse_json
+  hash_assign obj['uuid'] = '' | uuid
+  hash_assign obj['name'] = arguments.name
+  hash_assign obj['short_description'] = arguments.short_description
+  hash_assign obj['description'] = arguments.description
+  hash_assign obj['start_date'] = arguments.start_date
+  hash_assign obj['end_date'] = arguments.end_date | default: arguments.start_date
+  hash_assign obj['venue'] = arguments.venue
+  hash_assign obj['link'] = arguments.link
+
+  # Invoke the community command (build → check → execute).
+  function object = 'modules/community/commands/events/create', object: obj, profile: profile
+
+  unless object.valid
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = 422
+    hash_assign err['message'] = 'The event is not valid.'
+    hash_assign err['retryable'] = false
+    hash_assign err['fields'] = object.errors
+    assign out = '{}' | parse_json
+    hash_assign out['ok'] = false
+    hash_assign out['error'] = err
+    return out
+  endunless
+
+  # Wire the same side-effects the community UI does: owner + event:going
+  # relationships and the event_created feed event.
+  assign now = 'now' | to_time
+  function _ = 'modules/community/commands/relationships/create', name: 'owner', l_id: profile.id, r_id: object.id, created_by_id: profile.id, l_at: now, r_at: now
+  function _ = 'modules/community/commands/relationships/create', name: 'event:going', l_id: profile.id, r_id: object.id, created_by_id: profile.id, l_at: now, r_at: now
+  assign event_payload = null | hash_merge: actor_id: profile.id, object_id: object.id
+  function _ = 'modules/core/commands/events/publish', type: 'event_created', object: event_payload, delay: 0, max_attempts: null
+
+  assign result = '{}' | parse_json
+  hash_assign result['id'] = object.id
+  hash_assign result['name'] = arguments.name
+  hash_assign result['status'] = object.status | default: 'pending'
+  assign url = '/events/' | append: object.id
+  hash_assign result['url'] = url
+
+  assign subject = '{}' | parse_json
+  hash_assign subject['type'] = 'record'
+  hash_assign subject['id'] = object.id
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  hash_assign out['subject'] = subject
+  return out
+%}

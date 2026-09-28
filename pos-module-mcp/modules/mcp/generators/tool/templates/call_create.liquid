@@ -1,0 +1,30 @@
+{%- comment -%}
+  DRAFT handler — <%= toolName %> (mutating). Runs inside the engine transaction only
+  after the call is authenticated, rate-limited, resolved, validated, and authorized.
+  Arguments are passed as TYPED GraphQL variables (never interpolated). Review before
+  serving.
+{%- endcomment -%}
+{% liquid
+  graphql r = 'mcp/<%= toolName %>'<% attributes.forEach(function(a){ %>, <%= a.name %>: arguments.<%= a.name %><% }); %>
+  assign id = r.record.id
+  if id == blank
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = 422
+    hash_assign err['message'] = 'Could not create the record.'
+    hash_assign err['retryable'] = false
+    assign out = '{}' | parse_json
+    hash_assign out['ok'] = false
+    hash_assign out['error'] = err
+    return out
+  endif
+  assign result = '{}' | parse_json
+  hash_assign result['id'] = id
+  assign subject = '{}' | parse_json
+  hash_assign subject['type'] = 'record'
+  hash_assign subject['id'] = id
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  hash_assign out['subject'] = subject
+  return out
+%}

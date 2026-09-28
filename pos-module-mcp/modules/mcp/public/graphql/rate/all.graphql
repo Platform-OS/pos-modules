@@ -1,0 +1,12 @@
+query all($per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: { table: { value: "modules/mcp/mcp_rate_counter" } }
+  ) {
+    results {
+      id
+      key: property(name: "key")
+      count: property(name: "count")
+    }
+  }
+}

@@ -1,0 +1,26 @@
+---
+slug: mcp-admin/token-revoke
+method: post
+---
+{%- comment -%}
+  Operator revokes a bearer token by id (spec §20). Sets status:revoked — the next
+  request carrying that token fails authentication. Operator-gated; the same control
+  the token owner has on /mcp-tools, but exposed to operators for ANY token (the
+  console's kill-switch for a misbehaving agent). Idempotent: revoking an already
+  revoked token is a no-op. The token digest is never exposed here — only its id.
+{%- endcomment -%}
+{%- liquid
+  function is_admin = 'modules/mcp/commands/is_operator'
+  unless is_admin
+    response_status 403
+    echo 'Forbidden'
+    return
+  endunless
+
+  assign tid = context.params.id
+  if tid != blank
+    graphql _ = 'modules/mcp/tokens/revoke', id: tid
+  endif
+
+  redirect_to '/mcp-admin?tab=tokens'
+-%}

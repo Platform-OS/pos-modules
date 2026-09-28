@@ -1,0 +1,19 @@
+{%- comment -%}
+  Layer-2 prompt registry (app-owned; spec §13.1). Returns the reusable prompt
+  templates this instance offers to agents: [{ name, title?, description, arguments,
+  template }]. `template` points at a partial that renders the prompt text given the
+  arguments. Prompt text is authored code, reviewed like any tool description.
+{%- endcomment -%}
+{% liquid
+  assign prompts = '[]' | parse_json
+
+  assign p1 = '{}' | parse_json
+  hash_assign p1['name'] = 'draft_announcement'
+  hash_assign p1['title'] = 'Draft an event announcement'
+  hash_assign p1['description'] = 'Draft a warm, concise community announcement for an event.'
+  hash_assign p1['arguments'] = '[{"name":"event_name","description":"the event title","required":true},{"name":"date","description":"when it happens (human-readable)","required":true},{"name":"vibe","description":"tone, e.g. cozy or energetic","required":false}]' | parse_json
+  hash_assign p1['template'] = 'mcp/prompts/draft_announcement'
+  assign prompts = prompts | array_add: p1
+
+  return prompts
+%}

@@ -1,0 +1,101 @@
+{%- comment -%}
+  Execute a resolved, validated, authorized tool call (spec §9.2 step 8, §7.3).
+  Invokes the tool's handler partial with the handler contract inputs and maps its
+  return to an MCP result.
+
+  The handler returns { ok, result?, subject?, error? }:
+   - ok:true  → MCP result with structuredContent + a text rendering; isError:false.
+   - ok:false → MCP TOOL error (isError:true), NOT a protocol error — the agent can
+     reason about a business failure (§13.2). The stable error.message is surfaced;
+     no server internals.
+   - A handler that throws, or returns a malformed shape, is caught and mapped to a
+     generic tool error (fail-safe) and flagged for the caller via outcome 'error'.
+
+  Phase 1 is read-only. For mutating tools (Phase 2) this is where the
+  {% transaction %} wrap + rollback-on-error + attest-inside-tx will live; the
+  return contract is already shaped for it (subject/outcome).
+
+  @param {object} tool         - the resolved manifest (has .handler, .version)
+  @param {object} arguments    - validated arguments
+  @param {object} principal    - resolved principal
+  @param {object} agent        - calling agent
+  @param {object} context_meta - { tool_name, tool_version, request_id }
+  @return {object} { outcome:'success'|'error', content:[...], isError:boolean,
+                     structured?, subject_type?, subject_id?, error_message? }
+{%- endcomment -%}
+{% liquid
+  assign handler = tool.handler
+  assign hres = null
+  assign threw = false
+  try
+    function hres = handler, arguments: arguments, principal: principal, agent: agent, context_meta: context_meta
+  catch e
+    assign threw = true
+    assign _lm = context_meta.tool_name | append: ': ' | append: e.message
+    log _lm, type: 'mcp.handler_exception'
+  endtry
+
+  assign out = '{}' | parse_json
+
+  # Fail-safe: a thrown or malformed handler result → generic tool error.
+  if threw or hres == blank
+    assign content = '[]' | parse_json
+    assign item = '{}' | parse_json
+    hash_assign item['type'] = 'text'
+    hash_assign item['text'] = 'The tool failed to complete.'
+    assign content = content | array_add: item
+    hash_assign out['outcome'] = 'error'
+    hash_assign out['isError'] = true
+    hash_assign out['content'] = content
+    hash_assign out['error_message'] = 'handler_error'
+    return out
+  endif
+
+  # Handler-reported business failure → MCP tool error (agent-reasoned).
+  unless hres.ok
+    assign emsg = 'The tool could not complete the request.'
+    unless hres.error == blank
+      assign emsg = hres.error.message | default: emsg
+    endunless
+    assign content = '[]' | parse_json
+    assign item = '{}' | parse_json
+    hash_assign item['type'] = 'text'
+    hash_assign item['text'] = emsg
+    assign content = content | array_add: item
+    hash_assign out['outcome'] = 'error'
+    hash_assign out['isError'] = true
+    hash_assign out['content'] = content
+    hash_assign out['error_message'] = emsg
+    # Surface caller-safe field-level errors (e.g. a command's validation errors) as
+    # structuredContent so the agent can self-correct — same courtesy as the schema-
+    # validation path. `fields` must be safe data (field name → message), no internals.
+    unless hres.error.fields == blank
+      assign structured = '{}' | parse_json
+      hash_assign structured['errors'] = hres.error.fields
+      hash_assign out['structured'] = structured
+    endunless
+    return out
+  endunless
+
+  # Success → structuredContent + a text rendering (MCP clients show text; capable
+  # clients also read structuredContent).
+  assign structured = hres.result
+  if structured == blank
+    assign structured = '{}' | parse_json
+  endif
+  assign content = '[]' | parse_json
+  assign item = '{}' | parse_json
+  hash_assign item['type'] = 'text'
+  hash_assign item['text'] = structured | json
+  assign content = content | array_add: item
+
+  hash_assign out['outcome'] = 'success'
+  hash_assign out['isError'] = false
+  hash_assign out['content'] = content
+  hash_assign out['structured'] = structured
+  unless hres.subject == blank
+    hash_assign out['subject_type'] = hres.subject.type
+    hash_assign out['subject_id'] = hres.subject.id
+  endunless
+  return out
+%}

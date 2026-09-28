@@ -1,0 +1,19 @@
+{%- comment -%}
+  Tool manifest — broadcast_event (MUTATING, REQUIRES APPROVAL). A high-visibility
+  action that an agent may PROPOSE but that only runs after an operator approves in
+  the console. Demonstrates the human-in-the-loop gate for high-impact actions
+  (§9.6). On approval it executes as the requesting member.
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'broadcast_event'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'Propose a high-visibility broadcast event for the whole community. Requires operator approval before anything is created — this call only PROPOSES it and returns a handle to poll. Requires name, description, a future start_date (ISO 8601), and a venue.'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["name","description","start_date","venue"],"properties":{"name":{"type":"string","minLength":1,"maxLength":35,"pattern":"^[^<>]*$"},"description":{"type":"string","minLength":10,"maxLength":2000,"pattern":"^[^<>]*$"},"start_date":{"type":"string","minLength":10,"maxLength":40,"description":"future ISO 8601 datetime"},"venue":{"type":"string","maxLength":120,"pattern":"^[^<>]*$"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = true
+  hash_assign m['authorization_policy'] = 'members_can_write'
+  hash_assign m['requires_approval'] = true
+  hash_assign m['handler'] = 'mcp/tools/broadcast_event/call'
+  return m
+%}

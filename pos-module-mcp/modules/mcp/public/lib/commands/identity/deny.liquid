@@ -1,0 +1,26 @@
+{%- comment -%}
+  Build an authentication/authorization denial outcome (spec §9.4, §13.2). Pure.
+  The `message` is the caller-safe wire string (no internals). The `reason` is a
+  stable machine code recorded in the ledger (authz_reason), NOT sent verbatim on
+  the wire beyond the generic message. `www_authenticate`, when present, is set as
+  the response header on a 401 (spec §9.5).
+
+  @param {integer} http_status       - 401 (token) or 403 (client status/policy)
+  @param {integer} error_code        - JSON-RPC error code (default -32001)
+  @param {string}  message           - generic, caller-safe reason
+  @param {string}  reason            - stable machine code for the ledger
+  @param {string}  www_authenticate  - optional WWW-Authenticate header value
+  @return {object} { authenticated:false, http_status, error_code, message, reason, www_authenticate? }
+{%- endcomment -%}
+{% liquid
+  assign f = '{}' | parse_json
+  hash_assign f['authenticated'] = false
+  hash_assign f['http_status'] = http_status | default: 401
+  hash_assign f['error_code'] = error_code | default: -32001
+  hash_assign f['message'] = message | default: 'Unauthorized'
+  hash_assign f['reason'] = reason
+  unless www_authenticate == blank
+    hash_assign f['www_authenticate'] = www_authenticate
+  endunless
+  return f
+%}

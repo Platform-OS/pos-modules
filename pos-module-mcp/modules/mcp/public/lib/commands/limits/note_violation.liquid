@@ -1,0 +1,28 @@
+{%- comment -%}
+  Record one policy violation for a principal in the current abuse window (spec
+  §12.4 abuse tracking). O(1): a single windowed counter (same mechanism as the rate
+  limiter), NOT a ledger scan — the ledger remains the audit surface, this is just a
+  cheap tripwire. Called at each violation exit in the pipeline (deny, invalid args,
+  unknown tool, rate-limit).
+
+  @param {string} principal_id
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign win_len = cfg.defaults.abuse_window_seconds | plus: 0
+  if win_len <= 0
+    return true
+  endif
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign window = now_unix | divided_by: win_len
+  assign key = 'abuse:' | append: principal_id | append: ':' | append: window
+
+  graphql f = 'modules/mcp/rate/find', key: key
+  assign existing = f.records.results.first
+  if existing
+    graphql _ = 'modules/mcp/rate/increment', id: existing.id
+  else
+    graphql _ = 'modules/mcp/rate/create', key: key
+  endif
+  return true
+%}

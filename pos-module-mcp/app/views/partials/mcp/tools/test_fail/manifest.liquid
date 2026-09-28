@@ -1,0 +1,21 @@
+{%- comment -%}
+  Tool manifest — test_fail (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  MUTATING, policy test_principal_member. The handler writes a test_note row and THEN
+  returns ok:false — so a correct engine ROLLS BACK the write. The coverage suite proves
+  reversibility by asserting: the call is isError, NO test_fail row persists, and the
+  ledger records a 'rolled_back' outcome. Not idempotent (each attempt must re-run).
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'test_fail'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'TEST FIXTURE (not a production tool): writes a row then fails, to prove transaction rollback.'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","minLength":1,"maxLength":100,"pattern":"^[^<>]*$"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = true
+  hash_assign m['authorization_policy'] = 'test_principal_member'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = false
+  hash_assign m['handler'] = 'mcp/tools/test_fail/call'
+  return m
+%}

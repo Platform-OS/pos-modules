@@ -1,0 +1,19 @@
+{%- comment -%}
+  Handler — test_fail (TEST FIXTURE). Writes a test_note row, THEN reports failure.
+  Because ok:false maps to a non-success outcome, the engine rolls the whole
+  transaction back — the row must NOT survive. This is the rollback probe.
+{%- endcomment -%}
+{% liquid
+  assign uid = principal.user_id | append: ''
+  # Write first — the point is that this write gets undone by the rollback.
+  graphql g = 'mcp/test_note_create', user_id: uid, label: arguments.label, source: 'test_fail'
+
+  assign err = '{}' | parse_json
+  hash_assign err['code'] = 500
+  hash_assign err['message'] = 'Intentional test failure (rollback probe).'
+  hash_assign err['retryable'] = false
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = false
+  hash_assign out['error'] = err
+  return out
+%}

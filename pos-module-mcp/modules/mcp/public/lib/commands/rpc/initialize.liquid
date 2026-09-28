@@ -1,0 +1,78 @@
+{%- comment -%}
+  MCP `initialize` (spec §13.1). Capability negotiation + server identity.
+  Open method: no auth, no ledger (pre-auth plumbing, §9.3).
+
+  Advertises the pinned protocol revision and the capabilities this server
+  actually implements. `instructions` are house rules shown to the model on
+  connect — kept factual and short (they are model-read text, so they are
+  security-relevant, §12.3: no imperative jailbreak-bait, no secrets).
+
+  @param {object} params           - the client's initialize params (protocolVersion,
+                                     capabilities, clientInfo). Accepted, not required.
+  @param {string} protocol_version - the NEGOTIATED revision (from dispatch); defaults to
+                                     the server's own revision when called without one.
+  @param {array}  supported        - all revisions the server implements (advertised in
+                                     `_meta` so a client can pick during the transition).
+  @return {object} { protocolVersion, capabilities, serverInfo, instructions, _meta }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+
+  assign result = '{}' | parse_json
+  # Echo the negotiated revision (dispatch resolves it); fall back to the server's own.
+  hash_assign result['protocolVersion'] = protocol_version | default: cfg.protocol_version
+
+  # Capabilities: tools + resources are the Phase-1 surface. listChanged is false
+  # (no notifications until streaming lands, spec §16.2/§13.1 Phase 4).
+  assign caps = '{}' | parse_json
+  hash_assign caps['tools'] = '{"listChanged":false}' | parse_json
+  hash_assign caps['resources'] = '{"listChanged":false,"subscribe":false}' | parse_json
+  hash_assign caps['prompts'] = '{"listChanged":false}' | parse_json
+  hash_assign caps['logging'] = '{}' | parse_json
+  # 2026-07-28 clients: advertise the Tasks extension (approval-gated actions are tasks,
+  # polled via tasks/get, withdrawn via tasks/update). Not advertised to a 2025 client,
+  # which uses the built-in mcp_approval_status tool for the same purpose.
+  assign neg = protocol_version | default: cfg.protocol_version
+  if neg == '2026-07-28'
+    hash_assign caps['io.modelcontextprotocol/tasks'] = '{}' | parse_json
+  endif
+  hash_assign result['capabilities'] = caps
+
+  assign info = '{}' | parse_json
+  hash_assign info['name'] = cfg.server_name
+  hash_assign info['version'] = cfg.server_version
+  hash_assign result['serverInfo'] = info
+
+  # Connection instructions (house rules shown to the model on connect). The app
+  # authors its own via the instructions partial (Layer 2); the engine falls back
+  # to a governance-focused default when the app has not provided one. App text is
+  # model-read and should be reviewed as security-relevant (§12.3).
+  assign instructions = null
+  try
+    function instructions = cfg.instructions_partial
+  catch e
+    assign instructions = null
+  endtry
+  if instructions == blank
+    capture instructions
+      echo 'This is a governed platformOS MCP server. Every tool call is bound to a '
+      echo 'real identity, checked against a named authorization policy, validated '
+      echo 'against a typed schema, and recorded in a tamper-evident ledger. '
+      echo 'Call tools/list to see the actions available to you; each tool description '
+      echo 'is authoritative. Pass arguments exactly as each tool schema requires — '
+      echo 'unknown or malformed arguments are rejected, not guessed. Do not retry a '
+      echo 'call that was denied or rejected as not permitted; it will not succeed, and '
+      echo 'repeated policy violations automatically suspend your access. Documentation '
+      echo 'and catalogue pages are available via resources/list.'
+    endcapture
+  endif
+  hash_assign result['instructions'] = instructions | strip
+
+  # Advertise every revision the server implements (spec-safe `_meta`; ignored by clients
+  # that don't read it) so a client can negotiate up during the transition window.
+  assign rmeta = '{}' | parse_json
+  hash_assign rmeta['supportedProtocolVersions'] = supported | default: cfg.supported_protocol_versions
+  hash_assign result['_meta'] = rmeta
+
+  return result
+%}

@@ -1,0 +1,120 @@
+{%- comment -%}
+  MCP `tools/list` (spec §13.1, §14.2, §14.3). Returns the registered, meta-schema-
+  valid tools in the MCP wire shape, with cursor pagination from v1 so a rich
+  instance never bloats agent context in one page.
+
+  Each tool exposes name + description + inputSchema (mapped from the manifest's
+  input_schema). Version and deprecation travel in `_meta` (MCP 2025-06-18 allows
+  `_meta`), and a deprecated tool additionally carries a human sunset notice
+  appended to its description so a model reading the list sees it. Excluded/invalid
+  manifests never appear here (§8.1).
+
+  Open method (per MCP): listing tools does not require auth; EXECUTION does
+  (tools/call). Listing is not ledgered (pre-action discovery, §9.3).
+
+  VISIBILITY SCOPE (config.tools_list_scope, resolved in dispatch):
+    - absent / 'open'  → advertise every registered tool (default, legacy behavior).
+    - 'principal'      → advertise only tools whose authorization policy admits the
+                         caller (passed as `principal`/`agent`/`delegation_mode`), so
+                         restricted tools are not leaked. Policies are evaluated with
+                         EMPTY arguments; a policy that needs arguments to allow denies
+                         here and the tool is hidden (fail-closed) — the documented
+                         least-disclosure tradeoff. Execution re-authorizes with the
+                         real arguments regardless.
+    - 'anonymous'      → 'principal' scope with no authenticated caller → advertise
+                         nothing. Filtering happens BEFORE pagination so cursor offsets
+                         index the visible set, not the full registry.
+
+  @param {object} params          - MCP params; may contain `cursor` (opaque)
+  @param {string} scope           - 'open' (default) | 'principal' | 'anonymous'
+  @param {object} principal       - resolved principal (scope 'principal')
+  @param {object} agent           - calling agent (scope 'principal')
+  @param {string} delegation_mode - direct | on_behalf_of (scope 'principal')
+  @return {object} { tools:[...], nextCursor? }
+{%- endcomment -%}
+{% liquid
+  assign page_size = 50
+  function reg = 'modules/mcp/commands/registry/load'
+  assign all = reg.tools
+
+  # ---- Visibility scope (§14.2). Build the visible set, then paginate it. --------
+  # scope/principal/agent/delegation_mode are OPTIONAL inputs (only the 'principal'
+  # scope supplies them). Default them so callers of the 'open'/'anonymous' paths
+  # need not pass identity — and so the linter treats them as optional, not required.
+  assign scope = scope | default: 'open'
+  assign principal = principal | default: ''
+  assign agent = agent | default: ''
+  assign delegation_mode = delegation_mode | default: 'direct'
+  if scope == 'open'
+    assign visible = all
+  elsif scope == 'principal' and principal != blank
+    assign visible = '[]' | parse_json
+    assign empty_args = '{}' | parse_json
+    assign dm = delegation_mode | default: 'direct'
+    for m in all
+      function az = 'modules/mcp/commands/authorize/evaluate', policy: m.authorization_policy, principal: principal, agent: agent, arguments: empty_args, tool: m, delegation_mode: dm
+      if az.allow == true
+        assign visible = visible | array_add: m
+      endif
+    endfor
+  else
+    # 'anonymous', or 'principal' with no resolved principal → advertise nothing.
+    assign visible = '[]' | parse_json
+  endif
+  assign total = visible | size
+
+  # Decode opaque cursor → offset. Malformed/absent cursor starts at 0.
+  assign offset = 0
+  assign cursor = params.cursor
+  unless cursor == blank
+    assign decoded = cursor | base64_decode | default: ''
+    if decoded contains 'offset:'
+      assign offset = decoded | remove_first: 'offset:' | plus: 0
+    endif
+  endunless
+  if offset < 0
+    assign offset = 0
+  endif
+
+  assign tools_out = '[]' | parse_json
+  assign idx = 0
+  assign emitted = 0
+  for m in visible
+    if idx >= offset and emitted < page_size
+      assign t = '{}' | parse_json
+      hash_assign t['name'] = m.name
+      assign desc = m.description
+      if m.deprecated == true
+        assign sunset = m.sunset | default: 'a future release'
+        assign desc = desc | append: ' [DEPRECATED — will be removed in ' | append: sunset | append: '. Prefer the current version.]'
+      endif
+      hash_assign t['description'] = desc
+      hash_assign t['inputSchema'] = m.input_schema
+      assign meta = '{}' | parse_json
+      hash_assign meta['version'] = m.version
+      assign is_dep = false
+      if m.deprecated == true
+        assign is_dep = true
+      endif
+      hash_assign meta['deprecated'] = is_dep
+      hash_assign t['_meta'] = meta
+      assign tools_out = tools_out | array_add: t
+      assign emitted = emitted | plus: 1
+    endif
+    assign idx = idx | plus: 1
+  endfor
+
+  assign result = '{}' | parse_json
+  hash_assign result['tools'] = tools_out
+  assign next_offset = offset | plus: page_size
+  if next_offset < total
+    assign nc = 'offset:' | append: next_offset | base64_encode
+    hash_assign result['nextCursor'] = nc
+  endif
+  # Client-side cache hint (2026-07-28 only; dispatch passes it or nil).
+  unless cache == blank
+    hash_assign result['ttlMs'] = cache.ttlMs
+    hash_assign result['cacheScope'] = cache.cacheScope
+  endunless
+  return result
+%}

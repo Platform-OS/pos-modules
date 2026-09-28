@@ -68,6 +68,8 @@ jobs:
               - 'pos-module-common-styling/**'
             data-export-api:
               - 'pos-module-data-export-api/**'
+            mcp:
+              - 'pos-module-mcp/**'
             oauth-facebook:
               - 'pos-module-oauth-facebook/**'
             oauth-github:
@@ -146,6 +148,12 @@ jobs:
               "path": "pos-module-data-export-api",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
+            },
+            "mcp": {
+              "module": "mcp",
+              "path": "pos-module-mcp",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli modules install --dev\npos-cli constants set --name MCP_SEED_TEST_FIXTURES --value 1\npos-cli deploy",
+              "test-commands": "npm ci\nnpm run test:static\nexport MCP_URL=\"$MPKIT_URL\" MCP_TOKEN=\"$MPKIT_TOKEN\" MCP_OP_EMAIL=\"$MPKIT_EMAIL\" MCP_OP_PASS=\"$E2E_TEST_PASSWORD\"\nnode tests/ci-bootstrap-operator.mjs\nnpm test"
             },
             "oauth-facebook": {
               "module": "oauth-facebook",

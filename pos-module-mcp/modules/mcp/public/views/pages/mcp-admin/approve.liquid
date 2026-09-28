@@ -1,0 +1,40 @@
+---
+slug: mcp-admin/approve
+method: post
+---
+{%- comment -%}
+  Operator approves a pending action (spec §9.6). Executes it as the ORIGINAL
+  principal (never the operator), records the outcome on the approval row, and
+  returns to the console. Operator-gated; ownership of the decision is audited.
+{%- endcomment -%}
+{%- liquid
+  function is_admin = 'modules/mcp/commands/is_operator'
+  unless is_admin
+    response_status 403
+    echo 'Forbidden'
+    return
+  endunless
+
+  assign handle = context.params.handle
+  graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
+  assign rec = f.records.results.first
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+
+  if rec and rec.status == 'pending'
+    assign expired = false
+    assign exp = rec.expires_at | plus: 0
+    if exp < now_unix
+      assign expired = true
+    endif
+
+    assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    if expired
+      graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: 'expired', decided_by: context.current_user.id, decided_at: decided_at, result_summary: 'Expired before decision.'
+    else
+      function res = 'modules/mcp/commands/approval/execute', approval: rec, decided_by: context.current_user.id
+      graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: res.outcome, decided_by: context.current_user.id, decided_at: decided_at, result_summary: res.summary
+    endif
+  endif
+
+  redirect_to '/mcp-admin?tab=approvals'
+-%}

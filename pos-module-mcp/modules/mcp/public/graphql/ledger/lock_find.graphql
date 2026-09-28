@@ -1,0 +1,11 @@
+query lock_find($table: String!) {
+  records(
+    per_page: 1
+    filter: { table: { value: $table } }
+    sort: [{ id: { order: ASC } }]
+  ) {
+    results {
+      id
+    }
+  }
+}

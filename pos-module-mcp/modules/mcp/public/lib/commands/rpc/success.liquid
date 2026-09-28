@@ -1,0 +1,14 @@
+{%- comment -%}
+  Build a JSON-RPC 2.0 success envelope (spec §13). Pure — no side effects.
+
+  @param {string|integer|null} id     - the request id, echoed verbatim
+  @param {object} result               - the method result payload
+  @return {object} { jsonrpc: "2.0", id, result }
+{%- endcomment -%}
+{% liquid
+  assign r = '{}' | parse_json
+  hash_assign r['jsonrpc'] = '2.0'
+  hash_assign r['id'] = id
+  hash_assign r['result'] = result
+  return r
+%}

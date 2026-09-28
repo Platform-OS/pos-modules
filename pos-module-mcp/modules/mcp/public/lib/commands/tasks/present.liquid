@@ -1,0 +1,39 @@
+{%- comment -%}
+  Present a pending_approval record as a 2026-07-28 Tasks-extension task object
+  (io.modelcontextprotocol/tasks). Our approval gate IS a task: an action requested,
+  awaiting an operator decision, then executed. PROVISIONAL status map + field shape,
+  centralized here so aligning to the final extension spec is a one-line change.
+
+  approval status → task status:
+    pending | approved   → working    (queued / mid-execution)
+    executed             → completed
+    rejected | cancelled → cancelled
+    expired  | failed    → failed
+
+  @param {object} rec - a pending_approval record (from approvals/find_by_handle)
+  @return {object} { taskId, status, tool, statusMessage?, decidedAt?, expiresAt }
+{%- endcomment -%}
+{% liquid
+  assign ts = 'working'
+  case rec.status
+    when 'executed'
+      assign ts = 'completed'
+    when 'rejected', 'cancelled'
+      assign ts = 'cancelled'
+    when 'expired', 'failed'
+      assign ts = 'failed'
+  endcase
+
+  assign t = '{}' | parse_json
+  hash_assign t['taskId'] = rec.handle
+  hash_assign t['status'] = ts
+  hash_assign t['tool'] = rec.tool_name
+  unless rec.result_summary == blank
+    hash_assign t['statusMessage'] = rec.result_summary
+  endunless
+  unless rec.decided_at == blank
+    hash_assign t['decidedAt'] = rec.decided_at
+  endunless
+  hash_assign t['expiresAt'] = rec.expires_at | plus: 0
+  return t
+%}

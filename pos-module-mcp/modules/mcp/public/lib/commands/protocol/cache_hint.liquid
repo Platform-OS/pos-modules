@@ -1,0 +1,35 @@
+{%- comment -%}
+  Client-side cache hint for a list/read result (spec 2026-07-28 "cacheable list
+  results"). Returns { ttlMs, cacheScope } from config; the caller attaches it to the
+  result ONLY for a 2026-07-28 client (so 2025-06-18 responses are unchanged).
+
+  cacheScope semantics:
+    'shared'        — the result is identical for every caller (open tools/list,
+                      prompts/list, resources/list) → safe to share across principals.
+    'per-principal' — the result varies by identity (principal-scoped tools/list) →
+                      the client must not reuse it across principals.
+
+  NOTE: the exact cacheScope enum in the final 2026-07-28 spec may differ; the values
+  are centralized here so aligning them is a one-line change.
+
+  @param {string} kind  - 'tools' | 'prompts' | 'resources'
+  @param {string} scope - 'shared' | 'per-principal'
+  @return {object} { ttlMs, cacheScope }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign kind = kind | default: 'tools'
+  assign scope = scope | default: 'shared'
+  # platformos-check-disable UnknownProperty
+  assign ttl = cfg.cache.tools_ttl_ms
+  if kind == 'prompts'
+    assign ttl = cfg.cache.prompts_ttl_ms
+  elsif kind == 'resources'
+    assign ttl = cfg.cache.resources_ttl_ms
+  endif
+  # platformos-check-enable UnknownProperty
+  assign out = '{}' | parse_json
+  hash_assign out['ttlMs'] = ttl | plus: 0
+  hash_assign out['cacheScope'] = scope
+  return out
+%}

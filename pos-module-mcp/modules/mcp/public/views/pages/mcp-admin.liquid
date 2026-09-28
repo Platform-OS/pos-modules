@@ -1,0 +1,734 @@
+---
+slug: mcp-admin
+layout: ''
+---
+{%- comment -%}
+  MCP operator console (spec §20). Admin-gated ledger view + observability. The
+  ledger is the audit surface; this page reads it, never mutates it.
+
+  ACCESS: operators are an explicit allowlist in MCP_ADMIN_USER_IDS (same rule as
+  the admin_only tool policy). A non-operator (or anonymous) request gets 403 and
+  no data — the gate runs BEFORE any query. Session identity is context.current_user
+  (browser login), distinct from the bearer identity used by the /mcp API.
+
+  LAYOUT: a left sidebar selects one of five sections; the server renders only the
+  active panel (?tab= is the single source of truth). This is URL-driven, NOT a
+  client-side toggle — NO JS anywhere, preserving the JS-free control-plane posture.
+  Every navigation is a plain GET carrying ?tab=; reloads that happen for other
+  reasons (ledger filter, security lens, POST redirects) carry it too, so the correct
+  section is always re-selected server-side. Each panel starts at the top — no long
+  scroll to lose. On narrow screens the sidebar folds to a horizontal bar (CSS only).
+
+  STYLING: all presentation lives in the <style> block below — component classes
+  plus a small utility layer (spacing/size/width/text-color). There are NO inline
+  style="" attributes anywhere on this page, by design.
+
+  Structural HTML is literal template (rendered raw). All ledger values are emitted
+  through {{ }}, which HTML-escapes them (escape_output_instead_of_sanitize) — a
+  deliberate XSS defense, since some fields (agent_id, tool_name) are agent-influenced.
+{%- endcomment -%}
+{%- liquid
+  # SECURITY: never cache the operator console. It renders authenticated audit data
+  # (ledger, pending approvals, token status). `no-store` also makes the page
+  # bfcache-ineligible, so Back/Forward cannot restore sensitive views from browser
+  # history after an operator navigates away — it forces a fresh, re-gated request.
+  response_headers '{"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}'
+  function is_admin = 'modules/mcp/commands/is_operator'
+
+  unless is_admin
+    response_status 403
+  endunless
+
+  if is_admin
+    # ---- request params + display flags (computed FIRST; they drive the lazy loading) ----
+    assign valid_tabs = 'overview,approvals,tokens,ledger,config' | split: ','
+    assign active_tab = context.params.tab | default: 'overview'
+    unless valid_tabs contains active_tab
+      assign active_tab = 'overview'
+    endunless
+
+    assign full_verify = false
+    if context.params.verify == 'full'
+      assign full_verify = true
+    endif
+
+    # Live tail (JS-free auto-refresh via <meta http-equiv="refresh">). Opt-in with ?live=N
+    # (seconds, clamped 5..300; a bare truthy value defaults to 20s). Off by default.
+    assign live_on = false
+    assign live_secs = 20
+    assign live_raw = context.params.live | default: ''
+    if live_raw != ''
+      assign live_on = true
+      assign live_n = live_raw | plus: 0
+      if live_n >= 5
+        assign live_secs = live_n
+      endif
+      if live_secs > 300
+        assign live_secs = 300
+      endif
+    endif
+
+    # Non-production tool fixtures live? (operator safety warning — never in prod).
+    assign tt = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+    assign test_tools_on = false
+    if tt == '1' or tt == 'true'
+      assign test_tools_on = true
+    endif
+    assign vv = context.constants.MCP_ENABLE_VULN_TOOLS | default: ''
+    assign vuln_tools_on = false
+    if vv == '1' or vv == 'true'
+      assign vuln_tools_on = true
+    endif
+
+    # Query-string suffix carried across URL-driven tab links (preserves live + verify).
+    assign qp = ''
+    if live_on
+      assign qp = qp | append: '&live=' | append: live_secs
+    endif
+    if full_verify
+      assign qp = qp | append: '&verify=full'
+    endif
+
+    # ---- always (every tab): pending approvals for the nav badge ----
+    graphql pending_res = 'modules/mcp/approvals/list', status: 'pending', per_page: 50
+    assign pending = pending_res.records.results
+
+    # ---- chain status for the banner (every tab). On Overview the metrics scan already
+    #      yields it; elsewhere do the cheap bounded check alone (NO count scan). ----
+    if active_tab == 'overview'
+      if full_verify
+        function m = 'modules/mcp/commands/observability/metrics'
+      else
+        function m = 'modules/mcp/commands/observability/metrics', chain_tail: 200
+      endif
+      assign chain = m.chain
+      graphql eval_res = 'modules/mcp/eval/runs_latest', per_page: 1
+      assign latest_eval = eval_res.records.results.first
+    else
+      if full_verify
+        function chain = 'modules/mcp/commands/ledger/verify_chain'
+      else
+        function chain = 'modules/mcp/commands/ledger/verify_chain_recent', limit: 200
+      endif
+    endif
+
+    # ---- LAZY per-tab data: only the active tab runs its (heavier) queries ----
+    if active_tab == 'ledger'
+      graphql search = 'modules/mcp/ledger/search', tool_name: context.params.tool_name, principal_id: context.params.principal_id, client_id: context.params.client_id, authz_decision: context.params.authz_decision, execution_outcome: context.params.execution_outcome, page: 1, per_page: 50
+      assign rows = search.records.results
+    endif
+
+    if active_tab == 'tokens'
+      function cfg = 'modules/mcp/commands/config'
+      graphql access_res = 'modules/mcp/access/list', per_page: 200
+      assign access_rows = access_res.records.results
+      graphql tokens_res = 'modules/mcp/tokens/list_all', per_page: 200
+      assign tokens = tokens_res.records.results
+      graphql rc_res = 'modules/mcp/rate/all', per_page: 500
+      assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+      assign abuse_win = cfg.defaults.abuse_window_seconds | plus: 0
+      assign cur_window = 0
+      if abuse_win > 0
+        assign cur_window = now_unix | divided_by: abuse_win
+      endif
+      assign abuse_map = '{}' | parse_json
+      for rc in rc_res.records.results
+        hash_assign abuse_map[rc.key] = rc.count
+      endfor
+      assign abuse_threshold = cfg.defaults.abuse_threshold | plus: 0
+      assign half_threshold = 1
+      if abuse_threshold > 0
+        assign half_threshold = abuse_threshold | divided_by: 2
+      endif
+    endif
+
+    if active_tab == 'config'
+      function cfg = 'modules/mcp/commands/config'
+      function registry = 'modules/mcp/commands/registry/load'
+    endif
+
+    if active_tab == 'approvals'
+      # Per-principal pending-approval counts, for the bulk-drain control.
+      assign pending_by_pid = '{}' | parse_json
+      for a in pending
+        assign prev_p = pending_by_pid[a.principal_id] | default: 0
+        hash_assign pending_by_pid[a.principal_id] = prev_p | plus: 1
+      endfor
+    endif
+
+    # ---- F: chain-break diagnostics (fetched ONLY when the chain is broken — rare, so
+    #      no cost on the normal path). Surfaces the forked/tampered rows on the Ledger tab.
+    unless chain.ok
+      assign _broken_seq = chain.broken_at | plus: 0
+      graphql fork_res = 'modules/mcp/ledger/by_seq', seq: _broken_seq
+      assign fork_rows = fork_res.records.results
+    endunless
+
+    # Preserve the active ledger filter across the export link (values url-encoded).
+    assign v_tool = context.params.tool_name | url_encode
+    assign v_prin = context.params.principal_id | url_encode
+    assign v_client = context.params.client_id | url_encode
+    assign v_authz = context.params.authz_decision | url_encode
+    assign v_outcome = context.params.execution_outcome | url_encode
+    assign export_qs = 'tool_name=' | append: v_tool | append: '&principal_id=' | append: v_prin | append: '&client_id=' | append: v_client | append: '&authz_decision=' | append: v_authz | append: '&execution_outcome=' | append: v_outcome | append: '&tab=ledger'
+  endif
+-%}
+{%- if is_admin == false -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Forbidden</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; }
+</style>
+</head>
+<body>
+  <h1>403 — Operators only</h1>
+  <p>The MCP operator console requires an account listed in <code>MCP_ADMIN_USER_IDS</code>.</p>
+</body></html>
+{%- else -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{%- comment -%} Dark-first color-scheme so the browser holds a DARK frame between
+navigations instead of flashing white (the console is a dark theme). {%- endcomment -%}
+<meta name="color-scheme" content="dark light">
+{%- if live_on -%}<meta http-equiv="refresh" content="{{ live_secs }}">{%- endif -%}
+<title>MCP Operator Console</title>
+<style>
+  /* Gruvbox-dark TUI skin: flat surfaces, SQUARE corners (--radius:0), visible box
+     borders, monospace — the console reads like a terminal UI. Base + accents are
+     gruvbox; surface elevation uses gruvbox's canonical bg ramp (bg0_h/bg1/bg2/bg3)
+     alongside the 16 ANSI colors. Dark-only (the frame must not flash white between
+     navigations); JetBrains Mono is a LOCAL-first stack — no external font fetch. */
+  :root {
+    color-scheme: dark;
+    --bg: #14152E;          /* navy page background (override of gruvbox bg0) */
+    --bg-2: #0d0e1f;        /* darker navy — sidebar / inputs */
+    --panel: #2b2838;       /* warm dark indigo — panels/cards */
+    --panel-2: #393450;     /* warm indigo — raised / hover */
+    --border: #4c4560;      /* warm indigo-gray — visible TUI box borders */
+    --border-soft: #393450; /* warm indigo — quieter dividers */
+    --text: #ebdbb2;        /* fg / bright white — headings / bright figures */
+    --muted: #a89984;       /* white — body / secondary */
+    --dim: #928374;         /* bright black — dim labels */
+    /* Accents (gruvbox bright): blue = links/active, green = ok/allow, red = deny,
+       yellow = warn, magenta = brand mark. Pill/banner backgrounds are dark tints
+       of each hue so the bright foreground stays legible on the flat base. */
+    --accent: #83a598;      /* bright blue — links / active nav */
+    --accent-2: #458588;    /* blue — hover borders */
+    --pink: #d3869b;        /* bright magenta — brand accent */
+    --ok-bg: #333a1e;  --ok-fg: #b8bb26;   /* bright green on dark-green tint */
+    --bad-bg: #3f2120; --bad-fg: #fb4934;  /* bright red on dark-red tint */
+    --warn-bg: #3d3420; --warn-fg: #fabd2f; /* bright yellow on dark-yellow tint */
+    --attn: #d79921;        /* yellow — "awaiting operator action" frames */
+    --radius: 0;            /* TUI: square corners everywhere */
+    --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--bg); }
+  body { font-family: var(--mono); margin: 0; background: var(--bg); color: var(--muted);
+         line-height: 1.55; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+
+  /* ── Shell: fixed left sidebar + scrolling content (replaces the top tabs). ── */
+  .app { display: flex; align-items: stretch; min-height: 100vh; }
+  .sidebar {
+    width: 212px; flex-shrink: 0;
+    background: var(--bg-2);
+    border-right: 1px solid var(--border);
+    padding: 1.1rem .7rem;
+    position: sticky; top: 0; align-self: flex-start;
+    height: 100vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: .1rem;
+  }
+  .brand { padding: .2rem .6rem 1.1rem; }
+  .brand .logo { font-size: .98rem; font-weight: 700; letter-spacing: .01em; color: var(--text); }
+  .brand .logo span { color: var(--pink); }
+  .brand .sub { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .09em; margin-top: .2rem; }
+  .sidebar nav { display: flex; flex-direction: column; gap: .1rem; }
+  .sidebar nav a {
+    display: flex; align-items: center; justify-content: space-between; gap: .4rem;
+    padding: .5rem .7rem; border-radius: 0;
+    color: var(--muted); font-size: .85rem; font-weight: 600;
+    text-decoration: none; border-left: 3px solid transparent;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .sidebar nav a:hover { background: var(--panel); color: var(--text); }
+  .sidebar nav a.sel { background: var(--panel-2); color: var(--text); border-left-color: var(--accent); }
+  .content { flex: 1; min-width: 0; padding: 1.25rem 1.6rem 4rem; }
+
+  .topbar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  h1 { font-size: 1.15rem; margin: 0; letter-spacing: .01em; }
+  h2 { font-size: 1rem; color: var(--muted); margin: 0 0 .75rem; }
+
+  /* Banners: .banner is the topbar (flex) variant; .notice is a standalone block. */
+  .banner { padding: .5rem .85rem; border-radius: 0; border: 1px solid var(--border); font-weight: 600; font-size: .85rem; flex: 1; min-width: 16rem; }
+  .banner a { color: inherit; }
+  .notice { padding: .5rem .85rem; border-radius: 0; border: 1px solid var(--border); font-weight: 600; font-size: .85rem; margin: 0 0 1rem; }
+  .ok { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-fg); }
+  .bad { background: var(--bad-bg); color: var(--bad-fg); border-color: var(--bad-fg); }
+  .notice.warn { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-fg); }
+  .notice.bad  { background: var(--bad-bg);  color: var(--bad-fg); border-color: var(--bad-fg); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem; margin-bottom: 1.5rem; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem 1rem; transition: border-color .15s ease; }
+  .card:hover { border-color: var(--accent-2); }
+  .card.alert { border-color: var(--bad-fg); background: var(--bad-bg); }
+  .card.alert .n { color: var(--bad-fg); }
+  .card .n { font-size: 1.6rem; font-weight: 700; }
+  .card .n.n-sm { font-size: 1rem; line-height: 1.5; }
+  .card .l { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .unit { font-size: .9rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  th, td { text-align: left; padding: .45rem .55rem; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  tbody tr { transition: background .1s ease; }
+  tbody tr:hover { background: var(--panel); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.row-bad, tr.row-bad { background: var(--bad-bg); }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .tbl-wrap.attn { border-color: var(--attn); }
+
+  .pill { padding: .05rem .4rem; border-radius: 0; font-size: .72rem; border: 1px solid currentColor; text-transform: uppercase; letter-spacing: .03em; }
+  .allow { background: var(--ok-bg); color: var(--ok-fg); } .deny { background: var(--bad-bg); color: var(--bad-fg); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn-fg); }
+  .success { color: var(--ok-fg); } .denied, .error, .invalid { color: var(--bad-fg); }
+
+  .kv { display: inline-block; margin-right: 1.25rem; font-size: .8rem; color: var(--muted); }
+  .kv b { color: var(--text); }
+
+  .btn { font: inherit; border-radius: 0; padding: .3rem .8rem; cursor: pointer; text-decoration: none; border: 1px solid var(--border); background: var(--panel); color: var(--text); transition: background .12s ease, border-color .12s ease; }
+  .btn:hover { background: var(--panel-2); border-color: var(--accent); }
+  .btn-ok { border-color: var(--ok-fg); background: var(--ok-bg); color: var(--ok-fg); }
+  .btn-ok:hover { background: #3f4a20; }
+  .btn-danger { border-color: var(--bad-fg); background: var(--bad-bg); color: var(--bad-fg); }
+  .btn-danger:hover { background: #4a2926; }
+  .btn-sm { padding: .25rem .7rem; }
+  .btn-xs { padding: .2rem .55rem; font-size: .76rem; }
+
+  .field { font: inherit; padding: .35rem .45rem; border-radius: 0; border: 1px solid var(--border); background: var(--bg-2); color: var(--text); }
+  .muted { color: var(--muted); }
+  .link-muted { color: var(--muted); text-decoration: none; }
+  .inline-actions { display: flex; gap: .4rem; }
+  .badge { display: inline-block; background: var(--warn-bg); color: var(--warn-fg); border: 1px solid var(--warn-fg); border-radius: 0; padding: 0 .4rem; font-size: .7rem; font-weight: 700; }
+
+  /* ── Utility layer (replaces former inline style="" attributes). ── */
+  .row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .form-row { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+  .form-inline { display: inline; }
+  .right { margin-left: auto; }
+  .list { margin: .5rem 0 0; padding-left: 1.1rem; }
+  .fs-sm { font-size: .8rem; }
+  .fs-xs { font-size: .72rem; }
+  .txt-bad { color: var(--bad-fg); }
+  .txt-warn { color: var(--warn-fg); }
+  .pad-sm { padding: .3rem; }
+  .mt-05 { margin-top: .5rem; }
+  .mb-05 { margin-bottom: .5rem; } .mb-06 { margin-bottom: .6rem; } .mb-075 { margin-bottom: .75rem; }
+  .mb-09 { margin-bottom: .9rem; } .mb-1 { margin-bottom: 1rem; } .mb-125 { margin-bottom: 1.25rem; }
+  .mb-175 { margin-bottom: 1.75rem; }
+  .w-7 { width: 7rem; } .w-8 { width: 8rem; } .w-9 { width: 9rem; } .w-10 { width: 10rem; } .w-12 { width: 12rem; }
+
+  /* URL-driven panels (server renders the active one; ?tab= is the single source of
+     truth, so reload / meta-refresh / Live-toggle always keep the visible section). */
+  .panel { display: none; }
+  .panel.on { display: block; animation: fadeInUp .28s ease both; }
+
+  /* ── Slight motion (CSS-only, JS-free): entrance fade, gentle attention pulses.
+     All disabled under prefers-reduced-motion (see below). ── */
+  .cards .card { animation: fadeInUp .3s ease both; }
+  .cards .card:nth-child(2) { animation-delay: .03s; } .cards .card:nth-child(3) { animation-delay: .06s; }
+  .cards .card:nth-child(4) { animation-delay: .09s; } .cards .card:nth-child(5) { animation-delay: .12s; }
+  .cards .card:nth-child(6) { animation-delay: .15s; } .cards .card:nth-child(7) { animation-delay: .18s; }
+  .card { transition: border-color .15s ease, transform .12s ease; }
+  .card:hover { transform: translateY(-1px); }
+  .badge { animation: softPulse 2.2s ease-in-out infinite; }
+  .banner.bad, .notice.bad { animation: alertPulse 1.8s ease-in-out infinite; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes softPulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+  @keyframes alertPulse { 0%, 100% { border-color: var(--bad-fg); } 50% { border-color: var(--bad-bg); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after { animation: none !important; transition-duration: .01ms !important; }
+    .card:hover { transform: none; }
+  }
+
+  /* Narrow screens: sidebar folds to a horizontal bar above the content. */
+  @media (max-width: 760px) {
+    .app { flex-direction: column; }
+    .sidebar { width: auto; height: auto; position: static; flex-direction: row; flex-wrap: wrap;
+               align-items: center; gap: .4rem; border-right: 0; border-bottom: 1px solid var(--border-soft); }
+    .brand { padding: .2rem .6rem; width: 100%; }
+    .sidebar nav { flex-direction: row; flex-wrap: wrap; }
+    .sidebar nav a { border-left: 0; border-bottom: 3px solid transparent; padding: .4rem .6rem; }
+    .sidebar nav a.sel { border-left: 0; border-bottom-color: var(--accent); }
+    .content { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo"><span>pos</span> MCP admin</div>
+      <div class="sub">Operator Console</div>
+    </div>
+    <nav>
+      <a class="{% if active_tab == 'overview' %}sel{% endif %}" href="?tab=overview{{ qp }}">Overview</a>
+      <a class="{% if active_tab == 'approvals' %}sel{% endif %}" href="?tab=approvals{{ qp }}">Approvals{%- if pending.size > 0 -%}<span class="badge">{{ pending.size }}</span>{%- endif -%}</a>
+      <a class="{% if active_tab == 'tokens' %}sel{% endif %}" href="?tab=tokens{{ qp }}">Tokens &amp; access</a>
+      <a class="{% if active_tab == 'ledger' %}sel{% endif %}" href="?tab=ledger{{ qp }}">Ledger</a>
+      <a class="{% if active_tab == 'config' %}sel{% endif %}" href="?tab=config{{ qp }}">Tools &amp; config</a>
+    </nav>
+  </aside>
+  <div class="content">
+  <div class="topbar">
+    <h1>{{ active_tab | capitalize }}</h1>
+    {%- if chain.ok -%}
+      <div class="banner ok">&#10003; Ledger chain verified — {{ chain.count }} entries{%- if chain.recent %} (recent window){% endif -%} intact.{%- unless full_verify %} &middot; <a href="?tab={{ active_tab }}&amp;verify=full{% if live_on %}&amp;live={{ live_secs }}{% endif %}">verify entire chain</a>{% endunless -%}</div>
+    {%- else -%}
+      <div class="banner bad">&#10007; LEDGER CHAIN BROKEN at seq {{ chain.broken_at }} — {{ chain.reason }}. Investigate immediately.{% if active_tab != 'ledger' %} <a href="?tab=ledger{{ qp }}">see forked entries</a>{% endif %}</div>
+    {%- endif -%}
+    {%- if live_on -%}
+      <a class="btn" href="?tab={{ active_tab }}{% if full_verify %}&amp;verify=full{% endif %}" title="Stop auto-refresh">&#9208; Live {{ live_secs }}s</a>
+    {%- else -%}
+      <a class="btn" href="?tab={{ active_tab }}&amp;live=20{% if full_verify %}&amp;verify=full{% endif %}" title="Auto-refresh every 20s (JS-free)">&#9654; Live</a>
+    {%- endif -%}
+  </div>
+
+  {%- if test_tools_on or vuln_tools_on -%}
+  <div class="notice warn">
+    &#9888; Non-production tool fixtures are ENABLED and served to agents:
+    {%- if test_tools_on %} <b>test_*</b> (gated test fixtures){% endif -%}
+    {%- if test_tools_on and vuln_tools_on %} &middot;{% endif -%}
+    {%- if vuln_tools_on %} <b>vuln_*</b> (deliberately INSECURE &mdash; planted vulnerabilities){% endif -%}.
+    For production, unset {% if test_tools_on %}<code>MCP_ENABLE_TEST_TOOLS</code>{% endif %}{% if test_tools_on and vuln_tools_on %} and {% endif %}{% if vuln_tools_on %}<code>MCP_ENABLE_VULN_TOOLS</code>{% endif %}.
+  </div>
+  {%- endif -%}
+
+  <div class="panels">
+
+  <section class="panel{% if active_tab == 'overview' %} on{% endif %}" id="p-overview">
+    <div class="cards">
+      <div class="card"><div class="n">{{ m.total }}</div><div class="l">Total calls</div></div>
+      <div class="card"><div class="n">{{ m.blocked }}</div><div class="l">Blocked ({{ m.blocked_rate | times: 100 | round: 1 }}%)</div></div>
+      <div class="card" title="policy denials · schema/arg rejections · rate-limits">
+        <div class="n n-sm">{{ m.denials }} deny · {{ m.schema_rejections }} bad-args · {{ m.rate_limited }} rate</div>
+        <div class="l">Blocked breakdown</div></div>
+      <div class="card{% if m.suspends != '0' and m.suspends != 0 %} alert{% endif %}"><div class="n">{{ m.suspends }}</div><div class="l">Auto-suspends</div></div>
+      <div class="card" title="approval-queue flood control — throttled (cap hit) · duplicate (same args hash)">
+        <div class="n n-sm">{{ m.by_outcome['approval_throttled'] | default: 0 }} throttled · {{ m.by_outcome['approval_duplicate'] | default: 0 }} dup</div>
+        <div class="l">Approval queue</div></div>
+      <div class="card"><div class="n">{{ m.rollbacks }}</div><div class="l">Rollbacks</div></div>
+      <div class="card"><div class="n">{%- if m.latency.available == false -%}—{%- else -%}{{ m.latency.p95_ms }}<span class="unit">ms</span>{%- endif -%}</div><div class="l">p95 latency</div></div>
+    </div>
+
+    <div class="mb-125">
+      {%- for pair in m.by_tool -%}
+        <span class="kv"><b>{{ pair[1] }}</b> {{ pair[0] }}</span>
+      {%- endfor -%}
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="l">Tool-surface eval</div>
+        {%- if latest_eval -%}
+          {%- assign ef = latest_eval.failed | plus: 0 -%}
+          {%- if ef == 0 -%}
+            <span class="pill allow">✓ {{ latest_eval.passed }}/{{ latest_eval.total }} passed</span>
+          {%- else -%}
+            <span class="pill deny">✗ {{ ef }} failed / {{ latest_eval.total }}</span>
+          {%- endif -%}
+          <span class="muted fs-sm">{{ latest_eval.occurred_at }}</span>
+        {%- else -%}
+          <span class="muted fs-sm">never run</span>
+        {%- endif -%}
+        <form method="post" action="/mcp-admin/eval" class="right">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <button type="submit" class="btn">Run eval</button>
+        </form>
+      </div>
+      {%- if latest_eval and latest_eval.failed != '0' and latest_eval.failures_json != blank -%}
+        {%- assign fails = latest_eval.failures_json | parse_json -%}
+        <ul class="list txt-bad fs-sm">
+          {%- for f in fails -%}
+            <li><b>{{ f.check }}</b> · {{ f.target }} — {{ f.detail }}</li>
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+      {%- if latest_eval and latest_eval.warnings_json != blank and latest_eval.warnings_json != '[]' -%}
+        {%- assign warns = latest_eval.warnings_json | parse_json -%}
+        {%- if warns.size > 0 -%}
+        <div class="l txt-warn mt-05">Hygiene ({{ warns.size }} advisory)</div>
+        <ul class="list txt-warn fs-sm">
+          {%- for w in warns -%}
+            <li><b>{{ w.check }}</b> · {{ w.tool }}.{{ w.field }} — {{ w.detail }}</li>
+          {%- endfor -%}
+        </ul>
+        {%- endif -%}
+      {%- endif -%}
+    </div>
+  </section>
+
+  <section class="panel{% if active_tab == 'approvals' %} on{% endif %}" id="p-approvals">
+    <h2>Pending approvals ({{ pending.size }})</h2>
+    {%- if pending.size > 0 -%}
+    {%- assign has_drain = false -%}
+    {%- for pair in pending_by_pid -%}{%- if pair[1] > 1 -%}{%- assign has_drain = true -%}{%- endif -%}{%- endfor -%}
+    {%- if has_drain -%}
+    <div class="form-row mb-06">
+      <span class="muted fs-sm">Queue drain:</span>
+      {%- for pair in pending_by_pid -%}{%- if pair[1] > 1 -%}
+      <form method="post" action="/mcp-admin/reject-principal" onsubmit="return confirm('Reject ALL {{ pair[1] }} pending proposals from {{ pair[0] }}?')" class="form-inline">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="principal_id" value="{{ pair[0] }}">
+        <button type="submit" class="btn btn-danger btn-xs">Reject all {{ pair[1] }} from {{ pair[0] }}</button>
+      </form>
+      {%- endif -%}{%- endfor -%}
+    </div>
+    {%- endif -%}
+    <div class="tbl-wrap attn">
+      <table>
+        <thead><tr><th>tool</th><th>requested by</th><th>principal</th><th>requested</th><th></th></tr></thead>
+        <tbody>
+        {%- for a in pending -%}
+          <tr>
+            <td><b>{{ a.tool_name }}</b></td>
+            <td>{{ a.requested_by_agent }}</td>
+            <td>{{ a.principal_id }}</td>
+            <td>{{ a.created_at }}</td>
+            <td class="inline-actions">
+              <form method="post" action="/mcp-admin/approve" onsubmit="return confirm('Approve and EXECUTE this action as {{ a.principal_id }}?')">
+                <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                <input type="hidden" name="handle" value="{{ a.handle }}">
+                <button type="submit" class="btn btn-ok btn-sm">Approve</button>
+              </form>
+              <form method="post" action="/mcp-admin/reject" onsubmit="return confirm('Reject this action?')">
+                <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                <input type="hidden" name="handle" value="{{ a.handle }}">
+                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+              </form>
+            </td>
+          </tr>
+        {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+    {%- else -%}
+    <p class="muted fs-sm">No actions are awaiting approval. Approval-gated tools land here for a decision.</p>
+    {%- endif -%}
+  </section>
+
+  <section class="panel{% if active_tab == 'tokens' %} on{% endif %}" id="p-tokens">
+    <h2>Active bearer tokens ({{ tokens.size }})</h2>
+    <div class="tbl-wrap mb-175">
+      <table>
+        <thead><tr><th>label / agent</th><th>principal</th><th>status</th><th>last used</th><th title="policy violations in the current abuse window; the token auto-suspends at the threshold">violations</th><th></th></tr></thead>
+        <tbody>
+        {%- for t in tokens -%}
+          {%- assign akey = 'abuse:user:' | append: t.user_id | append: ':' | append: cur_window -%}
+          {%- assign viol = abuse_map[akey] | default: 0 | plus: 0 -%}
+          <tr>
+            <td><b>{{ t.label }}</b></td>
+            <td>user:{{ t.user_id }}</td>
+            <td>{%- if t.status == 'active' -%}<span class="pill allow">active</span>{%- else -%}<span class="pill deny">{{ t.status }}</span>{%- endif -%}</td>
+            <td>{%- if t.last_used_at -%}{{ t.last_used_at }}{%- else -%}<span class="muted">never</span>{%- endif -%}</td>
+            <td>{%- if viol > 0 -%}{%- assign risky = false -%}{%- if viol >= half_threshold -%}{%- assign risky = true -%}{%- endif -%}<span class="pill{% if risky %} deny{% endif %}">{{ viol }} / {{ abuse_threshold }}</span>{%- else -%}<span class="muted">0</span>{%- endif -%}</td>
+            <td>
+              {%- if t.status == 'active' -%}
+              <form method="post" action="/mcp-admin/token-revoke" onsubmit="return confirm('Revoke this token for principal user:{{ t.user_id }}? The agent using it loses access immediately.')" class="form-inline">
+                <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                <input type="hidden" name="id" value="{{ t.id }}">
+                <button type="submit" class="btn btn-danger btn-xs">Revoke</button>
+              </form>
+              {%- else -%}<span class="muted">&mdash;</span>{%- endif -%}
+            </td>
+          </tr>
+        {%- endfor -%}
+        {%- if tokens.size == 0 -%}<tr><td colspan="6" class="muted">No tokens minted.</td></tr>{%- endif -%}
+        </tbody>
+      </table>
+    </div>
+
+    {%- assign reqcount = 0 -%}
+    {%- for a in access_rows -%}{%- if a.status == 'requested' -%}{%- assign reqcount = reqcount | plus: 1 -%}{%- endif -%}{%- endfor -%}
+
+    <h2>MCP access</h2>
+    {%- if reqcount > 0 -%}
+    <div class="tbl-wrap attn mb-1">
+      <table>
+        <thead><tr><th>access requested</th><th>user id</th><th></th></tr></thead>
+        <tbody>
+        {%- for a in access_rows -%}{%- if a.status == 'requested' -%}
+          <tr>
+            <td>{{ a.email }}</td><td>{{ a.user_id }}</td>
+            <td class="inline-actions">
+              <form method="post" action="/mcp-admin/access">
+                <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                <input type="hidden" name="decision" value="approve"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}">
+                <button type="submit" class="btn btn-ok btn-sm">Approve</button>
+              </form>
+              <form method="post" action="/mcp-admin/access">
+                <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                <input type="hidden" name="decision" value="reject"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}">
+                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+              </form>
+            </td>
+          </tr>
+        {%- endif -%}{%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+    {%- endif -%}
+    <div class="tbl-wrap mb-075">
+      <table>
+        <thead><tr><th>member</th><th>role</th><th></th></tr></thead>
+        <tbody>
+        {%- for a in access_rows -%}{%- if a.status == 'active' -%}
+          <tr>
+            <td>{{ a.email }} <span class="muted">· {{ a.user_id }}</span></td>
+            <td><span class="pill {% if a.role == 'admin' %}allow{% endif %}">{{ a.role }}</span></td>
+            <td class="inline-actions">
+              {%- unless a.role == 'admin' -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_admin"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}"><button type="submit" class="btn btn-xs">Make admin</button></form>{%- endunless -%}
+              {%- unless a.role == 'user' -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_user"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}"><button type="submit" class="btn btn-xs">Make user</button></form>{%- endunless -%}
+              <form method="post" action="/mcp-admin/access" onsubmit="return confirm('Revoke access for {{ a.email }}?')"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="revoke"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}"><button type="submit" class="btn btn-danger btn-xs">Revoke</button></form>
+            </td>
+          </tr>
+        {%- endif -%}{%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+    <form method="post" action="/mcp-admin/access" class="form-row">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="decision" value="make_user">
+      <input type="text" name="user_id" placeholder="user id" class="field w-7">
+      <input type="text" name="email" placeholder="email (optional)" class="field w-12">
+      <button type="submit" class="btn">Grant user access</button>
+    </form>
+  </section>
+
+  <section class="panel{% if active_tab == 'ledger' %} on{% endif %}" id="p-ledger">
+    <h2>Recent ledger</h2>
+    {%- unless chain.ok -%}
+    <div class="notice bad mb-06">
+      &#9888; Chain break at seq {{ chain.broken_at }} — {{ chain.reason }}.
+      {%- if fork_rows.size > 1 %} {{ fork_rows.size }} entries share seq {{ chain.broken_at }} — a concurrency <b>fork</b> (multiple appends linked to the same predecessor).{% else %} The entry recomputes to a different hash — <b>edited / backdated</b>.{% endif -%}
+    </div>
+    {%- if fork_rows.size > 0 -%}
+    <div class="tbl-wrap mb-09">
+      <table>
+        <thead><tr><th>id</th><th>seq</th><th>tool</th><th>principal</th><th>outcome</th><th>prev_entry_hash</th><th>entry_hash</th></tr></thead>
+        <tbody>
+          {%- for f in fork_rows -%}
+          <tr class="row-bad">
+            <td>{{ f.id }}</td><td>{{ f.seq }}</td><td>{{ f.tool_name }}</td><td>{{ f.principal_id }}</td><td>{{ f.execution_outcome }}</td>
+            <td title="{{ f.prev_entry_hash }}"><code>{{ f.prev_entry_hash | truncate: 14 }}</code></td>
+            <td title="{{ f.entry_hash }}"><code>{{ f.entry_hash | truncate: 14 }}</code></td>
+          </tr>
+          {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+    {%- endif -%}
+    {%- endunless -%}
+    <form method="get" action="/mcp-admin" class="form-row mb-05">
+      <input type="hidden" name="tab" value="ledger">
+      <input type="text" name="tool_name" value="{{ context.params.tool_name }}" placeholder="tool" class="field w-8">
+      <input type="text" name="principal_id" value="{{ context.params.principal_id }}" placeholder="principal (user:ID)" class="field w-10">
+      <input type="text" name="execution_outcome" value="{{ context.params.execution_outcome }}" placeholder="outcome" class="field w-9">
+      <select name="authz_decision" class="field">
+        <option value="">any authz</option>
+        <option value="allow"{% if context.params.authz_decision == 'allow' %} selected{% endif %}>allow</option>
+        <option value="deny"{% if context.params.authz_decision == 'deny' %} selected{% endif %}>deny</option>
+      </select>
+      <button type="submit" class="btn">Apply</button>
+      <a href="/mcp-admin?tab=ledger" class="link-muted fs-sm pad-sm">Clear</a>
+      <a href="/mcp-admin/ledger-export.json?{{ export_qs }}" class="btn btn-ok btn-sm right">Export JSON</a>
+    </form>
+    <div class="muted fs-sm mb-06">
+      Security lens:
+      <a href="/mcp-admin?tab=ledger&authz_decision=deny" class="txt-bad">denials</a> ·
+      <a href="/mcp-admin?tab=ledger&execution_outcome=suspended" class="txt-bad">suspends</a> ·
+      <a href="/mcp-admin?tab=ledger&execution_outcome=approval_throttled" class="txt-warn">throttled</a> ·
+      <a href="/mcp-admin?tab=ledger&execution_outcome=approval_duplicate" class="txt-warn">duplicates</a> ·
+      <a href="/mcp-admin?tab=ledger&execution_outcome=rolled_back" class="txt-warn">rollbacks</a>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>seq</th><th>time</th><th>method</th><th>tool</th><th>ver</th>
+          <th>principal</th><th>agent</th><th>policy</th><th>authz</th><th>outcome</th><th>subject</th>
+        </tr></thead>
+        <tbody>
+        {%- for r in rows -%}
+          <tr>
+            <td>{{ r.seq }}</td>
+            <td>{{ r.occurred_at }}</td>
+            <td>{{ r.method }}</td>
+            <td>{{ r.tool_name }}</td>
+            <td>{{ r.tool_version }}</td>
+            <td>{{ r.principal_id }}</td>
+            <td>{{ r.agent_id }}</td>
+            <td>{{ r.authz_policy }}</td>
+            <td>{%- if r.authz_decision == 'allow' -%}<span class="pill allow">allow</span>{%- elsif r.authz_decision == 'deny' -%}<span class="pill deny">deny</span>{%- else -%}{{ r.authz_decision }}{%- endif -%}</td>
+            <td class="{{ r.execution_outcome }}">{{ r.execution_outcome }}</td>
+            <td>{%- if r.subject_type -%}{{ r.subject_type }}:{{ r.subject_id }}{%- endif -%}</td>
+          </tr>
+        {%- endfor -%}
+        {%- if rows.size == 0 -%}<tr><td colspan="11" class="muted">No ledger entries match the current filter.</td></tr>{%- endif -%}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel{% if active_tab == 'config' %} on{% endif %}" id="p-config">
+    <h2>Registered tools ({{ registry.count }})</h2>
+    <div class="tbl-wrap mb-175">
+      <table>
+        <thead><tr><th>tool</th><th>ver</th><th>mutating</th><th>approval</th><th>policy</th></tr></thead>
+        <tbody>
+        {%- for t in registry.tools -%}
+          <tr>
+            <td><b>{{ t.name }}</b></td>
+            <td>{{ t.version }}</td>
+            <td>{% if t.mutating %}<span class="pill deny">write</span>{% else %}<span class="muted">read</span>{% endif %}</td>
+            <td>{% if t.requires_approval %}<span class="pill warn">required</span>{% else %}—{% endif %}</td>
+            <td>{{ t.authorization_policy }}</td>
+          </tr>
+        {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+    {%- if registry.excluded.size > 0 -%}
+    <p class="txt-bad fs-sm">Excluded manifests (not served):</p>
+    <ul class="list txt-bad fs-sm">
+      {%- for e in registry.excluded -%}<li><b>{{ e.name }}</b> — {{ e.errors | join: '; ' }}</li>{%- endfor -%}
+    </ul>
+    {%- endif -%}
+
+    <h2>Effective configuration</h2>
+    <div class="tbl-wrap">
+      <table>
+        <tbody>
+          <tr><td class="muted">rate limit / min</td><td>{{ cfg.defaults.rate_limit_per_min }}</td></tr>
+          <tr><td class="muted">abuse threshold / window</td><td>{{ cfg.defaults.abuse_threshold }} violations in {{ cfg.defaults.abuse_window_seconds }}s</td></tr>
+          <tr><td class="muted">approval window</td><td>{{ cfg.defaults.approval_window_seconds }}s</td></tr>
+          <tr><td class="muted">max pending approvals / principal</td><td>{{ cfg.defaults.approval_max_pending_per_principal }}</td></tr>
+          <tr><td class="muted">max input bytes</td><td>{{ cfg.defaults.max_input_bytes }}</td></tr>
+          <tr><td class="muted">request timeout</td><td>{{ cfg.defaults.timeout_ms }}ms</td></tr>
+          <tr><td class="muted">ledger retention</td><td>{{ cfg.ledger.retention_days }} days</td></tr>
+          <tr><td class="muted">markdown resources</td><td>{%- if cfg.resources.expose_markdown_pages -%}on ({{ cfg.resources.markdown_page_prefixes | join: ', ' }}){%- else -%}off{%- endif -%}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  </div>
+  </div>
+</div>
+</body>
+</html>
+{%- endif -%}

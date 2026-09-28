@@ -1,0 +1,26 @@
+{%- comment -%}
+  Handler — test_approve (TEST FIXTURE). Identical write to test_write, but this tool
+  is requires_approval:true, so the engine invokes this handler ONLY after an operator
+  approves — and it runs as the ORIGINAL principal. The row's user_id therefore proves
+  the approved action executed as the requester, never the approver.
+{%- endcomment -%}
+{% liquid
+  assign uid = principal.user_id | append: ''
+  graphql g = 'mcp/test_note_create', user_id: uid, label: arguments.label, source: 'test_approve'
+  assign nid = g.record_create.id
+
+  assign result = '{}' | parse_json
+  hash_assign result['id'] = nid
+  hash_assign result['label'] = arguments.label
+  hash_assign result['owner'] = principal.id
+
+  assign subject = '{}' | parse_json
+  hash_assign subject['type'] = 'record'
+  hash_assign subject['id'] = nid
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  hash_assign out['subject'] = subject
+  return out
+%}

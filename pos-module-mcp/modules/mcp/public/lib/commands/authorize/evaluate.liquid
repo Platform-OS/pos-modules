@@ -1,0 +1,88 @@
+{%- comment -%}
+  Evaluate a tool's named authorization policy (spec §12, §9.2 step 6) — the
+  semantic control between agent intent and system action. This is where the
+  module earns its name: every tool call is checked, per call, against a named
+  policy evaluated for the RESOLVED identity.
+
+  Policy contract: the app provides a policy partial at `<policy_prefix>/<name>`
+  (config.policy_prefix, default 'mcp/policies'). It receives principal, agent,
+  arguments, tool, delegation_mode and returns EITHER a boolean OR a hash
+  { allow:boolean, reason:string }. In on_behalf_of mode the AUTHORITATIVE subject
+  is `principal` (the human), never the agent — a buyer's agent inherits the
+  buyer's scope, never its own (§9.4).
+
+  FAIL-CLOSED / NO IMPLICIT ALLOW (§12.2): there is no default-permit path.
+   - A policy partial that is missing, errors, or returns anything other than a
+     clear allow → DENY. A named-but-unimplemented policy MUST NOT permit.
+   - The denial `reason` is a stable machine code recorded in the ledger; only a
+     generic message reaches the wire (§13.2).
+
+  @param {string} policy          - the policy name (manifest.authorization_policy)
+  @param {object} principal       - resolved principal
+  @param {object} agent           - calling agent
+  @param {object} arguments       - validated arguments
+  @param {object} tool            - the resolved manifest
+  @param {string} delegation_mode - direct | on_behalf_of
+  @return {object} { allow:boolean, reason:string, policy:string }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign prefix = cfg.policy_prefix | default: 'mcp/policies'
+
+  assign result = '{}' | parse_json
+  hash_assign result['policy'] = policy
+  hash_assign result['allow'] = false
+
+  # A tool with no policy never reaches here (registry rejects it, §12.2). Guard
+  # anyway — fail closed.
+  if policy == blank
+    hash_assign result['reason'] = 'no_policy'
+    return result
+  endif
+
+  # Built-in policy for engine-provided tools: any authenticated principal. This is
+  # an explicit, named decision (not an implicit allow) — used only by module
+  # built-ins (e.g. mcp_approval_status) that self-scope in their handler.
+  if policy == 'mcp_authenticated'
+    hash_assign result['allow'] = true
+    hash_assign result['reason'] = 'authenticated'
+    return result
+  endif
+
+  assign policy_path = prefix | append: '/' | append: policy
+  assign decision = null
+  assign errored = false
+  try
+    function decision = policy_path, principal: principal, agent: agent, arguments: arguments, tool: tool, delegation_mode: delegation_mode
+  catch e
+    assign errored = true
+    assign _lm = policy | append: ': ' | append: e.message
+    log _lm, type: 'mcp.authz_policy_error'
+  endtry
+
+  if errored
+    hash_assign result['reason'] = 'policy_unavailable'
+    return result
+  endif
+
+  # Normalize the policy's return. Only an explicit allow permits.
+  assign dt = decision | type_of | downcase
+  if decision == true
+    hash_assign result['allow'] = true
+    hash_assign result['reason'] = 'allowed'
+  elsif dt contains 'hash'
+    if decision.allow == true
+      hash_assign result['allow'] = true
+      hash_assign result['reason'] = decision.reason | default: 'allowed'
+    else
+      hash_assign result['allow'] = false
+      hash_assign result['reason'] = decision.reason | default: 'denied'
+    endif
+  else
+    # boolean false, null, or an unexpected shape → deny (fail-closed).
+    hash_assign result['allow'] = false
+    hash_assign result['reason'] = 'denied'
+  endif
+
+  return result
+%}

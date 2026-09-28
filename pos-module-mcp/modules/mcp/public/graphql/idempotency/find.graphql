@@ -1,0 +1,21 @@
+query find($key: String!, $principal_id: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_idempotency" }
+      properties: [
+        { name: "key", value: $key }
+        { name: "principal_id", value: $principal_id }
+      ]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      tool_name: property(name: "tool_name")
+      input_sha256: property(name: "input_sha256")
+      response_json: property(name: "response_json")
+      expires_at: property(name: "expires_at")
+    }
+  }
+}

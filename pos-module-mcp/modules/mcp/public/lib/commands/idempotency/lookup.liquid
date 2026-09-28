@@ -1,0 +1,26 @@
+{%- comment -%}
+  Look up a prior idempotent result for (key, principal) (spec §16.3). Scoped by
+  principal so one member's key cannot replay another's result. Entries past
+  expires_at are treated as absent (a fresh execution replaces them).
+
+  @param {string} key
+  @param {string} principal_id
+  @return {object} { found:boolean, input_sha256?, response? }  (response = parsed cached MCP result)
+{%- endcomment -%}
+{% liquid
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  graphql r = 'modules/mcp/idempotency/find', key: key, principal_id: principal_id
+  assign rec = r.records.results.first
+
+  assign out = '{}' | parse_json
+  hash_assign out['found'] = false
+  if rec
+    assign exp = rec.expires_at | plus: 0
+    if exp > now_unix
+      hash_assign out['found'] = true
+      hash_assign out['input_sha256'] = rec.input_sha256
+      hash_assign out['response'] = rec.response_json | parse_json
+    endif
+  endif
+  return out
+%}

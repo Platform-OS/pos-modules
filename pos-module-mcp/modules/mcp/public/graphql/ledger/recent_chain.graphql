@@ -1,0 +1,39 @@
+query recent_chain($per_page: Int!) {
+  # The most recent N ledger entries (id DESC), with the full payload the canonical
+  # serializer needs. Used by ledger/verify_chain_recent for a BOUNDED per-load chain
+  # check (linkage + integrity over the tail) — the full walk stays in ledger/verify_chain
+  # for the on-demand complete audit. Caller reverses to ascending order.
+  records(
+    per_page: $per_page
+    filter: { table: { value: "modules/mcp/mcp_ledger" } }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      seq: property(name: "seq")
+      occurred_at: property(name: "occurred_at")
+      method: property(name: "method")
+      tool_name: property(name: "tool_name")
+      tool_version: property(name: "tool_version")
+      client_id: property(name: "client_id")
+      agent_id: property(name: "agent_id")
+      principal_id: property(name: "principal_id")
+      delegation_mode: property(name: "delegation_mode")
+      input_sha256: property(name: "input_sha256")
+      input_bytes: property(name: "input_bytes")
+      authz_policy: property(name: "authz_policy")
+      authz_decision: property(name: "authz_decision")
+      authz_reason: property(name: "authz_reason")
+      execution_outcome: property(name: "execution_outcome")
+      error_code: property(name: "error_code")
+      duration_ms: property(name: "duration_ms")
+      subject_type: property(name: "subject_type")
+      subject_id: property(name: "subject_id")
+      idempotency_key: property(name: "idempotency_key")
+      request_id: property(name: "request_id")
+      audit_json: property(name: "audit_json")
+      prev_entry_hash: property(name: "prev_entry_hash")
+      entry_hash: property(name: "entry_hash")
+    }
+  }
+}

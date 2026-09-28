@@ -1,0 +1,22 @@
+{%- comment -%}
+  Tool manifest — test_approve (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  MUTATING + REQUIRES_APPROVAL, policy test_principal_member. The call never runs inline:
+  it queues a pending approval and returns a handle. The coverage suite proves the HITL
+  gate: no row until an operator approves; on approval it executes AS THE ORIGINAL
+  PRINCIPAL (the row's user_id is the requester, not the operator); reject never runs it;
+  duplicate proposals (same input hash) dedupe; and the per-principal queue cap throttles.
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'test_approve'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'TEST FIXTURE (not a production tool): writes a test_note row, but only after operator approval.'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","minLength":1,"maxLength":100,"pattern":"^[^<>]*$"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = true
+  hash_assign m['authorization_policy'] = 'test_principal_member'
+  hash_assign m['requires_approval'] = true
+  hash_assign m['idempotent'] = false
+  hash_assign m['handler'] = 'mcp/tools/test_approve/call'
+  return m
+%}

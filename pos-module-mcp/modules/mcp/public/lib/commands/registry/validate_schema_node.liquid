@@ -1,0 +1,127 @@
+{%- comment -%}
+  Validate ONE JSON-Schema node against the supported subset (spec §10.1). Called
+  by registry/manifest_schema for input_schema/output_schema, and recurses into
+  `properties.*` and `items`. An unsupported keyword anywhere causes the whole
+  manifest to be REJECTED at load — an implementer must never be able to declare a
+  constraint the module does not enforce (a silently-ignored keyword is a security
+  hole, not a convenience).
+
+  Enforced:
+   - `type` present and one of object/string/integer/number/boolean/array.
+   - Only supported keywords per node (union set below); any other key → error.
+   - additionalProperties, when present, must be boolean (it is FORCED to false at
+     validation time regardless — §7.2 — but must be declarable only as a boolean).
+   - pattern is length-capped and rejects classic catastrophic-backtracking
+     nested-quantifier signatures (§16.4).
+   - depth is capped (max_schema_depth) to bound validation cost (§10.1).
+
+  @param {object}  node  - a JSON-Schema node (hash)
+  @param {integer} depth - current nesting depth (start 1)
+  @param {integer} max_depth - cap
+  @param {string}  path  - dotted location for error messages (e.g. properties.foo)
+  @return {object} { valid:boolean, errors:[string] }
+{%- endcomment -%}
+{% liquid
+  assign errors = '[]' | parse_json
+  assign at = path | default: '(root)'
+
+  if depth > max_depth
+    assign msg = at | append: ': schema nesting exceeds max depth'
+    assign errors = errors | array_add: msg
+    assign out = '{}' | parse_json
+    hash_assign out['valid'] = false
+    hash_assign out['errors'] = errors
+    return out
+  endif
+
+  assign allowed = 'type,description,title,default,properties,required,additionalProperties,enum,minimum,maximum,exclusiveMinimum,exclusiveMaximum,minLength,maxLength,pattern,format,items,minItems,maxItems' | split: ','
+  assign keys = node | hash_keys
+  for k in keys
+    unless allowed contains k
+      assign msg = at | append: ': unsupported schema keyword "' | append: k | append: '"'
+      assign errors = errors | array_add: msg
+    endunless
+  endfor
+
+  assign t = node.type
+  assign valid_types = 'object,string,integer,number,boolean,array' | split: ','
+  if t == blank
+    assign msg = at | append: ': missing "type"'
+    assign errors = errors | array_add: msg
+  else
+    unless valid_types contains t
+      assign msg = at | append: ': invalid type "' | append: t | append: '"'
+      assign errors = errors | array_add: msg
+    endunless
+  endif
+
+  # additionalProperties must be boolean if declared.
+  assign ap = node.additionalProperties
+  unless ap == blank
+    unless ap == true or ap == false
+      assign msg = at | append: ': additionalProperties must be boolean'
+      assign errors = errors | array_add: msg
+    endunless
+  endunless
+
+  # pattern safety (§16.4).
+  assign pat = node.pattern
+  unless pat == blank
+    assign plen = pat | size
+    if plen > 200
+      assign msg = at | append: ': pattern too long'
+      assign errors = errors | array_add: msg
+    endif
+    assign bad_sigs = '+)+,*)*,+)*,*)+,))*,))+' | split: ','
+    for s in bad_sigs
+      if pat contains s
+        assign msg = at | append: ': pattern has catastrophic-backtracking risk'
+        assign errors = errors | array_add: msg
+        break
+      endif
+    endfor
+  endunless
+
+  # Recurse: object properties.
+  if t == 'object'
+    assign props = node.properties
+    unless props == blank
+      assign pkeys = props | hash_keys
+      for pk in pkeys
+        assign child = props[pk]
+        assign child_path = at | append: '.properties.' | append: pk
+        assign next_depth = depth | plus: 1
+        function cr = 'modules/mcp/commands/registry/validate_schema_node', node: child, depth: next_depth, max_depth: max_depth, path: child_path
+        unless cr.valid
+          for e in cr.errors
+            assign errors = errors | array_add: e
+          endfor
+        endunless
+      endfor
+    endunless
+  endif
+
+  # Recurse: array items (single schema).
+  if t == 'array'
+    assign items = node.items
+    unless items == blank
+      assign child_path = at | append: '.items'
+      assign next_depth = depth | plus: 1
+      function ir = 'modules/mcp/commands/registry/validate_schema_node', node: items, depth: next_depth, max_depth: max_depth, path: child_path
+      unless ir.valid
+        for e in ir.errors
+          assign errors = errors | array_add: e
+        endfor
+      endunless
+    endunless
+  endif
+
+  assign out = '{}' | parse_json
+  assign is_valid = false
+  if errors.size == 0
+    assign is_valid = true
+  endif
+  hash_assign out['valid'] = is_valid
+  hash_assign out['errors'] = errors
+  return out
+%}

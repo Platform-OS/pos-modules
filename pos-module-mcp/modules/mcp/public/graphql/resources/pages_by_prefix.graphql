@@ -1,0 +1,17 @@
+query pages_by_prefix($prefix: String!, $per_page: Int!) {
+  admin_pages(
+    per_page: $per_page
+    filter: {
+      slug: { starts_with: $prefix }
+    }
+    sort: [{ slug: { order: ASC } }]
+  ) {
+    results {
+      id
+      slug
+      format
+      content_updated_at
+      metadata
+    }
+  }
+}

@@ -1,0 +1,27 @@
+---
+slug: mcp-tools/mint
+method: post
+---
+{%- comment -%}
+  POST handler — mint a per-user token. Requires a logged-in user; binds the token
+  to that user_id. The raw token is stashed in a one-shot session flash and shown
+  once on the redirected /mcp-tools page (Post-Redirect-Get).
+{%- endcomment -%}
+{%- liquid
+  assign uid = context.current_user.id | append: ''
+  if uid == blank
+    redirect_to '/sessions/new'
+    break
+  endif
+  # Access gate — enforced SERVER-SIDE, not just in the UI: only an approved member
+  # (level admin|user) may mint. Without this, a logged-in but unapproved user could
+  # POST here directly and bypass the approval gate.
+  function acc = 'modules/mcp/commands/access/level'
+  unless acc.level == 'admin' or acc.level == 'user'
+    redirect_to '/mcp-tools'
+    break
+  endunless
+  function minted = 'modules/mcp/commands/tokens/mint', user_id: uid, label: context.params.label
+  session mcp_flash_token = minted.raw
+  redirect_to '/mcp-tools'
+-%}

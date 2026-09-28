@@ -1,0 +1,141 @@
+{%- comment -%}
+  Validate ONE tool manifest against the manifest meta-schema (spec §7.2, §12.2).
+  This is the gate that makes the tool surface trustworthy: a manifest that fails
+  is EXCLUDED from the registry (and logged), never served in a degraded form
+  (§8.1). Three fields carry the governance posture and are hard-required so a
+  reviewer reads the manifest and knows the risk without reading the handler:
+  authorization_policy (who), mutating (reversibility), requires_approval (gate).
+
+  Load-bearing rules:
+   - NO IMPLICIT ALLOW (§12.2): a blank/missing authorization_policy = INVALID.
+     There is no default-permit path; anonymous access must name a policy.
+   - name matches ^[a-z][a-z0-9_]{2,63}$; version is SemVer.
+   - input_schema must be an object schema and pass the supported-subset walker
+     (unsupported keyword anywhere → invalid).
+   - Correct types for mutating/requires_approval/idempotent (boolean),
+     timeout_ms (integer), audit_fields (array).
+   - description lint warnings are attached (non-fatal, §12.3) for human attention.
+
+  @param {object}  manifest  - the raw manifest hash
+  @param {integer} max_depth - schema depth cap (from config.defaults.max_schema_depth)
+  @return {object} { valid, errors:[string], warnings:[string], name }
+{%- endcomment -%}
+{% liquid
+  assign errors = '[]' | parse_json
+  assign warnings = '[]' | parse_json
+  assign name = manifest.name
+
+  # ---- name ----
+  if name == blank
+    assign errors = errors | array_add: 'name: required'
+  else
+    assign name_ok = name | matches: '^[a-z][a-z0-9_]{2,63}$'
+    unless name_ok
+      assign errors = errors | array_add: 'name: must match ^[a-z][a-z0-9_]{2,63}$'
+    endunless
+  endif
+
+  # ---- version (SemVer) ----
+  if manifest.version == blank
+    assign errors = errors | array_add: 'version: required'
+  else
+    assign ver_ok = manifest.version | matches: '^[0-9]+\.[0-9]+\.[0-9]+'
+    unless ver_ok
+      assign errors = errors | array_add: 'version: must be SemVer (MAJOR.MINOR.PATCH)'
+    endunless
+  endif
+
+  # ---- description (model-read; lint it) ----
+  if manifest.description == blank
+    assign errors = errors | array_add: 'description: required'
+  else
+    function lint = 'modules/mcp/commands/registry/lint_description', text: manifest.description
+    if lint.flagged
+      assign joined = lint.hits | join: ', '
+      assign wmsg = 'description flagged by tool-poisoning lint: ' | append: joined
+      assign warnings = warnings | array_add: wmsg
+    endif
+  endif
+
+  # ---- governance triad (hard-required) ----
+  if manifest.authorization_policy == blank
+    assign errors = errors | array_add: 'authorization_policy: required (no implicit allow)'
+  endif
+  assign mt = manifest.mutating | type_of | downcase
+  unless mt == 'boolean'
+    assign errors = errors | array_add: 'mutating: required boolean'
+  endunless
+  assign ra = manifest.requires_approval | type_of | downcase
+  unless ra == 'boolean'
+    assign errors = errors | array_add: 'requires_approval: required boolean'
+  endunless
+
+  # ---- handler ----
+  if manifest.handler == blank
+    assign errors = errors | array_add: 'handler: required'
+  endif
+
+  # ---- optional typed fields ----
+  unless manifest.idempotent == blank
+    assign it = manifest.idempotent | type_of | downcase
+    unless it == 'boolean'
+      assign errors = errors | array_add: 'idempotent: must be boolean'
+    endunless
+  endunless
+  unless manifest.timeout_ms == blank
+    assign tt = manifest.timeout_ms | type_of | downcase
+    unless tt == 'integer'
+      assign errors = errors | array_add: 'timeout_ms: must be integer'
+    endunless
+  endunless
+  unless manifest.audit_fields == blank
+    assign aft = manifest.audit_fields | type_of | downcase
+    unless aft == 'array'
+      assign errors = errors | array_add: 'audit_fields: must be array'
+    endunless
+  endunless
+  unless manifest.deprecated == blank
+    assign dt = manifest.deprecated | type_of | downcase
+    unless dt == 'boolean'
+      assign errors = errors | array_add: 'deprecated: must be boolean'
+    endunless
+  endunless
+
+  # ---- input_schema (required; must be an object schema in the supported subset) ----
+  assign isch = manifest.input_schema
+  if isch == blank
+    assign errors = errors | array_add: 'input_schema: required'
+  else
+    if isch.type != 'object'
+      assign errors = errors | array_add: 'input_schema: root type must be "object"'
+    endif
+    function sv = 'modules/mcp/commands/registry/validate_schema_node', node: isch, depth: 1, max_depth: max_depth, path: 'input_schema'
+    unless sv.valid
+      for e in sv.errors
+        assign errors = errors | array_add: e
+      endfor
+    endunless
+  endif
+
+  # ---- output_schema (optional; validated when present) ----
+  assign osch = manifest.output_schema
+  unless osch == blank
+    function ov = 'modules/mcp/commands/registry/validate_schema_node', node: osch, depth: 1, max_depth: max_depth, path: 'output_schema'
+    unless ov.valid
+      for e in ov.errors
+        assign errors = errors | array_add: e
+      endfor
+    endunless
+  endunless
+
+  assign is_valid = false
+  if errors.size == 0
+    assign is_valid = true
+  endif
+  assign out = '{}' | parse_json
+  hash_assign out['valid'] = is_valid
+  hash_assign out['errors'] = errors
+  hash_assign out['warnings'] = warnings
+  hash_assign out['name'] = name
+  return out
+%}

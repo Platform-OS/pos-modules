@@ -1,0 +1,49 @@
+{%- comment -%}
+  MCP `tasks/get` (2026-07-28, io.modelcontextprotocol/tasks). Poll the status of a
+  deferred action — an approval-gated tool call. This is the 2026 interface over the same
+  store the built-in `mcp_approval_status` reads for 2025 clients.
+
+  SELF-SCOPED (no enumeration): a caller can only read a task IT requested. An unknown
+  handle and someone else's handle both return the same "Task not found". Requires
+  authentication — the task is scoped to the caller's principal.
+
+  @param {object} params  - { taskId }
+  @param {object} headers - context.headers (bearer identity)
+  @return {object} { task } on success | { _error:{code,message} } otherwise
+{%- endcomment -%}
+{% liquid
+  assign out = '{}' | parse_json
+
+  function idr = 'modules/mcp/commands/identity/resolve_principal', headers: headers
+  unless idr.authenticated == true
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32001
+    hash_assign e['message'] = 'Authentication required'
+    hash_assign out['_error'] = e
+    return out
+  endunless
+
+  assign task_id = params.taskId
+  if task_id == blank
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32602
+    hash_assign e['message'] = 'Invalid params: taskId is required'
+    hash_assign out['_error'] = e
+    return out
+  endif
+
+  graphql r = 'modules/mcp/approvals/find_by_handle', handle: task_id
+  assign rec = r.records.results.first
+  # Self-scope: not-found and not-yours are indistinguishable (no handle enumeration).
+  if rec == blank or rec.principal_id != idr.principal.id
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32002
+    hash_assign e['message'] = 'Task not found'
+    hash_assign out['_error'] = e
+    return out
+  endif
+
+  function task = 'modules/mcp/commands/tasks/present', rec: rec
+  hash_assign out['task'] = task
+  return out
+%}

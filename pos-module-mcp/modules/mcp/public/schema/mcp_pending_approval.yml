@@ -1,0 +1,27 @@
+name: mcp_pending_approval
+# Human-in-the-loop approval gate (spec §6.3, §9.6). A tool declared
+# `requires_approval: true` never executes inline — the engine records the intent
+# here and returns an opaque handle. An operator later approves or rejects; on
+# approval the action executes as the ORIGINAL principal through the same pipeline.
+#
+# Unlike the ledger (which only HASHES arguments), the arguments are persisted here
+# because execution is deferred — so this table is access-restricted (operator-only
+# reads) and purged on a short cycle after a terminal status.
+properties:
+  - name: handle          # opaque id returned to the agent
+  - name: tool_name
+  - name: tool_version
+  - name: arguments_json
+    type: text            # persisted — needed to execute later
+  - name: input_sha256
+  - name: requested_by_agent
+  - name: principal_id    # the action executes AS this principal on approval
+  - name: authz_policy
+  - name: status          # pending | approved | rejected | expired | executed | failed
+  - name: decided_by      # operator user id
+  - name: decided_at      # ISO-8601 UTC string
+  - name: expires_at
+    type: integer         # unix epoch
+  - name: result_summary
+    type: text            # short outcome shown to the agent after execution
+  - name: request_id      # correlation id linking the request + execution ledger entries

@@ -1,0 +1,19 @@
+mutation update(
+  $id: ID!
+  $status: String!
+  $decided_by: String
+  $decided_at: String
+  $result_summary: String
+) {
+  record: record_update(id: $id, record: {
+    properties: [
+      { name: "status", value: $status }
+      { name: "decided_by", value: $decided_by }
+      { name: "decided_at", value: $decided_at }
+      { name: "result_summary", value: $result_summary }
+    ]
+  }) {
+    id
+    status: property(name: "status")
+  }
+}

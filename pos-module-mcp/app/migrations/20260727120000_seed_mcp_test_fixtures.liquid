@@ -1,0 +1,36 @@
+{% comment %}
+  pos-module-mcp — deterministic TEST fixtures (TASK-5). GENERATED FILE — do not edit by
+  hand; edit tests/seed/seed.mjs and re-run tests/seed/generate_migrations.mjs.
+
+  GATED: seeds ONLY when the instance constant MCP_SEED_TEST_FIXTURES is '1'/'true'
+  (CI sets it for the live test stage). A plain deploy leaves it unset → this is a no-op,
+  so no test users/tokens/access ever land on a normal instance. import_users /
+  import_models use _id_remap:false so the fixed ids are preserved on every run; re-running
+  UPSERTS (resets mutated fixture properties back to baseline).
+{% endcomment %}
+{% liquid
+  assign gate = context.constants.MCP_SEED_TEST_FIXTURES | default: ''
+  assign on = false
+  if gate == '1' or gate == 'true'
+    assign on = true
+  endif
+%}
+{% if on %}
+{% liquid
+  assign users = '[{"id":"90101","email":"mcp-fixt-operator@test.local","slug":"mcp-fixt-operator","name":"MCP Fixture Operator","password":"McpFixture!2026"},{"id":"90102","email":"mcp-fixt-member@test.local","slug":"mcp-fixt-member","name":"MCP Fixture Member","password":"McpFixture!2026"},{"id":"90103","email":"mcp-fixt-outsider@test.local","slug":"mcp-fixt-outsider","name":"MCP Fixture Outsider","password":"McpFixture!2026"},{"id":"90104","email":"mcp-fixt-requester@test.local","slug":"mcp-fixt-requester","name":"MCP Fixture Requester","password":"McpFixture!2026"},{"id":"90105","email":"mcp-fixt-rate@test.local","slug":"mcp-fixt-rate","name":"MCP Fixture Rate","password":"McpFixture!2026"},{"id":"90106","email":"mcp-fixt-abusea@test.local","slug":"mcp-fixt-abusea","name":"MCP Fixture AbuseA","password":"McpFixture!2026"},{"id":"90107","email":"mcp-fixt-abuseb@test.local","slug":"mcp-fixt-abuseb","name":"MCP Fixture AbuseB","password":"McpFixture!2026"},{"id":"90108","email":"mcp-fixt-abusec@test.local","slug":"mcp-fixt-abusec","name":"MCP Fixture AbuseC","password":"McpFixture!2026"},{"id":"90109","email":"mcp-fixt-validator@test.local","slug":"mcp-fixt-validator","name":"MCP Fixture Validator","password":"McpFixture!2026"},{"id":"90190","email":"mcp-fixt-conformance@test.local","slug":"mcp-fixt-conformance","name":"MCP Fixture Conformance","password":"McpFixture!2026"}]' | parse_json
+  assign models = '[{"id":"91101","type_name":"modules/mcp/mcp_access","user_id":"90101","properties":{"user_id":"90101","email":"mcp-fixt-operator@test.local","role":"admin","status":"active","decided_by":"seed"}},{"id":"91001","type_name":"modules/mcp/mcp_token","user_id":"90101","properties":{"user_id":"90101","token_digest":"ea4a885d7a236fe05f3e4c60cce8804f7f5701197543b81c3b33baf1fba93d63","label":"fixt-operator","status":"active"}},{"id":"91102","type_name":"modules/mcp/mcp_access","user_id":"90102","properties":{"user_id":"90102","email":"mcp-fixt-member@test.local","role":"user","status":"active","decided_by":"seed"}},{"id":"91002","type_name":"modules/mcp/mcp_token","user_id":"90102","properties":{"user_id":"90102","token_digest":"7d7413bf0229bf66da88685a0d0b466610be7d372b6d4d5e46695b7ba73db011","label":"fixt-member","status":"active"}},{"id":"91012","type_name":"modules/mcp/mcp_token","user_id":"90102","properties":{"user_id":"90102","token_digest":"242eb6ed4cbc782f774fa02b6ffadcd99175c281b8330b21f8e9472120cd2db6","label":"fixt-narrow","status":"active","allowed_tools":["test_public"]}},{"id":"91013","type_name":"modules/mcp/mcp_token","user_id":"90102","properties":{"user_id":"90102","token_digest":"8020303908c22e7146577ba96be88037a4a22413fc03565ed9353c00605f5a08","label":"fixt-revoke","status":"active"}},{"id":"91003","type_name":"modules/mcp/mcp_token","user_id":"90103","properties":{"user_id":"90103","token_digest":"7b642c81c8f59f7b1af9e8fd94f28fad0d7c773e4fcbf6808000b347ca9a7685","label":"fixt-outsider","status":"active"}},{"id":"91104","type_name":"modules/mcp/mcp_access","user_id":"90104","properties":{"user_id":"90104","email":"mcp-fixt-requester@test.local","role":"user","status":"requested","decided_by":"seed"}},{"id":"91105","type_name":"modules/mcp/mcp_access","user_id":"90105","properties":{"user_id":"90105","email":"mcp-fixt-rate@test.local","role":"user","status":"active","decided_by":"seed"}},{"id":"91005","type_name":"modules/mcp/mcp_token","user_id":"90105","properties":{"user_id":"90105","token_digest":"baf9567100b24b7a8e9b0e1e571549f402aba0eb68e12b65463df40e970c9c35","label":"fixt-rate","status":"active"}},{"id":"91106","type_name":"modules/mcp/mcp_access","user_id":"90106","properties":{"user_id":"90106","email":"mcp-fixt-abusea@test.local","role":"user","status":"active","decided_by":"seed"}},{"id":"91006","type_name":"modules/mcp/mcp_token","user_id":"90106","properties":{"user_id":"90106","token_digest":"cfff84c6fd7f809bdb4f0685e6acdc23f992c2effab3726aab467a7c4a8a9511","label":"fixt-abusea","status":"active"}},{"id":"91107","type_name":"modules/mcp/mcp_access","user_id":"90107","properties":{"user_id":"90107","email":"mcp-fixt-abuseb@test.local","role":"user","status":"active","decided_by":"seed"}},{"id":"91007","type_name":"modules/mcp/mcp_token","user_id":"90107","properties":{"user_id":"90107","token_digest":"239abe85de40c5189f54093e395bc9b1b34ca8737068553b71e93f5d632047a5","label":"fixt-abuseb","status":"active"}},{"id":"91108","type_name":"modules/mcp/mcp_access","user_id":"90108","properties":{"user_id":"90108","email":"mcp-fixt-abusec@test.local","role":"user","status":"active","decided_by":"seed"}},{"id":"91008","type_name":"modules/mcp/mcp_token","user_id":"90108","properties":{"user_id":"90108","token_digest":"ca75f6f2d66bcd9dc2db22850b9953d99f8d3273bfb7a3ce376789ccd29aa18e","label":"fixt-abusec","status":"active"}},{"id":"91109","type_name":"modules/mcp/mcp_access","user_id":"90109","properties":{"user_id":"90109","email":"mcp-fixt-validator@test.local","role":"user","status":"active","decided_by":"seed"}},{"id":"91009","type_name":"modules/mcp/mcp_token","user_id":"90109","properties":{"user_id":"90109","token_digest":"671b1e03d282512f9ce0e5e87b1e1b393e2d5556b464fba4e6a67f7d78363ec5","label":"fixt-validator","status":"active"}},{"id":"91090","type_name":"modules/mcp/mcp_token","user_id":"90190","properties":{"user_id":"90190","token_digest":"7b7ed9aee916c337c9c92f370bc00bb7bdead1f74955aed22fcc8e9434065fdb","label":"fixt-conformance","status":"active"}},{"id":"90401","type_name":"modules/community/event","properties":{"name":"Conformance Jazz (fixture)","short_description":"confjazzfixture","description":"a confjazzfixture show","start_date":"2026-09-01T19:00:00Z","end_date":"2026-09-01T22:00:00Z","status":"published"}}]' | parse_json
+%}
+{% graphql _seed_users, users: users %}
+  mutation($users: [UserImport!]!) {
+    import_users(_id_remap: false, _index_rebuild: false, users: $users) { ids }
+  }
+{% endgraphql %}
+{% graphql _seed_models, models: models %}
+  mutation($models: [CustomizationImport!]!) {
+    import_models(_id_remap: false, _index_rebuild: false, models: $models) { ids }
+  }
+{% endgraphql %}
+{% log 'migrations/seed_mcp_test_fixtures: seeded (MCP_SEED_TEST_FIXTURES on)' %}
+{% else %}
+{% log 'migrations/seed_mcp_test_fixtures: skipped (MCP_SEED_TEST_FIXTURES not set)' %}
+{% endif %}

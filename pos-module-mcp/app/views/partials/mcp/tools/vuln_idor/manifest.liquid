@@ -1,0 +1,20 @@
+{%- comment -%}
+  NEGATIVE CONTROL (deliberately INSECURE; gated by MCP_ENABLE_VULN_TOOLS, NEVER prod).
+  Privacy plane — accepts a `user_id` argument and returns THAT user's test_note rows with
+  no ownership/tenancy check, so any caller reads any principal's data (IDOR). The
+  pentester should flag this FAILED (object-level authorization missing).
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'vuln_idor'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'NEGATIVE CONTROL (insecure): returns another principal notes by user_id (no ownership check).'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["user_id"],"properties":{"user_id":{"type":"string","minLength":1,"maxLength":32,"pattern":"^[0-9]+$"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = false
+  hash_assign m['authorization_policy'] = 'test_principal_member'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = false
+  hash_assign m['handler'] = 'mcp/tools/vuln_idor/call'
+  return m
+%}

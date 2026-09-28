@@ -1,0 +1,54 @@
+{%- comment -%}
+  The current SESSION user's MCP access level. Single source of truth for both
+  gates (operator console = admin; token console = admin|user).
+
+  Levels: anonymous (not signed in) · admin · user · requested (awaiting a decision)
+  · none (no access). Bootstrap: a user id in MCP_ADMIN_USER_IDS is an active admin
+  even without a row, so a fresh instance has a first operator.
+
+  @return {object} { level, record_id?, bootstrap? }
+{%- endcomment -%}
+{% liquid
+  assign uid = context.current_user.id | append: ''
+  if uid == blank
+    assign out = '{}' | parse_json
+    hash_assign out['level'] = 'anonymous'
+    return out
+  endif
+
+  # Bootstrap admins (MCP_ADMIN_USER_IDS). NOTE: `return` inside a for loop does not
+  # exit a platformOS command — use a flag + break, then return after the loop.
+  assign raw = context.constants.MCP_ADMIN_USER_IDS | default: ''
+  assign admins = raw | split: ','
+  assign is_bootstrap = false
+  for a in admins
+    assign at = a | strip
+    if at == uid
+      assign is_bootstrap = true
+      break
+    endif
+  endfor
+  if is_bootstrap
+    assign out = '{}' | parse_json
+    hash_assign out['level'] = 'admin'
+    hash_assign out['bootstrap'] = true
+    return out
+  endif
+
+  graphql r = 'modules/mcp/access/for_user', user_id: uid
+  assign rec = r.records.results.first
+  assign out = '{}' | parse_json
+  if rec == blank
+    hash_assign out['level'] = 'none'
+    return out
+  endif
+  hash_assign out['record_id'] = rec.id
+  if rec.status == 'active'
+    hash_assign out['level'] = rec.role
+  elsif rec.status == 'requested'
+    hash_assign out['level'] = 'requested'
+  else
+    hash_assign out['level'] = 'none'
+  endif
+  return out
+%}

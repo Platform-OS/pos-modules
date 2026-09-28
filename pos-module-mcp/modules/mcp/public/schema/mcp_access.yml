@@ -1,0 +1,15 @@
+name: mcp_access
+# MCP access control (module-owned, portable). A member's access to the MCP surface
+# is a dedicated role here, distinct from the platform `admin` role:
+#   role=admin  → operator: the console, approvals, evals, and granting access
+#   role=user   → approved to mint bearer tokens at /mcp-tools
+# status=requested → the member asked for access and awaits an operator decision.
+# Bootstrap: user ids in the MCP_ADMIN_USER_IDS constant are treated as active
+# admins even without a row here, so a fresh instance has a first operator.
+properties:
+  - name: user_id
+  - name: email          # denormalized for the operator list
+  - name: role           # admin | user
+  - name: status         # active | requested | revoked
+  - name: decided_by     # operator who granted/revoked
+  - name: occurred_at    # ISO-8601 UTC string

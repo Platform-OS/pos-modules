@@ -1,0 +1,22 @@
+{%- comment -%}
+  DRAFT MCP tool scaffolded by the mcp/tool generator (spec §8.4). NOT served until
+  you complete and register it. authorization_policy is EMPTY on purpose: an empty
+  policy fails the meta-schema, so this draft is EXCLUDED from the registry until a
+  human sets a named policy — it can never reach an agent unreviewed.
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = '<%= toolName %>'
+  hash_assign m['version'] = '0.1.0'
+  hash_assign m['description'] = 'TODO: describe precisely what this tool does, its limits, and what it does NOT do. Model-read, reviewed as security-relevant.'
+  assign schema = '<%- inputSchemaJson %>' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = <%= mutating %>
+  # TODO(REQUIRED): set a named authorization policy — app/views/partials/mcp/policies/<name>.
+  #   Left EMPTY on purpose: empty fails the meta-schema, so this DRAFT is EXCLUDED
+  #   from the registry until you complete it (no implicit allow).
+  hash_assign m['authorization_policy'] = ''
+  hash_assign m['requires_approval'] = false   # TODO: true for high-impact / irreversible actions
+  hash_assign m['handler'] = 'mcp/tools/<%= toolName %>/call'
+  return m
+%}

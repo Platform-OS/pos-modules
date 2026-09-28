@@ -1,0 +1,80 @@
+{%- comment -%}
+  BOUNDED chain verification over the most recent `limit` entries — the cheap per-load
+  integrity check for the operator console, so the dashboard cost does not grow with the
+  whole ledger. Uses the SAME invariants and the SAME canonical serializer as
+  ledger/verify_chain (linkage: prev_entry_hash == preceding entry_hash; integrity:
+  digest(canonical(payload) || prev_entry_hash) == entry_hash), just over a tail window.
+
+  Fidelity: if the entire chain fits in the window (the oldest fetched row is genesis,
+  prev_entry_hash == 64 zeros) it verifies from genesis — identical to a full walk. Otherwise
+  it TRUSTS the oldest fetched entry as an anchor and verifies every entry after it, which
+  detects any fork / edit / backdate WITHIN the window (the concurrency-fork case is a
+  recent-append event, always inside the window). Older-entry tampering needs the full
+  ledger/verify_chain (surface it on-demand). Returns the SHAPE of verify_chain plus
+  { recent:true, window }.
+
+  @param {integer} limit - tail size to verify (default 200)
+  @return {object} { ok, count, broken_at, reason, recent, window }
+{%- endcomment -%}
+{% liquid
+  assign zero = '0000000000000000000000000000000000000000000000000000000000000000'
+  assign win = limit | default: 200 | plus: 0
+  if win < 1
+    assign win = 200
+  endif
+  assign fetch_n = win | plus: 1
+
+  graphql res = 'modules/mcp/ledger/recent_chain', per_page: fetch_n
+  assign rows = res.records.results | reverse
+  assign n = rows | size
+
+  assign ok = true
+  assign broken_at = null
+  assign reason = null
+  assign count = 0
+
+  if n > 0
+    assign anchor = rows.first
+    # Genesis in window → verify everything (prev starts at zero, no skip). Otherwise
+    # trust the oldest fetched row as the anchor and verify from its successor.
+    if anchor.prev_entry_hash == zero
+      assign prev = zero
+      assign start_index = 0
+    else
+      assign prev = anchor.entry_hash
+      assign start_index = 1
+    endif
+
+    assign idx = 0
+    for rec in rows
+      if idx >= start_index
+        if rec.prev_entry_hash != prev
+          assign ok = false
+          assign broken_at = rec.seq
+          assign reason = 'linkage break: prev_entry_hash does not match preceding entry'
+          break
+        endif
+        function canonical = 'modules/mcp/commands/ledger/canonical', entry: rec
+        assign expected = canonical | append: rec.prev_entry_hash | digest: 'sha256'
+        if expected != rec.entry_hash
+          assign ok = false
+          assign broken_at = rec.seq
+          assign reason = 'integrity break: recomputed entry_hash does not match stored value'
+          break
+        endif
+        assign prev = rec.entry_hash
+        assign count = count | plus: 1
+      endif
+      assign idx = idx | plus: 1
+    endfor
+  endif
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = ok
+  hash_assign out['count'] = count
+  hash_assign out['broken_at'] = broken_at
+  hash_assign out['reason'] = reason
+  hash_assign out['recent'] = true
+  hash_assign out['window'] = win
+  return out
+%}

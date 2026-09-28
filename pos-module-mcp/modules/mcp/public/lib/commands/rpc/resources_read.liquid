@@ -1,0 +1,87 @@
+{%- comment -%}
+  MCP `resources/read` (spec §3.2, §13.1). Returns the markdown content of a doc
+  page previously listed by resources/list.
+
+  SECURITY: the toggle AND the prefix allowlist are RE-CHECKED here — a crafted uri
+  must not read a page outside the configured doc prefixes (never trust the uri to
+  scope access). Only GET pages under an allowed prefix are readable.
+
+  @param {object} params - MCP params with `uri` = mcp+page:///<slug>
+  @return {object} result { contents:[{uri,mimeType,text}] } OR
+                   { _error:{code,message} } when unavailable/forbidden
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+
+  unless cfg.resources.expose_markdown_pages
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = -32002
+    hash_assign err['message'] = 'Resource not found'
+    assign out = '{}' | parse_json
+    hash_assign out['_error'] = err
+    return out
+  endunless
+
+  assign uri = params.uri | default: ''
+  assign slug = uri | remove_first: 'mcp+page:///' | strip
+
+  # Re-check the allowlist against the resolved slug (defense: do not trust uri).
+  assign allowed = false
+  for prefix in cfg.resources.markdown_page_prefixes
+    # Plain prefix test (not regex) so a prefix with metachars can't alter matching.
+    assign p_len = prefix | size
+    assign head = slug | slice: 0, p_len
+    if head == prefix
+      assign allowed = true
+      break
+    endif
+  endfor
+
+  unless allowed
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = -32002
+    hash_assign err['message'] = 'Resource not found'
+    assign out = '{}' | parse_json
+    hash_assign out['_error'] = err
+    return out
+  endunless
+
+  graphql pres = 'modules/mcp/resources/page_by_slug', slug: slug
+  assign page = pres.admin_pages.results.first
+  if page == blank
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = -32002
+    hash_assign err['message'] = 'Resource not found'
+    assign out = '{}' | parse_json
+    hash_assign out['_error'] = err
+    return out
+  endif
+
+  # Serve ONLY the raw authored source (markdown for doc pages). We deliberately
+  # do NOT fall back to page.html_content: that field is the converter's RENDERED
+  # HTML (component <div>s, inline SVG, etc.), and returning it under a
+  # text/markdown mimeType would both leak render artifacts and mislabel the
+  # content type. platformOS already strips YAML frontmatter from `content` at
+  # import (AppBuilder::Parsers::LiquidParser), so no frontmatter handling is
+  # needed here. A doc page with empty source is not a valid markdown resource.
+  assign text = page.content | strip
+  if text == blank
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = -32002
+    hash_assign err['message'] = 'Resource not found'
+    assign out = '{}' | parse_json
+    hash_assign out['_error'] = err
+    return out
+  endif
+
+  assign content = '[]' | parse_json
+  assign item = '{}' | parse_json
+  hash_assign item['uri'] = uri
+  hash_assign item['mimeType'] = 'text/markdown'
+  hash_assign item['text'] = text
+  assign content = content | array_add: item
+
+  assign result = '{}' | parse_json
+  hash_assign result['contents'] = content
+  return result
+%}

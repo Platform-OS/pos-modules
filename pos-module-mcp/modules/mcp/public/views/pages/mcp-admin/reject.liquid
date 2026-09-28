@@ -1,0 +1,26 @@
+---
+slug: mcp-admin/reject
+method: post
+---
+{%- comment -%}
+  Operator rejects a pending action (spec §9.6). The action never runs; the
+  decision is recorded. Operator-gated.
+{%- endcomment -%}
+{%- liquid
+  function is_admin = 'modules/mcp/commands/is_operator'
+  unless is_admin
+    response_status 403
+    echo 'Forbidden'
+    return
+  endunless
+
+  assign handle = context.params.handle
+  graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
+  assign rec = f.records.results.first
+  if rec and rec.status == 'pending'
+    assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: 'rejected', decided_by: context.current_user.id, decided_at: decided_at, result_summary: 'Rejected by operator.'
+  endif
+
+  redirect_to '/mcp-admin?tab=approvals'
+-%}

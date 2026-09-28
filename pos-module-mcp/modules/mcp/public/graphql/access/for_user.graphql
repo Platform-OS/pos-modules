@@ -1,0 +1,18 @@
+query for_user($user_id: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_access" }
+      properties: [{ name: "user_id", value: $user_id }]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      user_id: property(name: "user_id")
+      email: property(name: "email")
+      role: property(name: "role")
+      status: property(name: "status")
+    }
+  }
+}

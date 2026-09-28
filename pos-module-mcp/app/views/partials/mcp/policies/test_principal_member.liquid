@@ -1,0 +1,34 @@
+{%- comment -%}
+  Authorization policy: test_principal_member (Layer-2, app-owned; TEST fixture).
+
+  Permits a tool only when the calling PRINCIPAL (the bearer's user, not the browser
+  session) has an ACTIVE mcp_access row with role user or admin — i.e. an approved
+  member. Unlike the shipped `members_can_write` (which allows any authenticated
+  caller), this actually distinguishes an approved member from a bare token holder,
+  so the coverage suite can prove per-principal tool visibility and authz-deny.
+
+  Fail-closed: no row, non-active status, or a lookup error → deny.
+  Contract: return { allow, reason }. Receives principal, agent, arguments, tool,
+  delegation_mode.
+{%- endcomment -%}
+{% liquid
+  assign r = '{}' | parse_json
+  assign allow = false
+  assign uid = principal.user_id | append: ''
+  graphql g = 'modules/mcp/access/for_user', user_id: uid
+  assign rec = g.records.results.first
+  if rec != blank
+    if rec.status == 'active'
+      if rec.role == 'user' or rec.role == 'admin'
+        assign allow = true
+      endif
+    endif
+  endif
+  hash_assign r['allow'] = allow
+  if allow
+    hash_assign r['reason'] = 'member'
+  else
+    hash_assign r['reason'] = 'not_member'
+  endif
+  return r
+%}

@@ -1,0 +1,13 @@
+{%- comment -%}
+  Handler — test_echo (TEST FIXTURE). Read-only. Returns the validated message so the
+  coverage suite can confirm the value survived validation unchanged (no coercion).
+{%- endcomment -%}
+{% liquid
+  assign result = '{}' | parse_json
+  hash_assign result['echo'] = arguments.message
+  hash_assign result['principal'] = principal.id
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  return out
+%}

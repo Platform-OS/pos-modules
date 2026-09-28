@@ -1,0 +1,55 @@
+{%- comment -%}
+  Tool-description lint (spec §12.3, §19.2) — the tool-poisoning tripwire.
+
+  Tool descriptions are model-read text and are THE primary prompt-injection
+  surface. This flags descriptions that carry model-directed instructions,
+  cross-tool references, permission claims, or encoded blobs so a human reviews
+  them. It returns warnings; whether a warning is fatal is the caller's policy
+  (registry/build treats these as non-fatal warnings surfaced in tools/list
+  diagnostics + logged, matching §12.3's "flag for human attention"). The
+  adversarial suite (task-1.10) asserts this fires on a poisoned manifest.
+
+  Detection is deliberately conservative and lowercase-substring based (no regex
+  backtracking risk). It errs toward flagging; false positives cost a reviewer a
+  glance, false negatives ship a poisoned tool.
+
+  @param {string} text - the description (or any model-read manifest string)
+  @return {object} { flagged:boolean, hits:[string] }
+{%- endcomment -%}
+{% liquid
+  assign hits = '[]' | parse_json
+  assign lc = text | default: '' | downcase
+
+  # Imperative / jailbreak markers aimed at the model.
+  assign markers = 'ignore previous,ignore all,ignore the,disregard,you must,you should,system prompt,as an ai,do not tell,without telling,override,forget everything,new instructions,act as,pretend,bypass,jailbreak' | split: ','
+  for m in markers
+    if lc contains m
+      assign hits = hits | array_add: m
+    endif
+  endfor
+
+  # Cross-tool references (tool shadowing / redirection).
+  if lc contains 'call the' or lc contains 'use the tool' or lc contains 'instead of'
+    assign hits = hits | array_add: 'cross-tool-reference'
+  endif
+
+  # Encoded-blob heuristic: a long unbroken run with no spaces suggests base64/hex
+  # payloads smuggled into prose. Flag very long "words".
+  assign words = text | default: '' | split: ' '
+  for w in words
+    assign wl = w | size
+    if wl > 80
+      assign hits = hits | array_add: 'long-encoded-blob'
+      break
+    endif
+  endfor
+
+  assign flagged = false
+  if hits.size > 0
+    assign flagged = true
+  endif
+  assign out = '{}' | parse_json
+  hash_assign out['flagged'] = flagged
+  hash_assign out['hits'] = hits
+  return out
+%}

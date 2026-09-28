@@ -1,0 +1,46 @@
+---
+slug: mcp-health
+format: json
+---
+{%- comment -%}
+  Liveness + readiness probe. Public and cheap by design: it exercises config
+  resolution (constants) and a trivial records read (DB reachable) — it does NOT run
+  chain verification (expensive) or expose any counts/data. 200 when ready, 503 when
+  a dependency is unreachable. Chain-integrity status lives in the operator console,
+  where it is run deliberately.
+{%- endcomment -%}
+{%- liquid
+  function cfg = 'modules/mcp/commands/config'
+
+  assign db_ok = true
+  try
+    graphql _ = 'modules/mcp/health/check'
+  catch e
+    assign db_ok = false
+  endtry
+
+  assign status = 'ok'
+  assign code = 200
+  unless db_ok
+    assign status = 'degraded'
+    assign code = 503
+  endunless
+  response_status code
+
+  assign checks = '{}' | parse_json
+  hash_assign checks['config'] = 'ok'
+  if db_ok
+    hash_assign checks['database'] = 'ok'
+  else
+    hash_assign checks['database'] = 'fail'
+  endif
+
+  assign out = '{}' | parse_json
+  hash_assign out['status'] = status
+  hash_assign out['server'] = cfg.server_name
+  hash_assign out['protocol'] = cfg.protocol_version
+  hash_assign out['protocols_supported'] = cfg.supported_protocol_versions
+  hash_assign out['checks'] = checks
+  hash_assign out['time'] = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  echo out
+-%}

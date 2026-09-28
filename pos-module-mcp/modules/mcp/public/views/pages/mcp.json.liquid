@@ -1,0 +1,27 @@
+---
+slug: mcp
+method: post
+format: json
+---
+{%- comment -%}
+  pos-module-mcp — the governed MCP endpoint (Layer 1, spec §9.1).
+  JSON-RPC 2.0 over HTTP POST. The parsed request body is on context.params.
+  All logic lives in commands/rpc/dispatch; this page only marshals the outcome
+  into an HTTP response (status, headers, body). `echo <hash>` emits unescaped
+  JSON on a format:json page — that is the response serializer.
+{%- endcomment -%}
+{%- liquid
+  function out = 'modules/mcp/commands/rpc/dispatch', params: context.params, headers: context.headers
+
+  assign status = out.http_status | default: 200
+  response_status status
+
+  unless out.headers == blank
+    assign headers_json = out.headers | json
+    response_headers headers_json
+  endunless
+
+  unless out.body == blank
+    echo out.body
+  endunless
+-%}

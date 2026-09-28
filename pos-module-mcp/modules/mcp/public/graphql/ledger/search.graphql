@@ -1,0 +1,48 @@
+query search(
+  $tool_name: String
+  $principal_id: String
+  $client_id: String
+  $authz_decision: String
+  $execution_outcome: String
+  $page: Int!
+  $per_page: Int!
+) {
+  records(
+    per_page: $per_page
+    page: $page
+    filter: {
+      table: { value: "modules/mcp/mcp_ledger" }
+      properties: [
+        { name: "tool_name", value: $tool_name }
+        { name: "principal_id", value: $principal_id }
+        { name: "client_id", value: $client_id }
+        { name: "authz_decision", value: $authz_decision }
+        { name: "execution_outcome", value: $execution_outcome }
+      ]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    total_entries
+    total_pages
+    results {
+      id
+      seq: property(name: "seq")
+      occurred_at: property(name: "occurred_at")
+      method: property(name: "method")
+      tool_name: property(name: "tool_name")
+      tool_version: property(name: "tool_version")
+      client_id: property(name: "client_id")
+      agent_id: property(name: "agent_id")
+      principal_id: property(name: "principal_id")
+      delegation_mode: property(name: "delegation_mode")
+      authz_policy: property(name: "authz_policy")
+      authz_decision: property(name: "authz_decision")
+      authz_reason: property(name: "authz_reason")
+      execution_outcome: property(name: "execution_outcome")
+      error_code: property(name: "error_code")
+      subject_type: property(name: "subject_type")
+      subject_id: property(name: "subject_id")
+      input_bytes: property(name: "input_bytes")
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{%- comment -%}
+  Record a pending approval and return its opaque handle (spec §9.6). Called when a
+  `requires_approval` tool is invoked, AFTER the caller has been authenticated and
+  authorized to REQUEST the action. The tool does not execute now; an operator
+  approves later. Arguments are persisted (unlike the ledger) because execution is
+  deferred.
+
+  @param {object} tool           - resolved manifest
+  @param {string} arguments_json - the validated arguments, JSON-serialized
+  @param {string} input_sha256
+  @param {object} principal
+  @param {object} agent
+  @param {string} request_id
+  @return {object} { handle, expires_at }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign expires_at = now_unix | plus: cfg.defaults.approval_window_seconds
+
+  assign u1 = '' | uuid | replace: '-', ''
+  assign handle = 'mcp_pa_' | append: u1
+
+  graphql _ = 'modules/mcp/approvals/create', handle: handle, tool_name: tool.name, tool_version: tool.version, arguments_json: arguments_json, input_sha256: input_sha256, requested_by_agent: agent.id, principal_id: principal.id, authz_policy: tool.authorization_policy, expires_at: expires_at, request_id: request_id
+
+  assign out = '{}' | parse_json
+  hash_assign out['handle'] = handle
+  hash_assign out['expires_at'] = expires_at
+  return out
+%}

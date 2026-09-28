@@ -1,0 +1,17 @@
+query list($per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: { table: { value: "modules/mcp/mcp_access" } }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      user_id: property(name: "user_id")
+      email: property(name: "email")
+      role: property(name: "role")
+      status: property(name: "status")
+      decided_by: property(name: "decided_by")
+      occurred_at: property(name: "occurred_at")
+    }
+  }
+}

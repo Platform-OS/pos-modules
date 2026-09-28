@@ -1,0 +1,196 @@
+{%- comment -%}
+  Deterministic eval run (spec §19.3). Measures whether the tool surface holds up as
+  it grows — the failure mode that degrades tool selection silently:
+    surface/desc_present  — every served tool has a real description (>= 20 chars)
+    surface/no_poison     — no served description trips the tool-poisoning lint
+    surface/desc_unique   — no two tools share an identical description (ambiguous)
+    golden/case_tool_exists — each golden case's expected tool is still registered
+    golden/case_args_valid  — each golden case's example arguments still validate
+                              against that tool's schema (a correct call is well-formed)
+
+  The module does not call LLMs (spec §2), so the LLM-driven "did the descriptions
+  actually lead the model to this tool" check lives in the external runner
+  (modules/mcp/tests/eval.mjs); this command is the deterministic core, runnable
+  synchronously or from a background job. Stores one mcp_eval_run record (queryable,
+  CI-gateable) and returns the summary.
+
+  @return {object} { run_id, total, passed, failed, failures:[{category,check,target,detail}] }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign run_id = 'mcp_run_' | append: '' | uuid
+  assign occurred_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+
+  function reg = 'modules/mcp/commands/registry/load'
+  assign tools = reg.tools
+
+  assign checks = '[]' | parse_json
+  assign desc_map = '{}' | parse_json
+
+  # ---- per-tool surface checks ----
+  for t in tools
+    assign dlen = t.description | default: '' | size
+    assign present = false
+    if dlen >= 20
+      assign present = true
+    endif
+    assign c = '{}' | parse_json
+    hash_assign c['category'] = 'surface'
+    hash_assign c['check'] = 'desc_present'
+    hash_assign c['target'] = t.name
+    hash_assign c['passed'] = present
+    unless present
+      hash_assign c['detail'] = 'description shorter than 20 chars'
+    endunless
+    assign checks = checks | array_add: c
+
+    function lint = 'modules/mcp/commands/registry/lint_description', text: t.description
+    assign clean = true
+    if lint.flagged
+      assign clean = false
+    endif
+    assign c2 = '{}' | parse_json
+    hash_assign c2['category'] = 'surface'
+    hash_assign c2['check'] = 'no_poison'
+    hash_assign c2['target'] = t.name
+    hash_assign c2['passed'] = clean
+    unless clean
+      assign hits = lint.hits | join: ', '
+      hash_assign c2['detail'] = hits
+    endunless
+    assign checks = checks | array_add: c2
+
+    assign d = t.description | default: ''
+    assign prev = desc_map[d] | default: 0
+    hash_assign desc_map[d] = prev | plus: 1
+  endfor
+
+  # ---- description uniqueness (one check per tool) ----
+  for t in tools
+    assign d = t.description | default: ''
+    assign cnt = desc_map[d] | default: 0
+    assign uniq = true
+    if cnt > 1
+      assign uniq = false
+    endif
+    assign c = '{}' | parse_json
+    hash_assign c['category'] = 'surface'
+    hash_assign c['check'] = 'desc_unique'
+    hash_assign c['target'] = t.name
+    hash_assign c['passed'] = uniq
+    unless uniq
+      hash_assign c['detail'] = 'description is identical to another tool'
+    endunless
+    assign checks = checks | array_add: c
+  endfor
+
+  # ---- golden-case checks ----
+  graphql cres = 'modules/mcp/eval/cases_list', per_page: 200
+  for kase in cres.records.results
+    assign found = null
+    for t in tools
+      if t.name == kase.expected_tool
+        assign found = t
+        break
+      endif
+    endfor
+    assign exists = false
+    if found
+      assign exists = true
+    endif
+    assign c = '{}' | parse_json
+    hash_assign c['category'] = 'golden'
+    hash_assign c['check'] = 'case_tool_exists'
+    hash_assign c['target'] = kase.name
+    hash_assign c['passed'] = exists
+    unless exists
+      assign det = 'expected_tool "' | append: kase.expected_tool | append: '" not registered'
+      hash_assign c['detail'] = det
+    endunless
+    assign checks = checks | array_add: c
+
+    if found
+      assign args = kase.expected_args_json | parse_json
+      function val = 'modules/mcp/commands/validate/json_schema', value: args, schema: found.input_schema, depth: 1, max_depth: cfg.defaults.max_schema_depth, path: 'arguments'
+      assign c2 = '{}' | parse_json
+      hash_assign c2['category'] = 'golden'
+      hash_assign c2['check'] = 'case_args_valid'
+      hash_assign c2['target'] = kase.name
+      hash_assign c2['passed'] = val.valid
+      unless val.valid
+        assign det = val.errors | join: '; '
+        hash_assign c2['detail'] = det
+      endunless
+      assign checks = checks | array_add: c2
+    endif
+  endfor
+
+  # ---- manifest hygiene (ADVISORY warnings; do NOT fail the run) ----
+  # Field-kind-aware so it does not cry wolf: no_maxlength flags any unbounded string;
+  # no_pattern_on_string flags only display/content fields (name/title/description/…)
+  # with no pattern/enum/format — the ones that can carry a stored HTML/script payload.
+  # This is the live counterpart to the dev-time static linter, surfaced in /mcp-admin.
+  assign warnings = '[]' | parse_json
+  assign display_re = 'name,title,label,summary,description,short_description,venue,message,body,content,comment,subject,headline,caption'
+  for t in tools
+    assign props = t.input_schema.properties
+    unless props == blank
+      assign pkeys = props | hash_keys
+      for pk in pkeys
+        assign p = props[pk]
+        if p.type == 'string'
+          if p.maxLength == blank and p.enum == blank
+            assign w = '{}' | parse_json
+            hash_assign w['tool'] = t.name
+            hash_assign w['check'] = 'no_maxlength'
+            hash_assign w['field'] = pk
+            hash_assign w['detail'] = 'string field has no maxLength (unbounded input)'
+            assign warnings = warnings | array_add: w
+          endif
+          assign constrained = false
+          if p.pattern != blank or p.enum != blank or p.format != blank
+            assign constrained = true
+          endif
+          assign is_display = false
+          if display_re contains pk
+            assign is_display = true
+          endif
+          if constrained == false and is_display
+            assign w = '{}' | parse_json
+            hash_assign w['tool'] = t.name
+            hash_assign w['check'] = 'no_pattern_on_string'
+            hash_assign w['field'] = pk
+            hash_assign w['detail'] = 'display/content field has no pattern/enum — add "pattern":"^[^<>]*$" so HTML/script payloads are rejected at validation'
+            assign warnings = warnings | array_add: w
+          endif
+        endif
+      endfor
+    endunless
+  endfor
+  assign warnings_json = warnings | json
+
+  # ---- aggregate ----
+  assign total = checks | size
+  assign passed = 0
+  assign failures = '[]' | parse_json
+  for c in checks
+    if c.passed
+      assign passed = passed | plus: 1
+    else
+      assign failures = failures | array_add: c
+    endif
+  endfor
+  assign failed = total | minus: passed
+  assign failures_json = failures | json
+
+  graphql _ = 'modules/mcp/eval/run_create', run_id: run_id, total: total, passed: passed, failed: failed, failures_json: failures_json, warnings_json: warnings_json, occurred_at: occurred_at
+
+  assign out = '{}' | parse_json
+  hash_assign out['run_id'] = run_id
+  hash_assign out['total'] = total
+  hash_assign out['passed'] = passed
+  hash_assign out['failed'] = failed
+  hash_assign out['failures'] = failures
+  hash_assign out['warnings'] = warnings
+  return out
+%}

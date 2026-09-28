@@ -1,0 +1,71 @@
+{%- comment -%}
+  Verify the ledger hash chain end to end (spec §6.1, §19.1, §20). Walks every
+  entry in creation order (id ASC) and, using the SAME canonical serializer as
+  append, re-derives each entry_hash and checks two invariants:
+    1. linkage — entry.prev_entry_hash equals the previous entry's entry_hash
+       (first entry links to 64 zeros);
+    2. integrity — digest(canonical(payload) || prev_entry_hash) == entry_hash.
+  Either failing means an entry was edited, reordered, backdated, or the chain
+  forked. Returns the first break. A tamper anywhere invalidates every entry
+  after it, so reporting the earliest break is sufficient.
+
+  @return {object} { ok:boolean, count:int, broken_at:(seq|null), reason:(string|null) }
+{%- endcomment -%}
+{% liquid
+  assign table = 'modules/mcp/mcp_ledger'
+  assign zero = '0000000000000000000000000000000000000000000000000000000000000000'
+  assign per_page = 100
+  assign prev = zero
+  assign count = 0
+  assign ok = true
+  assign broken_at = null
+  assign reason = null
+
+  # Bounded outer paging loop (max 10k pages = 1M entries); breaks when a short
+  # page or an empty page is reached.
+  for page in (1..10000)
+    # The hash chain MUST be read in order, page by page — sequential pagination is
+    # inherent to chain verification, not a hoistable N+1.
+    # platformos-check-disable NestedGraphQLQuery
+    graphql res = 'modules/mcp/ledger/list', table: table, page: page, per_page: per_page
+    # platformos-check-enable NestedGraphQLQuery
+    assign rows = res.records.results
+    assign n = rows | size
+    if n == 0
+      break
+    endif
+
+    for rec in rows
+      if rec.prev_entry_hash != prev
+        assign ok = false
+        assign broken_at = rec.seq
+        assign reason = 'linkage break: prev_entry_hash does not match preceding entry'
+        break
+      endif
+      function canonical = 'modules/mcp/commands/ledger/canonical', entry: rec
+      assign expected = canonical | append: rec.prev_entry_hash | digest: 'sha256'
+      if expected != rec.entry_hash
+        assign ok = false
+        assign broken_at = rec.seq
+        assign reason = 'integrity break: recomputed entry_hash does not match stored value'
+        break
+      endif
+      assign prev = rec.entry_hash
+      assign count = count | plus: 1
+    endfor
+
+    unless ok
+      break
+    endunless
+    if n < per_page
+      break
+    endif
+  endfor
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = ok
+  hash_assign out['count'] = count
+  hash_assign out['broken_at'] = broken_at
+  hash_assign out['reason'] = reason
+  return out
+%}

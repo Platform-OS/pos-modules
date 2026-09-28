@@ -1,0 +1,9 @@
+{%- comment -%}
+  MCP `ping` (spec §13.1). Liveness only — returns an empty result object.
+  Open method: no auth, no ledger entry (pre-auth protocol plumbing, §9.3).
+  @return {object} {}
+{%- endcomment -%}
+{% liquid
+  assign r = '{}' | parse_json
+  return r
+%}

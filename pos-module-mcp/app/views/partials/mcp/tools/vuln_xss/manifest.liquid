@@ -1,0 +1,21 @@
+{%- comment -%}
+  NEGATIVE CONTROL (deliberately INSECURE; gated by MCP_ENABLE_VULN_TOOLS, NEVER prod).
+  Integrity plane — a write tool whose `label` schema OMITS the `^[^<>]*$` pattern that the
+  real test_write / create_event enforce, so raw `<script>`/`<img onerror>` markup is
+  stored verbatim and will render in the operator console (stored XSS). The pentester
+  should flag this FAILED (missing input validation / output encoding).
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'vuln_xss'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'NEGATIVE CONTROL (insecure): stores a label with NO angle-bracket filtering (stored XSS).'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","minLength":1,"maxLength":200}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = true
+  hash_assign m['authorization_policy'] = 'test_principal_member'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = false
+  hash_assign m['handler'] = 'mcp/tools/vuln_xss/call'
+  return m
+%}

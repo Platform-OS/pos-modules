@@ -1,0 +1,21 @@
+{%- comment -%}
+  NEGATIVE CONTROL (deliberately INSECURE; gated by MCP_ENABLE_VULN_TOOLS, NEVER prod).
+  Authorization plane — this is an ADMIN-only action (per its description) but it is wired
+  to the MEMBER policy `test_principal_member`, so any role=user principal can execute it.
+  Broken named-policy authorization → privilege escalation. The pentester should flag this
+  FAILED (a user must not be able to run an admin action).
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'vuln_privesc'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'NEGATIVE CONTROL (insecure): an ADMIN-only action reachable by any member (wrong policy).'
+  assign schema = '{"type":"object","additionalProperties":false,"properties":{}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = false
+  hash_assign m['authorization_policy'] = 'test_principal_member'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = false
+  hash_assign m['handler'] = 'mcp/tools/vuln_privesc/call'
+  return m
+%}

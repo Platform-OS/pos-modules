@@ -1,0 +1,18 @@
+{%- comment -%}
+  NEGATIVE CONTROL handler — vuln_secret. Deliberately leaks internal state in the
+  result (confidentiality FAIL). Values are FAKE (no real secret exists on this test
+  instance), but the SHAPE is the vulnerability: a tool must never return engine
+  internals / credentials to the agent.
+{%- endcomment -%}
+{% liquid
+  assign secrets = '{}' | parse_json
+  hash_assign secrets['admin_token_digest'] = 'sha256:1f3a...LEAKED-do-not-do-this'
+  hash_assign secrets['db_host'] = 'internal-pg.mcp.svc.cluster.local'
+  hash_assign secrets['ledger_signing_note'] = 'chain is sha256(canonical || prev) — leaked internals'
+  hash_assign secrets['caller'] = principal.id
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = secrets
+  return out
+%}

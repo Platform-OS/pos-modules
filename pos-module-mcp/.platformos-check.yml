@@ -1,0 +1,34 @@
+# Lint ONLY pos-module-mcp's own code. Installed dependency modules (community,
+# components, user, ...) are checked in their own modules, not here. Run the FULL `pos-cli check run`
+# (the linter needs the whole tree to resolve `modules/mcp/...` partial names) — this
+# `ignore` list then scopes REPORTING to our sources: modules/mcp/** plus the two
+# Layer-2 tool roots app/graphql/mcp/** and app/views/partials/mcp/** (each of those
+# app dirs contains only our mcp/ code, so nothing else there needs listing).
+#
+# NB: platformos-check does NOT support `!` negation in `ignore` (a "!path" entry is
+# treated as a literal that matches nothing, silently ignoring everything) — so the
+# non-mcp paths are enumerated explicitly.
+ignore:
+  # --- installed dependency modules (checked in their own modules) ---
+  - modules/chat/**
+  - modules/common-styling/**
+  - modules/community/**
+  - modules/components/**
+  - modules/core/**
+  - modules/oauth_github/**
+  - modules/oauth_google/**
+  - modules/openai/**
+  - modules/push_notifications/**
+  - modules/reports/**
+  - modules/tests/**
+  - modules/user/**
+  # --- host-app code (the community test host — not ours) ---
+  - app/assets/**
+  - app/migrations/**
+  - app/modules/**
+  - app/translations/**
+  - app/views/pages/**
+  - app/config.yml
+  - app/user.yml
+  - app/pos-modules.json
+  - tests/**

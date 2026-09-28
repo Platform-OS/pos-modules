@@ -1,0 +1,25 @@
+{%- comment -%}
+  Handler — test_write (TEST FIXTURE). Mutating: inserts a test_note row for the
+  calling principal via a TYPED GraphQL mutation (never interpolated). Runs inside the
+  engine transaction; the returned subject lets the ledger link the row.
+{%- endcomment -%}
+{% liquid
+  assign uid = principal.user_id | append: ''
+  graphql g = 'mcp/test_note_create', user_id: uid, label: arguments.label, source: 'test_write'
+  assign nid = g.record_create.id
+
+  assign result = '{}' | parse_json
+  hash_assign result['id'] = nid
+  hash_assign result['label'] = arguments.label
+  hash_assign result['owner'] = principal.id
+
+  assign subject = '{}' | parse_json
+  hash_assign subject['type'] = 'record'
+  hash_assign subject['id'] = nid
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  hash_assign out['subject'] = subject
+  return out
+%}

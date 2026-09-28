@@ -1,0 +1,18 @@
+{%- comment -%}
+  Authorization policy: public_read (Layer-2, app-owned; spec §12.2).
+
+  Permits any AUTHENTICATED principal to invoke the tool. This is an EXPLICIT allow
+  named in the manifest — there is no implicit/anonymous permit path, so even
+  "public" read access is a visible, reviewed decision (§12.2). The engine has
+  already resolved a real identity before this runs; a caller with no valid token
+  never reaches policy evaluation.
+
+  Contract: return true / false, or { allow, reason }. Receives principal, agent,
+  arguments, tool, delegation_mode.
+{%- endcomment -%}
+{% liquid
+  assign r = '{}' | parse_json
+  hash_assign r['allow'] = true
+  hash_assign r['reason'] = 'public_read'
+  return r
+%}

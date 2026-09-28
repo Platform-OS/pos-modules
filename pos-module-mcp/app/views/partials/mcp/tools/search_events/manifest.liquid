@@ -1,0 +1,23 @@
+{%- comment -%}
+  Tool manifest — search_events (Layer-2, app-owned; spec §5.2/§7.1). Co-located
+  with its handler (call.liquid). Returns the manifest hash; the pos-module-mcp
+  engine validates it against the meta-schema and serves it via tools/list.
+
+  The description is model-read text and is reviewed as security-relevant (§12.1).
+  authorization_policy is REQUIRED (no implicit allow). handler names the call
+  partial the engine invokes with validated arguments.
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'search_events'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'Search the community PUBLISHED events by keyword and return upcoming matches (title, date, venue, link). Read-only; returns at most 20 events.'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","minLength":1,"maxLength":80,"description":"keyword to match against event title and description"},"limit":{"type":"integer","minimum":1,"maximum":20,"description":"max events to return (default 10)"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = false
+  hash_assign m['authorization_policy'] = 'public_read'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = true
+  hash_assign m['handler'] = 'mcp/tools/search_events/call'
+  return m
+%}

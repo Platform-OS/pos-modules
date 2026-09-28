@@ -1,0 +1,44 @@
+{%- comment -%}
+  Handler for the built-in `mcp_approval_status` tool (spec §9.6). Lets an agent
+  poll the status of an action it requested that required approval. Self-scoped: a
+  principal can only see approvals they themselves requested — an unknown handle and
+  someone else's handle both return the same "not found", so handles cannot be
+  enumerated.
+
+  @param {object} arguments   - { handle }
+  @param {object} principal   - the caller
+  @return {object} { ok, result } handler contract (§7.3)
+{%- endcomment -%}
+{% liquid
+  assign handle = arguments.handle
+  graphql r = 'modules/mcp/approvals/find_by_handle', handle: handle
+  assign rec = r.records.results.first
+
+  if rec == blank or rec.principal_id != principal.id
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = 404
+    hash_assign err['message'] = 'No approval found for that handle.'
+    hash_assign err['retryable'] = false
+    assign out = '{}' | parse_json
+    hash_assign out['ok'] = false
+    hash_assign out['error'] = err
+    return out
+  endif
+
+  assign result = '{}' | parse_json
+  hash_assign result['handle'] = rec.handle
+  hash_assign result['tool_name'] = rec.tool_name
+  hash_assign result['status'] = rec.status
+  hash_assign result['expires_at'] = rec.expires_at
+  unless rec.decided_at == blank
+    hash_assign result['decided_at'] = rec.decided_at
+  endunless
+  unless rec.result_summary == blank
+    hash_assign result['result_summary'] = rec.result_summary
+  endunless
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  return out
+%}

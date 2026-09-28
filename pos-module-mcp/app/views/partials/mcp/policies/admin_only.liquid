@@ -1,0 +1,35 @@
+{%- comment -%}
+  Authorization policy: admin_only (Layer-2, app-owned; spec §12.2, §5.1).
+
+  Permits the tool only when the resolved PRINCIPAL is an MCP operator. Operators
+  are an explicit allowlist in the MCP_ADMIN_USER_IDS constant (comma-separated
+  pOS user ids) — no ambient/implicit admin. In on_behalf_of delegation the check
+  is against the principal (the human), never the agent (§9.4), so an agent can
+  never elevate itself.
+
+  Fail-closed: if the allowlist is unset or the principal is not on it → deny.
+
+  Contract: return { allow, reason }. Receives principal, agent, arguments, tool,
+  delegation_mode.
+{%- endcomment -%}
+{% liquid
+  assign r = '{}' | parse_json
+  assign raw = context.constants.MCP_ADMIN_USER_IDS | default: ''
+  assign admins = raw | split: ','
+  assign uid = principal.user_id | append: ''
+  assign is_admin = false
+  for a in admins
+    assign a_trimmed = a | strip
+    if a_trimmed == uid
+      assign is_admin = true
+      break
+    endif
+  endfor
+  hash_assign r['allow'] = is_admin
+  if is_admin
+    hash_assign r['reason'] = 'admin'
+  else
+    hash_assign r['reason'] = 'not_admin'
+  endif
+  return r
+%}

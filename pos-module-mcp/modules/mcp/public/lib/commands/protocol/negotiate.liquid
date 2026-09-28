@@ -1,0 +1,60 @@
+{%- comment -%}
+  Protocol-version negotiation (spec §13.1; 2026-07-28 stateless model).
+
+  Resolves the effective MCP revision for THIS request from three sources, highest
+  precedence first:
+    1. `_meta.protocolVersion` on the request  — the 2026-07-28 stateless model, where
+       every request carries its own protocol version (no initialize handshake).
+    2. the `MCP-Protocol-Version` HTTP header    — HTTP-transport carriage.
+    3. `params.protocolVersion` on `initialize`  — the 2025-06-18 handshake field.
+
+  A requested revision the server implements is honored; anything else (or nothing
+  requested) falls back to the DEFAULT (`config.protocol_version`, 2025-06-18) so a
+  version-less or unknown request behaves exactly as before — new 2026-07-28 behavior
+  (cache hints, header routing semantics) is opt-in per request, never forced.
+
+  Pure + side-effect-free (no ledger, no auth). Called once per request in dispatch.
+
+  @param {object} params  - context.params (the whole parsed JSON-RPC request)
+  @param {object} headers - context.headers
+  @return {object} { version, requested, is_2026, supported:[...] }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign default_version = cfg.protocol_version
+  assign supported = cfg.supported_protocol_versions
+
+  # ---- requested version, by precedence (blank-safe at every hop) ----
+  assign requested = ''
+  assign meta = params._meta
+  unless meta == blank
+    assign requested = meta.protocolVersion | default: ''
+  endunless
+  if requested == blank
+    assign requested = headers.HTTP_MCP_PROTOCOL_VERSION | default: ''
+  endif
+  if requested == blank
+    assign inner = params.params
+    unless inner == blank
+      assign requested = inner.protocolVersion | default: ''
+    endunless
+  endif
+
+  # ---- honor a supported request; otherwise fall back to the default revision ----
+  assign version = default_version
+  if requested != blank and supported contains requested
+    assign version = requested
+  endif
+
+  assign is_2026 = false
+  if version == '2026-07-28'
+    assign is_2026 = true
+  endif
+
+  assign out = '{}' | parse_json
+  hash_assign out['version'] = version
+  hash_assign out['requested'] = requested
+  hash_assign out['is_2026'] = is_2026
+  hash_assign out['supported'] = supported
+  return out
+%}

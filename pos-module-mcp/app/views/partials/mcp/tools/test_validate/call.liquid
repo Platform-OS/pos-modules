@@ -1,0 +1,13 @@
+{%- comment -%}
+  Handler — test_validate (TEST FIXTURE). Read-only. Reached ONLY if every argument
+  passed strict validation, so it just confirms success; the coverage suite's job is to
+  prove the invalid inputs never get here (-32602).
+{%- endcomment -%}
+{% liquid
+  assign result = '{}' | parse_json
+  hash_assign result['validated'] = true
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  return out
+%}

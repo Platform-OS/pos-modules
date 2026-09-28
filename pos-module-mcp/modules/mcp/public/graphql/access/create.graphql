@@ -1,0 +1,22 @@
+mutation create(
+  $user_id: String!
+  $email: String
+  $role: String!
+  $status: String!
+  $decided_by: String
+  $occurred_at: String!
+) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_access"
+    properties: [
+      { name: "user_id", value: $user_id }
+      { name: "email", value: $email }
+      { name: "role", value: $role }
+      { name: "status", value: $status }
+      { name: "decided_by", value: $decided_by }
+      { name: "occurred_at", value: $occurred_at }
+    ]
+  }) {
+    id
+  }
+}

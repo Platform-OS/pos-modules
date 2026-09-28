@@ -1,0 +1,66 @@
+{%- comment -%}
+  DRAFT handler — <%= toolName %> (wraps the app command `<%= command %>`).
+
+  Command mode is the PRODUCTION path: instead of a raw record_create, it invokes an
+  existing application command (build → check → execute), so the tool inherits that
+  command's validations, relationships, and side-effects — the agent gets exactly the
+  same guardrails as the app's own UI. Runs inside the engine transaction (mutating);
+  arguments are already authenticated, validated, and authorized.
+
+  Command contract (platformOS convention): a command takes an `object` (and usually
+  the acting identity), and returns it with `.valid` (bool) and `.errors` (hash); on
+  success the returned object carries the created record (e.g. `.id`).
+
+  REVIEW BEFORE SERVING — three things to complete:
+   1. Map arguments → the object keys THIS command expects (adjust names/shape below).
+   2. Pass the identity/extra params THIS command needs (see the profile TODO).
+   3. Confirm the success fields you surface (id / other).
+{%- endcomment -%}
+{% liquid
+  # 1) Build the command input object from the validated arguments.
+  assign object = '{}' | parse_json
+<% attributes.forEach(function(a){ -%>
+  hash_assign object['<%= a.name %>'] = arguments.<%= a.name %>
+<% }); -%>
+
+  # 2) Resolve the acting identity the command needs. The engine gives us `principal`
+  #    (principal.user_id = the real pOS user). Many community commands want a
+  #    `profile` or `current_profile`. Uncomment + adapt for THIS command:
+  # function profile = 'modules/user/queries/profiles/find', user_id: principal.user_id, id: null, uuid: null, first_name: null, last_name: null
+
+  # 3) Invoke the command (build → check → execute happens inside it).
+  #    Add the identity param THIS command requires, e.g. `, profile: profile` or
+  #    `, current_profile: profile`.
+  function res = '<%= command %>', object: object
+
+  # 4) Interpret the {valid, errors} contract → the handler return contract (§7.3).
+  unless res.valid
+    assign msg = 'The action could not be completed.'
+    assign err = '{}' | parse_json
+    hash_assign err['code'] = 422
+    hash_assign err['message'] = msg
+    hash_assign err['retryable'] = false
+    # The command's field errors are safe to surface so the agent can self-correct:
+    unless res.errors == blank
+      hash_assign err['fields'] = res.errors
+    endunless
+    assign out = '{}' | parse_json
+    hash_assign out['ok'] = false
+    hash_assign out['error'] = err
+    return out
+  endunless
+
+  # Success — surface the created record. Adjust the fields to what the command returns.
+  assign result = '{}' | parse_json
+  hash_assign result['id'] = res.id
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  unless res.id == blank
+    assign subject = '{}' | parse_json
+    hash_assign subject['type'] = 'record'
+    hash_assign subject['id'] = res.id
+    hash_assign out['subject'] = subject
+  endunless
+  return out
+%}

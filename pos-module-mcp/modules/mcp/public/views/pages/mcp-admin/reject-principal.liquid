@@ -1,0 +1,37 @@
+---
+slug: mcp-admin/reject-principal
+method: post
+---
+{%- comment -%}
+  Operator bulk-rejects EVERY pending approval for one principal (spec §9.6, §12.4).
+  Complements the per-principal approval-queue cap: the cap bounds inflow, this
+  drains a flooder's queue in one action instead of N reject clicks. Each rejected
+  action never runs; the decision is recorded per row. Operator-gated. Bounded to the
+  first 50 pending rows for the principal (the cap keeps a single principal far below
+  that; a larger backlog drains over repeated clicks rather than in an unbounded loop).
+{%- endcomment -%}
+{%- liquid
+  function is_admin = 'modules/mcp/commands/is_operator'
+  unless is_admin
+    response_status 403
+    echo 'Forbidden'
+    return
+  endunless
+
+  assign pid = context.params.principal_id
+  if pid != blank
+    assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    graphql f = 'modules/mcp/approvals/list', status: 'pending', per_page: 50
+    for a in f.records.results
+      if a.principal_id == pid
+        # Bulk drain: one UPDATE per pending row is inherent — mutations can't be
+        # batched into a single query here. Bounded to the first 50 rows.
+        # platformos-check-disable NestedGraphQLQuery
+        graphql _ = 'modules/mcp/approvals/update', id: a.id, status: 'rejected', decided_by: context.current_user.id, decided_at: decided_at, result_summary: 'Bulk-rejected by operator (queue drain).'
+        # platformos-check-enable NestedGraphQLQuery
+      endif
+    endfor
+  endif
+
+  redirect_to '/mcp-admin?tab=approvals'
+-%}

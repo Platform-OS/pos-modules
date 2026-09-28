@@ -1,0 +1,11 @@
+name: test_note
+# Test-fixture table (host-side, NOT part of the module). Written ONLY by the gated
+# test tools (test_write / test_fail / test_approve), which are registered solely when
+# the MCP_ENABLE_TEST_TOOLS constant is set — so in production this table exists but
+# stays empty. The coverage suite reads/asserts these rows to prove transaction
+# commit vs rollback, idempotency (exactly-once), and approval-then-execute (the row
+# is owned by the ORIGINAL principal, never the approving operator).
+properties:
+  - name: user_id   # owner principal's user_id — proves "executes as original principal"
+  - name: label     # the tool's input, echoed so the suite can match its own row
+  - name: source    # which test tool wrote it: test_write | test_approve

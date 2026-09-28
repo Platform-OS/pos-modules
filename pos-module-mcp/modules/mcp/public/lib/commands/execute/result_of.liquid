@@ -1,0 +1,17 @@
+{%- comment -%}
+  Build the MCP tool result object from an executor outcome — the single shape
+  used for the response AND for the idempotency cache, so a replay is byte-identical
+  to the original.
+
+  @param {object} exec - execute/run outcome { content, isError, structured? }
+  @return {object} { content, isError, structuredContent? }
+{%- endcomment -%}
+{% liquid
+  assign result = '{}' | parse_json
+  hash_assign result['content'] = exec.content
+  hash_assign result['isError'] = exec.isError
+  unless exec.structured == blank
+    hash_assign result['structuredContent'] = exec.structured
+  endunless
+  return result
+%}

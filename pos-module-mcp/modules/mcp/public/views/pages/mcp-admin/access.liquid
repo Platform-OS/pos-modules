@@ -1,0 +1,33 @@
+---
+slug: mcp-admin/access
+method: post
+---
+{%- comment -%}
+  Operator manages a member's MCP access: approve a request, grant the user or admin
+  role, or revoke. Operator-gated. Executes as the operator (decided_by recorded).
+  Uses `decision` (not `action`, which platformOS can shadow).
+{%- endcomment -%}
+{%- liquid
+  function is_admin = 'modules/mcp/commands/is_operator'
+  unless is_admin
+    response_status 403
+    echo 'Forbidden'
+    return
+  endunless
+
+  assign decision = context.params.decision
+  assign target = context.params.user_id
+  assign email = context.params.email
+  assign op = context.current_user.id | append: ''
+
+  case decision
+    when 'approve', 'make_user'
+      function _ = 'modules/mcp/commands/access/decide', user_id: target, email: email, role: 'user', status: 'active', decided_by: op
+    when 'make_admin'
+      function _ = 'modules/mcp/commands/access/decide', user_id: target, email: email, role: 'admin', status: 'active', decided_by: op
+    when 'revoke', 'reject'
+      function _ = 'modules/mcp/commands/access/decide', user_id: target, email: email, role: 'user', status: 'revoked', decided_by: op
+  endcase
+
+  redirect_to '/mcp-admin?tab=tokens'
+-%}

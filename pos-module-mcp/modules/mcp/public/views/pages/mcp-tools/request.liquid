@@ -1,0 +1,22 @@
+---
+slug: mcp-tools/request
+method: post
+---
+{%- comment -%}
+  A signed-in member requests MCP access (spec: only approved users may mint tokens).
+  Creates a `requested` access row for the operator to decide. Idempotent-ish: if a
+  row already exists we leave it (no duplicate requests / no self-approval).
+{%- endcomment -%}
+{%- liquid
+  assign uid = context.current_user.id | append: ''
+  if uid == blank
+    redirect_to '/sessions/new'
+    break
+  endif
+  function lvl = 'modules/mcp/commands/access/level'
+  if lvl.level == 'none'
+    assign occurred_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    graphql _ = 'modules/mcp/access/create', user_id: uid, email: context.current_user.email, role: 'user', status: 'requested', decided_by: '', occurred_at: occurred_at
+  endif
+  redirect_to '/mcp-tools'
+-%}

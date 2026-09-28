@@ -1,0 +1,47 @@
+{%- comment -%}
+  Fixed-window rate limit for one scope (spec §12.4). Bounds blast radius per
+  identity; not traffic shaping. Uses a per-minute window keyed by
+  "<scope>:<window>". The count is incremented with platformOS's atomic
+  `increment` (a separate transaction), so concurrent increments within a window
+  do not lose updates. A find-then-create race can, under true concurrency, create
+  two rows for the same window (documented limitation) — this can only UNDER-count
+  slightly at a window boundary, never over-count, so it fails safe for the caller
+  and conservative for the limit.
+
+  @param {string}  scope - "principal:<id>" or "client:<id>"
+  @param {integer} limit - max requests allowed in the window
+  @return {object} { allowed:boolean, count:int, limit:int, retry_after:int }
+{%- endcomment -%}
+{% liquid
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign window = now_unix | divided_by: 60
+  assign key = scope | append: ':' | append: window
+
+  graphql fres = 'modules/mcp/rate/find', key: key
+  assign existing = fres.records.results.first
+
+  # property(name:) returns a string — coerce to integer for numeric comparison.
+  assign count = 0
+  if existing
+    graphql ires = 'modules/mcp/rate/increment', id: existing.id
+    assign count = ires.record.count | plus: 0
+  else
+    graphql cres = 'modules/mcp/rate/create', key: key
+    assign count = cres.record.count | plus: 0
+  endif
+
+  assign allowed = true
+  if count > limit
+    assign allowed = false
+  endif
+
+  assign elapsed = now_unix | modulo: 60
+  assign retry_after = 60 | minus: elapsed
+
+  assign out = '{}' | parse_json
+  hash_assign out['allowed'] = allowed
+  hash_assign out['count'] = count
+  hash_assign out['limit'] = limit
+  hash_assign out['retry_after'] = retry_after
+  return out
+%}

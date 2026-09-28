@@ -1,0 +1,14 @@
+{%- comment -%}
+  Is the current SESSION user an MCP operator? An operator has MCP access level
+  `admin` — either the mcp-admin role (mcp_access) or the MCP_ADMIN_USER_IDS
+  bootstrap. Distinct from the platform `admin` role by design. Fail-closed.
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  function lvl = 'modules/mcp/commands/access/level'
+  assign is_admin = false
+  if lvl.level == 'admin'
+    assign is_admin = true
+  endif
+  return is_admin
+%}

@@ -1,0 +1,39 @@
+{%- comment -%}
+  Registry accessor (spec §17.2) — the single indirection every caller uses, so
+  caching lives in ONE place. The manifests are CODE (deploy-invariant), and
+  platformOS's {% cache %} auto-invalidates on any view/translation change (= on
+  deploy), so the built registry is cached across requests and rebuilt only when a
+  manifest/registry view actually changes. This removes the per-request manifest
+  meta-validation + description-lint from the hot path (registry/load runs on every
+  tools/list AND every tools/call via resolve_tool).
+
+  CACHE KEY correctness: the app registry partial conditionally registers the gated
+  test/vuln fixtures based on the MCP_ENABLE_TEST_TOOLS / MCP_ENABLE_VULN_TOOLS
+  CONSTANTS. A constant change is NOT a view change, so {% cache %} would not
+  auto-invalidate on a runtime toggle — therefore the two gate values are folded
+  into the key. In production both are unset → one stable key → fully cached; when a
+  gate is toggled (CI/eval) the key changes and the correct variant is (re)built.
+  `expire` is a defensive TTL only (deploy + gate-key are the real invalidators).
+
+  Cached as a JSON string (the {% cache %} block stores rendered text) and parsed
+  back — a byte round-trip of the built hash. No caller changes.
+
+  @return {object} { tools, excluded, count } — see registry/build
+{%- endcomment -%}
+{%- liquid
+  assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+  assign vuln_gate = context.constants.MCP_ENABLE_VULN_TOOLS | default: ''
+  assign ckey = 'mcp_registry_v1|' | append: test_gate | append: '|' | append: vuln_gate
+-%}
+{%- capture reg_json -%}
+  {%- cache ckey, expire: 300 -%}
+    {%- liquid
+      function built = 'modules/mcp/commands/registry/build'
+      echo built | json
+    -%}
+  {%- endcache -%}
+{%- endcapture -%}
+{%- liquid
+  assign reg = reg_json | parse_json
+  return reg
+-%}

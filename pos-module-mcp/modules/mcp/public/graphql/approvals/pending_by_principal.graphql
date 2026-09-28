@@ -1,0 +1,19 @@
+query pending_by_principal($principal_id: String!, $per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: {
+      table: { value: "modules/mcp/mcp_pending_approval" }
+      properties: [
+        { name: "principal_id", value: $principal_id }
+        { name: "status", value: "pending" }
+      ]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      input_sha256: property(name: "input_sha256")
+      expires_at: property(name: "expires_at")
+    }
+  }
+}

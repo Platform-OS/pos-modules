@@ -1,0 +1,25 @@
+{%- comment -%}
+  Upsert a user's MCP access (operator action). Finds any existing row for the user
+  and updates it, else creates one. Used to approve a request, grant a role, or
+  revoke access. The caller (operator page) is responsible for the operator gate.
+
+  @param {string} user_id
+  @param {string} email       - denormalized for display (optional on updates)
+  @param {string} role        - admin | user
+  @param {string} status      - active | revoked
+  @param {string} decided_by  - operator user id
+  @return {object} { ok }
+{%- endcomment -%}
+{% liquid
+  assign occurred_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  graphql r = 'modules/mcp/access/for_user', user_id: user_id
+  assign rec = r.records.results.first
+  if rec
+    graphql _ = 'modules/mcp/access/update', id: rec.id, role: role, status: status, decided_by: decided_by, occurred_at: occurred_at
+  else
+    graphql _ = 'modules/mcp/access/create', user_id: user_id, email: email, role: role, status: status, decided_by: decided_by, occurred_at: occurred_at
+  endif
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  return out
+%}

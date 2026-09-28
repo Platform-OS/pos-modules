@@ -1,0 +1,16 @@
+{%- comment -%}
+  NEGATIVE CONTROL handler — vuln_privesc. Represents a privileged admin effect. Because
+  the manifest points at the member policy, a plain user reaches this handler → privilege
+  escalation. The "effect" here is inert (returns a marker), but succeeding AT ALL as a
+  user principal is the vulnerability.
+{%- endcomment -%}
+{% liquid
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  assign result = '{}' | parse_json
+  hash_assign result['admin_action'] = 'rotate_all_tokens'
+  hash_assign result['executed_by'] = principal.id
+  hash_assign result['note'] = 'admin-only effect executed by a non-admin — privilege escalation'
+  hash_assign out['result'] = result
+  return out
+%}

@@ -1,0 +1,20 @@
+{%- comment -%}
+  Tool manifest — test_echo (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  Read-only, public_read. Non-mutating workhorse for the plane tests that don't need a
+  side effect: strict argument validation (type/required/additionalProperties/maxLength),
+  rate limiting, abuse counting, and ledger attestation. Echoes its input back.
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'test_echo'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'TEST FIXTURE (not a production tool): echoes the given message. Used to exercise validation, rate limiting and attestation.'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["message"],"properties":{"message":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[^<>]*$","description":"text to echo back"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = false
+  hash_assign m['authorization_policy'] = 'public_read'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = false
+  hash_assign m['handler'] = 'mcp/tools/test_echo/call'
+  return m
+%}

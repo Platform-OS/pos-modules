@@ -1,0 +1,20 @@
+name: mcp_chain_lock
+# Serialization mutex for the hash-chained ledger (append race fix).
+#
+# platformOS Liquid offers no advisory lock, no unique index, and no compare-and-set,
+# and {% transaction %} is a plain READ COMMITTED Rails transaction (verified against the
+# engine source) — so concurrent ledger appends could read the same chain tail and fork it
+# (two entries sharing a prev_entry_hash → duplicate seq → verify_chain linkage break).
+#
+# ledger/append UPDATEs the LOWEST-id row of this table (writing a fresh unique `token`) as
+# the FIRST operation inside its transaction. That UPDATE takes a Postgres row-level write
+# lock held until commit, so concurrent appends serialize on it: the second waits for the
+# first to commit, then reads the tail the first just wrote. No fork.
+#
+# `token` is written with a UNIQUE value every append (never the same twice) so ActiveRecord
+# always issues a real UPDATE — a no-op update would take no lock. The value is meaningless;
+# only the write-lock matters. All appends lock the min-id row, so even a bootstrap race that
+# briefly creates two rows still converges on one mutex. Holds no secrets.
+properties:
+  - name: token
+    type: string

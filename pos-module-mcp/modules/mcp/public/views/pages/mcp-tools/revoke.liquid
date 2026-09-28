@@ -1,0 +1,23 @@
+---
+slug: mcp-tools/revoke
+method: post
+---
+{%- comment -%}
+  POST handler — revoke a token. IDOR-guarded: the token is only revoked if it
+  belongs to the logged-in user (ownership verified before the update), so one
+  member can never revoke another's token by guessing an id.
+{%- endcomment -%}
+{%- liquid
+  assign uid = context.current_user.id | append: ''
+  if uid == blank
+    redirect_to '/sessions/new'
+    break
+  endif
+  assign id = context.params.id
+  graphql owned = 'modules/mcp/tokens/find_owned', id: id, user_id: uid
+  assign hit = owned.records.results.first
+  if hit
+    graphql _ = 'modules/mcp/tokens/revoke', id: id
+  endif
+  redirect_to '/mcp-tools'
+-%}

@@ -1,0 +1,46 @@
+{%- comment -%}
+  Canonical serialization of a ledger entry payload (spec §6.1). SINGLE SOURCE OF
+  TRUTH — both ledger/append (hashing a fresh entry) and ledger/verify_chain
+  (re-hashing a stored entry read back from the DB) call this, so the hash is
+  reproducible regardless of whether values arrive as native types or as strings
+  from `property(name:)`.
+
+  Determinism guarantees:
+   - FIXED key order (this file defines it — string fields, then integer fields).
+   - Every key is ALWAYS emitted (absent → null), so shape never varies.
+   - Explicit per-type coercion: integers via `| plus: 0` (→ JSON number),
+     strings forced to string; blank → null. So "84" and 84 canonicalize
+     identically, which is what makes DB round-tripping safe.
+
+  The two hash fields (prev_entry_hash, entry_hash) are deliberately EXCLUDED —
+  entry_hash is computed as digest(canonical || prev_entry_hash) by the caller.
+
+  @param {object} entry - a hash (or GraphQL record) exposing the payload fields
+  @return {string} canonical JSON of the payload with fixed key order
+{%- endcomment -%}
+{% liquid
+  assign e = entry
+  assign p = '{}' | parse_json
+
+  assign str_fields = 'occurred_at,method,tool_name,tool_version,client_id,agent_id,principal_id,delegation_mode,input_sha256,authz_policy,authz_decision,authz_reason,execution_outcome,subject_type,subject_id,idempotency_key,request_id,audit_json' | split: ','
+  for f in str_fields
+    assign v = e[f]
+    if v == blank
+      hash_assign p[f] = null
+    else
+      hash_assign p[f] = v | append: ''
+    endif
+  endfor
+
+  assign int_fields = 'seq,input_bytes,error_code,duration_ms' | split: ','
+  for f in int_fields
+    assign v = e[f]
+    if v == blank
+      hash_assign p[f] = null
+    else
+      hash_assign p[f] = v | plus: 0
+    endif
+  endfor
+
+  return p | json
+%}

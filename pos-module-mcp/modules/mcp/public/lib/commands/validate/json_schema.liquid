@@ -1,0 +1,256 @@
+{%- comment -%}
+  Validate a VALUE against a JSON-Schema node (spec §10) — the input-surface
+  control. Distinct from registry/validate_schema_node (which validates the SCHEMA
+  itself): this validates a tool call's ARGUMENTS against an already-valid schema.
+
+  STRICT, no coercion (§10.2): a string "42" for an integer field is REJECTED, not
+  coerced — agents emit well-formed JSON, and lenient coercion hides model errors
+  and widens the input surface. Unknown keys are rejected (additionalProperties is
+  FORCED false regardless of declaration, §7.2). Depth is capped.
+
+  Type rules (JSON-parsed values):
+   - integer : Integer, or a Float with zero fractional part (JSON-Schema semantics)
+   - number  : Integer or Float
+   - string/boolean/array/object : exact type match
+   - a null value for any typed field is a type error (null ≠ absent, strict)
+
+  @param {*}       value     - the value to check
+  @param {object}  schema    - the JSON-Schema node
+  @param {integer} depth     - current depth (start 1)
+  @param {integer} max_depth - cap (config.defaults.max_schema_depth)
+  @param {string}  path      - dotted location for messages (start 'arguments')
+  @return {object} { valid:boolean, errors:[string] }
+{%- endcomment -%}
+{% liquid
+  assign errors = '[]' | parse_json
+  assign at = path | default: 'arguments'
+  assign t = schema.type
+  assign vt = value | type_of
+
+  if depth > max_depth
+    assign msg = at | append: ': exceeds max nesting depth'
+    assign errors = errors | array_add: msg
+    assign out = '{}' | parse_json
+    hash_assign out['valid'] = false
+    hash_assign out['errors'] = errors
+    return out
+  endif
+
+  # ---- null is never a valid typed value in this subset ----
+  if vt == 'null'
+    assign msg = at | append: ': must be ' | append: t | append: ', got null'
+    assign errors = errors | array_add: msg
+    assign out = '{}' | parse_json
+    hash_assign out['valid'] = false
+    hash_assign out['errors'] = errors
+    return out
+  endif
+
+  # ---- strict type check ----
+  assign type_ok = false
+  case t
+    when 'object'
+      # Accept plain Hash and ActiveSupport::HashWithIndifferentAccess (request
+      # params arrive as the latter); both contain 'Hash'.
+      if vt contains 'Hash'
+        assign type_ok = true
+      endif
+    when 'array'
+      if vt == 'Array'
+        assign type_ok = true
+      endif
+    when 'string'
+      if vt == 'String'
+        assign type_ok = true
+      endif
+    when 'boolean'
+      if vt == 'Boolean'
+        assign type_ok = true
+      endif
+    when 'number'
+      if vt == 'Integer' or vt == 'Float'
+        assign type_ok = true
+      endif
+    when 'integer'
+      if vt == 'Integer'
+        assign type_ok = true
+      elsif vt == 'Float'
+        assign floored = value | floor
+        if value == floored
+          assign type_ok = true
+        endif
+      endif
+  endcase
+
+  unless type_ok
+    assign msg = at | append: ': expected ' | append: t | append: ', got ' | append: vt
+    assign errors = errors | array_add: msg
+    assign out = '{}' | parse_json
+    hash_assign out['valid'] = false
+    hash_assign out['errors'] = errors
+    return out
+  endunless
+
+  # ---- enum (any scalar) ----
+  unless schema.enum == blank
+    assign in_enum = false
+    for opt in schema.enum
+      if opt == value
+        assign in_enum = true
+        break
+      endif
+    endfor
+    unless in_enum
+      assign allowed = schema.enum | join: ', '
+      assign msg = at | append: ': must be one of [' | append: allowed | append: ']'
+      assign errors = errors | array_add: msg
+    endunless
+  endunless
+
+  # ---- per-type constraints ----
+  case t
+    when 'string'
+      assign len = value | size
+      unless schema.minLength == blank
+        if len < schema.minLength
+          assign msg = at | append: ': shorter than minLength'
+          assign errors = errors | array_add: msg
+        endif
+      endunless
+      unless schema.maxLength == blank
+        if len > schema.maxLength
+          assign msg = at | append: ': longer than maxLength'
+          assign errors = errors | array_add: msg
+        endif
+      endunless
+      unless schema.pattern == blank
+        assign pat_ok = value | matches: schema.pattern
+        unless pat_ok
+          assign msg = at | append: ': does not match required pattern'
+          assign errors = errors | array_add: msg
+        endunless
+      endunless
+      unless schema.format == blank
+        assign fmt_re = ''
+        if schema.format == 'uuid'
+          assign fmt_re = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+        elsif schema.format == 'email'
+          assign fmt_re = '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+        elsif schema.format == 'date-time'
+          assign fmt_re = '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'
+        endif
+        unless fmt_re == blank
+          assign fmt_ok = value | matches: fmt_re
+          unless fmt_ok
+            assign msg = at | append: ': invalid ' | append: schema.format | append: ' format'
+            assign errors = errors | array_add: msg
+          endunless
+        endunless
+      endunless
+
+    when 'integer', 'number'
+      unless schema.minimum == blank
+        if value < schema.minimum
+          assign msg = at | append: ': below minimum'
+          assign errors = errors | array_add: msg
+        endif
+      endunless
+      unless schema.maximum == blank
+        if value > schema.maximum
+          assign msg = at | append: ': above maximum'
+          assign errors = errors | array_add: msg
+        endif
+      endunless
+      unless schema.exclusiveMinimum == blank
+        unless value > schema.exclusiveMinimum
+          assign msg = at | append: ': not above exclusiveMinimum'
+          assign errors = errors | array_add: msg
+        endunless
+      endunless
+      unless schema.exclusiveMaximum == blank
+        unless value < schema.exclusiveMaximum
+          assign msg = at | append: ': not below exclusiveMaximum'
+          assign errors = errors | array_add: msg
+        endunless
+      endunless
+
+    when 'array'
+      assign n = value | size
+      unless schema.minItems == blank
+        if n < schema.minItems
+          assign msg = at | append: ': fewer than minItems'
+          assign errors = errors | array_add: msg
+        endif
+      endunless
+      unless schema.maxItems == blank
+        if n > schema.maxItems
+          assign msg = at | append: ': more than maxItems'
+          assign errors = errors | array_add: msg
+        endif
+      endunless
+      unless schema.items == blank
+        assign i = 0
+        for el in value
+          assign el_path = at | append: '[' | append: i | append: ']'
+          assign nd = depth | plus: 1
+          function er = 'modules/mcp/commands/validate/json_schema', value: el, schema: schema.items, depth: nd, max_depth: max_depth, path: el_path
+          unless er.valid
+            for e in er.errors
+              assign errors = errors | array_add: e
+            endfor
+          endunless
+          assign i = i | plus: 1
+        endfor
+      endunless
+
+    when 'object'
+      assign vkeys = value | hash_keys
+      assign props = schema.properties
+      # required present
+      unless schema.required == blank
+        for req in schema.required
+          unless vkeys contains req
+            assign msg = at | append: ': missing required property "' | append: req | append: '"'
+            assign errors = errors | array_add: msg
+          endunless
+        endfor
+      endunless
+      # additionalProperties FORCED false: no unknown keys
+      assign pkeys = '[]' | parse_json
+      unless props == blank
+        assign pkeys = props | hash_keys
+      endunless
+      for k in vkeys
+        unless pkeys contains k
+          assign msg = at | append: ': unknown property "' | append: k | append: '"'
+          assign errors = errors | array_add: msg
+        endunless
+      endfor
+      # recurse into declared properties that are present
+      unless props == blank
+        for pk in pkeys
+          if vkeys contains pk
+            assign child = value[pk]
+            assign child_schema = props[pk]
+            assign child_path = at | append: '.' | append: pk
+            assign nd = depth | plus: 1
+            function cr = 'modules/mcp/commands/validate/json_schema', value: child, schema: child_schema, depth: nd, max_depth: max_depth, path: child_path
+            unless cr.valid
+              for e in cr.errors
+                assign errors = errors | array_add: e
+              endfor
+            endunless
+          endif
+        endfor
+      endunless
+  endcase
+
+  assign is_valid = false
+  if errors.size == 0
+    assign is_valid = true
+  endif
+  assign out = '{}' | parse_json
+  hash_assign out['valid'] = is_valid
+  hash_assign out['errors'] = errors
+  return out
+%}

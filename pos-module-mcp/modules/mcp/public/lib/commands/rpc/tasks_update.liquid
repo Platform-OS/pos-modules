@@ -1,0 +1,74 @@
+{%- comment -%}
+  MCP `tasks/update` (2026-07-28, io.modelcontextprotocol/tasks). The ONLY agent-initiated
+  transition is CANCEL: the requester withdraws its own PENDING approval, freeing the
+  queue slot. Approve/reject stay OPERATOR-only via the console — an agent can NEVER
+  approve its own action (that would defeat the human-in-the-loop gate).
+
+  SELF-SCOPED + terminal-immutable: only the owner may cancel, and only a PENDING task
+  (a decided/executed/expired task cannot be changed).
+
+  @param {object} params  - { taskId, status } — status optional, must be "cancelled"
+  @param {object} headers - context.headers (bearer identity)
+  @return {object} { task } on success | { _error:{code,message} } otherwise
+{%- endcomment -%}
+{% liquid
+  assign out = '{}' | parse_json
+
+  function idr = 'modules/mcp/commands/identity/resolve_principal', headers: headers
+  unless idr.authenticated == true
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32001
+    hash_assign e['message'] = 'Authentication required'
+    hash_assign out['_error'] = e
+    return out
+  endunless
+
+  assign task_id = params.taskId
+  if task_id == blank
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32602
+    hash_assign e['message'] = 'Invalid params: taskId is required'
+    hash_assign out['_error'] = e
+    return out
+  endif
+
+  # Only CANCEL is agent-initiated. Any other requested transition is refused.
+  assign requested = params.status | default: 'cancelled'
+  unless requested == 'cancelled'
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32602
+    hash_assign e['message'] = 'Invalid params: only status "cancelled" is supported (approve/reject are operator-only)'
+    hash_assign out['_error'] = e
+    return out
+  endunless
+
+  graphql r = 'modules/mcp/approvals/find_by_handle', handle: task_id
+  assign rec = r.records.results.first
+  if rec == blank or rec.principal_id != idr.principal.id
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32002
+    hash_assign e['message'] = 'Task not found'
+    hash_assign out['_error'] = e
+    return out
+  endif
+
+  # Terminal-immutable: only a pending task can be cancelled.
+  unless rec.status == 'pending'
+    assign e = '{}' | parse_json
+    hash_assign e['code'] = -32002
+    assign msg = 'Task is not pending (status: ' | append: rec.status | append: ') and cannot be cancelled'
+    hash_assign e['message'] = msg
+    hash_assign out['_error'] = e
+    return out
+  endunless
+
+  assign now = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  graphql _u = 'modules/mcp/approvals/update', id: rec.id, status: 'cancelled', decided_by: 'agent:self', decided_at: now, result_summary: 'Cancelled by requester'
+
+  # Re-read so the presented task reflects the persisted state.
+  graphql r2 = 'modules/mcp/approvals/find_by_handle', handle: task_id
+  assign rec2 = r2.records.results.first | default: rec
+  function task = 'modules/mcp/commands/tasks/present', rec: rec2
+  hash_assign out['task'] = task
+  return out
+%}

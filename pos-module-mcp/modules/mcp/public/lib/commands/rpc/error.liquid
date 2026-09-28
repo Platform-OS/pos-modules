@@ -1,0 +1,27 @@
+{%- comment -%}
+  Build a JSON-RPC 2.0 error envelope (spec §13.2). Pure — no side effects.
+
+  Error messages MUST NOT leak internals (no stack traces, GraphQL text, schema
+  or policy internals). Pass only stable, caller-safe strings as `message`; put
+  any extra machine-readable context in `data` (also caller-safe).
+
+  @param {string|integer|null} id  - the request id, echoed verbatim (null if unknown)
+  @param {integer} code            - JSON-RPC error code (§13.2)
+  @param {string}  message         - stable, non-leaking human-readable reason
+  @param {object}  data            - optional caller-safe structured detail
+  @return {object} { jsonrpc: "2.0", id, error: { code, message, data? } }
+{%- endcomment -%}
+{% liquid
+  assign e = '{}' | parse_json
+  hash_assign e['code'] = code
+  hash_assign e['message'] = message
+  unless data == blank
+    hash_assign e['data'] = data
+  endunless
+
+  assign r = '{}' | parse_json
+  hash_assign r['jsonrpc'] = '2.0'
+  hash_assign r['id'] = id
+  hash_assign r['error'] = e
+  return r
+%}

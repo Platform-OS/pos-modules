@@ -1,0 +1,21 @@
+{%- comment -%}
+  Tool manifest — test_write (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  MUTATING + IDEMPOTENT, policy test_principal_member. Writes one test_note row owned
+  by the calling principal. Exercises: transaction COMMIT (row persists), idempotency
+  (same key → exactly one row + replayed result; same key + different args → 409), and
+  attestation of a successful mutation.
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'test_write'
+  hash_assign m['version'] = '1.0.0'
+  hash_assign m['description'] = 'TEST FIXTURE (not a production tool): writes a test_note row owned by the caller.'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","minLength":1,"maxLength":100,"pattern":"^[^<>]*$","description":"label stored on the row"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = true
+  hash_assign m['authorization_policy'] = 'test_principal_member'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = true
+  hash_assign m['handler'] = 'mcp/tools/test_write/call'
+  return m
+%}

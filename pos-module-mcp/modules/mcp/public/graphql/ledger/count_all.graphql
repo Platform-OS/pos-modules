@@ -1,0 +1,8 @@
+query count_all {
+  # Exact total ledger entries — a server-side COUNT (total_entries), O(1)-ish and
+  # flat as the ledger grows (see tests/perf/ledger-metrics-bench.mjs). Replaces the
+  # old O(N) paged scan that capped at 10k rows.
+  records(per_page: 1, filter: { table: { value: "modules/mcp/mcp_ledger" } }) {
+    total_entries
+  }
+}

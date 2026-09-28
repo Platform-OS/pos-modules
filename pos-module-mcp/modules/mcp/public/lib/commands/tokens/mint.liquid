@@ -1,0 +1,25 @@
+{%- comment -%}
+  Mint a bearer token for a user (operator UX). Generates a random raw token,
+  stores ONLY its sha256 digest bound to the user_id, and returns the raw token
+  ONCE — it is never persisted and cannot be recovered. The caller shows it a
+  single time and instructs the user to copy it.
+
+  @param {string} user_id - the pOS user this token acts as (the principal)
+  @param {string} label   - human label (agent/client name)
+  @return {object} { raw, id }
+{%- endcomment -%}
+{% liquid
+  assign u1 = '' | uuid | replace: '-', ''
+  assign u2 = '' | uuid | replace: '-', ''
+  assign raw = 'mcp_' | append: u1 | append: u2
+  assign digest = raw | digest: 'sha256'
+  assign safe_label = label | default: 'mcp-client' | strip | truncate: 40, ''
+  if safe_label == blank
+    assign safe_label = 'mcp-client'
+  endif
+  graphql r = 'modules/mcp/tokens/create', user_id: user_id, token_digest: digest, label: safe_label
+  assign out = '{}' | parse_json
+  hash_assign out['raw'] = raw
+  hash_assign out['id'] = r.record.id
+  return out
+%}

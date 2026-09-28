@@ -1,0 +1,18 @@
+query runs_latest($per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: { table: { value: "modules/mcp/mcp_eval_run" } }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      run_id: property(name: "run_id")
+      total: property(name: "total")
+      passed: property(name: "passed")
+      failed: property(name: "failed")
+      failures_json: property(name: "failures_json")
+      warnings_json: property(name: "warnings_json")
+      occurred_at: property(name: "occurred_at")
+    }
+  }
+}

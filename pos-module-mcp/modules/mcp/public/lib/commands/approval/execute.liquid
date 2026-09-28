@@ -1,0 +1,124 @@
+{%- comment -%}
+  Execute an APPROVED action as the original principal (spec §9.6). Re-enters the
+  pipeline: re-resolve the tool, re-validate the arguments, and RE-AUTHORIZE against
+  the original principal (defense in depth — the tool, its schema, or its policy may
+  have changed, or the principal's rights may have been revoked, since the request).
+  Then execute inside a transaction and attest, linked to the original request by
+  request_id.
+
+  The operator only DECIDES; the action runs with the requester's identity and
+  scope, never the operator's. Returns an outcome the caller records on the approval
+  row and shows the agent.
+
+  @param {object} approval    - the pending_approval record (status must be pending, not expired)
+  @param {string} decided_by  - operator user id (for the ledger + audit)
+  @return {object} { ok, outcome, summary }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+
+  assign fail = '{}' | parse_json
+  hash_assign fail['ok'] = false
+
+  # 1. Tool must still exist and be valid.
+  function tool = 'modules/mcp/commands/registry/resolve_tool', name: approval.tool_name, allowed_tools: null
+  if tool == blank
+    hash_assign fail['outcome'] = 'failed'
+    hash_assign fail['summary'] = 'Tool no longer available.'
+    return fail
+  endif
+
+  assign args = approval.arguments_json | parse_json
+
+  # 2. Re-validate the persisted arguments against the current schema.
+  function val = 'modules/mcp/commands/validate/json_schema', value: args, schema: tool.input_schema, depth: 1, max_depth: cfg.defaults.max_schema_depth, path: 'arguments'
+  unless val.valid
+    hash_assign fail['outcome'] = 'failed'
+    hash_assign fail['summary'] = 'Arguments no longer valid.'
+    return fail
+  endunless
+
+  # 3. Reconstruct the ORIGINAL principal/agent (never the operator's).
+  assign principal = '{}' | parse_json
+  hash_assign principal['id'] = approval.principal_id
+  hash_assign principal['user_id'] = approval.principal_id | remove_first: 'user:'
+  assign agent = '{}' | parse_json
+  hash_assign agent['id'] = approval.requested_by_agent
+
+  # 4. Re-authorize against the original principal (fail-closed).
+  function authz = 'modules/mcp/commands/authorize/evaluate', policy: tool.authorization_policy, principal: principal, agent: agent, arguments: args, tool: tool, delegation_mode: 'direct'
+  unless authz.allow
+    hash_assign fail['outcome'] = 'failed'
+    hash_assign fail['summary'] = 'Authorization denied at execution time.'
+    return fail
+  endunless
+
+  # 5. Attestation for the deferred execution, linked to the request by request_id.
+  assign le = '{}' | parse_json
+  hash_assign le['method'] = 'tools/call'
+  hash_assign le['tool_name'] = tool.name
+  hash_assign le['tool_version'] = tool.version
+  hash_assign le['principal_id'] = approval.principal_id
+  hash_assign le['agent_id'] = approval.requested_by_agent
+  hash_assign le['delegation_mode'] = 'direct'
+  hash_assign le['input_sha256'] = approval.input_sha256
+  hash_assign le['authz_policy'] = tool.authorization_policy
+  hash_assign le['authz_decision'] = 'allow'
+  hash_assign le['authz_reason'] = 'approved_by:' | append: decided_by
+  hash_assign le['request_id'] = approval.request_id
+
+  assign context_meta = '{}' | parse_json
+  hash_assign context_meta['tool_name'] = tool.name
+  hash_assign context_meta['tool_version'] = tool.version
+  hash_assign context_meta['request_id'] = approval.request_id
+
+  # 6. Execute inside a transaction, attest inside it; roll back on failure.
+  assign committed = false
+  transaction
+    function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: args, principal: principal, agent: agent, context_meta: context_meta
+    if exec.outcome == 'success'
+      hash_assign le['execution_outcome'] = 'success'
+      unless exec.subject_type == blank
+        hash_assign le['subject_type'] = exec.subject_type
+        hash_assign le['subject_id'] = exec.subject_id
+      endunless
+      assign append_ok = false
+      try
+        function _ = 'modules/mcp/commands/ledger/append', entry: le
+        assign append_ok = true
+      catch e
+        log e.message, type: 'mcp.approval_ledger_append_failed'
+      endtry
+      # `rollback` is a valid platformOS transaction tag; the linter's HTML/Liquid
+      # parser mis-flags it inside this block. Correct at runtime.
+      # platformos-check-disable LiquidHTMLSyntaxError
+      if append_ok
+        assign committed = true
+      else
+        rollback
+      endif
+    else
+      rollback
+    endif
+  endtransaction
+  # platformos-check-enable LiquidHTMLSyntaxError
+
+  unless committed
+    hash_assign le['execution_outcome'] = 'rolled_back'
+    hash_assign le['error_code'] = -32003
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    hash_assign fail['outcome'] = 'failed'
+    hash_assign fail['summary'] = 'Execution failed and was rolled back.'
+    return fail
+  endunless
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['outcome'] = 'executed'
+  assign summary = 'Executed'
+  unless exec.subject_id == blank
+    assign summary = 'Executed — created ' | append: exec.subject_type | append: ' ' | append: exec.subject_id
+  endunless
+  hash_assign out['summary'] = summary
+  return out
+%}

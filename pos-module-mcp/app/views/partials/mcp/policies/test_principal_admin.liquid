@@ -1,0 +1,51 @@
+{%- comment -%}
+  Authorization policy: test_principal_admin (Layer-2, app-owned; TEST fixture).
+
+  Permits a tool only when the calling PRINCIPAL is an MCP operator — mirroring the
+  console's operator definition (access level = admin) but evaluated against the
+  PRINCIPAL (bearer's user), not the browser session: an ACTIVE mcp_access role=admin
+  row, OR the MCP_ADMIN_USER_IDS bootstrap allowlist. This is stricter and more
+  correct than the shipped `admin_only` (which checks only the bootstrap constant),
+  and lets the coverage suite prove the admin tier is invisible to a plain member.
+
+  Fail-closed: anything short of a proven admin principal → deny.
+  Contract: return { allow, reason }. Receives principal, agent, arguments, tool,
+  delegation_mode.
+{%- endcomment -%}
+{% liquid
+  assign r = '{}' | parse_json
+  assign uid = principal.user_id | append: ''
+  assign is_admin = false
+
+  # Bootstrap allowlist (same source the console's access/level uses).
+  assign raw = context.constants.MCP_ADMIN_USER_IDS | default: ''
+  assign admins = raw | split: ','
+  for a in admins
+    assign at = a | strip
+    if at == uid
+      assign is_admin = true
+      break
+    endif
+  endfor
+
+  # Otherwise: an ACTIVE mcp_access row with role admin for this principal.
+  unless is_admin
+    graphql g = 'modules/mcp/access/for_user', user_id: uid
+    assign rec = g.records.results.first
+    if rec != blank
+      if rec.status == 'active'
+        if rec.role == 'admin'
+          assign is_admin = true
+        endif
+      endif
+    endif
+  endunless
+
+  hash_assign r['allow'] = is_admin
+  if is_admin
+    hash_assign r['reason'] = 'admin'
+  else
+    hash_assign r['reason'] = 'not_admin'
+  endif
+  return r
+%}

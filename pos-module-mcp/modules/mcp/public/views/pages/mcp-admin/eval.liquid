@@ -1,0 +1,20 @@
+---
+slug: mcp-admin/eval
+method: post
+---
+{%- comment -%}
+  Operator-triggered eval run (spec §19.3). Runs the deterministic tool-surface +
+  golden-case checks, stores an mcp_eval_run record, and returns to the console.
+  Operator-gated. Can also be driven by CI (the runner logs in and posts here, then
+  reads the result via GraphQL). For scheduled runs, wrap eval/run in a background job.
+{%- endcomment -%}
+{%- liquid
+  function is_admin = 'modules/mcp/commands/is_operator'
+  unless is_admin
+    response_status 403
+    echo 'Forbidden'
+    return
+  endunless
+  function _ = 'modules/mcp/commands/eval/run'
+  redirect_to '/mcp-admin'
+-%}

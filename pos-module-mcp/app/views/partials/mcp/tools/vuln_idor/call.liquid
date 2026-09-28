@@ -1,0 +1,18 @@
+{%- comment -%}
+  NEGATIVE CONTROL handler — vuln_idor. Reads test_note rows for the user_id ARGUMENT
+  (attacker-controlled), never scoping to principal.user_id → cross-principal read.
+{%- endcomment -%}
+{% liquid
+  graphql g = 'mcp/vuln_notes_by_user', user_id: arguments.user_id
+  assign rows = g.records.results
+
+  assign result = '{}' | parse_json
+  hash_assign result['requested_user_id'] = arguments.user_id
+  hash_assign result['caller'] = principal.id
+  hash_assign result['notes'] = rows
+
+  assign out = '{}' | parse_json
+  hash_assign out['ok'] = true
+  hash_assign out['result'] = result
+  return out
+%}

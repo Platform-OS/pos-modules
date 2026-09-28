@@ -1,0 +1,26 @@
+---
+slug: .well-known/oauth-protected-resource
+method: get
+format: json
+---
+{%- comment -%}
+  OAuth 2.0 Protected Resource Metadata (RFC 9728, spec §9.5). An MCP client that
+  receives a 401 discovers where to obtain a token by reading this document. The
+  resource identifier is per-instance (multi-tenancy, §15). authorization_servers
+  is advertised only when an issuer is configured.
+{%- endcomment -%}
+{%- liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign doc = '{}' | parse_json
+  hash_assign doc['resource'] = cfg.resource_identifier
+  hash_assign doc['resource_name'] = cfg.server_name
+  assign methods = '["header"]' | parse_json
+  hash_assign doc['bearer_methods_supported'] = methods
+  unless cfg.oauth.issuer == blank
+    assign servers = '[]' | parse_json
+    assign servers = servers | array_add: cfg.oauth.issuer
+    hash_assign doc['authorization_servers'] = servers
+  endunless
+  response_status 200
+  echo doc
+-%}

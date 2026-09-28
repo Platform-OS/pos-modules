@@ -1,0 +1,33 @@
+{%- comment -%}
+  Tool manifest — create_event (MUTATING, COMMAND MODE). The handler wraps the
+  community command modules/community/commands/events/create, so the event runs the
+  app's own validations and lands in moderation (status: pending) exactly like a
+  UI-created one. The engine runs it inside a transaction and attests inside it:
+  event + ledger entry commit or roll back together.
+
+  input_schema mirrors the command's REAL constraints so the agent gets fast
+  structured feedback (the command remains the final authority for anything else):
+  name ≤35 and description min-10 come straight from
+  modules/community/commands/events/create/check.liquid (name maximum:35,
+  description minimum:10, short_description maximum:140). The 35-char name cap is a
+  community-app product rule — a site user hits the same limit — NOT an MCP/XSS
+  restriction, so we mirror it rather than promise a longer field the command would
+  reject. The `link` scheme allowlist (^https?://) and the `^[^<>]*$` guards are
+  net-new MCP-layer controls: the community command does not validate link schemes,
+  so the engine protects non-HTML consumers (mobile, email, RSS) here.
+{%- endcomment -%}
+{% liquid
+  assign m = '{}' | parse_json
+  hash_assign m['name'] = 'create_event'
+  hash_assign m['version'] = '2.0.0'
+  hash_assign m['description'] = 'Propose a community event through the community module native create pipeline. Requires name, short_description, description, a future start_date (ISO 8601), and a venue or link. The event enters the moderation queue (pending) for operator approval, exactly like an event created through the site. Returns the created event id and status.'
+  assign schema = '{"type":"object","additionalProperties":false,"required":["name","short_description","description","start_date"],"properties":{"name":{"type":"string","minLength":1,"maxLength":35,"pattern":"^[^<>]*$","description":"event title (max 35 chars — community app limit; no angle brackets)"},"short_description":{"type":"string","minLength":1,"maxLength":140,"pattern":"^[^<>]*$","description":"one-line summary (no angle brackets)"},"description":{"type":"string","minLength":10,"maxLength":2000,"pattern":"^[^<>]*$","description":"full description (min 10 chars, no angle brackets)"},"start_date":{"type":"string","minLength":10,"maxLength":40,"description":"future ISO 8601 datetime, e.g. 2026-09-01T19:00:00Z"},"end_date":{"type":"string","minLength":10,"maxLength":40,"description":"optional ISO 8601 end; defaults to start_date"},"venue":{"type":"string","maxLength":120,"pattern":"^[^<>]*$","description":"physical venue (provide venue or link)"},"link":{"type":"string","maxLength":300,"pattern":"^https?://[^<>]+$","description":"online link; must start with http:// or https:// (provide venue or link)"}}}' | parse_json
+  hash_assign m['input_schema'] = schema
+  hash_assign m['mutating'] = true
+  hash_assign m['authorization_policy'] = 'members_can_write'
+  hash_assign m['requires_approval'] = false
+  hash_assign m['idempotent'] = true
+  hash_assign m['audit_fields'] = 'name,start_date' | split: ','
+  hash_assign m['handler'] = 'mcp/tools/create_event/call'
+  return m
+%}
