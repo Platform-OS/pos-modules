@@ -31,12 +31,12 @@
     assign raw = null
   endtry
 
-  assign prompts = '[]' | parse_json
-  assign excluded = '[]' | parse_json
+  assign prompts = []
+  assign excluded = []
 
   if raw
     for p in raw
-      assign errors = '[]' | parse_json
+      assign errors = []
       if p.name == blank
         assign errors = errors | array_add: 'name: required'
       else
@@ -61,9 +61,9 @@
       if errors.size == 0
         assign prompts = prompts | array_add: p
       else
-        assign ex = '{}' | parse_json
-        hash_assign ex['name'] = p.name | default: '(unnamed)'
-        hash_assign ex['errors'] = errors
+        assign ex = {}
+        assign ex['name'] = p.name | default: '(unnamed)'
+        assign ex['errors'] = errors
         assign excluded = excluded | array_add: ex
         assign ej = errors | join: '; '
         assign _lm = ex.name | append: ': ' | append: ej
@@ -72,9 +72,9 @@
     endfor
   endif
 
-  assign out = '{}' | parse_json
-  hash_assign out['prompts'] = prompts
-  hash_assign out['excluded'] = excluded
-  hash_assign out['count'] = prompts | size
+  assign out = {}
+  assign out['prompts'] = prompts
+  assign out['excluded'] = excluded
+  assign out['count'] = prompts | size
   return out
 %}

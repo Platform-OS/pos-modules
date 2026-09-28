@@ -6,8 +6,8 @@
   by construction (the engine denies if this partial is missing or errors).
 {%- endcomment -%}
 {% liquid
-  assign r = '{}' | parse_json
-  hash_assign r['allow'] = true
-  hash_assign r['reason'] = 'member'
+  assign r = {}
+  assign r['allow'] = true
+  assign r['reason'] = 'member'
   return r
 %}

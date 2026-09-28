@@ -178,17 +178,17 @@ concatenation. This is the injection boundary.
 
 ```liquid
 {% liquid
-  assign m = '{}' | parse_json
-  hash_assign m['name'] = 'search_events'
-  hash_assign m['version'] = '1.0.0'
-  hash_assign m['description'] = 'Search the community published events by keyword and return upcoming matches. Read-only; returns at most 20 events.'
-  assign schema = '{"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","minLength":1,"maxLength":80,"description":"keyword to match against event title and description"},"limit":{"type":"integer","minimum":1,"maximum":20,"description":"max events to return (default 10)"}}}' | parse_json
-  hash_assign m['input_schema'] = schema
-  hash_assign m['mutating'] = false
-  hash_assign m['authorization_policy'] = 'public_read'
-  hash_assign m['requires_approval'] = false
-  hash_assign m['idempotent'] = true
-  hash_assign m['handler'] = 'mcp/tools/search_events/call'
+  assign m = {}
+  assign m['name'] = 'search_events'
+  assign m['version'] = '1.0.0'
+  assign m['description'] = 'Search the community published events by keyword and return upcoming matches. Read-only; returns at most 20 events.'
+  assign schema = {"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","minLength":1,"maxLength":80,"description":"keyword to match against event title and description"},"limit":{"type":"integer","minimum":1,"maximum":20,"description":"max events to return (default 10)"}}}
+  assign m['input_schema'] = schema
+  assign m['mutating'] = false
+  assign m['authorization_policy'] = 'public_read'
+  assign m['requires_approval'] = false
+  assign m['idempotent'] = true
+  assign m['handler'] = 'mcp/tools/search_events/call'
   return m
 %}
 ```
@@ -202,25 +202,25 @@ concatenation. This is the injection boundary.
 
   graphql res = 'mcp/search_events', keyword: keyword, limit: limit
 
-  assign events = '[]' | parse_json
+  assign events = []
   for r in res.events.results
-    assign e = '{}' | parse_json
-    hash_assign e['id'] = r.id
-    hash_assign e['name'] = r.name
-    hash_assign e['summary'] = r.short_description
-    hash_assign e['start_date'] = r.start_date
-    hash_assign e['venue'] = r.venue
+    assign e = {}
+    assign e['id'] = r.id
+    assign e['name'] = r.name
+    assign e['summary'] = r.short_description
+    assign e['start_date'] = r.start_date
+    assign e['venue'] = r.venue
     assign events = events | array_add: e
   endfor
 
-  assign result = '{}' | parse_json
-  hash_assign result['query'] = keyword
-  hash_assign result['count'] = res.events.total_entries
-  hash_assign result['events'] = events
+  assign result = {}
+  assign result['query'] = keyword
+  assign result['count'] = res.events.total_entries
+  assign result['events'] = events
 
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  hash_assign out['result'] = result
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
   return out
 %}
 ```
@@ -228,9 +228,9 @@ concatenation. This is the injection boundary.
 ### 4. Register it — `app/views/partials/mcp/registry.liquid`
 
 ```liquid
-assign e1 = '{}' | parse_json
-hash_assign e1['name'] = 'search_events'
-hash_assign e1['path'] = 'mcp/tools/search_events'
+assign e1 = {}
+assign e1['name'] = 'search_events'
+assign e1['path'] = 'mcp/tools/search_events'
 assign tools = tools | array_add: e1
 ```
 
@@ -332,14 +332,14 @@ boolean or `{ allow, reason }`. Evaluated against the **principal**.
 ```liquid
 {% comment %} owner-only: caller must own the listing they are editing {% endcomment %}
 {% liquid
-  assign r = '{}' | parse_json
+  assign r = {}
   graphql q = 'app/queries/listings/owner', id: arguments.listing_id
   if q.record.owner_id == principal.user_id
-    hash_assign r['allow'] = true
-    hash_assign r['reason'] = 'owner'
+    assign r['allow'] = true
+    assign r['reason'] = 'owner'
   else
-    hash_assign r['allow'] = false
-    hash_assign r['reason'] = 'not_owner'
+    assign r['allow'] = false
+    assign r['reason'] = 'not_owner'
   endif
   return r
 %}

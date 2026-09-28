@@ -51,10 +51,10 @@
     assign is_2026 = true
   endif
 
-  assign out = '{}' | parse_json
-  hash_assign out['version'] = version
-  hash_assign out['requested'] = requested
-  hash_assign out['is_2026'] = is_2026
-  hash_assign out['supported'] = supported
+  assign out = {}
+  assign out['version'] = version
+  assign out['requested'] = requested
+  assign out['is_2026'] = is_2026
+  assign out['supported'] = supported
   return out
 %}

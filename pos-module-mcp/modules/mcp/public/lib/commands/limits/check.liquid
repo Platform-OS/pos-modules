@@ -38,10 +38,10 @@
   assign elapsed = now_unix | modulo: 60
   assign retry_after = 60 | minus: elapsed
 
-  assign out = '{}' | parse_json
-  hash_assign out['allowed'] = allowed
-  hash_assign out['count'] = count
-  hash_assign out['limit'] = limit
-  hash_assign out['retry_after'] = retry_after
+  assign out = {}
+  assign out['allowed'] = allowed
+  assign out['count'] = count
+  assign out['limit'] = limit
+  assign out['retry_after'] = retry_after
   return out
 %}

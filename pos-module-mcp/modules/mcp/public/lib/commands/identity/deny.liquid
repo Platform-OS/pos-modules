@@ -13,14 +13,14 @@
   @return {object} { authenticated:false, http_status, error_code, message, reason, www_authenticate? }
 {%- endcomment -%}
 {% liquid
-  assign f = '{}' | parse_json
-  hash_assign f['authenticated'] = false
-  hash_assign f['http_status'] = http_status | default: 401
-  hash_assign f['error_code'] = error_code | default: -32001
-  hash_assign f['message'] = message | default: 'Unauthorized'
-  hash_assign f['reason'] = reason
+  assign f = {}
+  assign f['authenticated'] = false
+  assign f['http_status'] = http_status | default: 401
+  assign f['error_code'] = error_code | default: -32001
+  assign f['message'] = message | default: 'Unauthorized'
+  assign f['reason'] = reason
   unless www_authenticate == blank
-    hash_assign f['www_authenticate'] = www_authenticate
+    assign f['www_authenticate'] = www_authenticate
   endunless
   return f
 %}

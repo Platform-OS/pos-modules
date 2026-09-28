@@ -7,11 +7,11 @@
   @return {object} { content, isError, structuredContent? }
 {%- endcomment -%}
 {% liquid
-  assign result = '{}' | parse_json
-  hash_assign result['content'] = exec.content
-  hash_assign result['isError'] = exec.isError
+  assign result = {}
+  assign result['content'] = exec.content
+  assign result['isError'] = exec.isError
   unless exec.structured == blank
-    hash_assign result['structuredContent'] = exec.structured
+    assign result['structuredContent'] = exec.structured
   endunless
   return result
 %}

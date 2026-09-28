@@ -11,8 +11,8 @@
   arguments, tool, delegation_mode.
 {%- endcomment -%}
 {% liquid
-  assign r = '{}' | parse_json
-  hash_assign r['allow'] = true
-  hash_assign r['reason'] = 'public_read'
+  assign r = {}
+  assign r['allow'] = true
+  assign r['reason'] = 'public_read'
   return r
 %}

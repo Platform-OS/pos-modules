@@ -16,7 +16,7 @@
   assign name = params.name
   assign args = params.arguments
   if args == blank
-    assign args = '{}' | parse_json
+    assign args = {}
   endif
 
   function reg = 'modules/mcp/commands/registry/build_prompts'
@@ -29,16 +29,16 @@
   endfor
 
   if prompt == blank
-    assign err = '{}' | parse_json
-    hash_assign err['code'] = -32602
-    hash_assign err['message'] = 'Unknown prompt'
-    assign out = '{}' | parse_json
-    hash_assign out['_error'] = err
+    assign err = {}
+    assign err['code'] = -32602
+    assign err['message'] = 'Unknown prompt'
+    assign out = {}
+    assign out['_error'] = err
     return out
   endif
 
   # Required-argument presence check (safe to report — argument names are public).
-  assign missing = '[]' | parse_json
+  assign missing = []
   unless prompt.arguments == blank
     for a in prompt.arguments
       if a.required == true
@@ -51,32 +51,32 @@
   endunless
   if missing.size > 0
     assign mj = missing | join: ', '
-    assign err = '{}' | parse_json
-    hash_assign err['code'] = -32602
-    hash_assign err['message'] = 'Missing required arguments: ' | append: mj
-    assign out = '{}' | parse_json
-    hash_assign out['_error'] = err
+    assign err = {}
+    assign err['code'] = -32602
+    assign err['message'] = 'Missing required arguments: ' | append: mj
+    assign out = {}
+    assign out['_error'] = err
     return out
   endif
 
   # Render the template. String → one user message; array → used as-is.
   function rendered = prompt.template, arguments: args
-  assign messages = '[]' | parse_json
+  assign messages = []
   assign rtype = rendered | type_of | downcase
   if rtype == 'array'
     assign messages = rendered
   else
-    assign msg = '{}' | parse_json
-    hash_assign msg['role'] = 'user'
-    assign content = '{}' | parse_json
-    hash_assign content['type'] = 'text'
-    hash_assign content['text'] = rendered | append: ''
-    hash_assign msg['content'] = content
+    assign msg = {}
+    assign msg['role'] = 'user'
+    assign content = {}
+    assign content['type'] = 'text'
+    assign content['text'] = rendered | append: ''
+    assign msg['content'] = content
     assign messages = messages | array_add: msg
   endif
 
-  assign result = '{}' | parse_json
-  hash_assign result['description'] = prompt.description
-  hash_assign result['messages'] = messages
+  assign result = {}
+  assign result['description'] = prompt.description
+  assign result['messages'] = messages
   return result
 %}

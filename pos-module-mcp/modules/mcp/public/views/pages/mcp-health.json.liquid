@@ -27,20 +27,20 @@ format: json
   endunless
   response_status code
 
-  assign checks = '{}' | parse_json
-  hash_assign checks['config'] = 'ok'
+  assign checks = {}
+  assign checks['config'] = 'ok'
   if db_ok
-    hash_assign checks['database'] = 'ok'
+    assign checks['database'] = 'ok'
   else
-    hash_assign checks['database'] = 'fail'
+    assign checks['database'] = 'fail'
   endif
 
-  assign out = '{}' | parse_json
-  hash_assign out['status'] = status
-  hash_assign out['server'] = cfg.server_name
-  hash_assign out['protocol'] = cfg.protocol_version
-  hash_assign out['protocols_supported'] = cfg.supported_protocol_versions
-  hash_assign out['checks'] = checks
-  hash_assign out['time'] = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign out = {}
+  assign out['status'] = status
+  assign out['server'] = cfg.server_name
+  assign out['protocol'] = cfg.protocol_version
+  assign out['protocols_supported'] = cfg.supported_protocol_versions
+  assign out['checks'] = checks
+  assign out['time'] = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
   echo out
 -%}

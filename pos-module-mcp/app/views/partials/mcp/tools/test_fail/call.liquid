@@ -8,12 +8,12 @@
   # Write first — the point is that this write gets undone by the rollback.
   graphql g = 'mcp/test_note_create', user_id: uid, label: arguments.label, source: 'test_fail'
 
-  assign err = '{}' | parse_json
-  hash_assign err['code'] = 500
-  hash_assign err['message'] = 'Intentional test failure (rollback probe).'
-  hash_assign err['retryable'] = false
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = false
-  hash_assign out['error'] = err
+  assign err = {}
+  assign err['code'] = 500
+  assign err['message'] = 'Intentional test failure (rollback probe).'
+  assign err['retryable'] = false
+  assign out = {}
+  assign out['ok'] = false
+  assign out['error'] = err
   return out
 %}

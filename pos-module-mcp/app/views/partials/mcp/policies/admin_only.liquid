@@ -13,7 +13,7 @@
   delegation_mode.
 {%- endcomment -%}
 {% liquid
-  assign r = '{}' | parse_json
+  assign r = {}
   assign raw = context.constants.MCP_ADMIN_USER_IDS | default: ''
   assign admins = raw | split: ','
   assign uid = principal.user_id | append: ''
@@ -25,11 +25,11 @@
       break
     endif
   endfor
-  hash_assign r['allow'] = is_admin
+  assign r['allow'] = is_admin
   if is_admin
-    hash_assign r['reason'] = 'admin'
+    assign r['reason'] = 'admin'
   else
-    hash_assign r['reason'] = 'not_admin'
+    assign r['reason'] = 'not_admin'
   endif
   return r
 %}

@@ -8,40 +8,40 @@
 {%- endcomment -%}
 {% liquid
   function reg = 'modules/mcp/commands/registry/build_prompts'
-  assign out_prompts = '[]' | parse_json
+  assign out_prompts = []
   for p in reg.prompts
-    assign item = '{}' | parse_json
-    hash_assign item['name'] = p.name
+    assign item = {}
+    assign item['name'] = p.name
     unless p.title == blank
-      hash_assign item['title'] = p.title
+      assign item['title'] = p.title
     endunless
-    hash_assign item['description'] = p.description
+    assign item['description'] = p.description
     unless p.arguments == blank
-      assign args_out = '[]' | parse_json
+      assign args_out = []
       for a in p.arguments
-        assign ao = '{}' | parse_json
-        hash_assign ao['name'] = a.name
+        assign ao = {}
+        assign ao['name'] = a.name
         unless a.description == blank
-          hash_assign ao['description'] = a.description
+          assign ao['description'] = a.description
         endunless
         assign req = false
         if a.required == true
           assign req = true
         endif
-        hash_assign ao['required'] = req
+        assign ao['required'] = req
         assign args_out = args_out | array_add: ao
       endfor
-      hash_assign item['arguments'] = args_out
+      assign item['arguments'] = args_out
     endunless
     assign out_prompts = out_prompts | array_add: item
   endfor
 
-  assign result = '{}' | parse_json
-  hash_assign result['prompts'] = out_prompts
+  assign result = {}
+  assign result['prompts'] = out_prompts
   # Client-side cache hint (2026-07-28 only; dispatch passes it or nil).
   unless cache == blank
-    hash_assign result['ttlMs'] = cache.ttlMs
-    hash_assign result['cacheScope'] = cache.cacheScope
+    assign result['ttlMs'] = cache.ttlMs
+    assign result['cacheScope'] = cache.cacheScope
   endunless
   return result
 %}

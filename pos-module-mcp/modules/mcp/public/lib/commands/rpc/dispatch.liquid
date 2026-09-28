@@ -27,22 +27,22 @@
   function proto = 'modules/mcp/commands/protocol/negotiate', params: params, headers: headers
 
   assign id = params.id
-  assign out = '{}' | parse_json
+  assign out = {}
 
   # ---- Transport size cap (spec §12.4). Reject before doing any real work. ----
   assign input_bytes = params | json | size
   if input_bytes > cfg.defaults.max_input_bytes
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32600, message: 'Request too large'
-    hash_assign out['http_status'] = 413
-    hash_assign out['body'] = body
+    assign out['http_status'] = 413
+    assign out['body'] = body
     return out
   endif
 
   # ---- Envelope validation (§13.2). jsonrpc must be exactly "2.0" when present. ----
   if params.jsonrpc != blank and params.jsonrpc != '2.0'
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32600, message: 'Invalid Request'
-    hash_assign out['http_status'] = 400
-    hash_assign out['body'] = body
+    assign out['http_status'] = 400
+    assign out['body'] = body
     return out
   endif
 
@@ -55,8 +55,8 @@
       assign method = hdr_method
     elsif method != hdr_method
       function body = 'modules/mcp/commands/rpc/error', id: id, code: -32600, message: 'Invalid Request: Mcp-Method header disagrees with request method'
-      hash_assign out['http_status'] = 400
-      hash_assign out['body'] = body
+      assign out['http_status'] = 400
+      assign out['body'] = body
       return out
     endif
   endif
@@ -64,14 +64,14 @@
   # A missing method (neither body nor header) is Invalid Request.
   if method == blank
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32600, message: 'Invalid Request'
-    hash_assign out['http_status'] = 400
-    hash_assign out['body'] = body
+    assign out['http_status'] = 400
+    assign out['body'] = body
     return out
   endif
 
   # ---- Notifications: acknowledge, no response body (JSON-RPC notification). ----
   if method contains 'notifications/'
-    hash_assign out['http_status'] = 202
+    assign out['http_status'] = 202
     return out
   endif
 
@@ -81,8 +81,8 @@
   if hdr_name != blank and inner_name != blank and hdr_name != inner_name
     if method == 'tools/call' or method == 'prompts/get'
       function body = 'modules/mcp/commands/rpc/error', id: id, code: -32600, message: 'Invalid Request: Mcp-Name header disagrees with target name'
-      hash_assign out['http_status'] = 400
-      hash_assign out['body'] = body
+      assign out['http_status'] = 400
+      assign out['body'] = body
       return out
     endif
   endif
@@ -141,7 +141,7 @@
       assign handled = true
     when 'resources/templates/list'
       # No parameterized resource templates yet — return an empty set (§13.1).
-      assign result = '{"resourceTemplates":[]}' | parse_json
+      assign result = {"resourceTemplates":[]}
       assign handled = true
     when 'prompts/list'
       assign pr_cache = null
@@ -164,12 +164,12 @@
         endif
       endif
       if lvl_ok
-        assign result = '{}' | parse_json
+        assign result = {}
         assign handled = true
       else
         function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Invalid params: unknown logging level'
-        hash_assign out['http_status'] = 400
-        hash_assign out['body'] = body
+        assign out['http_status'] = 400
+        assign out['body'] = body
         return out
       endif
   endcase
@@ -179,18 +179,18 @@
     function rr = 'modules/mcp/commands/rpc/resources_read', params: params.params
     unless rr._error == blank
       function body = 'modules/mcp/commands/rpc/error', id: id, code: rr._error.code, message: rr._error.message
-      hash_assign out['http_status'] = 200
-      hash_assign out['body'] = body
+      assign out['http_status'] = 200
+      assign out['body'] = body
       return out
     endunless
     if proto.is_2026
       function rc = 'modules/mcp/commands/protocol/cache_hint', kind: 'resources', scope: 'shared'
-      hash_assign rr['ttlMs'] = rc.ttlMs
-      hash_assign rr['cacheScope'] = rc.cacheScope
+      assign rr['ttlMs'] = rc.ttlMs
+      assign rr['cacheScope'] = rc.cacheScope
     endif
     function body = 'modules/mcp/commands/rpc/success', id: id, result: rr
-    hash_assign out['http_status'] = 200
-    hash_assign out['body'] = body
+    assign out['http_status'] = 200
+    assign out['body'] = body
     return out
   endif
 
@@ -198,13 +198,13 @@
     function pr = 'modules/mcp/commands/rpc/prompts_get', params: params.params
     unless pr._error == blank
       function body = 'modules/mcp/commands/rpc/error', id: id, code: pr._error.code, message: pr._error.message
-      hash_assign out['http_status'] = 400
-      hash_assign out['body'] = body
+      assign out['http_status'] = 400
+      assign out['body'] = body
       return out
     endunless
     function body = 'modules/mcp/commands/rpc/success', id: id, result: pr
-    hash_assign out['http_status'] = 200
-    hash_assign out['body'] = body
+    assign out['http_status'] = 200
+    assign out['body'] = body
     return out
   endif
 
@@ -215,8 +215,8 @@
   if method == 'tasks/get' or method == 'tasks/update'
     unless proto.is_2026
       function body = 'modules/mcp/commands/rpc/error', id: id, code: -32601, message: 'Method not found'
-      hash_assign out['http_status'] = 400
-      hash_assign out['body'] = body
+      assign out['http_status'] = 400
+      assign out['body'] = body
       return out
     endunless
     assign tr = null
@@ -233,26 +233,26 @@
         assign est = 400
       endif
       function body = 'modules/mcp/commands/rpc/error', id: id, code: tr._error.code, message: tr._error.message
-      hash_assign out['http_status'] = est
-      hash_assign out['body'] = body
+      assign out['http_status'] = est
+      assign out['body'] = body
       return out
     endunless
     function body = 'modules/mcp/commands/rpc/success', id: id, result: tr
-    hash_assign out['http_status'] = 200
-    hash_assign out['body'] = body
+    assign out['http_status'] = 200
+    assign out['body'] = body
     return out
   endif
 
   if handled
     function body = 'modules/mcp/commands/rpc/success', id: id, result: result
-    hash_assign out['http_status'] = 200
-    hash_assign out['body'] = body
+    assign out['http_status'] = 200
+    assign out['body'] = body
     return out
   endif
 
   # ---- Unknown / not-yet-implemented method (§13.2). ----
   function body = 'modules/mcp/commands/rpc/error', id: id, code: -32601, message: 'Method not found'
-  hash_assign out['http_status'] = 400
-  hash_assign out['body'] = body
+  assign out['http_status'] = 400
+  assign out['body'] = body
   return out
 %}

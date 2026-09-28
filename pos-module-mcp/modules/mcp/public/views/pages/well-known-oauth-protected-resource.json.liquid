@@ -11,15 +11,15 @@ format: json
 {%- endcomment -%}
 {%- liquid
   function cfg = 'modules/mcp/commands/config'
-  assign doc = '{}' | parse_json
-  hash_assign doc['resource'] = cfg.resource_identifier
-  hash_assign doc['resource_name'] = cfg.server_name
-  assign methods = '["header"]' | parse_json
-  hash_assign doc['bearer_methods_supported'] = methods
+  assign doc = {}
+  assign doc['resource'] = cfg.resource_identifier
+  assign doc['resource_name'] = cfg.server_name
+  assign methods = ["header"]
+  assign doc['bearer_methods_supported'] = methods
   unless cfg.oauth.issuer == blank
-    assign servers = '[]' | parse_json
+    assign servers = []
     assign servers = servers | array_add: cfg.oauth.issuer
-    hash_assign doc['authorization_servers'] = servers
+    assign doc['authorization_servers'] = servers
   endunless
   response_status 200
   echo doc

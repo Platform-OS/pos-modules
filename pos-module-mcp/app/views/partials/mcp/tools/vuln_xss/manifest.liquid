@@ -6,16 +6,16 @@
   should flag this FAILED (missing input validation / output encoding).
 {%- endcomment -%}
 {% liquid
-  assign m = '{}' | parse_json
-  hash_assign m['name'] = 'vuln_xss'
-  hash_assign m['version'] = '1.0.0'
-  hash_assign m['description'] = 'NEGATIVE CONTROL (insecure): stores a label with NO angle-bracket filtering (stored XSS).'
-  assign schema = '{"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","minLength":1,"maxLength":200}}}' | parse_json
-  hash_assign m['input_schema'] = schema
-  hash_assign m['mutating'] = true
-  hash_assign m['authorization_policy'] = 'test_principal_member'
-  hash_assign m['requires_approval'] = false
-  hash_assign m['idempotent'] = false
-  hash_assign m['handler'] = 'mcp/tools/vuln_xss/call'
+  assign m = {}
+  assign m['name'] = 'vuln_xss'
+  assign m['version'] = '1.0.0'
+  assign m['description'] = 'NEGATIVE CONTROL (insecure): stores a label with NO angle-bracket filtering (stored XSS).'
+  assign schema = {"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","minLength":1,"maxLength":200}}}
+  assign m['input_schema'] = schema
+  assign m['mutating'] = true
+  assign m['authorization_policy'] = 'test_principal_member'
+  assign m['requires_approval'] = false
+  assign m['idempotent'] = false
+  assign m['handler'] = 'mcp/tools/vuln_xss/call'
   return m
 %}

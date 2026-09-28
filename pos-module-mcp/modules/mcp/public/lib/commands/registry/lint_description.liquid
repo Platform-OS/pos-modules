@@ -17,7 +17,7 @@
   @return {object} { flagged:boolean, hits:[string] }
 {%- endcomment -%}
 {% liquid
-  assign hits = '[]' | parse_json
+  assign hits = []
   assign lc = text | default: '' | downcase
 
   # Imperative / jailbreak markers aimed at the model.
@@ -48,8 +48,8 @@
   if hits.size > 0
     assign flagged = true
   endif
-  assign out = '{}' | parse_json
-  hash_assign out['flagged'] = flagged
-  hash_assign out['hits'] = hits
+  assign out = {}
+  assign out['flagged'] = flagged
+  assign out['hits'] = hits
   return out
 %}

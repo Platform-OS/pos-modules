@@ -18,9 +18,9 @@
 {%- endcomment -%}
 {% liquid
   # 1) Build the command input object from the validated arguments.
-  assign object = '{}' | parse_json
+  assign object = {}
 <% attributes.forEach(function(a){ -%>
-  hash_assign object['<%= a.name %>'] = arguments.<%= a.name %>
+  assign object['<%= a.name %>'] = arguments.<%= a.name %>
 <% }); -%>
 
   # 2) Resolve the acting identity the command needs. The engine gives us `principal`
@@ -36,31 +36,31 @@
   # 4) Interpret the {valid, errors} contract → the handler return contract (§7.3).
   unless res.valid
     assign msg = 'The action could not be completed.'
-    assign err = '{}' | parse_json
-    hash_assign err['code'] = 422
-    hash_assign err['message'] = msg
-    hash_assign err['retryable'] = false
+    assign err = {}
+    assign err['code'] = 422
+    assign err['message'] = msg
+    assign err['retryable'] = false
     # The command's field errors are safe to surface so the agent can self-correct:
     unless res.errors == blank
-      hash_assign err['fields'] = res.errors
+      assign err['fields'] = res.errors
     endunless
-    assign out = '{}' | parse_json
-    hash_assign out['ok'] = false
-    hash_assign out['error'] = err
+    assign out = {}
+    assign out['ok'] = false
+    assign out['error'] = err
     return out
   endunless
 
   # Success — surface the created record. Adjust the fields to what the command returns.
-  assign result = '{}' | parse_json
-  hash_assign result['id'] = res.id
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  hash_assign out['result'] = result
+  assign result = {}
+  assign result['id'] = res.id
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
   unless res.id == blank
-    assign subject = '{}' | parse_json
-    hash_assign subject['type'] = 'record'
-    hash_assign subject['id'] = res.id
-    hash_assign out['subject'] = subject
+    assign subject = {}
+    assign subject['type'] = 'record'
+    assign subject['id'] = res.id
+    assign out['subject'] = subject
   endunless
   return out
 %}

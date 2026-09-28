@@ -69,12 +69,12 @@
     endfor
   endif
 
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = ok
-  hash_assign out['count'] = count
-  hash_assign out['broken_at'] = broken_at
-  hash_assign out['reason'] = reason
-  hash_assign out['recent'] = true
-  hash_assign out['window'] = win
+  assign out = {}
+  assign out['ok'] = ok
+  assign out['count'] = count
+  assign out['broken_at'] = broken_at
+  assign out['reason'] = reason
+  assign out['recent'] = true
+  assign out['window'] = win
   return out
 %}

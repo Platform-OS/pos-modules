@@ -4,10 +4,10 @@
   prove the invalid inputs never get here (-32602).
 {%- endcomment -%}
 {% liquid
-  assign result = '{}' | parse_json
-  hash_assign result['validated'] = true
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  hash_assign out['result'] = result
+  assign result = {}
+  assign result['validated'] = true
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
   return out
 %}

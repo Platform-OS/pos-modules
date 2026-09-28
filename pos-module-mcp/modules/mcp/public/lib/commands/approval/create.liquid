@@ -23,8 +23,8 @@
 
   graphql _ = 'modules/mcp/approvals/create', handle: handle, tool_name: tool.name, tool_version: tool.version, arguments_json: arguments_json, input_sha256: input_sha256, requested_by_agent: agent.id, principal_id: principal.id, authz_policy: tool.authorization_policy, expires_at: expires_at, request_id: request_id
 
-  assign out = '{}' | parse_json
-  hash_assign out['handle'] = handle
-  hash_assign out['expires_at'] = expires_at
+  assign out = {}
+  assign out['handle'] = handle
+  assign out['expires_at'] = expires_at
   return out
 %}

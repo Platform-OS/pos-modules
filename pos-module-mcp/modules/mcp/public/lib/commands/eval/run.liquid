@@ -24,8 +24,8 @@
   function reg = 'modules/mcp/commands/registry/load'
   assign tools = reg.tools
 
-  assign checks = '[]' | parse_json
-  assign desc_map = '{}' | parse_json
+  assign checks = []
+  assign desc_map = {}
 
   # ---- per-tool surface checks ----
   for t in tools
@@ -34,13 +34,13 @@
     if dlen >= 20
       assign present = true
     endif
-    assign c = '{}' | parse_json
-    hash_assign c['category'] = 'surface'
-    hash_assign c['check'] = 'desc_present'
-    hash_assign c['target'] = t.name
-    hash_assign c['passed'] = present
+    assign c = {}
+    assign c['category'] = 'surface'
+    assign c['check'] = 'desc_present'
+    assign c['target'] = t.name
+    assign c['passed'] = present
     unless present
-      hash_assign c['detail'] = 'description shorter than 20 chars'
+      assign c['detail'] = 'description shorter than 20 chars'
     endunless
     assign checks = checks | array_add: c
 
@@ -49,20 +49,20 @@
     if lint.flagged
       assign clean = false
     endif
-    assign c2 = '{}' | parse_json
-    hash_assign c2['category'] = 'surface'
-    hash_assign c2['check'] = 'no_poison'
-    hash_assign c2['target'] = t.name
-    hash_assign c2['passed'] = clean
+    assign c2 = {}
+    assign c2['category'] = 'surface'
+    assign c2['check'] = 'no_poison'
+    assign c2['target'] = t.name
+    assign c2['passed'] = clean
     unless clean
       assign hits = lint.hits | join: ', '
-      hash_assign c2['detail'] = hits
+      assign c2['detail'] = hits
     endunless
     assign checks = checks | array_add: c2
 
     assign d = t.description | default: ''
     assign prev = desc_map[d] | default: 0
-    hash_assign desc_map[d] = prev | plus: 1
+    assign desc_map[d] = prev | plus: 1
   endfor
 
   # ---- description uniqueness (one check per tool) ----
@@ -73,13 +73,13 @@
     if cnt > 1
       assign uniq = false
     endif
-    assign c = '{}' | parse_json
-    hash_assign c['category'] = 'surface'
-    hash_assign c['check'] = 'desc_unique'
-    hash_assign c['target'] = t.name
-    hash_assign c['passed'] = uniq
+    assign c = {}
+    assign c['category'] = 'surface'
+    assign c['check'] = 'desc_unique'
+    assign c['target'] = t.name
+    assign c['passed'] = uniq
     unless uniq
-      hash_assign c['detail'] = 'description is identical to another tool'
+      assign c['detail'] = 'description is identical to another tool'
     endunless
     assign checks = checks | array_add: c
   endfor
@@ -98,28 +98,28 @@
     if found
       assign exists = true
     endif
-    assign c = '{}' | parse_json
-    hash_assign c['category'] = 'golden'
-    hash_assign c['check'] = 'case_tool_exists'
-    hash_assign c['target'] = kase.name
-    hash_assign c['passed'] = exists
+    assign c = {}
+    assign c['category'] = 'golden'
+    assign c['check'] = 'case_tool_exists'
+    assign c['target'] = kase.name
+    assign c['passed'] = exists
     unless exists
       assign det = 'expected_tool "' | append: kase.expected_tool | append: '" not registered'
-      hash_assign c['detail'] = det
+      assign c['detail'] = det
     endunless
     assign checks = checks | array_add: c
 
     if found
       assign args = kase.expected_args_json | parse_json
       function val = 'modules/mcp/commands/validate/json_schema', value: args, schema: found.input_schema, depth: 1, max_depth: cfg.defaults.max_schema_depth, path: 'arguments'
-      assign c2 = '{}' | parse_json
-      hash_assign c2['category'] = 'golden'
-      hash_assign c2['check'] = 'case_args_valid'
-      hash_assign c2['target'] = kase.name
-      hash_assign c2['passed'] = val.valid
+      assign c2 = {}
+      assign c2['category'] = 'golden'
+      assign c2['check'] = 'case_args_valid'
+      assign c2['target'] = kase.name
+      assign c2['passed'] = val.valid
       unless val.valid
         assign det = val.errors | join: '; '
-        hash_assign c2['detail'] = det
+        assign c2['detail'] = det
       endunless
       assign checks = checks | array_add: c2
     endif
@@ -130,7 +130,7 @@
   # no_pattern_on_string flags only display/content fields (name/title/description/…)
   # with no pattern/enum/format — the ones that can carry a stored HTML/script payload.
   # This is the live counterpart to the dev-time static linter, surfaced in /mcp-admin.
-  assign warnings = '[]' | parse_json
+  assign warnings = []
   assign display_re = 'name,title,label,summary,description,short_description,venue,message,body,content,comment,subject,headline,caption'
   for t in tools
     assign props = t.input_schema.properties
@@ -140,11 +140,11 @@
         assign p = props[pk]
         if p.type == 'string'
           if p.maxLength == blank and p.enum == blank
-            assign w = '{}' | parse_json
-            hash_assign w['tool'] = t.name
-            hash_assign w['check'] = 'no_maxlength'
-            hash_assign w['field'] = pk
-            hash_assign w['detail'] = 'string field has no maxLength (unbounded input)'
+            assign w = {}
+            assign w['tool'] = t.name
+            assign w['check'] = 'no_maxlength'
+            assign w['field'] = pk
+            assign w['detail'] = 'string field has no maxLength (unbounded input)'
             assign warnings = warnings | array_add: w
           endif
           assign constrained = false
@@ -156,11 +156,11 @@
             assign is_display = true
           endif
           if constrained == false and is_display
-            assign w = '{}' | parse_json
-            hash_assign w['tool'] = t.name
-            hash_assign w['check'] = 'no_pattern_on_string'
-            hash_assign w['field'] = pk
-            hash_assign w['detail'] = 'display/content field has no pattern/enum — add "pattern":"^[^<>]*$" so HTML/script payloads are rejected at validation'
+            assign w = {}
+            assign w['tool'] = t.name
+            assign w['check'] = 'no_pattern_on_string'
+            assign w['field'] = pk
+            assign w['detail'] = 'display/content field has no pattern/enum — add "pattern":"^[^<>]*$" so HTML/script payloads are rejected at validation'
             assign warnings = warnings | array_add: w
           endif
         endif
@@ -172,7 +172,7 @@
   # ---- aggregate ----
   assign total = checks | size
   assign passed = 0
-  assign failures = '[]' | parse_json
+  assign failures = []
   for c in checks
     if c.passed
       assign passed = passed | plus: 1
@@ -185,12 +185,12 @@
 
   graphql _ = 'modules/mcp/eval/run_create', run_id: run_id, total: total, passed: passed, failed: failed, failures_json: failures_json, warnings_json: warnings_json, occurred_at: occurred_at
 
-  assign out = '{}' | parse_json
-  hash_assign out['run_id'] = run_id
-  hash_assign out['total'] = total
-  hash_assign out['passed'] = passed
-  hash_assign out['failed'] = failed
-  hash_assign out['failures'] = failures
-  hash_assign out['warnings'] = warnings
+  assign out = {}
+  assign out['run_id'] = run_id
+  assign out['total'] = total
+  assign out['passed'] = passed
+  assign out['failed'] = failed
+  assign out['failures'] = failures
+  assign out['warnings'] = warnings
   return out
 %}

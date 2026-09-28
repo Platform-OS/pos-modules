@@ -15,8 +15,7 @@
  * CI sets MCP_SEED_TEST_FIXTURES=1 for the live test stage. The migration lives in the
  * TEST APP only (app/migrations/); the published module ships zero migrations.
  *
- * Safety: the fixture data is embedded as JSON inside a single-quoted Liquid string
- * parsed via `parse_json`. We ASSERT the JSON contains no `'`, `{{`, or `{%` sequence
+ * Safety: the fixture data is embedded as an inline JSON literal in the Liquid template. We ASSERT the JSON contains no `'`, `{{`, or `{%` sequence
  * (which would corrupt the Liquid template) and fail loudly if the seed ever introduces
  * one — the same footgun class documented across this module.
  */
@@ -64,8 +63,8 @@ const migration = `{% comment %}
 %}
 {% if on %}
 {% liquid
-  assign users = '${usersJson}' | parse_json
-  assign models = '${modelsJson}' | parse_json
+  assign users = ${usersJson}
+  assign models = ${modelsJson}
 %}
 {% graphql _seed_users, users: users %}
   mutation($users: [UserImport!]!) {

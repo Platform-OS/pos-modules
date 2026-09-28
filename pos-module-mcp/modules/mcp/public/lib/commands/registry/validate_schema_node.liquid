@@ -22,15 +22,15 @@
   @return {object} { valid:boolean, errors:[string] }
 {%- endcomment -%}
 {% liquid
-  assign errors = '[]' | parse_json
+  assign errors = []
   assign at = path | default: '(root)'
 
   if depth > max_depth
     assign msg = at | append: ': schema nesting exceeds max depth'
     assign errors = errors | array_add: msg
-    assign out = '{}' | parse_json
-    hash_assign out['valid'] = false
-    hash_assign out['errors'] = errors
+    assign out = {}
+    assign out['valid'] = false
+    assign out['errors'] = errors
     return out
   endif
 
@@ -116,12 +116,12 @@
     endunless
   endif
 
-  assign out = '{}' | parse_json
+  assign out = {}
   assign is_valid = false
   if errors.size == 0
     assign is_valid = true
   endif
-  hash_assign out['valid'] = is_valid
-  hash_assign out['errors'] = errors
+  assign out['valid'] = is_valid
+  assign out['errors'] = errors
   return out
 %}

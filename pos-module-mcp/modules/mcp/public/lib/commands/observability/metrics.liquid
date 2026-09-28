@@ -25,23 +25,23 @@
 
   # by_outcome — the execution_outcome vocabulary emitted by the call pipeline (§9.2).
   assign outcome_names = 'success,error,rolled_back,pending_approval,denied,invalid,replayed,suspended,approval_duplicate,approval_throttled' | split: ','
-  assign by_outcome = '{}' | parse_json
+  assign by_outcome = {}
   for o in outcome_names
     graphql co = 'modules/mcp/ledger/count_by', name: 'execution_outcome', value: o
     assign n = co.records.total_entries | plus: 0
     if n > 0
-      hash_assign by_outcome[o] = n
+      assign by_outcome[o] = n
     endif
   endfor
 
   # by_decision — allow | deny | not_applicable.
   assign decision_names = 'allow,deny,not_applicable' | split: ','
-  assign by_decision = '{}' | parse_json
+  assign by_decision = {}
   for d in decision_names
     graphql cd = 'modules/mcp/ledger/count_by', name: 'authz_decision', value: d
     assign n = cd.records.total_entries | plus: 0
     if n > 0
-      hash_assign by_decision[d] = n
+      assign by_decision[d] = n
     endif
   endfor
 
@@ -54,7 +54,7 @@
   # by_tool — exact count per REGISTERED tool (+ the built-in poll tool), enumerated
   # from the (cached) registry. Historical calls to tools no longer registered are not
   # attributed — the registered set is what an operator manages.
-  assign by_tool = '{}' | parse_json
+  assign by_tool = {}
   function reg = 'modules/mcp/commands/registry/load'
   assign tool_names = '' | split: ','
   for t in reg.tools
@@ -65,7 +65,7 @@
     graphql ctool = 'modules/mcp/ledger/count_by', name: 'tool_name', value: tn
     assign cnt = ctool.records.total_entries | plus: 0
     if cnt > 0
-      hash_assign by_tool[tn] = cnt
+      assign by_tool[tn] = cnt
     endif
   endfor
   # platformos-check-enable NestedGraphQLQuery
@@ -96,7 +96,7 @@
   #    Bounded RECENT sample → p50/p95 over the most recent calls, labeled `window`. ──
   assign lat_sample = latency_sample | default: 500 | plus: 0
   graphql dres = 'modules/mcp/ledger/recent_durations', per_page: lat_sample
-  assign durations = '[]' | parse_json
+  assign durations = []
   for r in dres.records.results
     unless r.duration_ms == blank
       assign dm = r.duration_ms | plus: 0
@@ -104,7 +104,7 @@
     endunless
   endfor
 
-  assign latency = '{}' | parse_json
+  assign latency = {}
   assign dcount = durations | size
   if dcount > 0
     assign sorted = durations | sort
@@ -116,13 +116,13 @@
     if i95 >= dcount
       assign i95 = dcount | minus: 1
     endif
-    hash_assign latency['p50_ms'] = sorted[i50]
-    hash_assign latency['p95_ms'] = sorted[i95]
-    hash_assign latency['samples'] = dcount
-    hash_assign latency['window'] = lat_sample
-    hash_assign latency['recent'] = true
+    assign latency['p50_ms'] = sorted[i50]
+    assign latency['p95_ms'] = sorted[i95]
+    assign latency['samples'] = dcount
+    assign latency['window'] = lat_sample
+    assign latency['recent'] = true
   else
-    hash_assign latency['available'] = false
+    assign latency['available'] = false
   endif
 
   # ── Chain verification. Default (chain_tail unset/0) = full walk; chain_tail:N = the
@@ -134,22 +134,22 @@
     function chain = 'modules/mcp/commands/ledger/verify_chain'
   endif
 
-  assign out = '{}' | parse_json
-  hash_assign out['total'] = total
-  hash_assign out['by_outcome'] = by_outcome
-  hash_assign out['by_tool'] = by_tool
-  hash_assign out['by_decision'] = by_decision
-  hash_assign out['denials'] = denials
-  hash_assign out['denial_rate'] = denial_rate
-  hash_assign out['blocked'] = blocked
-  hash_assign out['blocked_rate'] = blocked_rate
-  hash_assign out['suspends'] = suspends
-  hash_assign out['rollbacks'] = rollbacks
-  hash_assign out['rollback_rate'] = rollback_rate
-  hash_assign out['pending_approvals'] = pending_approvals
-  hash_assign out['schema_rejections'] = schema_rejections
-  hash_assign out['rate_limited'] = rate_limited
-  hash_assign out['chain'] = chain
-  hash_assign out['latency'] = latency
+  assign out = {}
+  assign out['total'] = total
+  assign out['by_outcome'] = by_outcome
+  assign out['by_tool'] = by_tool
+  assign out['by_decision'] = by_decision
+  assign out['denials'] = denials
+  assign out['denial_rate'] = denial_rate
+  assign out['blocked'] = blocked
+  assign out['blocked_rate'] = blocked_rate
+  assign out['suspends'] = suspends
+  assign out['rollbacks'] = rollbacks
+  assign out['rollback_rate'] = rollback_rate
+  assign out['pending_approvals'] = pending_approvals
+  assign out['schema_rejections'] = schema_rejections
+  assign out['rate_limited'] = rate_limited
+  assign out['chain'] = chain
+  assign out['latency'] = latency
   return out
 %}

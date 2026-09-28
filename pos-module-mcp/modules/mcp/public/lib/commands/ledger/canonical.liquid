@@ -20,15 +20,15 @@
 {%- endcomment -%}
 {% liquid
   assign e = entry
-  assign p = '{}' | parse_json
+  assign p = {}
 
   assign str_fields = 'occurred_at,method,tool_name,tool_version,client_id,agent_id,principal_id,delegation_mode,input_sha256,authz_policy,authz_decision,authz_reason,execution_outcome,subject_type,subject_id,idempotency_key,request_id,audit_json' | split: ','
   for f in str_fields
     assign v = e[f]
     if v == blank
-      hash_assign p[f] = null
+      assign p[f] = null
     else
-      hash_assign p[f] = v | append: ''
+      assign p[f] = v | append: ''
     endif
   endfor
 
@@ -36,9 +36,9 @@
   for f in int_fields
     assign v = e[f]
     if v == blank
-      hash_assign p[f] = null
+      assign p[f] = null
     else
-      hash_assign p[f] = v | plus: 0
+      assign p[f] = v | plus: 0
     endif
   endfor
 

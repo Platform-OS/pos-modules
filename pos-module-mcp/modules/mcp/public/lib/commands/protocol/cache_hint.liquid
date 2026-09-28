@@ -28,8 +28,8 @@
     assign ttl = cfg.cache.resources_ttl_ms
   endif
   # platformos-check-enable UnknownProperty
-  assign out = '{}' | parse_json
-  hash_assign out['ttlMs'] = ttl | plus: 0
-  hash_assign out['cacheScope'] = scope
+  assign out = {}
+  assign out['ttlMs'] = ttl | plus: 0
+  assign out['cacheScope'] = scope
   return out
 %}

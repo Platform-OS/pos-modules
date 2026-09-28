@@ -11,8 +11,8 @@
 {% liquid
   assign uid = context.current_user.id | append: ''
   if uid == blank
-    assign out = '{}' | parse_json
-    hash_assign out['level'] = 'anonymous'
+    assign out = {}
+    assign out['level'] = 'anonymous'
     return out
   endif
 
@@ -29,26 +29,26 @@
     endif
   endfor
   if is_bootstrap
-    assign out = '{}' | parse_json
-    hash_assign out['level'] = 'admin'
-    hash_assign out['bootstrap'] = true
+    assign out = {}
+    assign out['level'] = 'admin'
+    assign out['bootstrap'] = true
     return out
   endif
 
   graphql r = 'modules/mcp/access/for_user', user_id: uid
   assign rec = r.records.results.first
-  assign out = '{}' | parse_json
+  assign out = {}
   if rec == blank
-    hash_assign out['level'] = 'none'
+    assign out['level'] = 'none'
     return out
   endif
-  hash_assign out['record_id'] = rec.id
+  assign out['record_id'] = rec.id
   if rec.status == 'active'
-    hash_assign out['level'] = rec.role
+    assign out['level'] = rec.role
   elsif rec.status == 'requested'
-    hash_assign out['level'] = 'requested'
+    assign out['level'] = 'requested'
   else
-    hash_assign out['level'] = 'none'
+    assign out['level'] = 'none'
   endif
   return out
 %}

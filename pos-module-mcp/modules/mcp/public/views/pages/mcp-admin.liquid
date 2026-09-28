@@ -131,9 +131,9 @@ layout: ''
       if abuse_win > 0
         assign cur_window = now_unix | divided_by: abuse_win
       endif
-      assign abuse_map = '{}' | parse_json
+      assign abuse_map = {}
       for rc in rc_res.records.results
-        hash_assign abuse_map[rc.key] = rc.count
+        assign abuse_map[rc.key] = rc.count
       endfor
       assign abuse_threshold = cfg.defaults.abuse_threshold | plus: 0
       assign half_threshold = 1
@@ -149,10 +149,10 @@ layout: ''
 
     if active_tab == 'approvals'
       # Per-principal pending-approval counts, for the bulk-drain control.
-      assign pending_by_pid = '{}' | parse_json
+      assign pending_by_pid = {}
       for a in pending
         assign prev_p = pending_by_pid[a.principal_id] | default: 0
-        hash_assign pending_by_pid[a.principal_id] = prev_p | plus: 1
+        assign pending_by_pid[a.principal_id] = prev_p | plus: 1
       endfor
     endif
 

@@ -29,14 +29,14 @@
   function cfg = 'modules/mcp/commands/config'
   assign prefix = cfg.policy_prefix | default: 'mcp/policies'
 
-  assign result = '{}' | parse_json
-  hash_assign result['policy'] = policy
-  hash_assign result['allow'] = false
+  assign result = {}
+  assign result['policy'] = policy
+  assign result['allow'] = false
 
   # A tool with no policy never reaches here (registry rejects it, §12.2). Guard
   # anyway — fail closed.
   if policy == blank
-    hash_assign result['reason'] = 'no_policy'
+    assign result['reason'] = 'no_policy'
     return result
   endif
 
@@ -44,8 +44,8 @@
   # an explicit, named decision (not an implicit allow) — used only by module
   # built-ins (e.g. mcp_approval_status) that self-scope in their handler.
   if policy == 'mcp_authenticated'
-    hash_assign result['allow'] = true
-    hash_assign result['reason'] = 'authenticated'
+    assign result['allow'] = true
+    assign result['reason'] = 'authenticated'
     return result
   endif
 
@@ -61,27 +61,27 @@
   endtry
 
   if errored
-    hash_assign result['reason'] = 'policy_unavailable'
+    assign result['reason'] = 'policy_unavailable'
     return result
   endif
 
   # Normalize the policy's return. Only an explicit allow permits.
   assign dt = decision | type_of | downcase
   if decision == true
-    hash_assign result['allow'] = true
-    hash_assign result['reason'] = 'allowed'
+    assign result['allow'] = true
+    assign result['reason'] = 'allowed'
   elsif dt contains 'hash'
     if decision.allow == true
-      hash_assign result['allow'] = true
-      hash_assign result['reason'] = decision.reason | default: 'allowed'
+      assign result['allow'] = true
+      assign result['reason'] = decision.reason | default: 'allowed'
     else
-      hash_assign result['allow'] = false
-      hash_assign result['reason'] = decision.reason | default: 'denied'
+      assign result['allow'] = false
+      assign result['reason'] = decision.reason | default: 'denied'
     endif
   else
     # boolean false, null, or an unexpected shape → deny (fail-closed).
-    hash_assign result['allow'] = false
-    hash_assign result['reason'] = 'denied'
+    assign result['allow'] = false
+    assign result['reason'] = 'denied'
   endif
 
   return result

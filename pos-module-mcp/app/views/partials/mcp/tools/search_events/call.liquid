@@ -21,25 +21,25 @@
   graphql res = 'mcp/search_events', keyword: keyword, limit: limit
   assign rows = res.events.results
 
-  assign events = '[]' | parse_json
+  assign events = []
   for r in rows
-    assign e = '{}' | parse_json
-    hash_assign e['id'] = r.id
-    hash_assign e['name'] = r.name
-    hash_assign e['summary'] = r.short_description
-    hash_assign e['start_date'] = r.start_date
-    hash_assign e['venue'] = r.venue
-    hash_assign e['link'] = r.link
+    assign e = {}
+    assign e['id'] = r.id
+    assign e['name'] = r.name
+    assign e['summary'] = r.short_description
+    assign e['start_date'] = r.start_date
+    assign e['venue'] = r.venue
+    assign e['link'] = r.link
     assign events = events | array_add: e
   endfor
 
-  assign result = '{}' | parse_json
-  hash_assign result['query'] = keyword
-  hash_assign result['count'] = res.events.total_entries
-  hash_assign result['events'] = events
+  assign result = {}
+  assign result['query'] = keyword
+  assign result['count'] = res.events.total_entries
+  assign result['events'] = events
 
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  hash_assign out['result'] = result
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
   return out
 %}

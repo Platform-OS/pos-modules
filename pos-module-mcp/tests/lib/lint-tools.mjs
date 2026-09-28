@@ -65,31 +65,31 @@ function stripComments(src) {
 }
 
 // Parse the conventional manifest Liquid into a plain object. The manifest builds a
-// single hash via `hash_assign m['key'] = <value>`; we extract scalars + the
+// single hash via `assign m['key'] = <value>`; we extract scalars + the
 // input_schema JSON literal. Unparseable fields → recorded as undefined (checks that
 // need them emit an info rather than a false positive).
 function parseManifest(src) {
   const m = {};
   const code = stripComments(src);
-  // string scalars: hash_assign X['key'] = 'value'
-  for (const mt of code.matchAll(/hash_assign\s+\w+\['([a-z_]+)'\]\s*=\s*'([^']*)'/g)) {
+  // string scalars: assign X['key'] = 'value'
+  for (const mt of code.matchAll(/(?:hash_)?assign\s+\w+\['([a-z_]+)'\]\s*=\s*'([^']*)'/g)) {
     if (m[mt[1]] === undefined) m[mt[1]] = mt[2];
   }
   // booleans
-  for (const mt of code.matchAll(/hash_assign\s+\w+\['([a-z_]+)'\]\s*=\s*(true|false)\b/g)) {
+  for (const mt of code.matchAll(/(?:hash_)?assign\s+\w+\['([a-z_]+)'\]\s*=\s*(true|false)\b/g)) {
     m[mt[1]] = mt[2] === 'true';
   }
   // numbers
-  for (const mt of code.matchAll(/hash_assign\s+\w+\['([a-z_]+)'\]\s*=\s*(-?\d+)\s*$/gm)) {
+  for (const mt of code.matchAll(/(?:hash_)?assign\s+\w+\['([a-z_]+)'\]\s*=\s*(-?\d+)\s*$/gm)) {
     if (m[mt[1]] === undefined) m[mt[1]] = Number(mt[2]);
   }
   // audit_fields: '...' | split: ','
-  const af = code.match(/hash_assign\s+\w+\['audit_fields'\]\s*=\s*'([^']*)'\s*\|\s*split/);
+  const af = code.match(/(?:hash_)?assign\s+\w+\['audit_fields'\]\s*=\s*'([^']*)'\s*\|\s*split/);
   if (af) m.audit_fields = af[1].split(',').map((x) => x.trim()).filter(Boolean);
-  // input_schema: the JSON literal fed to parse_json that is an object schema.
-  for (const mt of code.matchAll(/'(\{[^']*\})'\s*\|\s*parse_json/g)) {
+  // input_schema: the inline JSON literal (or legacy '...' | parse_json string) that is an object schema.
+  for (const mt of code.matchAll(/'(\{[^']*\})'\s*\|\s*parse_json|=\s*(\{[^\n]*\})\s*$/gm)) {
     try {
-      const obj = JSON.parse(mt[1]);
+      const obj = JSON.parse(mt[1] ?? mt[2]);
       if (obj && (obj.type === 'object' || obj.properties)) { m.input_schema = obj; break; }
     } catch { /* not this one */ }
   }
@@ -347,7 +347,7 @@ function lintHandler(tool, handlerFile, m) {
   }
 
   // --- returning secrets ---
-  if (/context\.constants|context\.session/.test(code) && /hash_assign\s+result\b/.test(code)) {
+  if (/context\.constants|context\.session/.test(code) && /(?:hash_)?assign\s+result\b/.test(code)) {
     add('warn', tool, F, 'secret-leak', 'handler reads constants/session and builds a result — ensure no secret/session value is returned to the agent');
   }
 
@@ -380,8 +380,8 @@ function parseRegistry() {
   if (src === null) { add('error', '(registry)', rel(REGISTRY), 'registry-missing', 'app/views/partials/mcp/registry.liquid not found'); return []; }
   const code = stripComments(src);
   const names = {}, paths = {};
-  for (const mt of code.matchAll(/hash_assign\s+(\w+)\['name'\]\s*=\s*'([^']+)'/g)) names[mt[1]] = mt[2];
-  for (const mt of code.matchAll(/hash_assign\s+(\w+)\['path'\]\s*=\s*'([^']+)'/g)) paths[mt[1]] = mt[2];
+  for (const mt of code.matchAll(/(?:hash_)?assign\s+(\w+)\['name'\]\s*=\s*'([^']+)'/g)) names[mt[1]] = mt[2];
+  for (const mt of code.matchAll(/(?:hash_)?assign\s+(\w+)\['path'\]\s*=\s*'([^']+)'/g)) paths[mt[1]] = mt[2];
   const entries = [];
   for (const v of Object.keys(names)) {
     if (!paths[v]) { add('error', names[v], rel(REGISTRY), 'registry-entry', `registry entry "${names[v]}" has no path`); continue; }

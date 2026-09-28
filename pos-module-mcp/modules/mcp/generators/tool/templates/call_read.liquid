@@ -4,15 +4,15 @@
 {%- endcomment -%}
 {% liquid
   graphql r = 'mcp/<%= toolName %>', keyword: arguments.query, limit: arguments.limit | default: 10
-  assign items = '[]' | parse_json
+  assign items = []
   for row in r.items.results
     assign items = items | array_add: row
   endfor
-  assign result = '{}' | parse_json
-  hash_assign result['count'] = r.items.total_entries
-  hash_assign result['items'] = items
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  hash_assign out['result'] = result
+  assign result = {}
+  assign result['count'] = r.items.total_entries
+  assign result['items'] = items
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
   return out
 %}

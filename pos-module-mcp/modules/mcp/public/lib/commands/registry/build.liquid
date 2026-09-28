@@ -27,8 +27,8 @@
     assign entries = null
   endtry
 
-  assign tools = '[]' | parse_json
-  assign excluded = '[]' | parse_json
+  assign tools = []
+  assign excluded = []
 
   if entries
     for entry in entries
@@ -52,11 +52,11 @@
       endif
 
       if load_error
-        assign ex = '{}' | parse_json
-        hash_assign ex['name'] = reg_name | default: '(unnamed)'
-        assign errs = '[]' | parse_json
+        assign ex = {}
+        assign ex['name'] = reg_name | default: '(unnamed)'
+        assign errs = []
         assign errs = errs | array_add: load_error
-        hash_assign ex['errors'] = errs
+        assign ex['errors'] = errs
         assign excluded = excluded | array_add: ex
         continue
       endif
@@ -64,12 +64,12 @@
       # --- Identity guard: a manifest may not claim a name other than the one it
       #     was registered under (prevents a moved/edited file shadowing another). ---
       if reg_name != blank and manifest.name != reg_name
-        assign ex = '{}' | parse_json
-        hash_assign ex['name'] = reg_name
-        assign errs = '[]' | parse_json
+        assign ex = {}
+        assign ex['name'] = reg_name
+        assign errs = []
         assign gmsg = 'manifest name "' | append: manifest.name | append: '" does not match registered name "' | append: reg_name | append: '"'
         assign errs = errs | array_add: gmsg
-        hash_assign ex['errors'] = errs
+        assign ex['errors'] = errs
         assign excluded = excluded | array_add: ex
         log gmsg, type: 'mcp.registry_name_mismatch'
         continue
@@ -79,7 +79,7 @@
       function v = 'modules/mcp/commands/registry/manifest_schema', manifest: manifest, max_depth: cfg.defaults.max_schema_depth
       if v.valid
         assign m = manifest
-        hash_assign m['_warnings'] = v.warnings
+        assign m['_warnings'] = v.warnings
         assign tools = tools | array_add: m
         if v.warnings.size > 0
           assign wj = v.warnings | join: '; '
@@ -87,9 +87,9 @@
           log _lm, type: 'mcp.registry_lint_warning'
         endif
       else
-        assign ex = '{}' | parse_json
-        hash_assign ex['name'] = v.name | default: reg_name | default: '(unnamed)'
-        hash_assign ex['errors'] = v.errors
+        assign ex = {}
+        assign ex['name'] = v.name | default: reg_name | default: '(unnamed)'
+        assign ex['errors'] = v.errors
         assign excluded = excluded | array_add: ex
         assign ej = v.errors | join: '; '
         assign _lm = ex.name | append: ': ' | append: ej
@@ -101,22 +101,22 @@
   # Built-in engine tools (spec §9.6) — always served, no app registration. Their
   # handlers are module commands; they use the mcp_authenticated built-in policy and
   # self-scope. Injected after app tools so an app cannot shadow them by name.
-  assign builtin = '{}' | parse_json
-  hash_assign builtin['name'] = 'mcp_approval_status'
-  hash_assign builtin['version'] = '1.0.0'
-  hash_assign builtin['description'] = 'Check the status of an action you requested that required operator approval. Pass the handle you were given. Returns pending, executed, rejected, or expired.'
-  hash_assign builtin['input_schema'] = '{"type":"object","additionalProperties":false,"required":["handle"],"properties":{"handle":{"type":"string","minLength":1,"maxLength":100,"description":"the approval handle returned when a tool required approval"}}}' | parse_json
-  hash_assign builtin['mutating'] = false
-  hash_assign builtin['authorization_policy'] = 'mcp_authenticated'
-  hash_assign builtin['requires_approval'] = false
-  hash_assign builtin['handler'] = 'modules/mcp/commands/builtin/approval_status'
-  hash_assign builtin['builtin'] = true
-  hash_assign builtin['_warnings'] = '[]' | parse_json
+  assign builtin = {}
+  assign builtin['name'] = 'mcp_approval_status'
+  assign builtin['version'] = '1.0.0'
+  assign builtin['description'] = 'Check the status of an action you requested that required operator approval. Pass the handle you were given. Returns pending, executed, rejected, or expired.'
+  assign builtin['input_schema'] = {"type":"object","additionalProperties":false,"required":["handle"],"properties":{"handle":{"type":"string","minLength":1,"maxLength":100,"description":"the approval handle returned when a tool required approval"}}}
+  assign builtin['mutating'] = false
+  assign builtin['authorization_policy'] = 'mcp_authenticated'
+  assign builtin['requires_approval'] = false
+  assign builtin['handler'] = 'modules/mcp/commands/builtin/approval_status'
+  assign builtin['builtin'] = true
+  assign builtin['_warnings'] = []
   assign tools = tools | array_add: builtin
 
-  assign out = '{}' | parse_json
-  hash_assign out['tools'] = tools
-  hash_assign out['excluded'] = excluded
-  hash_assign out['count'] = tools | size
+  assign out = {}
+  assign out['tools'] = tools
+  assign out['excluded'] = excluded
+  assign out['count'] = tools | size
   return out
 %}

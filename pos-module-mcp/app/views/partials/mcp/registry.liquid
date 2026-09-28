@@ -12,21 +12,21 @@
   own name (identity guard).
 {%- endcomment -%}
 {% liquid
-  assign tools = '[]' | parse_json
+  assign tools = []
 
-  assign e1 = '{}' | parse_json
-  hash_assign e1['name'] = 'search_events'
-  hash_assign e1['path'] = 'mcp/tools/search_events'
+  assign e1 = {}
+  assign e1['name'] = 'search_events'
+  assign e1['path'] = 'mcp/tools/search_events'
   assign tools = tools | array_add: e1
 
-  assign e2 = '{}' | parse_json
-  hash_assign e2['name'] = 'create_event'
-  hash_assign e2['path'] = 'mcp/tools/create_event'
+  assign e2 = {}
+  assign e2['name'] = 'create_event'
+  assign e2['path'] = 'mcp/tools/create_event'
   assign tools = tools | array_add: e2
 
-  assign e3 = '{}' | parse_json
-  hash_assign e3['name'] = 'broadcast_event'
-  hash_assign e3['path'] = 'mcp/tools/broadcast_event'
+  assign e3 = {}
+  assign e3['name'] = 'broadcast_event'
+  assign e3['path'] = 'mcp/tools/broadcast_event'
   assign tools = tools | array_add: e3
 
   # ── TEST FIXTURES (gated) ──────────────────────────────────────────────────────
@@ -41,10 +41,10 @@
   if test_gate == '1' or test_gate == 'true'
     assign test_names = 'test_public,test_member,test_admin,test_echo,test_write,test_fail,test_approve,test_validate' | split: ','
     for tn in test_names
-      assign te = '{}' | parse_json
-      hash_assign te['name'] = tn
+      assign te = {}
+      assign te['name'] = tn
       assign tp = 'mcp/tools/' | append: tn
-      hash_assign te['path'] = tp
+      assign te['path'] = tp
       assign tools = tools | array_add: te
     endfor
   endif
@@ -59,10 +59,10 @@
   if vuln_gate == '1' or vuln_gate == 'true'
     assign vuln_names = 'vuln_privesc,vuln_idor,vuln_xss,vuln_secret,vuln_delete_all,vuln_delete_all_confirm' | split: ','
     for vn in vuln_names
-      assign ve = '{}' | parse_json
-      hash_assign ve['name'] = vn
+      assign ve = {}
+      assign ve['name'] = vn
       assign vp = 'mcp/tools/' | append: vn
-      hash_assign ve['path'] = vp
+      assign ve['path'] = vp
       assign tools = tools | array_add: ve
     endfor
   endif

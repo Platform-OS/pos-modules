@@ -18,9 +18,9 @@
 {% liquid
   function cfg = 'modules/mcp/commands/config'
   assign threshold = cfg.defaults.abuse_threshold | plus: 0
-  assign out = '{}' | parse_json
-  hash_assign out['suspended'] = false
-  hash_assign out['count'] = 0
+  assign out = {}
+  assign out['suspended'] = false
+  assign out['count'] = 0
   if threshold <= 0
     return out
   endif
@@ -36,23 +36,23 @@
   if existing
     assign count = existing.count | plus: 0
   endif
-  hash_assign out['count'] = count
+  assign out['count'] = count
 
   if count >= threshold
     unless token_id == blank
       graphql _ = 'modules/mcp/tokens/suspend', id: token_id
     endunless
-    assign le = '{}' | parse_json
-    hash_assign le['method'] = 'security/suspend'
-    hash_assign le['principal_id'] = principal_id
-    hash_assign le['agent_id'] = agent_id
-    hash_assign le['authz_decision'] = 'deny'
-    hash_assign le['authz_reason'] = 'abuse_threshold_exceeded'
-    hash_assign le['execution_outcome'] = 'suspended'
-    hash_assign le['error_code'] = -32001
-    hash_assign le['request_id'] = '' | uuid
+    assign le = {}
+    assign le['method'] = 'security/suspend'
+    assign le['principal_id'] = principal_id
+    assign le['agent_id'] = agent_id
+    assign le['authz_decision'] = 'deny'
+    assign le['authz_reason'] = 'abuse_threshold_exceeded'
+    assign le['execution_outcome'] = 'suspended'
+    assign le['error_code'] = -32001
+    assign le['request_id'] = '' | uuid
     function _ = 'modules/mcp/commands/ledger/append', entry: le
-    hash_assign out['suspended'] = true
+    assign out['suspended'] = true
     assign _lm = principal_id | append: ' suspended after ' | append: count | append: ' violations'
     log _lm, type: 'mcp.abuse_suspend'
   endif

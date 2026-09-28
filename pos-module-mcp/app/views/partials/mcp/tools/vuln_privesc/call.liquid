@@ -5,12 +5,12 @@
   user principal is the vulnerability.
 {%- endcomment -%}
 {% liquid
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  assign result = '{}' | parse_json
-  hash_assign result['admin_action'] = 'rotate_all_tokens'
-  hash_assign result['executed_by'] = principal.id
-  hash_assign result['note'] = 'admin-only effect executed by a non-admin — privilege escalation'
-  hash_assign out['result'] = result
+  assign out = {}
+  assign out['ok'] = true
+  assign result = {}
+  assign result['admin_action'] = 'rotate_all_tokens'
+  assign result['executed_by'] = principal.id
+  assign result['note'] = 'admin-only effect executed by a non-admin — privilege escalation'
+  assign out['result'] = result
   return out
 %}

@@ -20,7 +20,7 @@ format: json
 
   assign export_cap = 5000
   assign per_page = 100
-  assign out_rows = '[]' | parse_json
+  assign out_rows = []
   assign page = 1
   assign keep_going = true
   assign total_pages = 1
@@ -46,21 +46,21 @@ format: json
   endfor
 
   assign nrows = out_rows | size
-  assign payload = '{}' | parse_json
-  hash_assign payload['exported_at'] = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
-  hash_assign payload['count'] = nrows
+  assign payload = {}
+  assign payload['exported_at'] = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign payload['count'] = nrows
   assign was_capped = false
   if nrows >= export_cap
     assign was_capped = true
   endif
-  hash_assign payload['capped'] = was_capped
-  assign filt = '{}' | parse_json
-  hash_assign filt['tool_name'] = context.params.tool_name
-  hash_assign filt['principal_id'] = context.params.principal_id
-  hash_assign filt['client_id'] = context.params.client_id
-  hash_assign filt['authz_decision'] = context.params.authz_decision
-  hash_assign filt['execution_outcome'] = context.params.execution_outcome
-  hash_assign payload['filter'] = filt
-  hash_assign payload['rows'] = out_rows
+  assign payload['capped'] = was_capped
+  assign filt = {}
+  assign filt['tool_name'] = context.params.tool_name
+  assign filt['principal_id'] = context.params.principal_id
+  assign filt['client_id'] = context.params.client_id
+  assign filt['authz_decision'] = context.params.authz_decision
+  assign filt['execution_outcome'] = context.params.execution_outcome
+  assign payload['filter'] = filt
+  assign payload['rows'] = out_rows
   echo payload | json
 -%}

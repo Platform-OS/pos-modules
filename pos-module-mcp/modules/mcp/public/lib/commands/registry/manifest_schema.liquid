@@ -21,8 +21,8 @@
   @return {object} { valid, errors:[string], warnings:[string], name }
 {%- endcomment -%}
 {% liquid
-  assign errors = '[]' | parse_json
-  assign warnings = '[]' | parse_json
+  assign errors = []
+  assign warnings = []
   assign name = manifest.name
 
   # ---- name ----
@@ -132,10 +132,10 @@
   if errors.size == 0
     assign is_valid = true
   endif
-  assign out = '{}' | parse_json
-  hash_assign out['valid'] = is_valid
-  hash_assign out['errors'] = errors
-  hash_assign out['warnings'] = warnings
-  hash_assign out['name'] = name
+  assign out = {}
+  assign out['valid'] = is_valid
+  assign out['errors'] = errors
+  assign out['warnings'] = warnings
+  assign out['name'] = name
   return out
 %}

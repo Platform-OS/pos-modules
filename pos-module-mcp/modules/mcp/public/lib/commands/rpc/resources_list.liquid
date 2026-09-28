@@ -13,7 +13,7 @@
 {%- endcomment -%}
 {% liquid
   function cfg = 'modules/mcp/commands/config'
-  assign resources = '[]' | parse_json
+  assign resources = []
 
   if cfg.resources.expose_markdown_pages
     assign host = context.location.host
@@ -24,31 +24,31 @@
       graphql pres = 'modules/mcp/resources/pages_by_prefix', prefix: prefix, per_page: 100
       # platformos-check-enable NestedGraphQLQuery
       for page in pres.admin_pages.results
-        assign r = '{}' | parse_json
-        hash_assign r['uri'] = 'mcp+page:///' | append: page.slug
-        hash_assign r['name'] = page.slug
+        assign r = {}
+        assign r['uri'] = 'mcp+page:///' | append: page.slug
+        assign r['name'] = page.slug
         assign title = page.metadata.title | default: page.slug
-        hash_assign r['title'] = title
+        assign r['title'] = title
         assign desc = page.metadata.description | default: ''
         unless desc == blank
-          hash_assign r['description'] = desc
+          assign r['description'] = desc
         endunless
-        hash_assign r['mimeType'] = 'text/markdown'
-        assign meta = '{}' | parse_json
-        hash_assign meta['updated_at'] = page.content_updated_at
-        hash_assign meta['public_url'] = 'https://' | append: host | append: '/' | append: page.slug
-        hash_assign r['_meta'] = meta
+        assign r['mimeType'] = 'text/markdown'
+        assign meta = {}
+        assign meta['updated_at'] = page.content_updated_at
+        assign meta['public_url'] = 'https://' | append: host | append: '/' | append: page.slug
+        assign r['_meta'] = meta
         assign resources = resources | array_add: r
       endfor
     endfor
   endif
 
-  assign result = '{}' | parse_json
-  hash_assign result['resources'] = resources
+  assign result = {}
+  assign result['resources'] = resources
   # Client-side cache hint (2026-07-28 only; dispatch passes it or nil).
   unless cache == blank
-    hash_assign result['ttlMs'] = cache.ttlMs
-    hash_assign result['cacheScope'] = cache.cacheScope
+    assign result['ttlMs'] = cache.ttlMs
+    assign result['cacheScope'] = cache.cacheScope
   endunless
   return result
 %}

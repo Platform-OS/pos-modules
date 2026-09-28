@@ -8,16 +8,16 @@
   partial the engine invokes with validated arguments.
 {%- endcomment -%}
 {% liquid
-  assign m = '{}' | parse_json
-  hash_assign m['name'] = 'search_events'
-  hash_assign m['version'] = '1.0.0'
-  hash_assign m['description'] = 'Search the community PUBLISHED events by keyword and return upcoming matches (title, date, venue, link). Read-only; returns at most 20 events.'
-  assign schema = '{"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","minLength":1,"maxLength":80,"description":"keyword to match against event title and description"},"limit":{"type":"integer","minimum":1,"maximum":20,"description":"max events to return (default 10)"}}}' | parse_json
-  hash_assign m['input_schema'] = schema
-  hash_assign m['mutating'] = false
-  hash_assign m['authorization_policy'] = 'public_read'
-  hash_assign m['requires_approval'] = false
-  hash_assign m['idempotent'] = true
-  hash_assign m['handler'] = 'mcp/tools/search_events/call'
+  assign m = {}
+  assign m['name'] = 'search_events'
+  assign m['version'] = '1.0.0'
+  assign m['description'] = 'Search the community PUBLISHED events by keyword and return upcoming matches (title, date, venue, link). Read-only; returns at most 20 events.'
+  assign schema = {"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","minLength":1,"maxLength":80,"description":"keyword to match against event title and description"},"limit":{"type":"integer","minimum":1,"maximum":20,"description":"max events to return (default 10)"}}}
+  assign m['input_schema'] = schema
+  assign m['mutating'] = false
+  assign m['authorization_policy'] = 'public_read'
+  assign m['requires_approval'] = false
+  assign m['idempotent'] = true
+  assign m['handler'] = 'mcp/tools/search_events/call'
   return m
 %}

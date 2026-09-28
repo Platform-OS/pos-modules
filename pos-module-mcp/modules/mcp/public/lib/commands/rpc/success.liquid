@@ -6,9 +6,9 @@
   @return {object} { jsonrpc: "2.0", id, result }
 {%- endcomment -%}
 {% liquid
-  assign r = '{}' | parse_json
-  hash_assign r['jsonrpc'] = '2.0'
-  hash_assign r['id'] = id
-  hash_assign r['result'] = result
+  assign r = {}
+  assign r['jsonrpc'] = '2.0'
+  assign r['id'] = id
+  assign r['result'] = result
   return r
 %}

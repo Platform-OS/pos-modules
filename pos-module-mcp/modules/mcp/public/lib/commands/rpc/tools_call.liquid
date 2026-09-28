@@ -19,7 +19,7 @@
   @return {object} { http_status, headers?, body }
 {%- endcomment -%}
 {% liquid
-  assign out = '{}' | parse_json
+  assign out = {}
   # Pipeline latency clock (unix ms). Stamped onto ledger entries as `_start_ms`;
   # ledger/append records duration_ms from it.
   assign start_ms = 'now' | to_time | strftime: '%s%3N' | plus: 0
@@ -28,13 +28,13 @@
   unless auth.authenticated
     log auth.reason, type: 'mcp.auth_denied'
     function body = 'modules/mcp/commands/rpc/error', id: id, code: auth.error_code, message: auth.message
-    hash_assign out['http_status'] = auth.http_status
+    assign out['http_status'] = auth.http_status
     unless auth.www_authenticate == blank
-      assign hdrs = '{}' | parse_json
-      hash_assign hdrs['WWW-Authenticate'] = auth.www_authenticate
-      hash_assign out['headers'] = hdrs
+      assign hdrs = {}
+      assign hdrs['WWW-Authenticate'] = auth.www_authenticate
+      assign out['headers'] = hdrs
     endunless
-    hash_assign out['body'] = body
+    assign out['body'] = body
     return out
   endunless
 
@@ -44,8 +44,8 @@
   function abuse = 'modules/mcp/commands/limits/enforce_abuse', token_id: auth.token_id, principal_id: auth.principal.id, agent_id: auth.agent.id
   if abuse.suspended
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32001, message: 'Access suspended'
-    hash_assign out['http_status'] = 403
-    hash_assign out['body'] = body
+    assign out['http_status'] = 403
+    assign out['body'] = body
     return out
   endif
 
@@ -56,26 +56,26 @@
   assign rl_scope = 'principal:' | append: auth.principal.id
   function rl = 'modules/mcp/commands/limits/check', scope: rl_scope, limit: cfg.defaults.rate_limit_per_min
   unless rl.allowed
-    assign rle = '{}' | parse_json
-    hash_assign rle['method'] = 'tools/call'
-    hash_assign rle['tool_name'] = params.params.name
-    hash_assign rle['client_id'] = auth.agent.client_id
-    hash_assign rle['agent_id'] = auth.agent.id
-    hash_assign rle['principal_id'] = auth.principal.id
-    hash_assign rle['delegation_mode'] = auth.delegation_mode
-    hash_assign rle['authz_decision'] = 'not_applicable'
-    hash_assign rle['execution_outcome'] = 'error'
-    hash_assign rle['error_code'] = -32002
-    hash_assign rle['request_id'] = '' | uuid
-    hash_assign rle['_start_ms'] = start_ms
+    assign rle = {}
+    assign rle['method'] = 'tools/call'
+    assign rle['tool_name'] = params.params.name
+    assign rle['client_id'] = auth.agent.client_id
+    assign rle['agent_id'] = auth.agent.id
+    assign rle['principal_id'] = auth.principal.id
+    assign rle['delegation_mode'] = auth.delegation_mode
+    assign rle['authz_decision'] = 'not_applicable'
+    assign rle['execution_outcome'] = 'error'
+    assign rle['error_code'] = -32002
+    assign rle['request_id'] = '' | uuid
+    assign rle['_start_ms'] = start_ms
     function _ = 'modules/mcp/commands/ledger/append', entry: rle
     function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
-    assign hdrs = '{}' | parse_json
-    hash_assign hdrs['Retry-After'] = rl.retry_after | append: ''
-    hash_assign out['headers'] = hdrs
+    assign hdrs = {}
+    assign hdrs['Retry-After'] = rl.retry_after | append: ''
+    assign out['headers'] = hdrs
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32002, message: 'Rate limit exceeded'
-    hash_assign out['http_status'] = 429
-    hash_assign out['body'] = body
+    assign out['http_status'] = 429
+    assign out['body'] = body
     return out
   endunless
 
@@ -91,84 +91,84 @@
   assign request_id = '' | uuid
 
   # Base ledger entry for this authenticated call (fields filled per outcome).
-  assign le = '{}' | parse_json
-  hash_assign le['method'] = 'tools/call'
-  hash_assign le['tool_name'] = tool_name
-  hash_assign le['client_id'] = auth.agent.client_id
-  hash_assign le['agent_id'] = auth.agent.id
-  hash_assign le['principal_id'] = auth.principal.id
-  hash_assign le['delegation_mode'] = auth.delegation_mode
-  hash_assign le['input_sha256'] = input_sha256
-  hash_assign le['input_bytes'] = input_bytes
-  hash_assign le['request_id'] = request_id
-  hash_assign le['_start_ms'] = start_ms
+  assign le = {}
+  assign le['method'] = 'tools/call'
+  assign le['tool_name'] = tool_name
+  assign le['client_id'] = auth.agent.client_id
+  assign le['agent_id'] = auth.agent.id
+  assign le['principal_id'] = auth.principal.id
+  assign le['delegation_mode'] = auth.delegation_mode
+  assign le['input_sha256'] = input_sha256
+  assign le['input_bytes'] = input_bytes
+  assign le['request_id'] = request_id
+  assign le['_start_ms'] = start_ms
 
   # Step 4 — resolve the tool from the registry (explicit registration + valid
   # manifest + per-token allowed_tools narrowing). Unregistered → unknown tool.
   function tool = 'modules/mcp/commands/registry/resolve_tool', name: tool_name, allowed_tools: auth.agent.allowed_tools
   if tool == blank
-    hash_assign le['authz_decision'] = 'not_applicable'
-    hash_assign le['execution_outcome'] = 'invalid'
-    hash_assign le['error_code'] = -32602
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
     function _ = 'modules/mcp/commands/ledger/append', entry: le
     function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Unknown tool'
-    hash_assign out['http_status'] = 400
-    hash_assign out['body'] = body
+    assign out['http_status'] = 400
+    assign out['body'] = body
     return out
   endif
 
-  hash_assign le['tool_version'] = tool.version
-  hash_assign le['authz_policy'] = tool.authorization_policy
+  assign le['tool_version'] = tool.version
+  assign le['authz_policy'] = tool.authorization_policy
 
   # Step 5 — validate arguments against the tool's input_schema (STRICT, §10).
   # Normalize through a JSON round-trip first: request params arrive as
   # ActiveSupport::HashWithIndifferentAccess (not a plain Hash), and this also
   # coerces every nested value to a canonical JSON type so strict type checks are
   # uniform. Absent arguments validate as an empty object so required checks fire.
-  assign val_args = '{}' | parse_json
+  assign val_args = {}
   unless args == blank
     assign val_args = args_json | parse_json
   endunless
   function val = 'modules/mcp/commands/validate/json_schema', value: val_args, schema: tool.input_schema, depth: 1, max_depth: cfg.defaults.max_schema_depth, path: 'arguments'
   unless val.valid
-    hash_assign le['authz_decision'] = 'not_applicable'
-    hash_assign le['execution_outcome'] = 'invalid'
-    hash_assign le['error_code'] = -32602
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
     function _ = 'modules/mcp/commands/ledger/append', entry: le
     # Validation errors are argument-shape facts (which key, which constraint) —
     # safe to return so the agent can self-correct; they carry no server internals.
-    assign edata = '{}' | parse_json
-    hash_assign edata['validation_errors'] = val.errors
+    assign edata = {}
+    assign edata['validation_errors'] = val.errors
     function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
     # `error` declares and emits an optional `data` param (see rpc/error.liquid); the
     # linter's arg check doesn't detect it. Valid call.
     # platformos-check-disable PartialCallArguments
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Invalid arguments', data: edata
     # platformos-check-enable PartialCallArguments
-    hash_assign out['http_status'] = 400
-    hash_assign out['body'] = body
+    assign out['http_status'] = 400
+    assign out['body'] = body
     return out
   endunless
 
   # Step 6 — authorize against the tool's named policy (evaluated for the
   # principal; fail-closed, no implicit allow, §12.2).
   function authz = 'modules/mcp/commands/authorize/evaluate', policy: tool.authorization_policy, principal: auth.principal, agent: auth.agent, arguments: val_args, tool: tool, delegation_mode: auth.delegation_mode
-  hash_assign le['authz_reason'] = authz.reason
+  assign le['authz_reason'] = authz.reason
   unless authz.allow
-    hash_assign le['authz_decision'] = 'deny'
-    hash_assign le['execution_outcome'] = 'denied'
-    hash_assign le['error_code'] = -32001
+    assign le['authz_decision'] = 'deny'
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
     function _ = 'modules/mcp/commands/ledger/append', entry: le
     function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
     # Stable, generic wire message — the specific reason is in the ledger, not the
     # response (§13.2). Denials never leak policy internals.
     function body = 'modules/mcp/commands/rpc/error', id: id, code: -32001, message: 'Forbidden'
-    hash_assign out['http_status'] = 403
-    hash_assign out['body'] = body
+    assign out['http_status'] = 403
+    assign out['body'] = body
     return out
   endunless
-  hash_assign le['authz_decision'] = 'allow'
+  assign le['authz_decision'] = 'allow'
 
   # Step 7a — approval gate (§9.6). A `requires_approval` tool NEVER executes inline.
   # Record the intent, return an opaque handle, and attest a pending_approval
@@ -207,59 +207,59 @@
       if is_dup or over_cap
         function _v = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
         if is_dup
-          hash_assign le['execution_outcome'] = 'approval_duplicate'
+          assign le['execution_outcome'] = 'approval_duplicate'
           assign reject_msg = 'An identical proposal is already awaiting operator approval. It was NOT re-queued. Poll mcp_approval_status for the existing handle instead of resubmitting.'
           assign reject_status = 'duplicate'
         else
-          hash_assign le['execution_outcome'] = 'approval_throttled'
+          assign le['execution_outcome'] = 'approval_throttled'
           assign reject_msg = 'Too many proposals from this identity are already awaiting operator approval. This action was NOT queued. Wait for pending proposals to be decided before submitting more.'
           assign reject_status = 'queue_full'
         endif
         function _ = 'modules/mcp/commands/ledger/append', entry: le
 
-        assign content = '[]' | parse_json
-        assign item = '{}' | parse_json
-        hash_assign item['type'] = 'text'
-        hash_assign item['text'] = reject_msg
+        assign content = []
+        assign item = {}
+        assign item['type'] = 'text'
+        assign item['text'] = reject_msg
         assign content = content | array_add: item
-        assign result = '{}' | parse_json
-        hash_assign result['content'] = content
-        hash_assign result['isError'] = true
-        assign sc = '{}' | parse_json
-        hash_assign sc['status'] = reject_status
-        hash_assign sc['pending_count'] = live_pending
-        hash_assign result['structuredContent'] = sc
+        assign result = {}
+        assign result['content'] = content
+        assign result['isError'] = true
+        assign sc = {}
+        assign sc['status'] = reject_status
+        assign sc['pending_count'] = live_pending
+        assign result['structuredContent'] = sc
         function body = 'modules/mcp/commands/rpc/success', id: id, result: result
-        hash_assign out['http_status'] = 200
-        hash_assign out['body'] = body
+        assign out['http_status'] = 200
+        assign out['body'] = body
         return out
       endif
     endif
 
     assign store_args = val_args | json
     function pa = 'modules/mcp/commands/approval/create', tool: tool, arguments_json: store_args, input_sha256: input_sha256, principal: auth.principal, agent: auth.agent, request_id: request_id
-    hash_assign le['execution_outcome'] = 'pending_approval'
+    assign le['execution_outcome'] = 'pending_approval'
     function _ = 'modules/mcp/commands/ledger/append', entry: le
 
-    assign content = '[]' | parse_json
-    assign item = '{}' | parse_json
-    hash_assign item['type'] = 'text'
-    hash_assign item['text'] = 'This action requires operator approval and has NOT run. Poll mcp_approval_status with the handle to check its status.'
+    assign content = []
+    assign item = {}
+    assign item['type'] = 'text'
+    assign item['text'] = 'This action requires operator approval and has NOT run. Poll mcp_approval_status with the handle to check its status.'
     assign content = content | array_add: item
-    assign result = '{}' | parse_json
-    hash_assign result['content'] = content
-    hash_assign result['isError'] = false
-    assign sc = '{}' | parse_json
-    hash_assign sc['status'] = 'pending_approval'
-    hash_assign sc['handle'] = pa.handle
+    assign result = {}
+    assign result['content'] = content
+    assign result['isError'] = false
+    assign sc = {}
+    assign sc['status'] = 'pending_approval'
+    assign sc['handle'] = pa.handle
     # 2026-07-28 Tasks alias: the handle IS the taskId — a Tasks-aware client can poll
     # tasks/get / withdraw via tasks/update. Additive; 2025 clients ignore the extra key.
-    hash_assign sc['taskId'] = pa.handle
-    hash_assign sc['expires_at'] = pa.expires_at
-    hash_assign result['structuredContent'] = sc
+    assign sc['taskId'] = pa.handle
+    assign sc['expires_at'] = pa.expires_at
+    assign result['structuredContent'] = sc
     function body = 'modules/mcp/commands/rpc/success', id: id, result: result
-    hash_assign out['http_status'] = 200
-    hash_assign out['body'] = body
+    assign out['http_status'] = 200
+    assign out['body'] = body
     return out
   endif
 
@@ -271,27 +271,27 @@
   assign mcp_params = params.params
   assign idem_meta = mcp_params['_meta']
   assign idem_key = idem_meta.idempotencyKey | default: mcp_params.idempotencyKey
-  hash_assign le['idempotency_key'] = idem_key
+  assign le['idempotency_key'] = idem_key
   assign idem_store = false
   if tool.idempotent and idem_key != blank
     function hit = 'modules/mcp/commands/idempotency/lookup', key: idem_key, principal_id: auth.principal.id
     if hit.found
       if hit.input_sha256 != input_sha256
         # Same key, different arguments — a client error, never silently served.
-        hash_assign le['execution_outcome'] = 'invalid'
-        hash_assign le['error_code'] = -32602
+        assign le['execution_outcome'] = 'invalid'
+        assign le['error_code'] = -32602
         function _ = 'modules/mcp/commands/ledger/append', entry: le
         function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Idempotency-Key reused with different arguments'
-        hash_assign out['http_status'] = 409
-        hash_assign out['body'] = body
+        assign out['http_status'] = 409
+        assign out['body'] = body
         return out
       endif
       # Replay the original result without re-executing; attest the replay.
-      hash_assign le['execution_outcome'] = 'replayed'
+      assign le['execution_outcome'] = 'replayed'
       function _ = 'modules/mcp/commands/ledger/append', entry: le
       function body = 'modules/mcp/commands/rpc/success', id: id, result: hit.response
-      hash_assign out['http_status'] = 200
-      hash_assign out['body'] = body
+      assign out['http_status'] = 200
+      assign out['body'] = body
       return out
     endif
     assign idem_store = true
@@ -299,10 +299,10 @@
 
   # Step 8 — execute the tool handler (§7.3). context_meta gives the handler its
   # call identity without exposing engine internals.
-  assign context_meta = '{}' | parse_json
-  hash_assign context_meta['tool_name'] = tool_name
-  hash_assign context_meta['tool_version'] = tool.version
-  hash_assign context_meta['request_id'] = request_id
+  assign context_meta = {}
+  assign context_meta['tool_name'] = tool_name
+  assign context_meta['tool_version'] = tool.version
+  assign context_meta['request_id'] = request_id
 
   if tool.mutating
     # Step 8+9, MUTATING (§11.1, §4.3): handler + attestation share ONE transaction.
@@ -316,10 +316,10 @@
     transaction
       function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: auth.principal, agent: auth.agent, context_meta: context_meta
       if exec.outcome == 'success'
-        hash_assign le['execution_outcome'] = 'success'
+        assign le['execution_outcome'] = 'success'
         unless exec.subject_type == blank
-          hash_assign le['subject_type'] = exec.subject_type
-          hash_assign le['subject_id'] = exec.subject_id
+          assign le['subject_type'] = exec.subject_type
+          assign le['subject_id'] = exec.subject_id
         endunless
         assign append_ok = false
         try
@@ -351,17 +351,17 @@
     # platformos-check-enable LiquidHTMLSyntaxError
 
     unless committed
-      hash_assign le['execution_outcome'] = 'rolled_back'
-      hash_assign le['error_code'] = -32003
+      assign le['execution_outcome'] = 'rolled_back'
+      assign le['error_code'] = -32003
       function _ = 'modules/mcp/commands/ledger/append', entry: le
     endunless
   else
     # Step 8+9, READ: execute, then attest the outcome. No transaction.
     function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: auth.principal, agent: auth.agent, context_meta: context_meta
-    hash_assign le['execution_outcome'] = exec.outcome
+    assign le['execution_outcome'] = exec.outcome
     unless exec.subject_type == blank
-      hash_assign le['subject_type'] = exec.subject_type
-      hash_assign le['subject_id'] = exec.subject_id
+      assign le['subject_type'] = exec.subject_type
+      assign le['subject_id'] = exec.subject_id
     endunless
     function _ = 'modules/mcp/commands/ledger/append', entry: le
     if idem_store and exec.outcome == 'success'
@@ -375,7 +375,7 @@
   # protocol errors, so a successful protocol call carries HTTP 200 either way.
   function result = 'modules/mcp/commands/execute/result_of', exec: exec
   function body = 'modules/mcp/commands/rpc/success', id: id, result: result
-  hash_assign out['http_status'] = 200
-  hash_assign out['body'] = body
+  assign out['http_status'] = 200
+  assign out['body'] = body
   return out
 %}

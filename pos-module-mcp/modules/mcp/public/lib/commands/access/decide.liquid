@@ -19,7 +19,7 @@
   else
     graphql _ = 'modules/mcp/access/create', user_id: user_id, email: email, role: role, status: status, decided_by: decided_by, occurred_at: occurred_at
   endif
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
+  assign out = {}
+  assign out['ok'] = true
   return out
 %}

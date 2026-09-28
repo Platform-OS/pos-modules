@@ -185,16 +185,16 @@ prompt every platformOS generator uses.)
 
    ```liquid
    {% liquid
-     assign m = '{}' | parse_json
-     hash_assign m['name'] = 'search_events'
-     hash_assign m['version'] = '1.0.0'
-     hash_assign m['description'] = 'Search published events by keyword.'   # model-read; reviewed
-     hash_assign m['input_schema'] = '{"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","maxLength":80}}}' | parse_json
-     hash_assign m['mutating'] = false            # true → runs in a transaction
-     hash_assign m['authorization_policy'] = 'public_read'   # REQUIRED — no implicit allow
-     hash_assign m['requires_approval'] = false   # true → human-in-the-loop gate
-     hash_assign m['idempotent'] = false          # true → honor an idempotency key
-     hash_assign m['handler'] = 'mcp/tools/search_events/call'
+     assign m = {}
+     assign m['name'] = 'search_events'
+     assign m['version'] = '1.0.0'
+     assign m['description'] = 'Search published events by keyword.'   # model-read; reviewed
+     assign m['input_schema'] = {"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","maxLength":80}}}
+     assign m['mutating'] = false            # true → runs in a transaction
+     assign m['authorization_policy'] = 'public_read'   # REQUIRED — no implicit allow
+     assign m['requires_approval'] = false   # true → human-in-the-loop gate
+     assign m['idempotent'] = false          # true → honor an idempotency key
+     assign m['handler'] = 'mcp/tools/search_events/call'
      return m
    %}
    ```
@@ -207,9 +207,9 @@ prompt every platformOS generator uses.)
 3. Register in `app/views/partials/mcp/registry.liquid`:
 
    ```liquid
-   assign e = '{}' | parse_json
-   hash_assign e['name'] = 'search_events'
-   hash_assign e['path'] = 'mcp/tools/search_events'
+   assign e = {}
+   assign e['name'] = 'search_events'
+   assign e['path'] = 'mcp/tools/search_events'
    assign tools = tools | array_add: e
    ```
 

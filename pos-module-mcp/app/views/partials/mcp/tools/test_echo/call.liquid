@@ -3,11 +3,11 @@
   coverage suite can confirm the value survived validation unchanged (no coercion).
 {%- endcomment -%}
 {% liquid
-  assign result = '{}' | parse_json
-  hash_assign result['echo'] = arguments.message
-  hash_assign result['principal'] = principal.id
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  hash_assign out['result'] = result
+  assign result = {}
+  assign result['echo'] = arguments.message
+  assign result['principal'] = principal.id
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
   return out
 %}

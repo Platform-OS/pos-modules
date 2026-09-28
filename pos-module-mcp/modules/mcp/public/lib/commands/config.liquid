@@ -30,7 +30,7 @@
     return cfg_memo
   endunless
 
-  assign c = '{}' | parse_json
+  assign c = {}
   # MCP protocol revisions. `protocol_version` is the DEFAULT a version-less request
   # negotiates to — kept at 2025-06-18 so existing clients are byte-for-byte unchanged.
   # `supported_protocol_versions` is what the server actually implements (latest first);
@@ -38,37 +38,37 @@
   # MCP-Protocol-Version header, or initialize params (see commands/protocol/negotiate).
   # spec §13.1/§18.7; 2026-07-28 stateless additions (per-request _meta, header routing,
   # cacheable lists) activate ONLY when a client explicitly negotiates that revision.
-  hash_assign c['protocol_version'] = '2025-06-18'
-  hash_assign c['latest_protocol_version'] = '2026-07-28'
-  hash_assign c['supported_protocol_versions'] = '2026-07-28,2025-06-18' | split: ','
+  assign c['protocol_version'] = '2025-06-18'
+  assign c['latest_protocol_version'] = '2026-07-28'
+  assign c['supported_protocol_versions'] = '2026-07-28,2025-06-18' | split: ','
   # Client-side cache hints (ttlMs/cacheScope) attached to list/read results ONLY for a
   # 2026-07-28 client. The registry is deploy-invariant → long TTL; resources track page
   # content → shorter. cacheScope: 'shared' = identical for every caller; 'per-principal'
   # = varies by identity (principal-scoped tools/list). Tunable via MCP_CONFIG.cache.
-  assign cache = '{}' | parse_json
-  hash_assign cache['tools_ttl_ms'] = 300000
-  hash_assign cache['prompts_ttl_ms'] = 300000
-  hash_assign cache['resources_ttl_ms'] = 60000
-  hash_assign c['cache'] = cache
+  assign cache = {}
+  assign cache['tools_ttl_ms'] = 300000
+  assign cache['prompts_ttl_ms'] = 300000
+  assign cache['resources_ttl_ms'] = 60000
+  assign c['cache'] = cache
   # Server display name — reported as serverInfo.name on `initialize` AND used as
   # the suggested `claude mcp add <name>` client alias on /mcp-tools. Override per
   # instance via MCP_CONFIG {"server_name":"acme-community"} to brand the server.
-  hash_assign c['server_name'] = 'pos-module-mcp'
-  hash_assign c['server_version'] = '0.1.0'
-  hash_assign c['endpoint_path'] = '/mcp'
+  assign c['server_name'] = 'pos-module-mcp'
+  assign c['server_version'] = '0.1.0'
+  assign c['endpoint_path'] = '/mcp'
   # App-provided registry partial (Layer-2 tool declarations, spec §8.2). An app
   # partial at app/views/partials/mcp/registry.liquid returning [{manifest},...].
-  hash_assign c['registry_partial'] = 'mcp/registry'
+  assign c['registry_partial'] = 'mcp/registry'
   # App-provided authorization policy partials (spec §12.2). A tool's named policy
   # resolves to <policy_prefix>/<name> = app/views/partials/mcp/policies/<name>.liquid.
-  hash_assign c['policy_prefix'] = 'mcp/policies'
+  assign c['policy_prefix'] = 'mcp/policies'
   # App-provided connection instructions partial — the house rules / persona sent
   # to the agent on `initialize`. app/views/partials/mcp/instructions.liquid
   # returning a string. Falls back to a built-in default when absent.
-  hash_assign c['instructions_partial'] = 'mcp/instructions'
+  assign c['instructions_partial'] = 'mcp/instructions'
   # App-provided prompt registry (§13.1 prompts). app/views/partials/mcp/prompts.liquid
   # returning [{name, description, arguments, template}]. Empty/absent = no prompts.
-  hash_assign c['prompts_partial'] = 'mcp/prompts'
+  assign c['prompts_partial'] = 'mcp/prompts'
   # tools/list visibility (spec §14.2). 'open' (default) advertises every registered
   # tool to any caller — MCP discovery is a public method. 'principal' scopes the
   # advertised list to the CALLER: a tool appears only if its authorization policy
@@ -78,53 +78,53 @@
   # MCP_CONFIG {"tools_list_scope":"principal"} (any value other than the exact
   # string "principal" is treated as "open"). Cost: 'principal' evaluates each tool's
   # policy on every tools/list, so it is off by default.
-  hash_assign c['tools_list_scope'] = 'open'
+  assign c['tools_list_scope'] = 'open'
 
-  assign d = '{}' | parse_json
-  hash_assign d['timeout_ms'] = 5000
-  hash_assign d['max_input_bytes'] = 65536
-  hash_assign d['max_schema_depth'] = 5
-  hash_assign d['rate_limit_per_min'] = 60
+  assign d = {}
+  assign d['timeout_ms'] = 5000
+  assign d['max_input_bytes'] = 65536
+  assign d['max_schema_depth'] = 5
+  assign d['rate_limit_per_min'] = 60
   # Idempotency replay window (§16.3): how long a client key can replay its result.
-  hash_assign d['idempotency_window_seconds'] = 86400
+  assign d['idempotency_window_seconds'] = 86400
   # Approval window (§9.6): how long a pending approval can be acted on before it expires.
-  hash_assign d['approval_window_seconds'] = 604800
+  assign d['approval_window_seconds'] = 604800
   # Approval-queue guard (§9.6): max NON-EXPIRED pending approvals a single principal
   # may hold at once. Bounds operator-queue depth so an agent cannot flood the
   # human-in-the-loop gate with garbage and bury legitimate proposals. Identical
   # proposals (same input_sha256) are additionally deduplicated. 0 disables the cap.
-  hash_assign d['approval_max_pending_per_principal'] = 3
+  assign d['approval_max_pending_per_principal'] = 3
   # Abuse auto-suspend: if a principal accrues this many policy violations (denials,
   # rate-limits, invalid/unknown-tool attempts) within the window, its current token
   # is auto-suspended. A real control, not a message. 0 disables.
-  hash_assign d['abuse_threshold'] = 20
-  hash_assign d['abuse_window_seconds'] = 300
-  hash_assign c['defaults'] = d
+  assign d['abuse_threshold'] = 20
+  assign d['abuse_window_seconds'] = 300
+  assign c['defaults'] = d
 
-  assign l = '{}' | parse_json
-  hash_assign l['retention_days'] = 730
-  hash_assign c['ledger'] = l
+  assign l = {}
+  assign l['retention_days'] = 730
+  assign c['ledger'] = l
 
   # Zero-config .md resources (spec §3.2, §17.1). OFF by default — an operator
   # turns it on via MCP_CONFIG and names the slug prefixes to expose (allowlist),
   # so no page is agent-readable unless explicitly opted in.
-  assign r = '{}' | parse_json
-  hash_assign r['expose_markdown_pages'] = false
-  assign default_prefixes = '["docs"]' | parse_json
-  hash_assign r['markdown_page_prefixes'] = default_prefixes
-  hash_assign c['resources'] = r
+  assign r = {}
+  assign r['expose_markdown_pages'] = false
+  assign default_prefixes = ["docs"]
+  assign r['markdown_page_prefixes'] = default_prefixes
+  assign c['resources'] = r
 
   # OAuth resource-server metadata (spec §9.5, RFC 9728). v1 authenticates
   # instance-issued tokens bound to a real user (backlog/decision-2), so no JWT
   # signing keys are needed here. `issuer`, when set via the MCP_OAUTH_ISSUER
   # constant, is advertised in the well-known doc as the authorization server for
   # a future external-AS/JWT strategy; empty by default.
-  assign o = '{}' | parse_json
-  hash_assign o['issuer'] = context.constants.MCP_OAUTH_ISSUER | default: ''
-  hash_assign o['audience'] = context.constants.MCP_OAUTH_AUDIENCE | default: c.server_name
-  hash_assign c['oauth'] = o
+  assign o = {}
+  assign o['issuer'] = context.constants.MCP_OAUTH_ISSUER | default: ''
+  assign o['audience'] = context.constants.MCP_OAUTH_AUDIENCE | default: c.server_name
+  assign c['oauth'] = o
   # The OAuth resource identifier this instance defends (RFC 9728) = the /mcp URL.
-  hash_assign c['resource_identifier'] = 'https://' | append: context.location.host | append: c.endpoint_path
+  assign c['resource_identifier'] = 'https://' | append: context.location.host | append: c.endpoint_path
 
   # Override from the MCP_CONFIG constant, when present and valid JSON. hash_merge
   # is shallow, so merge the nested `defaults` object explicitly before the
@@ -138,11 +138,11 @@
       # platformos-check-disable UnknownProperty
       unless override.defaults == blank
         assign merged_defaults = c.defaults | hash_merge: override.defaults
-        hash_assign override['defaults'] = merged_defaults
+        assign override['defaults'] = merged_defaults
       endunless
       unless override.resources == blank
         assign merged_resources = c.resources | hash_merge: override.resources
-        hash_assign override['resources'] = merged_resources
+        assign override['resources'] = merged_resources
       endunless
       # platformos-check-enable UnknownProperty
       assign c = c | hash_merge: override

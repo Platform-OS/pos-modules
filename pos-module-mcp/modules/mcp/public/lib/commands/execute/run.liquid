@@ -35,19 +35,19 @@
     log _lm, type: 'mcp.handler_exception'
   endtry
 
-  assign out = '{}' | parse_json
+  assign out = {}
 
   # Fail-safe: a thrown or malformed handler result → generic tool error.
   if threw or hres == blank
-    assign content = '[]' | parse_json
-    assign item = '{}' | parse_json
-    hash_assign item['type'] = 'text'
-    hash_assign item['text'] = 'The tool failed to complete.'
+    assign content = []
+    assign item = {}
+    assign item['type'] = 'text'
+    assign item['text'] = 'The tool failed to complete.'
     assign content = content | array_add: item
-    hash_assign out['outcome'] = 'error'
-    hash_assign out['isError'] = true
-    hash_assign out['content'] = content
-    hash_assign out['error_message'] = 'handler_error'
+    assign out['outcome'] = 'error'
+    assign out['isError'] = true
+    assign out['content'] = content
+    assign out['error_message'] = 'handler_error'
     return out
   endif
 
@@ -57,22 +57,22 @@
     unless hres.error == blank
       assign emsg = hres.error.message | default: emsg
     endunless
-    assign content = '[]' | parse_json
-    assign item = '{}' | parse_json
-    hash_assign item['type'] = 'text'
-    hash_assign item['text'] = emsg
+    assign content = []
+    assign item = {}
+    assign item['type'] = 'text'
+    assign item['text'] = emsg
     assign content = content | array_add: item
-    hash_assign out['outcome'] = 'error'
-    hash_assign out['isError'] = true
-    hash_assign out['content'] = content
-    hash_assign out['error_message'] = emsg
+    assign out['outcome'] = 'error'
+    assign out['isError'] = true
+    assign out['content'] = content
+    assign out['error_message'] = emsg
     # Surface caller-safe field-level errors (e.g. a command's validation errors) as
     # structuredContent so the agent can self-correct — same courtesy as the schema-
     # validation path. `fields` must be safe data (field name → message), no internals.
     unless hres.error.fields == blank
-      assign structured = '{}' | parse_json
-      hash_assign structured['errors'] = hres.error.fields
-      hash_assign out['structured'] = structured
+      assign structured = {}
+      assign structured['errors'] = hres.error.fields
+      assign out['structured'] = structured
     endunless
     return out
   endunless
@@ -81,21 +81,21 @@
   # clients also read structuredContent).
   assign structured = hres.result
   if structured == blank
-    assign structured = '{}' | parse_json
+    assign structured = {}
   endif
-  assign content = '[]' | parse_json
-  assign item = '{}' | parse_json
-  hash_assign item['type'] = 'text'
-  hash_assign item['text'] = structured | json
+  assign content = []
+  assign item = {}
+  assign item['type'] = 'text'
+  assign item['text'] = structured | json
   assign content = content | array_add: item
 
-  hash_assign out['outcome'] = 'success'
-  hash_assign out['isError'] = false
-  hash_assign out['content'] = content
-  hash_assign out['structured'] = structured
+  assign out['outcome'] = 'success'
+  assign out['isError'] = false
+  assign out['content'] = content
+  assign out['structured'] = structured
   unless hres.subject == blank
-    hash_assign out['subject_type'] = hres.subject.type
-    hash_assign out['subject_id'] = hres.subject.id
+    assign out['subject_type'] = hres.subject.type
+    assign out['subject_id'] = hres.subject.id
   endunless
   return out
 %}

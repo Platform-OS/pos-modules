@@ -22,7 +22,7 @@
   @return {object} { valid:boolean, errors:[string] }
 {%- endcomment -%}
 {% liquid
-  assign errors = '[]' | parse_json
+  assign errors = []
   assign at = path | default: 'arguments'
   assign t = schema.type
   assign vt = value | type_of
@@ -30,9 +30,9 @@
   if depth > max_depth
     assign msg = at | append: ': exceeds max nesting depth'
     assign errors = errors | array_add: msg
-    assign out = '{}' | parse_json
-    hash_assign out['valid'] = false
-    hash_assign out['errors'] = errors
+    assign out = {}
+    assign out['valid'] = false
+    assign out['errors'] = errors
     return out
   endif
 
@@ -40,9 +40,9 @@
   if vt == 'null'
     assign msg = at | append: ': must be ' | append: t | append: ', got null'
     assign errors = errors | array_add: msg
-    assign out = '{}' | parse_json
-    hash_assign out['valid'] = false
-    hash_assign out['errors'] = errors
+    assign out = {}
+    assign out['valid'] = false
+    assign out['errors'] = errors
     return out
   endif
 
@@ -85,9 +85,9 @@
   unless type_ok
     assign msg = at | append: ': expected ' | append: t | append: ', got ' | append: vt
     assign errors = errors | array_add: msg
-    assign out = '{}' | parse_json
-    hash_assign out['valid'] = false
-    hash_assign out['errors'] = errors
+    assign out = {}
+    assign out['valid'] = false
+    assign out['errors'] = errors
     return out
   endunless
 
@@ -216,7 +216,7 @@
         endfor
       endunless
       # additionalProperties FORCED false: no unknown keys
-      assign pkeys = '[]' | parse_json
+      assign pkeys = []
       unless props == blank
         assign pkeys = props | hash_keys
       endunless
@@ -249,8 +249,8 @@
   if errors.size == 0
     assign is_valid = true
   endif
-  assign out = '{}' | parse_json
-  hash_assign out['valid'] = is_valid
-  hash_assign out['errors'] = errors
+  assign out = {}
+  assign out['valid'] = is_valid
+  assign out['errors'] = errors
   return out
 %}

@@ -64,15 +64,15 @@
   # v1: the agent is the same user acting directly. Label identifies the bearer.
   assign agent_id = token.label | default: principal_id
 
-  assign principal = '{}' | parse_json
-  hash_assign principal['id'] = principal_id
-  hash_assign principal['user_id'] = token.user_id
+  assign principal = {}
+  assign principal['id'] = principal_id
+  assign principal['user_id'] = token.user_id
 
-  assign agent = '{}' | parse_json
-  hash_assign agent['id'] = agent_id
-  hash_assign agent['client_id'] = agent_id
-  hash_assign agent['registered'] = true
-  hash_assign agent['allowed_tools'] = token.allowed_tools
+  assign agent = {}
+  assign agent['id'] = agent_id
+  assign agent['client_id'] = agent_id
+  assign agent['registered'] = true
+  assign agent['allowed_tools'] = token.allowed_tools
 
   # Best-effort recency stamp for the operator console ("last used"). THROTTLED to at most
   # one write per token per minute (coarse granularity is plenty for a "last seen" display),
@@ -94,11 +94,11 @@
     graphql _touch = 'modules/mcp/tokens/touch', id: token.id, last_used_at: _now_iso
   endif
 
-  assign ok = '{}' | parse_json
-  hash_assign ok['authenticated'] = true
-  hash_assign ok['principal'] = principal
-  hash_assign ok['agent'] = agent
-  hash_assign ok['delegation_mode'] = 'direct'
-  hash_assign ok['token_id'] = token.id
+  assign ok = {}
+  assign ok['authenticated'] = true
+  assign ok['principal'] = principal
+  assign ok['agent'] = agent
+  assign ok['delegation_mode'] = 'direct'
+  assign ok['token_id'] = token.id
   return ok
 %}

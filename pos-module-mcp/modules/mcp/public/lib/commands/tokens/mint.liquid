@@ -18,8 +18,8 @@
     assign safe_label = 'mcp-client'
   endif
   graphql r = 'modules/mcp/tokens/create', user_id: user_id, token_digest: digest, label: safe_label
-  assign out = '{}' | parse_json
-  hash_assign out['raw'] = raw
-  hash_assign out['id'] = r.record.id
+  assign out = {}
+  assign out['raw'] = raw
+  assign out['id'] = r.record.id
   return out
 %}

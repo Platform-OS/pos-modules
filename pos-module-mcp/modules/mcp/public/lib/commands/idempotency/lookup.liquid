@@ -12,14 +12,14 @@
   graphql r = 'modules/mcp/idempotency/find', key: key, principal_id: principal_id
   assign rec = r.records.results.first
 
-  assign out = '{}' | parse_json
-  hash_assign out['found'] = false
+  assign out = {}
+  assign out['found'] = false
   if rec
     assign exp = rec.expires_at | plus: 0
     if exp > now_unix
-      hash_assign out['found'] = true
-      hash_assign out['input_sha256'] = rec.input_sha256
-      hash_assign out['response'] = rec.response_json | parse_json
+      assign out['found'] = true
+      assign out['input_sha256'] = rec.input_sha256
+      assign out['response'] = rec.response_json | parse_json
     endif
   endif
   return out

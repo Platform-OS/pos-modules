@@ -48,8 +48,8 @@
   if scope == 'open'
     assign visible = all
   elsif scope == 'principal' and principal != blank
-    assign visible = '[]' | parse_json
-    assign empty_args = '{}' | parse_json
+    assign visible = []
+    assign empty_args = {}
     assign dm = delegation_mode | default: 'direct'
     for m in all
       function az = 'modules/mcp/commands/authorize/evaluate', policy: m.authorization_policy, principal: principal, agent: agent, arguments: empty_args, tool: m, delegation_mode: dm
@@ -59,7 +59,7 @@
     endfor
   else
     # 'anonymous', or 'principal' with no resolved principal → advertise nothing.
-    assign visible = '[]' | parse_json
+    assign visible = []
   endif
   assign total = visible | size
 
@@ -76,45 +76,45 @@
     assign offset = 0
   endif
 
-  assign tools_out = '[]' | parse_json
+  assign tools_out = []
   assign idx = 0
   assign emitted = 0
   for m in visible
     if idx >= offset and emitted < page_size
-      assign t = '{}' | parse_json
-      hash_assign t['name'] = m.name
+      assign t = {}
+      assign t['name'] = m.name
       assign desc = m.description
       if m.deprecated == true
         assign sunset = m.sunset | default: 'a future release'
         assign desc = desc | append: ' [DEPRECATED — will be removed in ' | append: sunset | append: '. Prefer the current version.]'
       endif
-      hash_assign t['description'] = desc
-      hash_assign t['inputSchema'] = m.input_schema
-      assign meta = '{}' | parse_json
-      hash_assign meta['version'] = m.version
+      assign t['description'] = desc
+      assign t['inputSchema'] = m.input_schema
+      assign meta = {}
+      assign meta['version'] = m.version
       assign is_dep = false
       if m.deprecated == true
         assign is_dep = true
       endif
-      hash_assign meta['deprecated'] = is_dep
-      hash_assign t['_meta'] = meta
+      assign meta['deprecated'] = is_dep
+      assign t['_meta'] = meta
       assign tools_out = tools_out | array_add: t
       assign emitted = emitted | plus: 1
     endif
     assign idx = idx | plus: 1
   endfor
 
-  assign result = '{}' | parse_json
-  hash_assign result['tools'] = tools_out
+  assign result = {}
+  assign result['tools'] = tools_out
   assign next_offset = offset | plus: page_size
   if next_offset < total
     assign nc = 'offset:' | append: next_offset | base64_encode
-    hash_assign result['nextCursor'] = nc
+    assign result['nextCursor'] = nc
   endif
   # Client-side cache hint (2026-07-28 only; dispatch passes it or nil).
   unless cache == blank
-    hash_assign result['ttlMs'] = cache.ttlMs
-    hash_assign result['cacheScope'] = cache.cacheScope
+    assign result['ttlMs'] = cache.ttlMs
+    assign result['cacheScope'] = cache.cacheScope
   endunless
   return result
 %}

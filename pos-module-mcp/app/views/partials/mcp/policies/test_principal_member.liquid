@@ -12,7 +12,7 @@
   delegation_mode.
 {%- endcomment -%}
 {% liquid
-  assign r = '{}' | parse_json
+  assign r = {}
   assign allow = false
   assign uid = principal.user_id | append: ''
   graphql g = 'modules/mcp/access/for_user', user_id: uid
@@ -24,11 +24,11 @@
       endif
     endif
   endif
-  hash_assign r['allow'] = allow
+  assign r['allow'] = allow
   if allow
-    hash_assign r['reason'] = 'member'
+    assign r['reason'] = 'member'
   else
-    hash_assign r['reason'] = 'not_member'
+    assign r['reason'] = 'not_member'
   endif
   return r
 %}

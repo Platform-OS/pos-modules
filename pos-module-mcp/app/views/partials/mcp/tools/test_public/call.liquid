@@ -3,11 +3,11 @@
   the resolved principal id so the coverage suite can assert who reached it.
 {%- endcomment -%}
 {% liquid
-  assign result = '{}' | parse_json
-  hash_assign result['tier'] = 'public'
-  hash_assign result['principal'] = principal.id
-  assign out = '{}' | parse_json
-  hash_assign out['ok'] = true
-  hash_assign out['result'] = result
+  assign result = {}
+  assign result['tier'] = 'public'
+  assign result['principal'] = principal.id
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
   return out
 %}

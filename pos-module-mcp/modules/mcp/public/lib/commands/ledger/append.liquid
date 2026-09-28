@@ -67,9 +67,9 @@
 
   # Build the working payload = caller's entry + our stamped fields (functional
   # merge, does not mutate the caller's hash).
-  assign extra = '{}' | parse_json
-  hash_assign extra['seq'] = next_seq
-  hash_assign extra['occurred_at'] = occurred_at
+  assign extra = {}
+  assign extra['seq'] = next_seq
+  assign extra['occurred_at'] = occurred_at
   # Pipeline latency: if the caller stamped `_start_ms` (unix ms), record the elapsed
   # time. `_start_ms` itself is not a ledger field (canonical ignores unknown keys),
   # so it never enters the hash; duration_ms does.
@@ -79,7 +79,7 @@
     if dur < 0
       assign dur = 0
     endif
-    hash_assign extra['duration_ms'] = dur
+    assign extra['duration_ms'] = dur
   endunless
   assign w = entry | hash_merge: extra
 
@@ -104,11 +104,11 @@
   graphql created = 'modules/mcp/ledger/create', table: table, seq: next_seq, occurred_at: occurred_at, method: w.method, tool_name: w.tool_name, tool_version: w.tool_version, client_id: w.client_id, agent_id: w.agent_id, principal_id: w.principal_id, delegation_mode: w.delegation_mode, input_sha256: w.input_sha256, input_bytes: v_input_bytes, authz_policy: w.authz_policy, authz_decision: w.authz_decision, authz_reason: w.authz_reason, execution_outcome: w.execution_outcome, error_code: v_error_code, duration_ms: v_duration_ms, subject_type: w.subject_type, subject_id: w.subject_id, idempotency_key: w.idempotency_key, request_id: w.request_id, audit_json: w.audit_json, prev_entry_hash: prev_hash, entry_hash: entry_hash
   endtransaction
 
-  assign out = '{}' | parse_json
-  hash_assign out['seq'] = next_seq
-  hash_assign out['entry_hash'] = entry_hash
-  hash_assign out['prev_entry_hash'] = prev_hash
-  hash_assign out['occurred_at'] = occurred_at
-  hash_assign out['id'] = created.record.id
+  assign out = {}
+  assign out['seq'] = next_seq
+  assign out['entry_hash'] = entry_hash
+  assign out['prev_entry_hash'] = prev_hash
+  assign out['occurred_at'] = occurred_at
+  assign out['id'] = created.record.id
   return out
 %}
