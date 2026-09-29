@@ -3,6 +3,8 @@
   MCP_ENABLE_TEST_TOOLS constant is set (see registry). Visibility probe for the
   PUBLIC tier: policy public_read → any authenticated principal. The coverage suite
   asserts it is listable/callable by operator, member AND outsider, but never anon.
+  Idempotent (read-only, so replay is harmless) and takes {} like test_member — the
+  pair proves an idempotency key is bound to its tool, not just its arguments.
 {%- endcomment -%}
 {% liquid
   assign m = {}
@@ -14,7 +16,7 @@
   assign m['mutating'] = false
   assign m['authorization_policy'] = 'public_read'
   assign m['requires_approval'] = false
-  assign m['idempotent'] = false
+  assign m['idempotent'] = true
   assign m['handler'] = 'mcp/tools/test_public/call'
   return m
 %}

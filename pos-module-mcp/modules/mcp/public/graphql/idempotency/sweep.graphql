@@ -1,0 +1,10 @@
+mutation sweep($now: String!) {
+  # Delete replay records whose window has passed (expires_at is unix seconds, an
+  # integer property). lookup already ignores them; this only reclaims the rows.
+  deleted: records_delete_all(
+    table: "modules/mcp/mcp_idempotency"
+    filter: { properties: [{ name: "expires_at", range: { lt: $now } }] }
+  ) {
+    count
+  }
+}

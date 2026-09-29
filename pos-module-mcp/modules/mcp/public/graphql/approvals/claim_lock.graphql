@@ -1,0 +1,12 @@
+mutation claim_lock($id: ID!, $token: String!) {
+  # UPDATE the approval row → Postgres row-write-lock held until the surrounding
+  # {% transaction %} commits. `token` is always a fresh unique value so ActiveRecord
+  # never skips the write (a no-op update would take no lock). Serializes decisions
+  # on one approval (same technique as ledger/lock_bump).
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_pending_approval"
+    properties: [{ name: "claim_token", value: $token }]
+  }) {
+    id
+  }
+}

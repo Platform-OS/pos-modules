@@ -99,8 +99,8 @@ every request — no redeploy needed.
 | `defaults.idempotency_window_seconds` | `86400` | how long an idempotency key can replay |
 | `defaults.approval_window_seconds` | `604800` | how long a pending approval can be acted on |
 | `defaults.approval_max_pending_per_principal` | `3` | max non-expired pending approvals per principal (queue-flood cap) |
-| `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle |
-| `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist) |
+| `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle. Only pages declaring `handler: markdown` in front matter are exposed — a Liquid page is never served as a resource |
+| `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist; matched on a `/` boundary, markdown GET pages only) |
 | `ledger.retention_days` | `730` | ledger retention |
 | `oauth.issuer` / `oauth.audience` | `""` / `server_name` | advertised AS + expected audience |
 | `registry_partial` / `policy_prefix` / `instructions_partial` / `prompts_partial` | `mcp/registry`, `mcp/policies`, `mcp/instructions`, `mcp/prompts` | Layer-2 hook paths |
@@ -243,10 +243,12 @@ review as security-relevant.
   state) and a `rolled_back` entry is still recorded. Reversibility is what makes an
   operator willing to let an agent write.
 - **`idempotent: true`** → a client may send `params._meta.idempotencyKey`. A retry
-  with the same key (per principal) replays the original result instead of
+  with the same key (per principal and tool) replays the original result instead of
   re-executing; the same key with different arguments is a `409`. For mutating tools
   the idempotency record commits inside the transaction, so a mutation can never
-  commit without its replay record.
+  commit without its replay record, and concurrent retries with the same key are
+  serialized so only one executes. If the handler succeeds but the transaction rolls
+  back, the agent gets `isError: true`, never a success.
 - **`requires_approval: true`** → the tool never runs inline. The call records an
   intent and returns an opaque **handle** + `pending_approval`; an operator approves
   in `/mcp-admin`, and it then executes **as the original principal** (re-validated
@@ -301,8 +303,10 @@ grants and removes these two roles, so define them:
 — that is the first operator on a fresh instance. Otherwise append the role directly:
 `function _ = 'modules/user/commands/profiles/roles/append', id: profile.id, role: 'mcp_operator'`.
 Operators grant `mcp_user` / `mcp_operator` by email and remove them on the console's
-**Tokens & access** tab. Removing a role does not revoke that member's existing tokens —
-revoke those on the same tab.
+**Tokens & access** tab. Removing a member's access there also revokes every active
+token they hold, so agents already connected with them are cut off at once. (A role
+removed some other way — e.g. directly on the user-module profile — leaves tokens
+active; revoke those on the same tab.)
 
 The built-in `admin_only` policy applies the same RBAC to bearer calls: it loads the
 principal's profile and checks `mcp.admin` (`modules/mcp/queries/principal/can`, which

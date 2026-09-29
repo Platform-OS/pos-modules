@@ -125,17 +125,28 @@ layout: ''
     assign members = members_res.records.results
     graphql tokens_res = 'modules/mcp/tokens/list_all', per_page: 200
     assign tokens = tokens_res.records.results
-    graphql rc_res = 'modules/mcp/rate/all', per_page: 500
     assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
     assign abuse_win = cfg.defaults.abuse_window_seconds | plus: 0
     assign cur_window = 0
     if abuse_win > 0
       assign cur_window = now_unix | divided_by: abuse_win
     endif
-    assign abuse_map = {}
-    for rc in rc_res.records.results
-      assign abuse_map[rc.key] = rc.count
+    # Current-window violation counters, fetched by EXACT key for the listed tokens'
+    # principals (same key limits/note_violation writes) — never a table scan, which
+    # would miss current rows once the counter table outgrows one page.
+    assign abuse_keys = []
+    for t in tokens
+      assign akey = 'abuse:user:' | append: t.user_id | append: ':' | append: cur_window
+      assign abuse_keys = abuse_keys | array_add: akey
     endfor
+    assign abuse_keys = abuse_keys | uniq
+    assign abuse_map = {}
+    if abuse_keys.size > 0
+      graphql rc_res = 'modules/mcp/rate/by_keys', keys: abuse_keys, per_page: abuse_keys.size
+      for rc in rc_res.records.results
+        assign abuse_map[rc.key] = rc.count
+      endfor
+    endif
     assign abuse_threshold = cfg.defaults.abuse_threshold | plus: 0
     assign half_threshold = 1
     if abuse_threshold > 0
@@ -552,7 +563,7 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
             <td class="inline-actions">
               {%- unless is_op -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_admin"><input type="hidden" name="profile_id" value="{{ m.id }}"><button type="submit" class="btn btn-xs">Make operator</button></form>{%- endunless -%}
               {%- if is_op -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_user"><input type="hidden" name="profile_id" value="{{ m.id }}"><button type="submit" class="btn btn-xs">Make member</button></form>{%- endif -%}
-              <form method="post" action="/mcp-admin/access" onsubmit="return confirm('Remove MCP access for {{ m.email }}? Their existing tokens stay active until revoked above.')"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="revoke"><input type="hidden" name="profile_id" value="{{ m.id }}"><button type="submit" class="btn btn-danger btn-xs">Remove</button></form>
+              <form method="post" action="/mcp-admin/access" data-confirm="Remove MCP access for {{ m.email }}? Their existing tokens stay active until revoked above." onsubmit="return confirm(this.dataset.confirm)"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="revoke"><input type="hidden" name="profile_id" value="{{ m.id }}"><button type="submit" class="btn btn-danger btn-xs">Remove</button></form>
             </td>
           </tr>
         {%- endfor -%}

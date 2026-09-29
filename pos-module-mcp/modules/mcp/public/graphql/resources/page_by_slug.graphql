@@ -9,6 +9,8 @@ query page_by_slug($slug: String!) {
       id
       slug
       format
+      handler
+      request_method
       content
       content_updated_at
       metadata

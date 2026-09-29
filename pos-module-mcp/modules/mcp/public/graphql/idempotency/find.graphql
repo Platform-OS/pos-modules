@@ -1,4 +1,4 @@
-query find($key: String!, $principal_id: String!) {
+query find($key: String!, $principal_id: String!, $tool_name: String!) {
   records(
     per_page: 1
     filter: {
@@ -6,6 +6,7 @@ query find($key: String!, $principal_id: String!) {
       properties: [
         { name: "key", value: $key }
         { name: "principal_id", value: $principal_id }
+        { name: "tool_name", value: $tool_name }
       ]
     }
     sort: [{ id: { order: DESC } }]

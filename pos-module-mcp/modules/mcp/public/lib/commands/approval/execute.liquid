@@ -10,7 +10,7 @@
   scope, never the operator's. Returns an outcome the caller records on the approval
   row and shows the agent.
 
-  @param {object} approval    - the pending_approval record (status must be pending, not expired)
+  @param {object} approval    - the pending_approval record, already claimed (pending → approved) via approval/claim
   @param {string} decided_by  - operator user id (for the ledger + audit)
   @return {object} { ok, outcome, summary }
 {%- endcomment -%}

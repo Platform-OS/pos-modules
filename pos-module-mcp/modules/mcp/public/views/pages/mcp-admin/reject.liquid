@@ -18,8 +18,7 @@ method: post
   graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
   assign rec = f.records.results.first
   if rec and rec.status == 'pending'
-    assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
-    graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: 'rejected', decided_by: current_profile.user.id, decided_at: decided_at, result_summary: 'Rejected by operator.'
+    function _c = 'modules/mcp/commands/approval/claim', id: rec.id, handle: handle, status: 'rejected', decided_by: current_profile.user.id, result_summary: 'Rejected by operator.'
   endif
 
   redirect_to '/mcp-admin?tab=approvals'

@@ -1,0 +1,39 @@
+{%- comment -%}
+  Atomically move ONE pending approval to a decided status (spec §9.6). Every
+  decision path (operator approve / reject / bulk-reject, agent cancel) goes through
+  here so two concurrent decisions can never both act on the same row — e.g. a
+  double-clicked Approve executing the handler twice, or a reject landing while an
+  approval is already executing.
+
+  platformOS Liquid has no compare-and-set and {% transaction %} is READ COMMITTED,
+  so we serialize with the row itself: the FIRST op in the transaction rewrites
+  claim_token with a fresh unique value (a real UPDATE → row-write-lock held until
+  commit). A concurrent claim blocks there, then re-reads the row we committed and
+  sees it is no longer pending.
+
+  @param {string} id             - approval record id
+  @param {string} handle         - approval handle (for the locked re-read)
+  @param {string} status         - target status (approved | rejected | cancelled | expired)
+  @param {string} decided_by
+  @param {string} result_summary
+  @return {object} { claimed:boolean, rec } rec = the row as re-read under the lock
+{%- endcomment -%}
+{% liquid
+  assign out = {}
+  assign out['claimed'] = false
+  assign token = '' | uuid
+  assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+
+  transaction timeout: 10
+    graphql _lock = 'modules/mcp/approvals/claim_lock', id: id, token: token
+    graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
+    assign rec = f.records.results.first
+    if rec and rec.status == 'pending'
+      graphql _u = 'modules/mcp/approvals/update', id: rec.id, status: status, decided_by: decided_by, decided_at: decided_at, result_summary: result_summary
+      assign out['claimed'] = true
+    endif
+  endtransaction
+
+  assign out['rec'] = rec
+  return out
+%}

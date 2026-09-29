@@ -7,7 +7,7 @@ method: post
   Complements the per-principal approval-queue cap: the cap bounds inflow, this
   drains a flooder's queue in one action instead of N reject clicks. Each rejected
   action never runs; the decision is recorded per row. Operator-gated. Bounded to the
-  first 50 pending rows for the principal (the cap keeps a single principal far below
+  newest 50 pending rows for the principal (the cap keeps a single principal far below
   that; a larger backlog drains over repeated clicks rather than in an unbounded loop).
 {%- endcomment -%}
 {%- liquid
@@ -20,16 +20,13 @@ method: post
 
   assign pid = context.params.principal_id
   if pid != blank
-    assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
-    graphql f = 'modules/mcp/approvals/list', status: 'pending', per_page: 50
+    graphql f = 'modules/mcp/approvals/pending_by_principal', principal_id: pid, per_page: 50
     for a in f.records.results
-      if a.principal_id == pid
-        # Bulk drain: one UPDATE per pending row is inherent — mutations can't be
-        # batched into a single query here. Bounded to the first 50 rows.
-        # platformos-check-disable NestedGraphQLQuery
-        graphql _ = 'modules/mcp/approvals/update', id: a.id, status: 'rejected', decided_by: current_profile.user.id, decided_at: decided_at, result_summary: 'Bulk-rejected by operator (queue drain).'
-        # platformos-check-enable NestedGraphQLQuery
-      endif
+      # Bulk drain: one claim per pending row is inherent — mutations can't be
+      # batched into a single query here. Bounded to the first 50 rows. Each goes
+      # through approval/claim so a row an operator is approving concurrently is
+      # never flipped to rejected mid-execution.
+      function _c = 'modules/mcp/commands/approval/claim', id: a.id, handle: a.handle, status: 'rejected', decided_by: current_profile.user.id, result_summary: 'Bulk-rejected by operator (queue drain).'
     endfor
   endif
 

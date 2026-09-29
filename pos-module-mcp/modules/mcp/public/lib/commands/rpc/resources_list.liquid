@@ -1,9 +1,10 @@
 {%- comment -%}
   MCP `resources/list` (spec §3.2, §13.1). Zero-config: exposes markdown/doc pages
   as agent-readable resources with NO custom authoring. Gated by config:
-  resources.expose_markdown_pages must be true (OFF by default), and only pages
-  whose slug starts with a configured prefix (allowlist) are listed — so no page is
-  agent-visible unless the operator opts in. Freshness-stamped via content_updated_at.
+  resources.expose_markdown_pages must be true (OFF by default), and only markdown
+  GET pages under a configured slug prefix (allowlist, path boundary — see
+  queries/resources/page_allowed) are listed — so no page is agent-visible unless
+  the operator opts in. Freshness-stamped via content_updated_at.
 
   Open discovery (no auth), like tools/list. The engine's own pages (mcp,
   well-known) never match the doc prefixes, so they are never exposed.
@@ -24,6 +25,12 @@
       graphql pres = 'modules/mcp/resources/pages_by_prefix', prefix: prefix, per_page: 100
       # platformos-check-enable NestedGraphQLQuery
       for page in pres.admin_pages.results
+        # starts_with is a raw string prefix ("docs" also hits "docs-internal") and
+        # can't filter handler/method — apply the shared exposure predicate.
+        function allowed = 'modules/mcp/queries/resources/page_allowed', page: page, prefixes: cfg.resources.markdown_page_prefixes
+        unless allowed
+          continue
+        endunless
         assign r = {}
         assign r['uri'] = 'mcp+page:///' | append: page.slug
         assign r['name'] = page.slug

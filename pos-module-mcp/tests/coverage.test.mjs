@@ -166,6 +166,26 @@ describe('coverage · multi-principal governance planes', () => {
       ok('same key twice → exactly one row written', rows.length === 1, 'rows=' + rows.length);
       const conflict = await callTool(mem.rawToken, 'test_write', { label: 'different' }, { idempotencyKey: key });
       ok('same key + different args → 409', conflict.status === 409, 'status=' + conflict.status);
+      // Both fixtures take {} → identical input_sha256. Keys are scoped per tool: the
+      // same key on another tool runs that tool fresh — never replays tool A's result.
+      const xkey = 'cov-idem-x-' + mem.userId;
+      ok('idempotent tool A with key → ok', isOkResult(await callTool(mem.rawToken, 'test_public', {}, { idempotencyKey: xkey })));
+      const cross = await callTool(mem.rawToken, 'test_member', {}, { idempotencyKey: xkey });
+      const crossTxt = JSON.stringify(cross.json?.result || {});
+      ok('same key + same args on a DIFFERENT tool → runs that tool (no cross-tool replay)', isOkResult(cross) && crossTxt.includes('"tier":"member"') && !crossTxt.includes('"tier":"public"'), crossTxt.slice(0, 200));
+    }
+    {
+      // Concurrent retries: both in flight before either commits. The ledger mutex +
+      // locked re-check must let exactly one execute; the other replays.
+      await deleteNotesFor(mem.userId);
+      const ckey = 'cov-idem-c-' + mem.userId;
+      const [c1, c2] = await Promise.all([
+        callTool(mem.rawToken, 'test_write', { label: 'race' }, { idempotencyKey: ckey }),
+        callTool(mem.rawToken, 'test_write', { label: 'race' }, { idempotencyKey: ckey }),
+      ]);
+      ok('concurrent same-key calls both succeed', isOkResult(c1) && isOkResult(c2), `s1=${c1.status} s2=${c2.status}`);
+      const rows = (await notesFor(mem.userId)).filter(x => x.source === 'test_write' && x.label === 'race');
+      ok('concurrent same-key calls → exactly one row written', rows.length === 1, 'rows=' + rows.length);
     }
   });
 
@@ -216,6 +236,39 @@ describe('coverage · multi-principal governance planes', () => {
       const opNotes = (await notesFor(op.userId)).filter(x => x.source === 'test_approve');
       ok('approved action EXECUTED (row now exists)', memNotes.length === 1 && memNotes[0].label === 'execnow', 'member rows=' + memNotes.length);
       ok('executed AS THE ORIGINAL PRINCIPAL (member owns it, not the operator)', memNotes.length === 1 && opNotes.length === 0, 'op rows=' + opNotes.length);
+    }
+  });
+
+  it('Approval — concurrent approves execute exactly once (§9.6)', async () => {
+    await clearPendingFor(mem.principal);
+    await deleteNotesFor(mem.userId);
+    await callTool(mem.rawToken, 'test_approve', { label: 'raceme' });
+    {
+      const pend = await pendingRecordsFor(mem.principal);
+      const handle = pend[0]?.handle;
+      ok('operator reaches the console (login ok)', await operatorLogin(op));
+      const tok = _formTok(await (await webGet('mcp-admin')).text());
+      // Double-click / two operators: fire the approvals together.
+      const res = await Promise.all([1, 2, 3].map(() => webPost('mcp-admin/approve', { authenticity_token: tok, handle })));
+      ok('all approve POSTs accepted', res.every(r => r.status === 302 || r.status === 200), res.map(r => r.status).join(','));
+      const rows = (await notesFor(mem.userId)).filter(x => x.source === 'test_approve' && x.label === 'raceme');
+      ok('action executed EXACTLY once', rows.length === 1, 'rows=' + rows.length);
+    }
+  });
+
+  it('Approval — bulk reject drains one principal (§9.6)', async () => {
+    await clearPendingFor(mem.principal);
+    await deleteNotesFor(mem.userId);
+    await callTool(mem.rawToken, 'test_approve', { label: 'bulk1' });
+    await callTool(mem.rawToken, 'test_approve', { label: 'bulk2' });
+    {
+      ok('two pending queued', (await pendingFor(mem.principal)).length === 2, 'pending=' + (await pendingFor(mem.principal)).length);
+      ok('operator reaches the console (login ok)', await operatorLogin(op));
+      const tok = _formTok(await (await webGet('mcp-admin')).text());
+      const r = await webPost('mcp-admin/reject-principal', { authenticity_token: tok, principal_id: mem.principal });
+      ok('reject-principal POST accepted', r.status === 302 || r.status === 200, 'status=' + r.status);
+      ok('no pending left for the principal', (await pendingFor(mem.principal)).length === 0, 'pending=' + (await pendingFor(mem.principal)).length);
+      ok('bulk-rejected actions never executed', (await notesFor(mem.userId)).filter(x => x.source === 'test_approve').length === 0);
     }
   });
 
@@ -461,6 +514,10 @@ describe('coverage · multi-principal governance planes', () => {
     await webPost('mcp-admin/access', { authenticity_token: _formTok(adminPage), decision: 'revoke', email: out.email });
     const removed = await rolesFor(out.userId);
     ok('operator remove → no MCP role left', !removed.includes('mcp_user') && !removed.includes('mcp_operator'), JSON.stringify(removed));
+    const leftActive = (await tokensFor(out.userId)).filter(t => t.status === 'active');
+    ok('operator remove → every token the user held is revoked', leftActive.length === 0, 'active=' + leftActive.length);
+    const tokensTab = await webGet('mcp-admin?tab=tokens');
+    ok('operator tokens tab renders (exact-key violation counters)', tokensTab.status === 200, 'status=' + tokensTab.status);
     await sessionLogin(out);
     toolsRes = await webGet('mcp-tools');
     ok('removed user → /mcp-tools 403 again', toolsRes.status === 403, 'status=' + toolsRes.status);

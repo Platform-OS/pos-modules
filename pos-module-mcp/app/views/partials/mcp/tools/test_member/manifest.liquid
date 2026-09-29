@@ -14,7 +14,7 @@
   assign m['mutating'] = false
   assign m['authorization_policy'] = 'test_principal_member'
   assign m['requires_approval'] = false
-  assign m['idempotent'] = false
+  assign m['idempotent'] = true
   assign m['handler'] = 'mcp/tools/test_member/call'
   return m
 %}

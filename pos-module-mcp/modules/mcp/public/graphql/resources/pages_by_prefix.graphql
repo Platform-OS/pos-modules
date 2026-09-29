@@ -10,6 +10,8 @@ query pages_by_prefix($prefix: String!, $per_page: Int!) {
       id
       slug
       format
+      handler
+      request_method
       content_updated_at
       metadata
     }

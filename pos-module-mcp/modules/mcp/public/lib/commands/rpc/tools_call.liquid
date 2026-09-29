@@ -178,8 +178,8 @@
   if tool.requires_approval
     # Step 7a-guard — approval-queue flood control (§9.6, §12.4). Before recording a
     # new pending intent, bound how many NON-EXPIRED proposals this principal already
-    # holds and reject exact duplicates (same input_sha256 — full validated-args
-    # hash). Rejection is a tool-level business error (isError, HTTP 200 — not a
+    # holds and reject exact duplicates (same tool AND same input_sha256 — full
+    # validated-args hash). Rejection is a tool-level business error (isError, HTTP 200 — not a
     # protocol error), feeds the abuse counter (repeat flooding trips auto-suspend),
     # and is ledgered under the accountable identity for audit. Generic: any
     # requires_approval tool inherits this — no per-tool coupling.
@@ -193,7 +193,7 @@
         assign exp = pa_row.expires_at | plus: 0
         if exp > ap_now
           assign live_pending = live_pending | plus: 1
-          if pa_row.input_sha256 == input_sha256
+          if pa_row.tool_name == tool_name and pa_row.input_sha256 == input_sha256
             assign is_dup = true
           endif
         endif
@@ -264,8 +264,8 @@
   endif
 
   # Step 7 — idempotency (§16.3). For an idempotent tool with a client-supplied key
-  # (MCP `params._meta.idempotencyKey`): replay a prior result for (key, principal)
-  # instead of re-executing — agents retry far more than humans, and a retried
+  # (MCP `params._meta.idempotencyKey`): replay a prior result for (key, principal,
+  # tool) instead of re-executing — agents retry far more than humans, and a retried
   # mutating call must not duplicate the write. Runs AFTER authorization so a cached
   # result is never served to an unauthorized caller.
   assign mcp_params = params.params
@@ -274,24 +274,10 @@
   assign le['idempotency_key'] = idem_key
   assign idem_store = false
   if tool.idempotent and idem_key != blank
-    function hit = 'modules/mcp/commands/idempotency/lookup', key: idem_key, principal_id: auth.principal.id
+    function hit = 'modules/mcp/commands/idempotency/lookup', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name
     if hit.found
-      if hit.input_sha256 != input_sha256
-        # Same key, different arguments — a client error, never silently served.
-        assign le['execution_outcome'] = 'invalid'
-        assign le['error_code'] = -32602
-        function _ = 'modules/mcp/commands/ledger/append', entry: le
-        function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Idempotency-Key reused with different arguments'
-        assign out['http_status'] = 409
-        assign out['body'] = body
-        return out
-      endif
-      # Replay the original result without re-executing; attest the replay.
-      assign le['execution_outcome'] = 'replayed'
-      function _ = 'modules/mcp/commands/ledger/append', entry: le
-      function body = 'modules/mcp/commands/rpc/success', id: id, result: hit.response
-      assign out['http_status'] = 200
-      assign out['body'] = body
+      # Same arguments → replay without re-executing; different arguments → 409.
+      function out = 'modules/mcp/commands/idempotency/replay', hit: hit, input_sha256: input_sha256, entry: le, id: id
       return out
     endif
     assign idem_store = true
@@ -311,49 +297,91 @@
     # roll back the whole thing (no partial state), then record the rolled_back
     # outcome OUTSIDE the transaction so the failure is still audited (§9.3).
     # Liquid variables assigned in the block survive rollback, so `exec` is
-    # available for the response either way.
+    # available afterwards — but after a rollback the response is built from
+    # `committed`, never from exec alone (see below).
     assign committed = false
+    assign raced = null
     transaction
-      function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: auth.principal, agent: auth.agent, context_meta: context_meta
-      if exec.outcome == 'success'
-        assign le['execution_outcome'] = 'success'
-        unless exec.subject_type == blank
-          assign le['subject_type'] = exec.subject_type
-          assign le['subject_id'] = exec.subject_id
-        endunless
-        assign append_ok = false
-        try
-          # Idempotency record commits INSIDE this transaction (§16.3) — the
-          # mutation and its replay record are atomic: a mutation can never commit
-          # without its replay record, and a rolled-back call leaves none.
-          if idem_store
-            function sres = 'modules/mcp/commands/execute/result_of', exec: exec
-            assign rj = sres | json
-            function _ = 'modules/mcp/commands/idempotency/store', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name, input_sha256: input_sha256, response_json: rj, window: cfg.defaults.idempotency_window_seconds
-          endif
-          function _ = 'modules/mcp/commands/ledger/append', entry: le
-          assign append_ok = true
-        catch e
-          log e.message, type: 'mcp.ledger_append_failed_in_tx'
-        endtry
-        # `rollback` is a valid platformOS transaction tag; the linter's HTML/Liquid
-        # parser mis-flags it inside this block. Correct at runtime.
-        # platformos-check-disable LiquidHTMLSyntaxError
-        if append_ok
-          assign committed = true
-        else
-          rollback
+      # Concurrent retries (§16.3): the lookup above is not atomic with execution, so
+      # two in-flight calls with the same key can both miss it. Take the ledger mutex
+      # (held until this transaction ends) and look again — a retry that lost the race
+      # blocks here, then finds the winner's committed replay record and does not run.
+      # Cost: keyed mutating calls hold the mutex for the handler's duration, not
+      # just the ledger append.
+      if idem_store
+        function _locked = 'modules/mcp/commands/ledger/mutex'
+        function hit2 = 'modules/mcp/commands/idempotency/lookup', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name
+        if hit2.found
+          assign raced = hit2
         endif
-      else
+      endif
+      # `rollback` is a valid platformOS transaction tag; the linter's HTML/Liquid
+      # parser mis-flags it inside this block. Correct at runtime.
+      # platformos-check-disable LiquidHTMLSyntaxError
+      if raced != blank
         rollback
+      else
+        function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: auth.principal, agent: auth.agent, context_meta: context_meta
+        if exec.outcome == 'success'
+          assign le['execution_outcome'] = 'success'
+          unless exec.subject_type == blank
+            assign le['subject_type'] = exec.subject_type
+            assign le['subject_id'] = exec.subject_id
+          endunless
+          assign append_ok = false
+          try
+            # Idempotency record commits INSIDE this transaction (§16.3) — the
+            # mutation and its replay record are atomic: a mutation can never commit
+            # without its replay record, and a rolled-back call leaves none.
+            if idem_store
+              function sres = 'modules/mcp/commands/execute/result_of', exec: exec
+              assign rj = sres | json
+              function _ = 'modules/mcp/commands/idempotency/store', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name, input_sha256: input_sha256, response_json: rj, window: cfg.defaults.idempotency_window_seconds
+            endif
+            function _ = 'modules/mcp/commands/ledger/append', entry: le
+            assign append_ok = true
+          catch e
+            log e.message, type: 'mcp.ledger_append_failed_in_tx'
+          endtry
+          if append_ok
+            assign committed = true
+          else
+            rollback
+          endif
+        else
+        rollback
+        endif
       endif
     endtransaction
     # platformos-check-enable LiquidHTMLSyntaxError
+
+    unless raced == blank
+      function out = 'modules/mcp/commands/idempotency/replay', hit: raced, input_sha256: input_sha256, entry: le, id: id
+      return out
+    endunless
 
     unless committed
       assign le['execution_outcome'] = 'rolled_back'
       assign le['error_code'] = -32003
       function _ = 'modules/mcp/commands/ledger/append', entry: le
+      # Nothing was persisted, so the agent MUST be told the call failed — even when
+      # the handler itself succeeded and only the attestation / replay record failed
+      # (exec still says success; answering from it would report a rolled-back action
+      # as done). A handler business error keeps its own message.
+      if exec.outcome == 'success'
+        assign rb_content = []
+        assign rb_item = {}
+        assign rb_item['type'] = 'text'
+        assign rb_item['text'] = 'The action failed and was rolled back; no changes were saved.'
+        assign rb_content = rb_content | array_add: rb_item
+        assign rb_result = {}
+        assign rb_result['content'] = rb_content
+        assign rb_result['isError'] = true
+        function body = 'modules/mcp/commands/rpc/success', id: id, result: rb_result
+        assign out['http_status'] = 200
+        assign out['body'] = body
+        return out
+      endif
     endunless
   else
     # Step 8+9, READ: execute, then attest the outcome. No transaction.

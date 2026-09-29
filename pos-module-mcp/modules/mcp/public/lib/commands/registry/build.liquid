@@ -29,6 +29,10 @@
 
   assign tools = []
   assign excluded = []
+  # Names owned by the built-in engine tools appended below. An app manifest may not
+  # claim one: resolve_tool returns the FIRST match, so an app tool would otherwise
+  # replace the built-in's handler and policy.
+  assign reserved_names = ["mcp_approval_status"]
 
   if entries
     for entry in entries
@@ -75,6 +79,19 @@
         continue
       endif
 
+      # --- Reserved-name guard: built-in tool names cannot be claimed by the app. ---
+      if reserved_names contains manifest.name
+        assign ex = {}
+        assign ex['name'] = manifest.name
+        assign errs = []
+        assign rmsg = 'tool name "' | append: manifest.name | append: '" is reserved for a built-in engine tool'
+        assign errs = errs | array_add: rmsg
+        assign ex['errors'] = errs
+        assign excluded = excluded | array_add: ex
+        log rmsg, type: 'mcp.registry_reserved_name'
+        continue
+      endif
+
       # --- Meta-schema validation. ---
       function v = 'modules/mcp/commands/registry/manifest_schema', manifest: manifest, max_depth: cfg.defaults.max_schema_depth
       if v.valid
@@ -100,7 +117,8 @@
 
   # Built-in engine tools (spec §9.6) — always served, no app registration. Their
   # handlers are module commands; they use the mcp_authenticated built-in policy and
-  # self-scope. Injected after app tools so an app cannot shadow them by name.
+  # self-scope. App manifests claiming these names are excluded above (reserved_names),
+  # so a built-in can never be shadowed.
   assign builtin = {}
   assign builtin['name'] = 'mcp_approval_status'
   assign builtin['version'] = '1.0.0'

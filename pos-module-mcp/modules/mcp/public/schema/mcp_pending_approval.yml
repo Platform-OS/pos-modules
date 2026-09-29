@@ -17,7 +17,7 @@ properties:
   - name: requested_by_agent
   - name: principal_id    # the action executes AS this principal on approval
   - name: authz_policy
-  - name: status          # pending | approved | rejected | expired | executed | failed
+  - name: status          # pending | approved (claimed, executing) | rejected | cancelled | expired | executed | failed
   - name: decided_by      # operator user id
   - name: decided_at      # ISO-8601 UTC string
   - name: expires_at
@@ -25,3 +25,4 @@ properties:
   - name: result_summary
     type: text            # short outcome shown to the agent after execution
   - name: request_id      # correlation id linking the request + execution ledger entries
+  - name: claim_token     # rewritten on every decision claim; see approval/claim (row-lock mutex)

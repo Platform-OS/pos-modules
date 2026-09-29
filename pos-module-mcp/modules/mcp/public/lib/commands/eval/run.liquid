@@ -18,7 +18,7 @@
 {%- endcomment -%}
 {% liquid
   function cfg = 'modules/mcp/commands/config'
-  assign run_id = 'mcp_run_' | append: '' | uuid
+  assign run_id = '' | uuid | prepend: 'mcp_run_'
   assign occurred_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
 
   function reg = 'modules/mcp/commands/registry/load'

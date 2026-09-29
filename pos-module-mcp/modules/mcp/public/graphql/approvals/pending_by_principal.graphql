@@ -12,6 +12,9 @@ query pending_by_principal($principal_id: String!, $per_page: Int!) {
   ) {
     total_entries
     results {
+      id
+      handle: property(name: "handle")
+      tool_name: property(name: "tool_name")
       input_sha256: property(name: "input_sha256")
       expires_at: property(name: "expires_at")
     }

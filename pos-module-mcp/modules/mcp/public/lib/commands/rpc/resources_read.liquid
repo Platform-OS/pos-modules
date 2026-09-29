@@ -4,7 +4,8 @@
 
   SECURITY: the toggle AND the prefix allowlist are RE-CHECKED here — a crafted uri
   must not read a page outside the configured doc prefixes (never trust the uri to
-  scope access). Only GET pages under an allowed prefix are readable.
+  scope access). Only markdown GET pages under an allowed prefix (path boundary)
+  are readable — see queries/resources/page_allowed.
 
   @param {object} params - MCP params with `uri` = mcp+page:///<slug>
   @return {object} result { contents:[{uri,mimeType,text}] } OR
@@ -25,18 +26,12 @@
   assign uri = params.uri | default: ''
   assign slug = uri | remove_first: 'mcp+page:///' | strip
 
-  # Re-check the allowlist against the resolved slug (defense: do not trust uri).
-  assign allowed = false
-  for prefix in cfg.resources.markdown_page_prefixes
-    # Plain prefix test (not regex) so a prefix with metachars can't alter matching.
-    assign p_len = prefix | size
-    assign head = slug | slice: 0, p_len
-    if head == prefix
-      assign allowed = true
-      break
-    endif
-  endfor
+  graphql pres = 'modules/mcp/resources/page_by_slug', slug: slug
+  assign page = pres.admin_pages.results.first
 
+  # Re-check exposure against the resolved page (defense: do not trust uri) — the
+  # same predicate resources/list applies: markdown + GET + prefix on a path boundary.
+  function allowed = 'modules/mcp/queries/resources/page_allowed', page: page, prefixes: cfg.resources.markdown_page_prefixes
   unless allowed
     assign err = {}
     assign err['code'] = -32002
@@ -45,17 +40,6 @@
     assign out['_error'] = err
     return out
   endunless
-
-  graphql pres = 'modules/mcp/resources/page_by_slug', slug: slug
-  assign page = pres.admin_pages.results.first
-  if page == blank
-    assign err = {}
-    assign err['code'] = -32002
-    assign err['message'] = 'Resource not found'
-    assign out = {}
-    assign out['_error'] = err
-    return out
-  endif
 
   # Serve ONLY the raw authored source (markdown for doc pages). We deliberately
   # do NOT fall back to page.html_content: that field is the converter's RENDERED

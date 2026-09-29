@@ -40,8 +40,8 @@ async function pruneRate() {
   const r = await gql(`{ records(per_page: 200, filter: { table: { value: "${TABLE_RATE}" } properties: [{ name: "key", starts_with: "principal:${CONF_PRINCIPAL}" }] }) { results { id } } }`);
   for (const row of r?.data?.records?.results || []) await adm.recordDelete(TABLE_RATE, row.id);
 }
-// Seed/delete a live markdown doc PAGE so the resources test owns its own fixture
-// (pages are code, not records — created via the admin API, removed by slug prefix).
+// Seed/delete a live LIQUID page under the docs prefix — the resources test's negative
+// fixture (pages are code, not records — created via the admin API, removed by slug prefix).
 async function pageCreate(slug, content, title) {
   const r = await gql(`mutation($p: PageInputType!){ admin_page_create(page: $p){ id slug } }`, {
     p: { slug, format: 'html', handler: 'liquid', content, manually_managed: true,
@@ -156,12 +156,20 @@ describe('conformance · protocol + governance pipeline', () => {
     const off = await rpc({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
     ok('resources OFF by default → empty', (off.json?.result?.resources || []).length === 0);
 
-    // Self-contained fixture: seed a docs-prefixed page we own (cleaned up in afterAll).
-    const docSlug = 'docs/conf-' + CONF_KEYWORD;
+    // Markdown fixtures are DEPLOYED app pages (app/views/pages/docs/mcp-conformance.md and
+    // app/views/pages/docs-mcp-conformance-boundary.md): a page is `handler: markdown` only
+    // via deployed front matter — the admin page API always stores `liquid`.
+    const docSlug = 'docs/mcp-conformance';
     const docUri = 'mcp+page:///' + docSlug;
-    const docMarker = 'seeded-' + CONF_KEYWORD;
-    try { await pagesDeleteByPrefix(docSlug); } catch {} // fixed slug now → delete any leftover first
-    await pageCreate(docSlug, '# Conformance doc\n' + docMarker, 'Conformance Doc');
+    const docMarker = 'mcp-conformance-doc-fixture';
+    const boundarySlug = 'docs-mcp-conformance-boundary';
+    const boundaryMarker = 'mcp-conformance-boundary-fixture';
+    // Negative fixture seeded here: a LIQUID page under the prefix (its content is
+    // template source, never servable).
+    const liquidSlug = 'docs/conf-' + CONF_KEYWORD;
+    const liquidMarker = 'seeded-' + CONF_KEYWORD;
+    try { await pagesDeleteByPrefix(liquidSlug); } catch {} // fixed slug → delete any leftover first
+    await pageCreate(liquidSlug, '{% comment %}' + liquidMarker + '{% endcomment %}', 'Conformance Liquid');
 
     await setConstant('MCP_CONFIG', JSON.stringify({ resources: { expose_markdown_pages: true } }));
     // Allow a beat for the new page + constant to become visible (poll, don't sleep-guess).
@@ -172,11 +180,18 @@ describe('conformance · protocol + governance pipeline', () => {
       if (onRes.some(r => r.uri === docUri)) break;
       await new Promise(res => setTimeout(res, 500));
     }
-    ok('resources ON → lists our seeded docs page', onRes.some(r => r.uri === docUri));
+    ok('resources ON → lists the deployed markdown docs page', onRes.some(r => r.uri === docUri));
     const readOk = await rpc({ jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: docUri } });
-    ok('resources/read returns the seeded markdown (no html leak)', JSON.stringify(readOk.json?.result || {}).includes(docMarker));
+    ok('resources/read returns the deployed markdown (no html leak)', JSON.stringify(readOk.json?.result || {}).includes(docMarker));
     const bad = await rpc({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: 'mcp+page:///mcp' } });
     ok('read outside allowlist → not found (no leak)', bad.json?.error?.code === -32002);
+    const liquidUri = 'mcp+page:///' + liquidSlug, boundaryUri = 'mcp+page:///' + boundarySlug;
+    ok('liquid page under prefix → not listed', !onRes.some(r => r.uri === liquidUri));
+    const liq = await rpc({ jsonrpc: '2.0', id: 5, method: 'resources/read', params: { uri: liquidUri } });
+    ok('liquid page under prefix → read not found (no source leak)', liq.json?.error?.code === -32002 && !liq.text.includes(liquidMarker));
+    ok('prefix without path boundary → not listed', !onRes.some(r => r.uri === boundaryUri));
+    const bnd = await rpc({ jsonrpc: '2.0', id: 6, method: 'resources/read', params: { uri: boundaryUri } });
+    ok('prefix without path boundary → read not found', bnd.json?.error?.code === -32002 && !bnd.text.includes(boundaryMarker));
     await unsetConstant('MCP_CONFIG');
   });
 

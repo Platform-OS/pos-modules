@@ -28,6 +28,13 @@
   else
     graphql cres = 'modules/mcp/rate/create', key: key
     assign count = cres.record.count | plus: 0
+    # First request of this scope in a new window: every 10th minute, also reclaim
+    # closed counter windows + expired idempotency rows (async platform jobs), so the
+    # tables stay bounded without a scheduler. At most once per scope per 10 minutes.
+    assign sweep_slot = window | modulo: 10
+    if sweep_slot == 0
+      function _swept = 'modules/mcp/commands/maintenance/sweep'
+    endif
   endif
 
   assign allowed = true
