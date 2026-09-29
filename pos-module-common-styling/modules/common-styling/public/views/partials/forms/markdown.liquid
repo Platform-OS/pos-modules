@@ -30,7 +30,7 @@
   assign maxlength = maxlength | default: 10000
 %}
 
-<div class="pos-markdown" id="{{ id }}" data-minlength="{{ minlength }}" data-maxlength="{{ maxlength }}" aria-describedby="{{ id }}-instructions">
+<div class="{{ class }}" id="{{ id }}" data-minlength="{{ minlength }}" data-maxlength="{{ maxlength }}" aria-describedby="{{ id }}-instructions">
 
   <textarea
     class="pos-forms-text"
