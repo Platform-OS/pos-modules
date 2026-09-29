@@ -3,30 +3,32 @@ slug: mcp-admin/access
 method: post
 ---
 {%- comment -%}
-  Operator manages a member's MCP access: approve a request, grant the user or admin
-  role, or revoke. Operator-gated. Executes as the operator (decided_by recorded).
+  Operator manages a member's MCP role on their user-module profile: grant member
+  (mcp_user) or operator (mcp_operator) access, or remove it. Targets a profile by
+  `profile_id` (member list buttons) or by `email` (grant form). Requires mcp.admin.
   Uses `decision` (not `action`, which platformOS can shadow).
 {%- endcomment -%}
 {%- liquid
-  function is_admin = 'modules/mcp/commands/is_operator'
-  unless is_admin
-    response_status 403
-    echo 'Forbidden'
-    return
-  endunless
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.admin', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-admin', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
 
-  assign decision = context.params.decision
-  assign target = context.params.user_id
-  assign email = context.params.email
-  assign op = context.current_user.id | append: ''
+  assign profile_id = context.params.profile_id
+  if profile_id == blank and context.params.email != blank
+    function found = 'modules/user/queries/profiles/search', emails: context.params.email, limit: 1, page: 1, first_name: null, id: null, ids: null, last_name: null, not_ids: null, query: null, sort: null, user_id: null, uuid: null
+    assign profile_id = found.results.first.id
+  endif
 
-  case decision
-    when 'approve', 'make_user'
-      function _ = 'modules/mcp/commands/access/decide', user_id: target, email: email, role: 'user', status: 'active', decided_by: op
+  case context.params.decision
+    when 'make_user'
+      function _ = 'modules/mcp/commands/access/set_role', profile_id: profile_id, role: 'mcp_user'
     when 'make_admin'
-      function _ = 'modules/mcp/commands/access/decide', user_id: target, email: email, role: 'admin', status: 'active', decided_by: op
-    when 'revoke', 'reject'
-      function _ = 'modules/mcp/commands/access/decide', user_id: target, email: email, role: 'user', status: 'revoked', decided_by: op
+      function _ = 'modules/mcp/commands/access/set_role', profile_id: profile_id, role: 'mcp_operator'
+    when 'revoke'
+      function _ = 'modules/mcp/commands/access/set_role', profile_id: profile_id, role: null
   endcase
 
   redirect_to '/mcp-admin?tab=tokens'

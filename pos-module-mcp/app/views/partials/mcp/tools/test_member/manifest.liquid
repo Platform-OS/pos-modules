@@ -1,7 +1,7 @@
 {%- comment -%}
   Tool manifest — test_member (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
   Visibility probe for the MEMBER tier: policy test_principal_member → only a principal
-  with an active mcp_access role (user|admin). The coverage suite asserts it is
+  holding mcp.tokens.manage (role mcp_user or mcp_operator). The coverage suite asserts it is
   visible/callable by operator and member, but NOT by outsider or anon.
 {%- endcomment -%}
 {% liquid

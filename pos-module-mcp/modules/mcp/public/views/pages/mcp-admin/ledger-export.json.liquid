@@ -11,12 +11,12 @@ format: json
   complete archive when it is not. Read-only: never mutates the chain.
 {%- endcomment -%}
 {%- liquid
-  function is_admin = 'modules/mcp/commands/is_operator'
-  unless is_admin
-    response_status 403
-    echo '{"error":"forbidden"}'
-    return
-  endunless
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.admin', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-admin', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
 
   assign export_cap = 5000
   assign per_page = 100

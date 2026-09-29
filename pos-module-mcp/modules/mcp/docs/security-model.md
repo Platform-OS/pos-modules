@@ -90,7 +90,7 @@ Between identity and action sits `authorize/evaluate` — the per-call, per-tool
 
 - **No implicit allow (§12.2):** a manifest with a blank/missing `authorization_policy` fails meta-validation and is **excluded from the registry** — there is no default-permit path.
 - **Fail-closed:** a policy that does not affirmatively allow is a deny.
-- **Module-owned, not domain-coupled:** the built-in policies read the module's own access model (`mcp_access`: role `admin`/`user`, status), *not* a business module's roles. `admin_only` checks MCP-operator status (`mcp_access` admin or the `MCP_ADMIN_USER_IDS` bootstrap); `members_can_write` / `public_read` require only an authenticated principal.
+- **User-module RBAC, not domain-coupled:** the built-in policies read user-module permissions, *not* a business module's roles. `admin_only` checks that the principal holds `mcp.admin` (role `mcp_operator`, or superadmin) via `modules/mcp/queries/principal/can`; `members_can_write` / `public_read` require only an authenticated principal.
 
 Every decision (`allow`/`deny`/`not_applicable`) and its `reason` are recorded on the ledger entry.
 

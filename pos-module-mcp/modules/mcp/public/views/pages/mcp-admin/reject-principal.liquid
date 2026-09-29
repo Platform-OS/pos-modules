@@ -11,12 +11,12 @@ method: post
   that; a larger backlog drains over repeated clicks rather than in an unbounded loop).
 {%- endcomment -%}
 {%- liquid
-  function is_admin = 'modules/mcp/commands/is_operator'
-  unless is_admin
-    response_status 403
-    echo 'Forbidden'
-    return
-  endunless
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.admin', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-admin', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
 
   assign pid = context.params.principal_id
   if pid != blank
@@ -27,7 +27,7 @@ method: post
         # Bulk drain: one UPDATE per pending row is inherent — mutations can't be
         # batched into a single query here. Bounded to the first 50 rows.
         # platformos-check-disable NestedGraphQLQuery
-        graphql _ = 'modules/mcp/approvals/update', id: a.id, status: 'rejected', decided_by: context.current_user.id, decided_at: decided_at, result_summary: 'Bulk-rejected by operator (queue drain).'
+        graphql _ = 'modules/mcp/approvals/update', id: a.id, status: 'rejected', decided_by: current_profile.user.id, decided_at: decided_at, result_summary: 'Bulk-rejected by operator (queue drain).'
         # platformos-check-enable NestedGraphQLQuery
       endif
     endfor

@@ -6,10 +6,11 @@ layout: ''
   MCP operator console (spec §20). Admin-gated ledger view + observability. The
   ledger is the audit surface; this page reads it, never mutates it.
 
-  ACCESS: operators are an explicit allowlist in MCP_ADMIN_USER_IDS (same rule as
-  the admin_only tool policy). A non-operator (or anonymous) request gets 403 and
-  no data — the gate runs BEFORE any query. Session identity is context.current_user
-  (browser login), distinct from the bearer identity used by the /mcp API.
+  ACCESS: requires the mcp.admin permission (user-module RBAC; role mcp_operator or
+  superadmin). Anonymous visitors are sent to sign in; a signed-in member without it
+  gets 403 and no data — the gate runs BEFORE any query. Session identity is the
+  user-module current_profile (browser login), distinct from the bearer identity used
+  by the /mcp API.
 
   LAYOUT: a left sidebar selects one of five sections; the server renders only the
   active panel (?tab= is the single source of truth). This is URL-driven, NOT a
@@ -33,161 +34,145 @@ layout: ''
   # bfcache-ineligible, so Back/Forward cannot restore sensitive views from browser
   # history after an operator navigates away — it forces a fresh, re-gated request.
   response_headers '{"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}'
-  function is_admin = 'modules/mcp/commands/is_operator'
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.admin', redirect_anonymous_to_login: true, forbidden_partial: 'modules/mcp/pages/403', access_callback: null, anonymous_return_to: null, entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
 
-  unless is_admin
-    response_status 403
+  # ---- request params + display flags (computed FIRST; they drive the lazy loading) ----
+  assign valid_tabs = 'overview,approvals,tokens,ledger,config' | split: ','
+  assign active_tab = context.params.tab | default: 'overview'
+  unless valid_tabs contains active_tab
+    assign active_tab = 'overview'
   endunless
 
-  if is_admin
-    # ---- request params + display flags (computed FIRST; they drive the lazy loading) ----
-    assign valid_tabs = 'overview,approvals,tokens,ledger,config' | split: ','
-    assign active_tab = context.params.tab | default: 'overview'
-    unless valid_tabs contains active_tab
-      assign active_tab = 'overview'
-    endunless
-
-    assign full_verify = false
-    if context.params.verify == 'full'
-      assign full_verify = true
-    endif
-
-    # Live tail (JS-free auto-refresh via <meta http-equiv="refresh">). Opt-in with ?live=N
-    # (seconds, clamped 5..300; a bare truthy value defaults to 20s). Off by default.
-    assign live_on = false
-    assign live_secs = 20
-    assign live_raw = context.params.live | default: ''
-    if live_raw != ''
-      assign live_on = true
-      assign live_n = live_raw | plus: 0
-      if live_n >= 5
-        assign live_secs = live_n
-      endif
-      if live_secs > 300
-        assign live_secs = 300
-      endif
-    endif
-
-    # Non-production tool fixtures live? (operator safety warning — never in prod).
-    assign tt = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
-    assign test_tools_on = false
-    if tt == '1' or tt == 'true'
-      assign test_tools_on = true
-    endif
-    assign vv = context.constants.MCP_ENABLE_VULN_TOOLS | default: ''
-    assign vuln_tools_on = false
-    if vv == '1' or vv == 'true'
-      assign vuln_tools_on = true
-    endif
-
-    # Query-string suffix carried across URL-driven tab links (preserves live + verify).
-    assign qp = ''
-    if live_on
-      assign qp = qp | append: '&live=' | append: live_secs
-    endif
-    if full_verify
-      assign qp = qp | append: '&verify=full'
-    endif
-
-    # ---- always (every tab): pending approvals for the nav badge ----
-    graphql pending_res = 'modules/mcp/approvals/list', status: 'pending', per_page: 50
-    assign pending = pending_res.records.results
-
-    # ---- chain status for the banner (every tab). On Overview the metrics scan already
-    #      yields it; elsewhere do the cheap bounded check alone (NO count scan). ----
-    if active_tab == 'overview'
-      if full_verify
-        function m = 'modules/mcp/commands/observability/metrics'
-      else
-        function m = 'modules/mcp/commands/observability/metrics', chain_tail: 200
-      endif
-      assign chain = m.chain
-      graphql eval_res = 'modules/mcp/eval/runs_latest', per_page: 1
-      assign latest_eval = eval_res.records.results.first
-    else
-      if full_verify
-        function chain = 'modules/mcp/commands/ledger/verify_chain'
-      else
-        function chain = 'modules/mcp/commands/ledger/verify_chain_recent', limit: 200
-      endif
-    endif
-
-    # ---- LAZY per-tab data: only the active tab runs its (heavier) queries ----
-    if active_tab == 'ledger'
-      graphql search = 'modules/mcp/ledger/search', tool_name: context.params.tool_name, principal_id: context.params.principal_id, client_id: context.params.client_id, authz_decision: context.params.authz_decision, execution_outcome: context.params.execution_outcome, page: 1, per_page: 50
-      assign rows = search.records.results
-    endif
-
-    if active_tab == 'tokens'
-      function cfg = 'modules/mcp/commands/config'
-      graphql access_res = 'modules/mcp/access/list', per_page: 200
-      assign access_rows = access_res.records.results
-      graphql tokens_res = 'modules/mcp/tokens/list_all', per_page: 200
-      assign tokens = tokens_res.records.results
-      graphql rc_res = 'modules/mcp/rate/all', per_page: 500
-      assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
-      assign abuse_win = cfg.defaults.abuse_window_seconds | plus: 0
-      assign cur_window = 0
-      if abuse_win > 0
-        assign cur_window = now_unix | divided_by: abuse_win
-      endif
-      assign abuse_map = {}
-      for rc in rc_res.records.results
-        assign abuse_map[rc.key] = rc.count
-      endfor
-      assign abuse_threshold = cfg.defaults.abuse_threshold | plus: 0
-      assign half_threshold = 1
-      if abuse_threshold > 0
-        assign half_threshold = abuse_threshold | divided_by: 2
-      endif
-    endif
-
-    if active_tab == 'config'
-      function cfg = 'modules/mcp/commands/config'
-      function registry = 'modules/mcp/commands/registry/load'
-    endif
-
-    if active_tab == 'approvals'
-      # Per-principal pending-approval counts, for the bulk-drain control.
-      assign pending_by_pid = {}
-      for a in pending
-        assign prev_p = pending_by_pid[a.principal_id] | default: 0
-        assign pending_by_pid[a.principal_id] = prev_p | plus: 1
-      endfor
-    endif
-
-    # ---- F: chain-break diagnostics (fetched ONLY when the chain is broken — rare, so
-    #      no cost on the normal path). Surfaces the forked/tampered rows on the Ledger tab.
-    unless chain.ok
-      assign _broken_seq = chain.broken_at | plus: 0
-      graphql fork_res = 'modules/mcp/ledger/by_seq', seq: _broken_seq
-      assign fork_rows = fork_res.records.results
-    endunless
-
-    # Preserve the active ledger filter across the export link (values url-encoded).
-    assign v_tool = context.params.tool_name | url_encode
-    assign v_prin = context.params.principal_id | url_encode
-    assign v_client = context.params.client_id | url_encode
-    assign v_authz = context.params.authz_decision | url_encode
-    assign v_outcome = context.params.execution_outcome | url_encode
-    assign export_qs = 'tool_name=' | append: v_tool | append: '&principal_id=' | append: v_prin | append: '&client_id=' | append: v_client | append: '&authz_decision=' | append: v_authz | append: '&execution_outcome=' | append: v_outcome | append: '&tab=ledger'
+  assign full_verify = false
+  if context.params.verify == 'full'
+    assign full_verify = true
   endif
+
+  # Live tail (JS-free auto-refresh via <meta http-equiv="refresh">). Opt-in with ?live=N
+  # (seconds, clamped 5..300; a bare truthy value defaults to 20s). Off by default.
+  assign live_on = false
+  assign live_secs = 20
+  assign live_raw = context.params.live | default: ''
+  if live_raw != ''
+    assign live_on = true
+    assign live_n = live_raw | plus: 0
+    if live_n >= 5
+      assign live_secs = live_n
+    endif
+    if live_secs > 300
+      assign live_secs = 300
+    endif
+  endif
+
+  # Non-production tool fixtures live? (operator safety warning — never in prod).
+  assign tt = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+  assign test_tools_on = false
+  if tt == '1' or tt == 'true'
+    assign test_tools_on = true
+  endif
+  assign vv = context.constants.MCP_ENABLE_VULN_TOOLS | default: ''
+  assign vuln_tools_on = false
+  if vv == '1' or vv == 'true'
+    assign vuln_tools_on = true
+  endif
+
+  # Query-string suffix carried across URL-driven tab links (preserves live + verify).
+  assign qp = ''
+  if live_on
+    assign qp = qp | append: '&live=' | append: live_secs
+  endif
+  if full_verify
+    assign qp = qp | append: '&verify=full'
+  endif
+
+  # ---- always (every tab): pending approvals for the nav badge ----
+  graphql pending_res = 'modules/mcp/approvals/list', status: 'pending', per_page: 50
+  assign pending = pending_res.records.results
+
+  # ---- chain status for the banner (every tab). On Overview the metrics scan already
+  #      yields it; elsewhere do the cheap bounded check alone (NO count scan). ----
+  if active_tab == 'overview'
+    if full_verify
+      function m = 'modules/mcp/commands/observability/metrics'
+    else
+      function m = 'modules/mcp/commands/observability/metrics', chain_tail: 200
+    endif
+    assign chain = m.chain
+    graphql eval_res = 'modules/mcp/eval/runs_latest', per_page: 1
+    assign latest_eval = eval_res.records.results.first
+  else
+    if full_verify
+      function chain = 'modules/mcp/commands/ledger/verify_chain'
+    else
+      function chain = 'modules/mcp/commands/ledger/verify_chain_recent', limit: 200
+    endif
+  endif
+
+  # ---- LAZY per-tab data: only the active tab runs its (heavier) queries ----
+  if active_tab == 'ledger'
+    graphql search = 'modules/mcp/ledger/search', tool_name: context.params.tool_name, principal_id: context.params.principal_id, client_id: context.params.client_id, authz_decision: context.params.authz_decision, execution_outcome: context.params.execution_outcome, page: 1, per_page: 50
+    assign rows = search.records.results
+  endif
+
+  if active_tab == 'tokens'
+    function cfg = 'modules/mcp/commands/config'
+    graphql members_res = 'modules/mcp/access/members', per_page: 200
+    assign members = members_res.records.results
+    graphql tokens_res = 'modules/mcp/tokens/list_all', per_page: 200
+    assign tokens = tokens_res.records.results
+    graphql rc_res = 'modules/mcp/rate/all', per_page: 500
+    assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+    assign abuse_win = cfg.defaults.abuse_window_seconds | plus: 0
+    assign cur_window = 0
+    if abuse_win > 0
+      assign cur_window = now_unix | divided_by: abuse_win
+    endif
+    assign abuse_map = {}
+    for rc in rc_res.records.results
+      assign abuse_map[rc.key] = rc.count
+    endfor
+    assign abuse_threshold = cfg.defaults.abuse_threshold | plus: 0
+    assign half_threshold = 1
+    if abuse_threshold > 0
+      assign half_threshold = abuse_threshold | divided_by: 2
+    endif
+  endif
+
+  if active_tab == 'config'
+    function cfg = 'modules/mcp/commands/config'
+    function registry = 'modules/mcp/commands/registry/load'
+  endif
+
+  if active_tab == 'approvals'
+    # Per-principal pending-approval counts, for the bulk-drain control.
+    assign pending_by_pid = {}
+    for a in pending
+      assign prev_p = pending_by_pid[a.principal_id] | default: 0
+      assign pending_by_pid[a.principal_id] = prev_p | plus: 1
+    endfor
+  endif
+
+  # ---- F: chain-break diagnostics (fetched ONLY when the chain is broken — rare, so
+  #      no cost on the normal path). Surfaces the forked/tampered rows on the Ledger tab.
+  unless chain.ok
+    assign _broken_seq = chain.broken_at | plus: 0
+    graphql fork_res = 'modules/mcp/ledger/by_seq', seq: _broken_seq
+    assign fork_rows = fork_res.records.results
+  endunless
+
+  # Preserve the active ledger filter across the export link (values url-encoded).
+  assign v_tool = context.params.tool_name | url_encode
+  assign v_prin = context.params.principal_id | url_encode
+  assign v_client = context.params.client_id | url_encode
+  assign v_authz = context.params.authz_decision | url_encode
+  assign v_outcome = context.params.execution_outcome | url_encode
+  assign export_qs = 'tool_name=' | append: v_tool | append: '&principal_id=' | append: v_prin | append: '&client_id=' | append: v_client | append: '&authz_decision=' | append: v_authz | append: '&execution_outcome=' | append: v_outcome | append: '&tab=ledger'
 -%}
-{%- if is_admin == false -%}
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Forbidden</title>
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem; }
-</style>
-</head>
-<body>
-  <h1>403 — Operators only</h1>
-  <p>The MCP operator console requires an account listed in <code>MCP_ADMIN_USER_IDS</code>.</p>
-</body></html>
-{%- else -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -388,7 +373,7 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
   <div class="topbar">
     <h1>{{ active_tab | capitalize }}</h1>
     {%- if chain.ok -%}
-      <div class="banner ok">&#10003; Ledger chain verified — {{ chain.count }} entries{%- if chain.recent %} (recent window){% endif -%} intact.{%- unless full_verify %} &middot; <a href="?tab={{ active_tab }}&amp;verify=full{% if live_on %}&amp;live={{ live_secs }}{% endif %}">verify entire chain</a>{% endunless -%}</div>
+      <div class="banner ok">&#10003; Ledger chain verified — {{ chain.count }} entries{% if chain.recent %} (recent window){% endif %} intact.{%- unless full_verify %} &middot; <a href="?tab={{ active_tab }}&amp;verify=full{% if live_on %}&amp;live={{ live_secs }}{% endif %}">verify entire chain</a>{% endunless -%}</div>
     {%- else -%}
       <div class="banner bad">&#10007; LEDGER CHAIN BROKEN at seq {{ chain.broken_at }} — {{ chain.reason }}. Investigate immediately.{% if active_tab != 'ledger' %} <a href="?tab=ledger{{ qp }}">see forked entries</a>{% endif %}</div>
     {%- endif -%}
@@ -553,60 +538,36 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
       </table>
     </div>
 
-    {%- assign reqcount = 0 -%}
-    {%- for a in access_rows -%}{%- if a.status == 'requested' -%}{%- assign reqcount = reqcount | plus: 1 -%}{%- endif -%}{%- endfor -%}
-
     <h2>MCP access</h2>
-    {%- if reqcount > 0 -%}
-    <div class="tbl-wrap attn mb-1">
-      <table>
-        <thead><tr><th>access requested</th><th>user id</th><th></th></tr></thead>
-        <tbody>
-        {%- for a in access_rows -%}{%- if a.status == 'requested' -%}
-          <tr>
-            <td>{{ a.email }}</td><td>{{ a.user_id }}</td>
-            <td class="inline-actions">
-              <form method="post" action="/mcp-admin/access">
-                <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-                <input type="hidden" name="decision" value="approve"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}">
-                <button type="submit" class="btn btn-ok btn-sm">Approve</button>
-              </form>
-              <form method="post" action="/mcp-admin/access">
-                <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-                <input type="hidden" name="decision" value="reject"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}">
-                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-              </form>
-            </td>
-          </tr>
-        {%- endif -%}{%- endfor -%}
-        </tbody>
-      </table>
-    </div>
-    {%- endif -%}
+    <p class="muted">Members hold the <code>mcp_user</code> role (mint tokens); operators hold <code>mcp_operator</code> (this console). Superadmins always have both.</p>
     <div class="tbl-wrap mb-075">
       <table>
         <thead><tr><th>member</th><th>role</th><th></th></tr></thead>
         <tbody>
-        {%- for a in access_rows -%}{%- if a.status == 'active' -%}
+        {%- for m in members -%}
+          {%- assign is_op = false -%}{%- if m.roles contains 'mcp_operator' -%}{%- assign is_op = true -%}{%- endif -%}
           <tr>
-            <td>{{ a.email }} <span class="muted">· {{ a.user_id }}</span></td>
-            <td><span class="pill {% if a.role == 'admin' %}allow{% endif %}">{{ a.role }}</span></td>
+            <td>{{ m.email }} <span class="muted">· {{ m.user_id }}</span></td>
+            <td><span class="pill {% if is_op %}allow{% endif %}">{% if is_op %}operator{% else %}member{% endif %}</span></td>
             <td class="inline-actions">
-              {%- unless a.role == 'admin' -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_admin"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}"><button type="submit" class="btn btn-xs">Make admin</button></form>{%- endunless -%}
-              {%- unless a.role == 'user' -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_user"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}"><button type="submit" class="btn btn-xs">Make user</button></form>{%- endunless -%}
-              <form method="post" action="/mcp-admin/access" onsubmit="return confirm('Revoke access for {{ a.email }}?')"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="revoke"><input type="hidden" name="user_id" value="{{ a.user_id }}"><input type="hidden" name="email" value="{{ a.email }}"><button type="submit" class="btn btn-danger btn-xs">Revoke</button></form>
+              {%- unless is_op -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_admin"><input type="hidden" name="profile_id" value="{{ m.id }}"><button type="submit" class="btn btn-xs">Make operator</button></form>{%- endunless -%}
+              {%- if is_op -%}<form method="post" action="/mcp-admin/access"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="make_user"><input type="hidden" name="profile_id" value="{{ m.id }}"><button type="submit" class="btn btn-xs">Make member</button></form>{%- endif -%}
+              <form method="post" action="/mcp-admin/access" onsubmit="return confirm('Remove MCP access for {{ m.email }}? Their existing tokens stay active until revoked above.')"><input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}"><input type="hidden" name="decision" value="revoke"><input type="hidden" name="profile_id" value="{{ m.id }}"><button type="submit" class="btn btn-danger btn-xs">Remove</button></form>
             </td>
           </tr>
-        {%- endif -%}{%- endfor -%}
+        {%- endfor -%}
+        {%- if members.size == 0 -%}<tr><td colspan="3" class="muted">No members hold an MCP role.</td></tr>{%- endif -%}
         </tbody>
       </table>
     </div>
     <form method="post" action="/mcp-admin/access" class="form-row">
       <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-      <input type="hidden" name="decision" value="make_user">
-      <input type="text" name="user_id" placeholder="user id" class="field w-7">
-      <input type="text" name="email" placeholder="email (optional)" class="field w-12">
-      <button type="submit" class="btn">Grant user access</button>
+      <input type="text" name="email" placeholder="member email" class="field w-12">
+      <select name="decision" class="field">
+        <option value="make_user">member (mcp_user)</option>
+        <option value="make_admin">operator (mcp_operator)</option>
+      </select>
+      <button type="submit" class="btn">Grant access</button>
     </form>
   </section>
 
@@ -731,4 +692,3 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
 </div>
 </body>
 </html>
-{%- endif -%}

@@ -50,7 +50,7 @@ const migration = `{% comment %}
 
   GATED: seeds ONLY when the instance constant MCP_SEED_TEST_FIXTURES is '1'/'true'
   (CI sets it for the live test stage). A plain deploy leaves it unset → this is a no-op,
-  so no test users/tokens/access ever land on a normal instance. import_users /
+  so no test users/profiles/tokens ever land on a normal instance. import_users /
   import_models use _id_remap:false so the fixed ids are preserved on every run; re-running
   UPSERTS (resets mutated fixture properties back to baseline).
 {% endcomment %}

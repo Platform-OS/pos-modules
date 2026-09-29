@@ -16,7 +16,7 @@
   assign resources = []
 
   if cfg.resources.expose_markdown_pages
-    assign host = context.location.host
+    function origin = 'modules/mcp/queries/origin'
     for prefix in cfg.resources.markdown_page_prefixes
       # One query per operator-configured slug prefix (a small allowlist, default 1) —
       # the prefixes are distinct filters, not a per-row N+1.
@@ -36,7 +36,7 @@
         assign r['mimeType'] = 'text/markdown'
         assign meta = {}
         assign meta['updated_at'] = page.content_updated_at
-        assign meta['public_url'] = 'https://' | append: host | append: '/' | append: page.slug
+        assign meta['public_url'] = origin | append: '/' | append: page.slug
         assign r['_meta'] = meta
         assign resources = resources | array_add: r
       endfor

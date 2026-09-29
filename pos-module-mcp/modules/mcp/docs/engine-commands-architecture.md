@@ -39,7 +39,7 @@ The controls map to seven governance concerns:
 | Plane | Concern | Commands |
 |---|---|---|
 | **Transport** | Speak the protocol correctly, leak nothing | `rpc/` |
-| **Identity** | Who is calling; no standing/confused-deputy credentials | `identity/`, `tokens/`, `access/`, `is_operator` |
+| **Identity** | Who is calling; no standing/confused-deputy credentials | `identity/`, `tokens/`, `access/`, `queries/principal/can` |
 | **Registry** | What tools exist; no tool poisoning | `registry/` |
 | **Validation** | Are the inputs well-formed and in-bounds | `validate/` |
 | **Authorization** | Is this identity allowed this action | `authorize/` |
@@ -70,7 +70,7 @@ The wire protocol (JSON-RPC 2.0, MCP revision 2025-06-18). Everything enters her
 
 ---
 
-## 2. Identity — *who is calling?* — `identity/`, `tokens/`, `access/`, `is_operator`
+## 2. Identity — *who is calling?* — `identity/`, `tokens/`, `access/`, `queries/principal/can`
 
 The confidentiality / confused-deputy plane. An MCP server's core risk is a standing credential that lets an agent act with more authority than the human behind it. This plane maps every call back to a **real platformOS user**.
 
@@ -79,9 +79,8 @@ The confidentiality / confused-deputy plane. An MCP server's core risk is a stan
 | `identity/resolve_principal` | Verifies the Bearer token and maps it to a principal (real platformOS user) + agent identity. Only the token's **sha256 digest** is stored, so a DB read can't recover a usable credential. Fail-closed at every step (missing/malformed header → 401 + `WWW-Authenticate`). Also throttled-stamps `last_used_at` (≤1 write/min/token). | This is *the* confused-deputy control: no anonymous execution, no shared secret, no credential recoverable from storage. `delegation_mode` is carried in the contract so `on_behalf_of` can be added later without changing callers. |
 | `identity/deny` | Builds an auth/authz denial outcome. Separates the **caller-safe wire message** from the stable machine **`reason`** recorded in the ledger, and optionally sets `WWW-Authenticate`. | The agent gets a generic reason; the audit trail gets a precise, stable code. You need both, and they must not be the same string (one is public, one is forensic). |
 | `tokens/mint` | Generates a random raw bearer, stores **only** its sha256 digest bound to a `user_id`, returns the raw token **once**. | Operator UX for issuing agent credentials. "Show once, store only the digest" means a leaked database never yields a usable token. |
-| `access/level` | Computes the current **session** user's MCP access level: `anonymous` / `admin` / `user` / `requested` / `none`. Bootstraps a user in `MCP_ADMIN_USER_IDS` as an active admin even with no row. | Single source of truth for both gates — the operator console (admin) and the token console (admin\|user). The bootstrap guarantees a fresh instance always has a first operator (no chicken-and-egg lockout). |
-| `access/decide` | Operator action: upsert a user's MCP access (approve a request, grant a role, revoke). | Access is data an operator manages; this is the one writer. The caller (operator page) owns the operator gate. |
-| `is_operator` | Boolean: is the session user an admin operator (`access/level == admin`)? Fail-closed. | The console gate, deliberately distinct from the platform `admin` role — MCP operator ≠ platform superuser. |
+| `access/set_role` | Operator action: sets a member's MCP role (`mcp_user` / `mcp_operator`, or none) on their user-module profile via `profiles/roles/remove` + `append`. | Access is user-module RBAC data; this is the one writer, keeping at most one MCP role per profile. The caller (operator page) owns the `mcp.admin` gate. |
+| `queries/principal/can` | Does the bearer **principal** hold a user-module permission? Loads the principal's profile by `user_id` and runs `modules/user/helpers/can_do`. Fail-closed. | The /mcp API has no browser session, so `current_profile` is unavailable; policies need the same RBAC answer the web consoles get from `can_do_or_unauthorized`. |
 
 ---
 

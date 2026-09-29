@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING — accounts and access use the user module's RBAC.** The consoles resolve the
+  signed-in user with `modules/user/helpers/current_profile` and gate pages with
+  `can_do_or_unauthorized` (anonymous visitors are redirected to sign-in and returned).
+  Access is two permissions — `mcp.tokens.manage` (`/mcp-tools`) and `mcp.admin`
+  (`/mcp-admin`) — mapped to the roles `mcp_user` / `mcp_operator` in the app's
+  `role_permissions` override; superadmins hold both. `admin_only` checks `mcp.admin` on
+  the bearer principal via the new `modules/mcp/queries/principal/can`.
+- **Removed:** the `mcp_access` table, the `MCP_ADMIN_USER_IDS` bootstrap constant and the
+  request-access flow (`POST /mcp-tools/request`). Operators grant roles by email on the
+  console. **Upgrading:** define the two roles in your permissions override, then grant
+  `mcp_user` / `mcp_operator` to existing members (or rely on superadmin for operators).
+
 ### Fixed
 
+- **Absolute URLs honour the real origin.** The RFC 9728 resource identifier, the
+  `WWW-Authenticate` `resource_metadata` link, resource `public_url`s and the `/mcp-tools`
+  connect command were built as `https://` + host, which was wrong on plain http or a
+  non-default port (e.g. local development). They now come from the request URL via the
+  new `modules/mcp/queries/origin`.
 - **Ledger hash-chain concurrency fork (integrity).** Concurrent ledger appends read the
   chain tail then wrote, so two near-simultaneous requests could link to the same
   `prev_entry_hash` → duplicate `seq` → a forked chain that `verify_chain` flags as a

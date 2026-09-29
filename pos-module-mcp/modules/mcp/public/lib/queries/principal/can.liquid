@@ -1,0 +1,29 @@
+{% doc %}
+  Does the bearer PRINCIPAL hold a user-module permission? The /mcp API has no browser
+  session, so `current_profile` is unavailable — this loads the principal's profile by
+  user_id and runs the same RBAC check (`modules/user/helpers/can_do`) the web pages use.
+  Fail-closed: no principal or no profile → false.
+
+  @param {object} principal - the resolved principal ({ id, user_id })
+  @param {string} do - the permission to check (e.g. mcp.admin)
+{% enddoc %}
+{% liquid
+  assign uid = principal.user_id | append: ''
+  if uid == blank
+    return false
+  endif
+
+  function profile = 'modules/user/queries/profiles/find', user_id: uid, id: null, uuid: null, first_name: null, last_name: null
+  if profile == blank
+    return false
+  endif
+
+  if profile.roles != null
+    assign profile.roles << 'authenticated'
+  else
+    assign profile.roles = ["authenticated"]
+  endif
+
+  function can = 'modules/user/helpers/can_do', requester: profile, do: do, entity: null, access_callback: null
+  return can
+%}

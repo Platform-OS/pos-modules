@@ -7,19 +7,19 @@ method: post
   decision is recorded. Operator-gated.
 {%- endcomment -%}
 {%- liquid
-  function is_admin = 'modules/mcp/commands/is_operator'
-  unless is_admin
-    response_status 403
-    echo 'Forbidden'
-    return
-  endunless
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.admin', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-admin', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
 
   assign handle = context.params.handle
   graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
   assign rec = f.records.results.first
   if rec and rec.status == 'pending'
     assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
-    graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: 'rejected', decided_by: context.current_user.id, decided_at: decided_at, result_summary: 'Rejected by operator.'
+    graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: 'rejected', decided_by: current_profile.user.id, decided_at: decided_at, result_summary: 'Rejected by operator.'
   endif
 
   redirect_to '/mcp-admin?tab=approvals'

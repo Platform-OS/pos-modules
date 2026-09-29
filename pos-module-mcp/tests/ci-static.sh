@@ -2,14 +2,15 @@
 # Static gates for pos-module-mcp (no instance, no secrets). Run from the module root.
 set -eu
 
-# The engine (Layer 1) is standalone — it references NO other module.
-offenders=$(grep -rhoE "modules/[a-z0-9_]+" modules/mcp/public/ | sort -u | grep -vx "modules/mcp" || true)
+# The engine (Layer 1) references no business module — only itself and `user`
+# (accounts, sessions and RBAC).
+offenders=$(grep -rhoE "modules/[a-z0-9_]+" modules/mcp/public/ | sort -u | grep -vxE "modules/(mcp|user)" || true)
 if [ -n "$offenders" ]; then
-  echo "engine references non-mcp modules — the standalone guarantee is broken:"
+  echo "engine references modules other than mcp/user:"
   echo "$offenders"
   exit 1
 fi
-echo "engine references only modules/mcp ✓"
+echo "engine references only modules/mcp and modules/user ✓"
 
 # Every harness/suite parses.
 find tests -name '*.mjs' -exec node --check {} \;

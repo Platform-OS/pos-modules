@@ -1,7 +1,7 @@
 {%- comment -%}
   Tool manifest — test_admin (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
   Visibility probe for the ADMIN tier: policy test_principal_admin → only an operator
-  principal (active mcp_access role=admin, or MCP_ADMIN_USER_IDS bootstrap). The
+  principal (holding mcp.admin: role mcp_operator, or superadmin). The
   coverage suite asserts it is visible/callable by operator ONLY.
 {%- endcomment -%}
 {% liquid

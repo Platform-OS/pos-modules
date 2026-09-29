@@ -27,7 +27,8 @@
                    failure  (see identity/deny) { authenticated:false, http_status, error_code, message, reason, www_authenticate? }
 {%- endcomment -%}
 {% liquid
-  assign rm_url = 'https://' | append: context.location.host | append: '/.well-known/oauth-protected-resource'
+  function origin = 'modules/mcp/queries/origin'
+  assign rm_url = origin | append: '/.well-known/oauth-protected-resource'
   assign wa_missing = 'Bearer resource_metadata="' | append: rm_url | append: '"'
   assign wa_invalid = 'Bearer resource_metadata="' | append: rm_url | append: '", error="invalid_token"'
 

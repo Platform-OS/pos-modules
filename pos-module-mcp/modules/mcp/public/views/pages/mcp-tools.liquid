@@ -4,15 +4,16 @@ layout: ''
 ---
 {%- comment -%}
   MCP token console (operator UX, part of the module so it travels with the
-  standalone repo). A logged-in member mints a PER-USER bearer token bound to
+  standalone repo). A signed-in member mints a PER-USER bearer token bound to
   their identity, sees the exact client-connect command once, and can revoke.
 
-  Login-gated via context.current_user. The raw token is shown ONCE (passed via a
-  one-shot session flash after minting) — only its digest is stored.
+  Gated on the mcp.tokens.manage permission (user-module RBAC): anonymous visitors are
+  sent to sign in and brought back; members without it get the 403 page. The raw token
+  is shown ONCE (passed via a one-shot session flash after minting) — only its digest
+  is stored.
 
   STYLING: gruvbox-dark TUI (square corners, flat surfaces, monospace) to match the
-  operator console. ONE html skeleton + ONE <style> block; the three states (signed
-  out / no access / token console) branch only the inner content. NO inline style=""
+  operator console. ONE html skeleton + ONE <style> block. NO inline style=""
   attributes anywhere — all presentation is in classes.
 {%- endcomment -%}
 {%- liquid
@@ -22,27 +23,25 @@ layout: ''
   # from browser history — it forces a server round-trip, by which point the flash
   # has already been consumed and the token is gone.
   response_headers '{"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}'
-  assign uid = context.current_user.id | append: ''
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.tokens.manage', redirect_anonymous_to_login: true, forbidden_partial: 'modules/mcp/pages/403', access_callback: null, anonymous_return_to: null, entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
+  assign uid = current_profile.user.id | append: ''
   assign host = context.location.host
-  assign endpoint = 'https://' | append: host | append: '/mcp'
+  function origin = 'modules/mcp/queries/origin'
+  assign endpoint = origin | append: '/mcp'
   # Client-side connection alias for `claude mcp add`. Defaults to the configured
   # server_name (MCP_CONFIG.server_name, default 'pos-module-mcp') so operators can
   # brand it; falls back to the host if that is somehow blank.
   function cfg = 'modules/mcp/commands/config'
   assign server_name = cfg.server_name | default: host
-  # Access is approval-gated: only members with level admin|user may mint tokens.
-  function acc = 'modules/mcp/commands/access/level'
-  assign level = acc.level
-  assign can_mint = false
-  if level == 'admin' or level == 'user'
-    assign can_mint = true
-  endif
-  if can_mint
-    graphql toks = 'modules/mcp/tokens/for_user', user_id: uid
-    assign rows = toks.records.results
-    assign flash = context.session.mcp_flash_token
-    session mcp_flash_token = null
-  endif
+  graphql toks = 'modules/mcp/tokens/for_user', user_id: uid
+  assign rows = toks.records.results
+  assign flash = context.session.mcp_flash_token
+  session mcp_flash_token = null
 -%}
 <!doctype html>
 <html lang="en">
@@ -76,7 +75,6 @@ layout: ''
          line-height: 1.55; -webkit-font-smoothing: antialiased; }
   a { color: var(--accent); }
   .wrap { max-width: 48rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
-  .wrap.center { max-width: 34rem; margin-top: 3rem; }
   h1 { font-size: 1.25rem; color: var(--text); margin: 0 0 .5rem; }
   h2 { font-size: 1rem; color: var(--muted); margin: 2rem 0 .5rem; text-transform: uppercase; letter-spacing: .04em; }
   .lead { color: var(--muted); }
@@ -89,7 +87,6 @@ layout: ''
   pre { background: var(--bg-2); border: 1px solid var(--border); border-radius: 0; padding: .8rem; overflow-x: auto; font-size: .8rem; color: var(--text); }
   .token { color: var(--ok); word-break: break-all; }
   .warn { color: var(--warn); font-size: .85rem; }
-  .pending { color: var(--warn); }
 
   .btn { font: inherit; padding: .5rem .9rem; border-radius: 0; border: 1px solid var(--ok); background: var(--ok-bg); color: var(--ok); cursor: pointer; text-decoration: none; }
   .btn:hover { background: #3f4a20; }
@@ -99,7 +96,6 @@ layout: ''
   .field { font: inherit; padding: .5rem; border-radius: 0; border: 1px solid var(--border); background: var(--bg-2); color: var(--text); width: 16rem; }
   label { color: var(--muted); }
   .mint-form { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  .mt-1 { margin-top: 1rem; }
 
   table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   td, th { text-align: left; padding: .45rem .4rem; border-bottom: 1px solid var(--border-soft); }
@@ -121,25 +117,6 @@ layout: ''
 </style>
 </head>
 <body>
-{%- if uid == blank -%}
-<div class="wrap center">
-  <h1>MCP tokens</h1>
-  <p class="lead">Please <a href="/sessions/new">sign in</a> to generate a token for connecting an MCP client to this community.</p>
-</div>
-{%- elsif can_mint == false -%}
-<div class="wrap center">
-  <h1>MCP access</h1>
-  {%- if level == 'requested' -%}
-    <p class="lead">Your request for MCP access is <b class="pending">pending operator approval</b>. You’ll be able to generate a connection token here once an operator approves it.</p>
-  {%- else -%}
-    <p class="lead">Connecting an MCP client to this community requires operator approval. Request access and an operator will review it.</p>
-    <form method="post" action="/mcp-tools/request" class="mt-1">
-      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-      <button type="submit" class="btn">Request access</button>
-    </form>
-  {%- endif -%}
-</div>
-{%- else -%}
 <div class="wrap">
   <h1>Your MCP connection tokens</h1>
   <p class="lead">Generate a bearer token to connect an MCP client (e.g. Claude Code) to this community as <b>you</b>. Every call it makes is authorized as your identity and recorded.</p>
@@ -185,6 +162,5 @@ layout: ''
     </tbody>
   </table>
 </div>
-{%- endif -%}
 </body>
 </html>

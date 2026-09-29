@@ -177,7 +177,7 @@ MCP_EVAL_TOKEN=<a-scoped-bearer-token> \
   opencode --agent penetration-tester -m opencode/deepseek-v4-flash-free
 ```
 
-Mint a scoped token with: `node -e 'import("../tests/fixtures.mjs").then(async m=>{const h=await m.makeUser(m.makeAdmin(m.loadEnv()),{runId:"manual"+Date.now(),key:"agent",role:"user",status:"active",withToken:true});console.log(h.principal, h.rawToken)})'`
+Mint a scoped token with: `node -e 'import("../tests/fixtures.mjs").then(async m=>{const h=await m.makeUser(m.makeAdmin(m.loadEnv()),{runId:"manual"+Date.now(),key:"agent",role:"mcp_user",withToken:true});console.log(h.principal, h.rawToken)})'`
 
 ### Notes
 

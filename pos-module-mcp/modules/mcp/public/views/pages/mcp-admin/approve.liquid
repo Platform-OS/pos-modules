@@ -8,12 +8,12 @@ method: post
   returns to the console. Operator-gated; ownership of the decision is audited.
 {%- endcomment -%}
 {%- liquid
-  function is_admin = 'modules/mcp/commands/is_operator'
-  unless is_admin
-    response_status 403
-    echo 'Forbidden'
-    return
-  endunless
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.admin', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-admin', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
 
   assign handle = context.params.handle
   graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
@@ -29,10 +29,10 @@ method: post
 
     assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
     if expired
-      graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: 'expired', decided_by: context.current_user.id, decided_at: decided_at, result_summary: 'Expired before decision.'
+      graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: 'expired', decided_by: current_profile.user.id, decided_at: decided_at, result_summary: 'Expired before decision.'
     else
-      function res = 'modules/mcp/commands/approval/execute', approval: rec, decided_by: context.current_user.id
-      graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: res.outcome, decided_by: context.current_user.id, decided_at: decided_at, result_summary: res.summary
+      function res = 'modules/mcp/commands/approval/execute', approval: rec, decided_by: current_profile.user.id
+      graphql _ = 'modules/mcp/approvals/update', id: rec.id, status: res.outcome, decided_by: current_profile.user.id, decided_at: decided_at, result_summary: res.summary
     endif
   endif
 

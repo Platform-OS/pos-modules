@@ -1,5 +1,5 @@
 query check {
-  records(per_page: 1, filter: { table: { value: "modules/mcp/mcp_access" } }) {
+  records(per_page: 1, filter: { table: { value: "modules/mcp/mcp_token" } }) {
     results { id }
   }
 }

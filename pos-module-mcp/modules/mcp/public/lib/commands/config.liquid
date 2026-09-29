@@ -124,7 +124,8 @@
   assign o['audience'] = context.constants.MCP_OAUTH_AUDIENCE | default: c.server_name
   assign c['oauth'] = o
   # The OAuth resource identifier this instance defends (RFC 9728) = the /mcp URL.
-  assign c['resource_identifier'] = 'https://' | append: context.location.host | append: c.endpoint_path
+  function origin = 'modules/mcp/queries/origin'
+  assign c['resource_identifier'] = origin | append: c.endpoint_path
 
   # Override from the MCP_CONFIG constant, when present and valid JSON. hash_merge
   # is shallow, so merge the nested `defaults` object explicitly before the

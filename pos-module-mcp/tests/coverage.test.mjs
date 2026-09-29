@@ -73,31 +73,30 @@ async function recordUpdate(table, id, props) {
   const r = await adm.gql(`mutation { record_update(id: ${id}, record: { table: "${table}" properties: [ ${p} ] }) { id } }`);
   if (r?.errors) throw new Error('record_update failed: ' + JSON.stringify(r.errors));
 }
-async function accessRowFor(userId) {
-  const r = await adm.gql(`{ records(per_page: 1, filter: { table: { value: "modules/mcp/mcp_access" } properties: [{ name: "user_id", value: "${userId}" }] }, sort: [{ id: { order: DESC } }]) { results { role: property(name: "role") status: property(name: "status") } } }`);
-  return r?.data?.records?.results?.[0];
+async function rolesFor(userId) {
+  const r = await adm.gql(`{ records(per_page: 1, filter: { table: { value: "modules/user/profile" } properties: [{ name: "user_id", value: "${userId}" }] }) { results { roles: property_array(name: "roles") } } }`);
+  return r?.data?.records?.results?.[0]?.roles || [];
 }
 async function tokensFor(userId) {
   const r = await adm.gql(`{ records(per_page: 50, filter: { table: { value: "modules/mcp/mcp_token" } properties: [{ name: "user_id", value: "${userId}" }] }) { results { id label: property(name: "label") status: property(name: "status") } } }`);
   return r?.data?.records?.results || [];
 }
-// Remove a user's WEB-FLOW-created access + token rows (mint/grant create rows the fixtures
-// don't track). SKIPS seeded fixture ids — those persist and are re-baselined by applyReset.
+// Remove a user's WEB-FLOW-created token rows (mint creates rows the fixtures don't track).
+// SKIPS seeded fixture ids — those persist and are re-baselined by applyReset (which also
+// restores each fixture profile's roles).
 async function purgeUserRecords(userId) {
   for (const t of await tokensFor(userId)) { if (SEEDED.has(String(t.id))) continue; try { await adm.recordDelete('modules/mcp/mcp_token', t.id); } catch {} }
-  const a = await adm.gql(`{ records(per_page: 50, filter: { table: { value: "modules/mcp/mcp_access" } properties: [{ name: "user_id", value: "${userId}" }] }) { results { id } } }`);
-  for (const row of (a?.data?.records?.results || [])) { if (SEEDED.has(String(row.id))) continue; try { await adm.recordDelete('modules/mcp/mcp_access', row.id); } catch {} }
 }
 
 // ---- fixture handles (resolved in beforeAll) ----
-let op, mem, out, req, rate, abuseA, abuseB, abuseC, validator, narrowTok, revokeTok;
+let op, mem, out, rate, abuseA, abuseB, abuseC, validator, narrowTok, revokeTok;
 
 describe('coverage · multi-principal governance planes', () => {
   beforeAll(async () => {
     await setConstant('MCP_ENABLE_TEST_TOOLS', 'true');
-    // Deterministic fixtures (TASK-5): (re-)import the fixed users/tokens/access to baseline.
+    // Deterministic fixtures (TASK-5): (re-)import the fixed users/profiles/tokens to baseline.
     await applyReset(adm.gql);
-    op = FIXT.users.operator; mem = FIXT.users.member; out = FIXT.users.outsider; req = FIXT.users.requester;
+    op = FIXT.users.operator; mem = FIXT.users.member; out = FIXT.users.outsider;
     rate = FIXT.users.rate; abuseA = FIXT.users.abuseA; abuseB = FIXT.users.abuseB; abuseC = FIXT.users.abuseC; validator = FIXT.users.validator;
     narrowTok = mem.tokens.find(t => t.label === 'fixt-narrow');   // pre-seeded, allowed_tools:[test_public]
     revokeTok = mem.tokens.find(t => t.label === 'fixt-revoke');   // pre-seeded, revoked+reset per run
@@ -106,7 +105,7 @@ describe('coverage · multi-principal governance planes', () => {
   afterAll(async () => {
     // ---- reset transient state + restore fixtures to baseline (no user teardown) ----
     await unsetConstant('MCP_CONFIG');
-    const principals = [op, mem, out, req, rate, abuseA, abuseB, abuseC, validator];
+    const principals = [op, mem, out, rate, abuseA, abuseB, abuseC, validator];
     for (const h of principals) { if (!h) continue; try { await deleteNotesFor(h.userId); } catch {} try { await clearPendingFor(h.principal); } catch {} try { await pruneRate(adm, h.principal); } catch {} try { await clearAbuse(h.principal); } catch {} try { await clearIdempotencyFor(h.principal); } catch {} }
     for (const h of [out, mem]) { try { await purgeUserRecords(h.userId); } catch {} }
     try { await applyReset(adm.gql); } catch {}
@@ -438,22 +437,20 @@ describe('coverage · multi-principal governance planes', () => {
     ok('non-operator GET /mcp-admin/ledger-export.json → 403', expRes.status === 403, 'status=' + expRes.status);
   });
 
-  it('Access lifecycle — request → grant → mint → revoke (§5)', async () => {
-    await purgeUserRecords(out.userId); // outsider starts with no access row
+  it('Access lifecycle — no role → grant → mint → remove (§5)', async () => {
+    await purgeUserRecords(out.userId); // outsider starts with no MCP role (fixture baseline)
     await sessionLogin(out);
-    let tools = await (await webGet('mcp-tools')).text();
-    ok('no-access user sees "Request access"', /Request access/i.test(tools));
-    await webPost('mcp-tools/request', { authenticity_token: _formTok(tools) });
-    ok('request → mcp_access status=requested', (await accessRowFor(out.userId))?.status === 'requested');
+    let toolsRes = await webGet('mcp-tools');
+    ok('user without an MCP role → /mcp-tools 403', toolsRes.status === 403, 'status=' + toolsRes.status);
 
     await operatorLogin(op);
     let adminPage = await (await webGet('mcp-admin')).text();
-    await webPost('mcp-admin/access', { authenticity_token: _formTok(adminPage), decision: 'make_user', user_id: out.userId, email: out.email });
-    const granted = await accessRowFor(out.userId);
-    ok('operator grant → access active, role user', granted?.status === 'active' && granted?.role === 'user', JSON.stringify(granted));
+    await webPost('mcp-admin/access', { authenticity_token: _formTok(adminPage), decision: 'make_user', email: out.email });
+    const granted = await rolesFor(out.userId);
+    ok('operator grant by email → profile role mcp_user', granted.includes('mcp_user'), JSON.stringify(granted));
 
     await sessionLogin(out);
-    tools = await (await webGet('mcp-tools')).text();
+    let tools = await (await webGet('mcp-tools')).text();
     ok('granted user now sees the mint form', /mcp-tools\/mint/.test(tools));
     const before = (await tokensFor(out.userId)).length;
     await webPost('mcp-tools/mint', { authenticity_token: _formTok(tools), label: 'ci-web-mint' });
@@ -461,8 +458,12 @@ describe('coverage · multi-principal governance planes', () => {
 
     await operatorLogin(op);
     adminPage = await (await webGet('mcp-admin')).text();
-    await webPost('mcp-admin/access', { authenticity_token: _formTok(adminPage), decision: 'revoke', user_id: out.userId, email: out.email });
-    ok('operator revoke → access revoked', (await accessRowFor(out.userId))?.status === 'revoked');
+    await webPost('mcp-admin/access', { authenticity_token: _formTok(adminPage), decision: 'revoke', email: out.email });
+    const removed = await rolesFor(out.userId);
+    ok('operator remove → no MCP role left', !removed.includes('mcp_user') && !removed.includes('mcp_operator'), JSON.stringify(removed));
+    await sessionLogin(out);
+    toolsRes = await webGet('mcp-tools');
+    ok('removed user → /mcp-tools 403 again', toolsRes.status === 403, 'status=' + toolsRes.status);
   });
 
   it('Token console — IDOR revoke guard (§20)', async () => {

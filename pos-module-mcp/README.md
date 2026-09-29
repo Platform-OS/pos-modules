@@ -44,9 +44,10 @@ app/graphql/mcp/<name>.graphql   # queries/mutations a handler calls
 ```
 
 The engine is **inert-but-armed** on install: endpoint live, auth wired, tables
-present, but zero tools until the app registers them. It is **standalone** — it
-references no other business module in code (enforced by the engine decoupling guard in
-`tests/ci-static.sh`); it needs the `user` module for session login on the operator pages.
+present, but zero tools until the app registers them. It references no business module
+in code — only the `user` module, which provides accounts, sign-in and RBAC for the web
+consoles and the built-in policies (enforced by the engine decoupling guard in
+`tests/ci-static.sh`).
 `pos-module.json` also declares `community` and `components`, which the demo Layer-2
 tools in `app/` wrap.
 
@@ -59,8 +60,7 @@ tools in `app/` wrap.
 | `POST /mcp` | JSON-RPC 2.0 MCP endpoint (protocol `2025-06-18`) |
 | `GET /mcp-health` | Liveness + readiness probe — `{status, checks:{config,database}}`, 200/503 (public, cheap) |
 | `GET /.well-known/oauth-protected-resource` | OAuth resource metadata (RFC 9728) |
-| `/mcp-tools` | Token console — **approved** members mint/revoke bearer tokens; others request access |
-| `/mcp-tools/request` (POST) | A member requests MCP access |
+| `/mcp-tools` | Token console — members with `mcp.tokens.manage` mint/revoke bearer tokens |
 | `/mcp-admin` | Operator console: ledger, metrics, approvals, access mgmt, registry, eval |
 | `/mcp-admin/{approve,reject}` (POST) | Operator decides a pending tool-call approval |
 | `/mcp-admin/reject-principal` (POST) | Operator bulk-rejects every pending approval for one principal (queue drain) |
@@ -104,10 +104,6 @@ every request — no redeploy needed.
 | `ledger.retention_days` | `730` | ledger retention |
 | `oauth.issuer` / `oauth.audience` | `""` / `server_name` | advertised AS + expected audience |
 | `registry_partial` / `policy_prefix` / `instructions_partial` / `prompts_partial` | `mcp/registry`, `mcp/policies`, `mcp/instructions`, `mcp/prompts` | Layer-2 hook paths |
-
-Separately, **`MCP_ADMIN_USER_IDS`** (comma-separated pOS user ids) is the operator
-**bootstrap** — those users are operators even before any access row exists (see
-Access control).
 
 ### Setting a constant
 
@@ -280,16 +276,37 @@ with `append`, not `{{ }}`, to avoid output escaping.
 
 ## Access control & operators
 
-Access is **module-owned** (portable — no coupling to community/user roles) via the
-`mcp_access` table, with two roles distinct from the platform `admin`:
+Accounts, sign-in and authorization come from the **user module** (see its
+[RBAC docs](../pos-module-user/README.md#rbac-authorization)). The consoles resolve the
+signed-in user with `modules/user/helpers/current_profile` and gate every page with
+`modules/user/helpers/can_do_or_unauthorized` — anonymous visitors are sent to
+`/sessions/new` and brought back after signing in; signed-in users without the
+permission get a 403. The engine checks two permissions:
 
-- **`user`** — approved to mint bearer tokens at `/mcp-tools`.
-- **`admin`** — an operator: the console, approvals, evals, and granting access.
+| Permission | Grants |
+|---|---|
+| `mcp.tokens.manage` | `/mcp-tools` — mint and revoke your own bearer tokens |
+| `mcp.admin` | `/mcp-admin` — ledger, approvals, evals, token kill-switch, granting access |
 
-Flow: a signed-in member with no access sees **Request access** on `/mcp-tools`; an
-operator approves in `/mcp-admin`; the member can then mint tokens. Operators grant/
-revoke roles from the console. **Bootstrap:** user ids in `MCP_ADMIN_USER_IDS` are
-active admins without a row — the first operator on a fresh instance.
+Map them to roles in your app's override of the user module permissions file,
+`app/modules/user/public/lib/queries/role_permissions/permissions.liquid`. The console
+grants and removes these two roles, so define them:
+
+```liquid
+"mcp_user": ["mcp.tokens.manage"],
+"mcp_operator": ["mcp.tokens.manage", "mcp.admin"]
+```
+
+`superadmin` holds every permission, so a user-module superadmin is always an operator
+— that is the first operator on a fresh instance. Otherwise append the role directly:
+`function _ = 'modules/user/commands/profiles/roles/append', id: profile.id, role: 'mcp_operator'`.
+Operators grant `mcp_user` / `mcp_operator` by email and remove them on the console's
+**Tokens & access** tab. Removing a role does not revoke that member's existing tokens —
+revoke those on the same tab.
+
+The built-in `admin_only` policy applies the same RBAC to bearer calls: it loads the
+principal's profile and checks `mcp.admin` (`modules/mcp/queries/principal/can`, which
+your own policies can call with any permission).
 
 **Tokens.** A bearer is bound to a real pOS user (the principal); only its SHA-256
 digest is stored (raw shown once). Every call is authorized as that user, rate-limited
@@ -389,7 +406,7 @@ node tests/lib/lint-tools.mjs [--strict] [--json]   # injection/SSRF/ledger-writ
 `conformance.mjs` and `coverage.mjs` run against **deterministic, id-stable fixtures**
 (`tests/seed/seed.mjs` — the single source of truth): fixed users in a reserved id range
 (90100+), each with a **known** bearer token (only its sha256 digest is seeded) and, where
-relevant, an `mcp_access` row — one dedicated user per stateful plane so no test inherits
+a user-module profile carrying its MCP roles — one dedicated user per stateful plane so no test inherits
 another's suspend/abuse state (no shared-state `revive`). The fixtures are seeded via
 platformOS `import_users` / `import_models` with `_id_remap:false` (the numeric ids are
 preserved on every run); each suite calls `applyReset()` at start, which **re-imports to
@@ -403,7 +420,7 @@ migration (`app/migrations/…_seed_mcp_test_fixtures.liquid`) **gated on the
 the published module ships zero migrations. Regenerate it only when the seed changes:
 `node tests/seed/generate_migrations.mjs`.
 
-`coverage.mjs` drives its fixture users (operator / member / outsider / requester + dedicated
+`coverage.mjs` drives its fixture users (operator / member / outsider + dedicated
 rate/abuse/validator/conformance principals) against a set of **gated test tools** registered
 only when the `MCP_ENABLE_TEST_TOOLS` constant is set (never in a production deploy). Its
 assertions read real ledger / table / approval-queue state, so a broken plane fails them —

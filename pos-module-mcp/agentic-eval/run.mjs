@@ -242,7 +242,7 @@ async function main() {
       let handle = null, row, setup = null, taskVuln = false;
       try {
         // seed a scoped principal (real user + bearer token)
-        handle = await makeUser(adm, { runId, key: 'agent', role: task.seed.role, status: task.seed.status, withToken: true, label: `eval-${task.id}` });
+        handle = await makeUser(adm, { runId, key: 'agent', role: task.seed.role, withToken: true, label: `eval-${task.id}` });
         activeHandle = handle;
         const cursor = await db.maxLedgerId();
         const brief = task.brief({ principal: handle.principal, runId });
