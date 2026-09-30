@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- A test that raised ended the whole run and every other test's result was discarded with it,
+  including tests that had already completed. The runner collects each contract in a variable and
+  renders the report after the loop, in the same render, so a raise aborted the render and took the
+  collected results with it — the caller got the platform's 500 error page and nothing about the
+  run. Each test is now run inside `try`/`catch`: a raise is recorded on that test's own contract
+  under `(raised)`, with the exception class, file, line and message, and every other test still
+  runs and still reports. A run containing a raise is still a failing run and still answers 500.
+  Measured on a live instance: a 26-test suite that answered nothing now reports 19 passing, 5
+  raised and 2 assertion failures.
 - The JSON test report was always empty. `show_js` iterated the empty array it had just created
   instead of the test contracts, so `/_tests/run.js`, `/_tests/run` and the `run_async.js` summary
   log all answered `"total_assertions": 0` and `"tests": []` on every run, however many tests ran

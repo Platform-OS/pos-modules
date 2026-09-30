@@ -29,8 +29,20 @@
       log test, type: test_name
       assign contract = { "errors": {}, "success": true, "total": 0 }
 
+      # A test that raises would otherwise end the whole run: the report is rendered after this
+      # loop, so the results already collected are discarded with it. Caught here, the raise is
+      # recorded on that test's own contract and every other test still runs and still reports.
+      #
+      # `err` is not cleared when a try block completes, so without this reset the catch of every
+      # later test would run as well, on the error the first one raised.
+      assign err = null
       # platformos-check-disable ConvertIncludeToRender, DeprecatedTag
-      include test.path, registry: test.path, contract: contract
+      try
+        include test.path, registry: test.path, contract: contract
+      catch err
+        assign raise_message = err.class_name | append: ': ' | append: err.message
+        function contract = 'modules/tests/helpers/register_error', contract: contract, field_name: '(raised)', message: raise_message
+      endtry
       # platformos-check-enable ConvertIncludeToRender, DeprecatedTag
       assign contract.test_path = test.path
       assign contracts << contract
