@@ -11,7 +11,7 @@
   @param {number} [minlength] - minimum number of characters allowed
   @param {number} [maxlength] - maximum number of characters allowed
 
-  @param {string} [mention_search_url] - URL to search for @mentions, e.g. `/api/v1/users/search?query=`
+  @param {string} [mention_search_url] - URL to search for @mentions, the typed query is appended to its end as is, e.g. `/api/v1/users/search?query=`
 
 
   @example
@@ -44,7 +44,7 @@
   >{{ value }}</textarea>
 
   {% if mention_search_url %}
-    <div class="pos-markdown-mention" {% if mention_search_url %}data-url="{{ mention_search_url }}"{% endif %}>
+    <div class="pos-popover pos-markdown-mention" data-url="{{ mention_search_url }}">
       <template>
         <li>
           <button type="button">

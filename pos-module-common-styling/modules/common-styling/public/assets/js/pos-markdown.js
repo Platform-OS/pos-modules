@@ -37,24 +37,35 @@ window.pos.modules.markdown = function(settings){
   module.settings.mention = {};
   // container with @mentions (dom node)
   module.settings.mention.container = settings.mention?.container || module.settings.container.querySelector('.pos-markdown-mention');
-  // instance of the popover with @mentions (object)
-  module.settings.mention.popover = pos.modules.active[`${module.settings.id}-mention-popover`] || null;
   // list with @mention results (dom node)
-  module.settings.mention.results = module.settings.container.querySelector(`#${module.settings.id}-mention-popover`);
+  module.settings.mention.results = module.settings.mention.container?.querySelector('[popover]') || null;
+  // instance of the popover with @mentions (object)
+  module.settings.mention.popover = (module.settings.mention.results && pos.modules.active[module.settings.mention.results.id]) || null;
   // url of the api to fetch mention results (string)
-  module.settings.mention.url = module.settings.mention.popover?.settings.container.dataset.url || null;
+  module.settings.mention.url = module.settings.mention.container?.dataset.url || null;
   // active @mention state { query, line, atCh } or null
   module.settings.mention.state = null;
   // template for @mention result (dom node)
-  module.settings.mention.template = module.settings.mention.popover?.settings.container.querySelector('template');
-  // async function(query) => [{ id, name }] — function to fetch mention results, returns array of objects with id, name and avatar
-  module.settings.mention.search = async function(query){ return fetch(module.settings.mention.url + '?query=' + encodeURIComponent(query)).then(response => response.json()).then(data => data.results) };
+  module.settings.mention.template = module.settings.mention.container?.querySelector('template') || null;
+  // controller used to abort the in-flight search request (AbortController)
+  module.settings.mention.searchController = null;
+  // async function(query, signal) => [{ id, name }] — function to fetch mention results, returns array of objects with id, name and avatar
+  module.settings.mention.search = settings.mention?.search || async function(query, signal){
+    const response = await fetch(module.settings.mention.url + encodeURIComponent(query), { signal });
+    if(!response.ok){
+      throw new Error(`@mention search failed with status ${response.status}`);
+    }
+    const data = await response.json();
+    return data.results;
+  };
 
   // debug mode enabled (bool)
   module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : false;
 
   // easymde instance (object)
   module.settings.easyMde = null;
+  // aborting it removes all the listeners attached outside of the editor (AbortController)
+  module.settings.listeners = new AbortController();
 
 
 
@@ -65,16 +76,15 @@ window.pos.modules.markdown = function(settings){
     
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing rich text editor', module.settings.container);
 
-    // create @mention popover if it doesn't exist yet
-    if(!module.settings.mention.popover){
-      pos.modules.debug(module.settings.debug, module.settings.id, 'No @mentions popover instance detected, creating one');
+    // create @mention popover if mentions are enabled and it doesn't exist yet
+    if(module.settings.mention.results && !module.settings.mention.popover){
+      if(typeof pos.modules.popover === 'function'){
+        pos.modules.debug(module.settings.debug, module.settings.id, 'No @mentions popover instance detected, creating one');
 
-      module.settings.mention.container.classList.add('pos-popover');
-
-      module.settings.mention.popover = pos.modules.active[`${module.settings.id}-mention-popover`] = new pos.modules.popover(module.settings.mention.container);
-
-      module.settings.mention.url = module.settings.mention.popover?.settings.container.dataset.url;
-      module.settings.mention.template = module.settings.mention.popover?.settings.container.querySelector('template');
+        module.settings.mention.popover = pos.modules.active[module.settings.mention.results.id] = new pos.modules.popover(module.settings.mention.container);
+      } else {
+        console.error(`[${module.settings.id}] pos-popover.js is not loaded, @mentions are disabled`);
+      }
     }
 
     module.startEasyMde();
@@ -82,7 +92,7 @@ window.pos.modules.markdown = function(settings){
     // attach validation
     module.settings.textarea.form?.addEventListener('submit', event => {
       module.validate(event);
-    });
+    }, { signal: module.settings.listeners.signal });
 
     // dispatch custom event
     module.settings.container.dispatchEvent(new CustomEvent('pos-markdown-initialized', { bubbles: true, detail: { module, target: module.settings.container, id: module.settings.id } }));
@@ -137,7 +147,7 @@ window.pos.modules.markdown = function(settings){
     }, true); // capture phase — fires before codemirror's listener on the inner textarea
 
     // purpose: sets up @mention detection and popup
-    if(module.settings.mention.url){
+    if(module.settings.mention.url && module.settings.mention.popover){
       module.mention.start();
     }
 
@@ -265,25 +275,37 @@ window.pos.modules.markdown = function(settings){
   };
 
 
+  // purpose:   removes the listeners attached outside of the editor,
+  //            use when removing the editor from the page without reloading it
+  // ------------------------------------------------------------------------
+  module.destroy = () => {
+    module.mention.hide();
+    module.settings.listeners.abort();
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Markdown editor destroyed', module.settings.container);
+  };
+
+
   // purpose:   validates the value
   // ------------------------------------------------------------------------
   module.validate = event => {
     let errors = 0;
+    const length = module.value().length;
 
-    if((module.value()).length < module.settings.minlength){
+    if(length < module.settings.minlength){
       errors++;
 
       module.settings.container.querySelector(`[data-pos-markdown-error-minlength]`).classList.remove(module.settings.errorDisabledClass);
 
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Validating minimum length failed', { length: (module.value()).length, minlength: module.settings.minlength });
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Validating minimum length failed', { length, minlength: module.settings.minlength });
     }
 
-    if((module.value()).length > module.settings.maxlength){
+    if(length > module.settings.maxlength){
       errors++;
 
       module.settings.container.querySelector(`[data-pos-markdown-error-maxlength]`).classList.remove(module.settings.errorDisabledClass);
 
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Validating maximum length failed', { length: (module.value()).length, maxlength: module.settings.maxlength });
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Validating maximum length failed', { length, maxlength: module.settings.maxlength });
     }
 
     if(errors){
@@ -333,10 +355,27 @@ window.pos.modules.markdown = function(settings){
       }
 
       module.settings.mention.state = { query, line: cursor.line, atCh: atIdx };
-      clearTimeout(module.mention.searchTimeout);
+      module.mention.cancelSearch();
       module.mention.searchTimeout = setTimeout(async () => {
-        const results = await module.settings.mention.search(query);
-        module.mention.renderPopup(results);
+        const controller = module.settings.mention.searchController = new AbortController();
+
+        try {
+          const results = await module.settings.mention.search(query, controller.signal);
+
+          // drop responses for a query that is no longer being typed (user moved on or closed the popup)
+          if(controller.signal.aborted || module.settings.mention.state?.query !== query){
+            return;
+          }
+
+          module.mention.renderPopup(results);
+        } catch(error) {
+          if(error.name === 'AbortError'){
+            return;
+          }
+
+          pos.modules.debug(module.settings.debug, module.settings.id, 'Searching for @mentions failed', error);
+          module.mention.hide();
+        }
       }, 300);
     });
 
@@ -344,13 +383,15 @@ window.pos.modules.markdown = function(settings){
       if(!module.settings.mention.results.contains(e.target)){
         module.mention.hide();
       }
-    });
+    }, { signal: module.settings.listeners.signal });
 
     module.settings.easyMde.codemirror.addKeyMap({
       'Esc': () => {
         if(!module.settings.mention.popover.settings.opened){
           return module.settings.easyMde.codemirror.constructor.Pass;
         }
+
+        module.mention.hide();
       },
       'Up':  () => {
         if(!module.settings.mention.popover.settings.opened){
@@ -363,13 +404,13 @@ window.pos.modules.markdown = function(settings){
         }
       },
       'Enter': () => {
-        if(module.settings.mention.popover.settings.opened){
-          if(module.settings.mention.menu.contains(document.activeElement)){
-            document.activeElement.click();
-          }
-        } else {
+        if(!module.settings.mention.popover.settings.opened){
           return module.settings.easyMde.codemirror.constructor.Pass;
         }
+
+        // the editor still has focus (arrow keys move focus into the menu, where the button handles Enter itself),
+        // so pick the first result
+        module.settings.mention.popover.settings.focusable[0]?.click();
       }
     });
 
@@ -385,7 +426,7 @@ window.pos.modules.markdown = function(settings){
     // wrapping changes) even though the page didn't scroll.
     window.visualViewport?.addEventListener('resize', () => {
       if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
-    }, { passive: true });
+    }, { passive: true, signal: module.settings.listeners.signal });
 
     module.mention.reapplyMarks();
 
@@ -413,8 +454,8 @@ window.pos.modules.markdown = function(settings){
         template.querySelector('.pos-markdown-mention-avatar-initials').remove();
       } else {
         template.querySelector('img').remove();
-        const names = person.name.split(' ');
-        template.querySelector('.pos-markdown-mention-avatar-initials').textContent = names[0][0] + names[1][0];
+        const initials = (person.name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(name => name[0]).join('');
+        template.querySelector('.pos-markdown-mention-avatar-initials').textContent = initials.toUpperCase();
       }
       template.querySelector('.pos-markdown-mention-name').textContent = person.name;
 
@@ -459,10 +500,21 @@ window.pos.modules.markdown = function(settings){
   // purpose:   hides the mention popup and clears state
   // ------------------------------------------------------------------------
   module.mention.hide = () => {
+    module.mention.cancelSearch();
+
     if(module.settings.mention.popover && module.settings.mention.popover.settings.opened){
       module.settings.mention.popover.close();
     }
     module.settings.mention.state = null;
+  };
+
+
+  // purpose:   cancels the scheduled and in-flight @mention search
+  // ------------------------------------------------------------------------
+  module.mention.cancelSearch = () => {
+    clearTimeout(module.mention.searchTimeout);
+    module.settings.mention.searchController?.abort();
+    module.settings.mention.searchController = null;
   };
 
 
