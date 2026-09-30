@@ -35,8 +35,10 @@ window.pos.modules.markdown = function(settings){
   module.mention = {};
   // @mention settings (object)
   module.settings.mention = {};
+  // container with @mentions (dom node)
+  module.settings.mention.container = settings.mention?.container || module.settings.container.querySelector('.pos-markdown-mention');
   // instance of the popover with @mentions (object)
-  module.settings.mention.popover = pos.modules.active[`${module.settings.id}-mention-popover`];
+  module.settings.mention.popover = pos.modules.active[`${module.settings.id}-mention-popover`] || null;
   // list with @mention results (dom node)
   module.settings.mention.results = module.settings.container.querySelector(`#${module.settings.id}-mention-popover`);
   // url of the api to fetch mention results (string)
@@ -62,6 +64,18 @@ window.pos.modules.markdown = function(settings){
   module.init = () => {
     
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing rich text editor', module.settings.container);
+
+    // create @mention popover if it doesn't exist yet
+    if(!module.settings.mention.popover){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'No @mentions popover instance detected, creating one');
+
+      module.settings.mention.container.classList.add('pos-popover');
+
+      module.settings.mention.popover = pos.modules.active[`${module.settings.id}-mention-popover`] = new pos.modules.popover(module.settings.mention.container);
+
+      module.settings.mention.url = module.settings.mention.popover?.settings.container.dataset.url;
+      module.settings.mention.template = module.settings.mention.popover?.settings.container.querySelector('template');
+    }
 
     module.startEasyMde();
 
