@@ -2,6 +2,7 @@
   Renders an rich-text markdown editor with optional @mention support and file uploads.
 
   @param {string} [id] - unique id for the module
+  @param {string} [class] - class(es) added to module container
   @param {string} name - name for the textarea
   @param {string} [value] - pre-filled content for the textarea
 
@@ -10,7 +11,7 @@
   @param {number} [minlength] - minimum number of characters allowed
   @param {number} [maxlength] - maximum number of characters allowed
 
-  @param {string} [mention_search_url] - URL to search for @mentions, e.g. `/api/v1/users/search?query=`
+  @param {string} [mention_search_url] - URL to search for @mentions, the typed query is appended to its end as is, e.g. `/api/v1/users/search?query=`
 
 
   @example
@@ -23,12 +24,13 @@
 
 {% liquid
   assign id = id | default: 'pos-rte'
+  assign class = class | default: 'pos-markdown'
 
   assign minlength = minlength | default: 0
   assign maxlength = maxlength | default: 10000
 %}
 
-<div class="pos-markdown" id="{{ id }}" data-minlength="{{ minlength }}" data-maxlength="{{ maxlength }}" aria-describedby="{{ id }}-instructions">
+<div class="{{ class }}" id="{{ id }}" data-minlength="{{ minlength }}" data-maxlength="{{ maxlength }}" aria-describedby="{{ id }}-instructions">
 
   <textarea
     class="pos-forms-text"
@@ -42,7 +44,7 @@
   >{{ value }}</textarea>
 
   {% if mention_search_url %}
-    <div class="pos-popover pos-markdown-mention" {% if mention_search_url %}data-url="{{ mention_search_url }}"{% endif %}>
+    <div class="pos-popover pos-markdown-mention" data-url="{{ mention_search_url }}">
       <template>
         <li>
           <button type="button">
