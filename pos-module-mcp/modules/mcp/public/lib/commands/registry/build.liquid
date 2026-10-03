@@ -1,0 +1,140 @@
+{%- comment -%}
+  Build the tool registry (spec §8.1, §8.2, §4.2). Registration is CODE, not data:
+  the app declares its tools in a registry partial (config.registry_partial,
+  default 'mcp/registry') that returns [{ name, path }, ...]. Each `path` is a tool
+  directory whose `manifest` partial returns the manifest hash. This is the tool-
+  poisoning mitigation as a structural property — every declaration passed review.
+
+  Inert-but-armed: if the app has NOT implemented the registry partial, this
+  returns an empty tool set (endpoint live, no tools) rather than erroring. Each
+  manifest is validated against the meta-schema; a manifest that fails to load, or
+  whose declared name does not match its registration, or that fails validation, is
+  EXCLUDED and logged — never served degraded (§8.1). No implicit allow.
+
+  @return {object} { tools:[valid manifest + _warnings], excluded:[{name,errors}], count }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign partial = cfg.registry_partial | default: 'mcp/registry'
+
+  assign entries = null
+  try
+    function entries = partial
+  catch e
+    unless e.message contains "can't find partial"
+      log e.message, type: 'mcp.registry_build_error'
+    endunless
+    assign entries = null
+  endtry
+
+  assign tools = []
+  assign excluded = []
+  # Names owned by the built-in engine tools appended below. An app manifest may not
+  # claim one: resolve_tool returns the FIRST match, so an app tool would otherwise
+  # replace the built-in's handler and policy.
+  assign reserved_names = ["mcp_approval_status"]
+
+  if entries
+    for entry in entries
+      assign reg_name = entry.name
+      assign path = entry.path
+
+      # --- Load the tool's manifest partial (isolated: one bad tool can't nuke the set). ---
+      assign manifest = null
+      assign load_error = null
+      if path == blank
+        assign load_error = 'registry entry missing path'
+      else
+        assign manifest_path = path | append: '/manifest'
+        try
+          function manifest = manifest_path
+        catch e
+          assign load_error = 'manifest failed to load'
+          assign _lm = reg_name | default: path | append: ': ' | append: e.message
+          log _lm, type: 'mcp.registry_manifest_load_error'
+        endtry
+      endif
+
+      if load_error
+        assign ex = {}
+        assign ex['name'] = reg_name | default: '(unnamed)'
+        assign errs = []
+        assign errs = errs | array_add: load_error
+        assign ex['errors'] = errs
+        assign excluded = excluded | array_add: ex
+        continue
+      endif
+
+      # --- Identity guard: a manifest may not claim a name other than the one it
+      #     was registered under (prevents a moved/edited file shadowing another). ---
+      if reg_name != blank and manifest.name != reg_name
+        assign ex = {}
+        assign ex['name'] = reg_name
+        assign errs = []
+        assign gmsg = 'manifest name "' | append: manifest.name | append: '" does not match registered name "' | append: reg_name | append: '"'
+        assign errs = errs | array_add: gmsg
+        assign ex['errors'] = errs
+        assign excluded = excluded | array_add: ex
+        log gmsg, type: 'mcp.registry_name_mismatch'
+        continue
+      endif
+
+      # --- Reserved-name guard: built-in tool names cannot be claimed by the app. ---
+      if reserved_names contains manifest.name
+        assign ex = {}
+        assign ex['name'] = manifest.name
+        assign errs = []
+        assign rmsg = 'tool name "' | append: manifest.name | append: '" is reserved for a built-in engine tool'
+        assign errs = errs | array_add: rmsg
+        assign ex['errors'] = errs
+        assign excluded = excluded | array_add: ex
+        log rmsg, type: 'mcp.registry_reserved_name'
+        continue
+      endif
+
+      # --- Meta-schema validation. ---
+      function v = 'modules/mcp/commands/registry/manifest_schema', manifest: manifest, max_depth: cfg.defaults.max_schema_depth
+      if v.valid
+        assign m = manifest
+        assign m['_warnings'] = v.warnings
+        assign tools = tools | array_add: m
+        if v.warnings.size > 0
+          assign wj = v.warnings | join: '; '
+          assign _lm = v.name | append: ': ' | append: wj
+          log _lm, type: 'mcp.registry_lint_warning'
+        endif
+      else
+        assign ex = {}
+        assign ex['name'] = v.name | default: reg_name | default: '(unnamed)'
+        assign ex['errors'] = v.errors
+        assign excluded = excluded | array_add: ex
+        assign ej = v.errors | join: '; '
+        assign _lm = ex.name | append: ': ' | append: ej
+        log _lm, type: 'mcp.registry_excluded_manifest'
+      endif
+    endfor
+  endif
+
+  # Built-in engine tools (spec §9.6) — always served, no app registration. Their
+  # handlers are module commands; they use the mcp_authenticated built-in policy and
+  # self-scope. App manifests claiming these names are excluded above (reserved_names),
+  # so a built-in can never be shadowed.
+  assign builtin = {}
+  assign builtin['name'] = 'mcp_approval_status'
+  assign builtin['version'] = '1.0.0'
+  assign builtin['description'] = 'Check the status of an action you requested that required operator approval. Pass the handle you were given. Returns pending, executed, rejected, or expired.'
+  assign builtin['input_schema'] = {"type":"object","additionalProperties":false,"required":["handle"],"properties":{"handle":{"type":"string","minLength":1,"maxLength":100,"description":"the approval handle returned when a tool required approval"}}}
+  assign builtin['mutating'] = false
+  assign builtin['authorization_policy'] = 'mcp_authenticated'
+  assign builtin['requires_approval'] = false
+  assign builtin['handler'] = 'modules/mcp/commands/builtin/approval_status'
+  assign builtin['builtin'] = true
+  assign builtin['_warnings'] = []
+  assign tools = tools | array_add: builtin
+
+  assign out = {}
+  assign out['tools'] = tools
+  assign out['excluded'] = excluded
+  assign out['count'] = tools | size
+  return out
+%}

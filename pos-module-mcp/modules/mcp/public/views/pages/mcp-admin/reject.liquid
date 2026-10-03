@@ -1,0 +1,25 @@
+---
+slug: mcp-admin/reject
+method: post
+---
+{%- comment -%}
+  Operator rejects a pending action (spec §9.6). The action never runs; the
+  decision is recorded. Operator-gated.
+{%- endcomment -%}
+{%- liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.admin', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-admin', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
+
+  assign handle = context.params.handle
+  graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
+  assign rec = f.records.results.first
+  if rec and rec.status == 'pending'
+    function _c = 'modules/mcp/commands/approval/claim', id: rec.id, handle: handle, status: 'rejected', decided_by: current_profile.user.id, result_summary: 'Rejected by operator.'
+  endif
+
+  redirect_to '/mcp-admin?tab=approvals'
+-%}

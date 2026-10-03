@@ -1,0 +1,50 @@
+{%- comment -%}
+  Is this page exposable as an MCP resource (spec §3.2, §13.1)? Shared by
+  resources/list and resources/read so the two can never disagree.
+
+  A page qualifies only when ALL hold:
+  - it is a markdown page (handler: markdown) — a Liquid page's `content` is its
+    template source (GraphQL calls, logic) and must never be served;
+  - it answers GET — POST/PUT/DELETE handlers are never documentation;
+  - its slug sits under an allowed prefix ON A PATH BOUNDARY: slug == prefix (the
+    index page) or slug starts with prefix + '/'. So prefix "docs" matches "docs"
+    and "docs/a" but not "docs-internal/a" or "docsecret". Plain string test (not
+    regex) so a prefix carrying metachars can't alter matching.
+
+  @param {object} page     - admin_pages result with slug, handler, request_method
+  @param {array}  prefixes - cfg.resources.markdown_page_prefixes
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  if page == blank
+    return false
+  endif
+  unless page.handler == 'markdown' and page.request_method == 'get'
+    return false
+  endunless
+
+  assign slug = page.slug | default: ''
+  for prefix in prefixes
+    assign base = prefix | strip
+    assign base_len = base | size
+    assign last_char = base | slice: -1, 1
+    if last_char == '/'
+      assign base_len = base_len | minus: 1
+      assign base = base | slice: 0, base_len
+    endif
+    if base == blank
+      continue
+    endif
+
+    if slug == base
+      return true
+    endif
+    assign dir = base | append: '/'
+    assign dir_len = dir | size
+    assign head = slug | slice: 0, dir_len
+    if head == dir
+      return true
+    endif
+  endfor
+  return false
+%}

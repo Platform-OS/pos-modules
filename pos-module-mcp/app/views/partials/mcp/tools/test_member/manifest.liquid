@@ -1,0 +1,20 @@
+{%- comment -%}
+  Tool manifest — test_member (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  Visibility probe for the MEMBER tier: policy test_principal_member → only a principal
+  holding mcp.tokens.manage (role mcp_user or mcp_operator). The coverage suite asserts it is
+  visible/callable by operator and member, but NOT by outsider or anon.
+{%- endcomment -%}
+{% liquid
+  assign m = {}
+  assign m['name'] = 'test_member'
+  assign m['version'] = '1.0.0'
+  assign m['description'] = 'TEST FIXTURE (not a production tool): member-tier visibility probe; returns a constant marker.'
+  assign schema = {"type":"object","additionalProperties":false,"properties":{}}
+  assign m['input_schema'] = schema
+  assign m['mutating'] = false
+  assign m['authorization_policy'] = 'test_principal_member'
+  assign m['requires_approval'] = false
+  assign m['idempotent'] = true
+  assign m['handler'] = 'mcp/tools/test_member/call'
+  return m
+%}

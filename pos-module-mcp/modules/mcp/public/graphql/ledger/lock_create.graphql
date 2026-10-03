@@ -1,0 +1,8 @@
+mutation lock_create($table: String!, $token: String) {
+  record: record_create(record: {
+    table: $table
+    properties: [{ name: "token", value: $token }]
+  }) {
+    id
+  }
+}

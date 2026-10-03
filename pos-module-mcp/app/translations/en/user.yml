@@ -1,0 +1,20 @@
+en:
+  user:
+    forms:
+      register:
+        register: Register
+        welcome: Welcome!
+        intro: Become a part of our vibrant community where you can connect, share, and collaborate.
+        toc: I understand and agree to Terms of Service, Privacy Policy, and Code of Conduct.
+        cta:
+          title: Thousands have already joined!
+          subtitle: Your community awaits
+        validation:
+          tos: You must agree to those terms to continue.
+      login:
+        welcome: Log in to
+        where: Our community
+        dont_have_account: Don’t have an account?
+      reset:
+        welcome: Let's get you back in
+        trouble: Having trouble? <a href="/contact-us">Contact suppport</a>

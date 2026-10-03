@@ -1,0 +1,114 @@
+{%- comment -%}
+  Append one entry to the hash-chained attestation ledger (spec §6.1, §4.3, §9.3).
+
+  Called on EVERY post-authentication request termination — success, denial,
+  validation failure, rate-limit, handler error. The caller supplies the payload
+  fields it knows; this command stamps seq + occurred_at, links prev_entry_hash to
+  the current tail, computes entry_hash over the canonical payload, and writes the
+  row. When invoked inside a {% transaction %} (mutating tools, Phase 2) the write
+  commits or rolls back atomically with the business mutation — attestation cannot
+  exist without its action, and vice versa.
+
+  SECURITY: never pass raw arguments in `entry` — pass input_sha256 + input_bytes
+  (and audit_json for declared non-sensitive fields only).
+
+  CONCURRENCY: the chain tail is read then written, so truly concurrent appends must
+  be serialized or they fork the chain (two entries sharing a prev_entry_hash → dup
+  seq → verify_chain linkage break). platformOS Liquid has no advisory lock, no unique
+  index, and {% transaction %} is plain READ COMMITTED, so we serialize with a MUTEX
+  ROW: inside the transaction the FIRST op UPDATEs the single mcp_chain_lock row (with a
+  fresh unique token, so ActiveRecord always issues the UPDATE), which takes a Postgres
+  row-write-lock held until commit. A concurrent append blocks on that UPDATE until we
+  commit, then reads the tail we just wrote — no fork. Best-effort: if the mutex row is
+  somehow absent we still append (attestation must never be dropped), and verify_chain
+  remains the backstop detector.
+
+  @param {object} entry - payload fields (method, tool_name, ..., input_sha256,
+                          input_bytes, authz_*, execution_outcome, error_code,
+                          duration_ms, subject_*, idempotency_key, request_id,
+                          audit_json). seq/occurred_at/hashes are set here.
+  @return {object} { seq, entry_hash, prev_entry_hash, occurred_at, id }
+{%- endcomment -%}
+{% liquid
+  assign table = 'modules/mcp/mcp_ledger'
+  assign lock_table = 'modules/mcp/mcp_chain_lock'
+  assign zero = '0000000000000000000000000000000000000000000000000000000000000000'
+
+  # Ensure the singleton mutex row exists (OUTSIDE the critical section, so we never
+  # hold the lock across a create). All appends lock the lowest-id row, so even a rare
+  # bootstrap race that creates two rows converges on one mutex.
+  graphql lock_probe = 'modules/mcp/ledger/lock_find', table: lock_table
+  assign lock_row = lock_probe.records.results.first
+  if lock_row == blank
+    graphql lock_seeded = 'modules/mcp/ledger/lock_create', table: lock_table, token: 'genesis'
+    graphql lock_probe = 'modules/mcp/ledger/lock_find', table: lock_table
+    assign lock_row = lock_probe.records.results.first
+  endif
+  # A unique token per append so the mutex UPDATE is never a no-op (which would take no lock).
+  assign lock_token = 'now' | to_time | strftime: '%s%3N' | append: '-' | append: entry.request_id | append: '-' | append: entry.input_sha256
+
+  # ---- serialized critical section: read tail → build → write, under the mutex ----
+  transaction timeout: 10
+  if lock_row
+    graphql lock_held = 'modules/mcp/ledger/lock_bump', id: lock_row.id, token: lock_token
+  endif
+
+  graphql last_res = 'modules/mcp/ledger/last', table: table
+  assign last = last_res.records.results.first
+  if last
+    assign prev_hash = last.entry_hash | default: zero
+    assign next_seq = last.seq | plus: 1
+  else
+    assign prev_hash = zero
+    assign next_seq = 1
+  endif
+
+  assign occurred_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+
+  # Build the working payload = caller's entry + our stamped fields (functional
+  # merge, does not mutate the caller's hash).
+  assign extra = {}
+  assign extra['seq'] = next_seq
+  assign extra['occurred_at'] = occurred_at
+  # Pipeline latency: if the caller stamped `_start_ms` (unix ms), record the elapsed
+  # time. `_start_ms` itself is not a ledger field (canonical ignores unknown keys),
+  # so it never enters the hash; duration_ms does.
+  unless entry._start_ms == blank
+    assign now_ms = 'now' | to_time | strftime: '%s%3N' | plus: 0
+    assign dur = now_ms | minus: entry._start_ms
+    if dur < 0
+      assign dur = 0
+    endif
+    assign extra['duration_ms'] = dur
+  endunless
+  assign w = entry | hash_merge: extra
+
+  function canonical = 'modules/mcp/commands/ledger/canonical', entry: w
+  assign entry_hash = canonical | append: prev_hash | digest: 'sha256'
+
+  # Coerce nullable integer fields (graphql_argument_type_mismatch_mode: error —
+  # a String reaching an Int variable would raise, so send Int or null).
+  assign v_input_bytes = null
+  unless w.input_bytes == blank
+    assign v_input_bytes = w.input_bytes | plus: 0
+  endunless
+  assign v_error_code = null
+  unless w.error_code == blank
+    assign v_error_code = w.error_code | plus: 0
+  endunless
+  assign v_duration_ms = null
+  unless w.duration_ms == blank
+    assign v_duration_ms = w.duration_ms | plus: 0
+  endunless
+
+  graphql created = 'modules/mcp/ledger/create', table: table, seq: next_seq, occurred_at: occurred_at, method: w.method, tool_name: w.tool_name, tool_version: w.tool_version, client_id: w.client_id, agent_id: w.agent_id, principal_id: w.principal_id, delegation_mode: w.delegation_mode, input_sha256: w.input_sha256, input_bytes: v_input_bytes, authz_policy: w.authz_policy, authz_decision: w.authz_decision, authz_reason: w.authz_reason, execution_outcome: w.execution_outcome, error_code: v_error_code, duration_ms: v_duration_ms, subject_type: w.subject_type, subject_id: w.subject_id, idempotency_key: w.idempotency_key, request_id: w.request_id, audit_json: w.audit_json, prev_entry_hash: prev_hash, entry_hash: entry_hash
+  endtransaction
+
+  assign out = {}
+  assign out['seq'] = next_seq
+  assign out['entry_hash'] = entry_hash
+  assign out['prev_entry_hash'] = prev_hash
+  assign out['occurred_at'] = occurred_at
+  assign out['id'] = created.record.id
+  return out
+%}

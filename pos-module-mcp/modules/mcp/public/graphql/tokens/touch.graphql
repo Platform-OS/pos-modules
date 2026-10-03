@@ -1,0 +1,11 @@
+mutation touch($id: ID!, $last_used_at: String!) {
+  # Best-effort recency stamp for the operator console (Tokens & access → "last used").
+  # Called by identity/resolve_principal, THROTTLED to ≤1 write per token per minute so it
+  # is not a per-request hot-path cost. Only touches last_used_at; never the digest/status.
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_token"
+    properties: [{ name: "last_used_at", value: $last_used_at }]
+  }) {
+    id
+  }
+}

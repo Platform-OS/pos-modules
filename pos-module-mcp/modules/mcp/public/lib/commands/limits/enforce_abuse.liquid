@@ -1,0 +1,60 @@
+{%- comment -%}
+  Auto-suspend on abuse (spec §12.4) — a real control, not a message. Reads the
+  principal's windowed violation counter (O(1) — maintained by limits/note_violation,
+  same cheap mechanism as the rate limiter); over the threshold it SUSPENDS the token
+  being used (status → revoked, so the next call fails auth) and records a
+  `security/suspend` ledger entry.
+
+  Runs on every authenticated tools/call. Deliberately O(1): an earlier version
+  scanned up to 100 ledger rows here, which grew with the ledger and pushed the
+  request past platformOS's per-request budget — intermittently corrupting later
+  pipeline steps. Never scan the ledger on the hot path.
+
+  @param {string} token_id     - the mcp_token being used (auth.token_id)
+  @param {string} principal_id
+  @param {string} agent_id
+  @return {object} { suspended:boolean, count:int }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign threshold = cfg.defaults.abuse_threshold | plus: 0
+  assign out = {}
+  assign out['suspended'] = false
+  assign out['count'] = 0
+  if threshold <= 0
+    return out
+  endif
+
+  assign win_len = cfg.defaults.abuse_window_seconds | plus: 0
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign window = now_unix | divided_by: win_len
+  assign key = 'abuse:' | append: principal_id | append: ':' | append: window
+
+  graphql f = 'modules/mcp/rate/find', key: key
+  assign existing = f.records.results.first
+  assign count = 0
+  if existing
+    assign count = existing.count | plus: 0
+  endif
+  assign out['count'] = count
+
+  if count >= threshold
+    unless token_id == blank
+      graphql _ = 'modules/mcp/tokens/suspend', id: token_id
+    endunless
+    assign le = {}
+    assign le['method'] = 'security/suspend'
+    assign le['principal_id'] = principal_id
+    assign le['agent_id'] = agent_id
+    assign le['authz_decision'] = 'deny'
+    assign le['authz_reason'] = 'abuse_threshold_exceeded'
+    assign le['execution_outcome'] = 'suspended'
+    assign le['error_code'] = -32001
+    assign le['request_id'] = '' | uuid
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    assign out['suspended'] = true
+    assign _lm = principal_id | append: ' suspended after ' | append: count | append: ' violations'
+    log _lm, type: 'mcp.abuse_suspend'
+  endif
+  return out
+%}

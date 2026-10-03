@@ -1,0 +1,15 @@
+name: mcp_token
+# Instance-issued MCP bearer tokens (identity source — see backlog/decision-2).
+# Each token authorizes as a REAL platformOS user (user_id = the principal) and is
+# minted only after that user has authenticated through the existing user/oauth
+# login. The raw token is NEVER stored — only its SHA-256 digest — so a DB read
+# cannot recover a usable credential. Revocable (status) and narrowable per token
+# (allowed_tools intersects the served set, never widens).
+properties:
+  - name: user_id        # the pOS user this bearer acts as (the principal)
+  - name: token_digest   # sha256(raw token), hex — the raw token is shown once, never stored
+  - name: label          # human label / agent name shown in the ledger + operator UI
+  - name: status         # active | revoked
+  - name: allowed_tools
+    type: array
+  - name: last_used_at   # ISO-8601 UTC string (best-effort; not on the hot read path)

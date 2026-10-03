@@ -1,0 +1,15 @@
+query cases_list($per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: { table: { value: "modules/mcp/mcp_eval_case" } }
+    sort: [{ id: { order: ASC } }]
+  ) {
+    results {
+      id
+      name: property(name: "name")
+      prompt: property(name: "prompt")
+      expected_tool: property(name: "expected_tool")
+      expected_args_json: property(name: "expected_args_json")
+    }
+  }
+}

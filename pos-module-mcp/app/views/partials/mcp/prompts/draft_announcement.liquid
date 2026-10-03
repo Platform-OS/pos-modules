@@ -1,0 +1,13 @@
+{%- comment -%}
+  Prompt template — draft_announcement. Receives `arguments` and returns the prompt
+  text (a string → one user message). Built with `append` (not {{ }}) so argument
+  values are interpolated without HTML-escaping.
+{%- endcomment -%}
+{% liquid
+  assign vibe = arguments.vibe | default: 'friendly'
+  assign text = 'Write a warm, concise community announcement (2-3 short paragraphs) for the event "'
+  assign text = text | append: arguments.event_name | append: '" happening on ' | append: arguments.date
+  assign text = text | append: '. Tone: ' | append: vibe
+  assign text = text | append: '. Open with a hook, state clearly what it is and when, and end with a specific call to action to RSVP. Keep it genuine — avoid hype and cliches.'
+  return text
+%}

@@ -1,0 +1,47 @@
+{%- comment -%}
+  MCP `prompts/list` (spec §13.1). Returns the registered prompts in the MCP wire
+  shape: name, optional title, description, and the declared arguments
+  ({ name, description?, required? }). Open discovery, like tools/list.
+
+  @param {object} params - MCP params (pagination could be added; small sets for now)
+  @return {object} { prompts:[{name,title?,description,arguments?}] }
+{%- endcomment -%}
+{% liquid
+  function reg = 'modules/mcp/commands/registry/build_prompts'
+  assign out_prompts = []
+  for p in reg.prompts
+    assign item = {}
+    assign item['name'] = p.name
+    unless p.title == blank
+      assign item['title'] = p.title
+    endunless
+    assign item['description'] = p.description
+    unless p.arguments == blank
+      assign args_out = []
+      for a in p.arguments
+        assign ao = {}
+        assign ao['name'] = a.name
+        unless a.description == blank
+          assign ao['description'] = a.description
+        endunless
+        assign req = false
+        if a.required == true
+          assign req = true
+        endif
+        assign ao['required'] = req
+        assign args_out = args_out | array_add: ao
+      endfor
+      assign item['arguments'] = args_out
+    endunless
+    assign out_prompts = out_prompts | array_add: item
+  endfor
+
+  assign result = {}
+  assign result['prompts'] = out_prompts
+  # Client-side cache hint (2026-07-28 only; dispatch passes it or nil).
+  unless cache == blank
+    assign result['ttlMs'] = cache.ttlMs
+    assign result['cacheScope'] = cache.cacheScope
+  endunless
+  return result
+%}

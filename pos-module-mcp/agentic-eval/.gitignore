@@ -1,0 +1,8 @@
+# Local secrets + eval output — never commit
+.env
+.env.local
+results/
+
+# agent-written artifacts (fabricated / evidence, not source)
+security-assessment-report.md
+*-assessment-report.md

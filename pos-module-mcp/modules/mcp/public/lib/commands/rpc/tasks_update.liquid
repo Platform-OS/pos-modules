@@ -1,0 +1,81 @@
+{%- comment -%}
+  MCP `tasks/update` (2026-07-28, io.modelcontextprotocol/tasks). The ONLY agent-initiated
+  transition is CANCEL: the requester withdraws its own PENDING approval, freeing the
+  queue slot. Approve/reject stay OPERATOR-only via the console — an agent can NEVER
+  approve its own action (that would defeat the human-in-the-loop gate).
+
+  SELF-SCOPED + terminal-immutable: only the owner may cancel, and only a PENDING task
+  (a decided/executed/expired task cannot be changed).
+
+  @param {object} params  - { taskId, status } — status optional, must be "cancelled"
+  @param {object} headers - context.headers (bearer identity)
+  @return {object} { task } on success | { _error:{code,message} } otherwise
+{%- endcomment -%}
+{% liquid
+  assign out = {}
+
+  function idr = 'modules/mcp/commands/identity/resolve_principal', headers: headers
+  unless idr.authenticated == true
+    assign e = {}
+    assign e['code'] = -32001
+    assign e['message'] = 'Authentication required'
+    assign out['_error'] = e
+    return out
+  endunless
+
+  assign task_id = params.taskId
+  if task_id == blank
+    assign e = {}
+    assign e['code'] = -32602
+    assign e['message'] = 'Invalid params: taskId is required'
+    assign out['_error'] = e
+    return out
+  endif
+
+  # Only CANCEL is agent-initiated. Any other requested transition is refused.
+  assign requested = params.status | default: 'cancelled'
+  unless requested == 'cancelled'
+    assign e = {}
+    assign e['code'] = -32602
+    assign e['message'] = 'Invalid params: only status "cancelled" is supported (approve/reject are operator-only)'
+    assign out['_error'] = e
+    return out
+  endunless
+
+  graphql r = 'modules/mcp/approvals/find_by_handle', handle: task_id
+  assign rec = r.records.results.first
+  if rec == blank or rec.principal_id != idr.principal.id
+    assign e = {}
+    assign e['code'] = -32002
+    assign e['message'] = 'Task not found'
+    assign out['_error'] = e
+    return out
+  endif
+
+  # Terminal-immutable: only a pending task can be cancelled.
+  unless rec.status == 'pending'
+    assign e = {}
+    assign e['code'] = -32002
+    assign msg = 'Task is not pending (status: ' | append: rec.status | append: ') and cannot be cancelled'
+    assign e['message'] = msg
+    assign out['_error'] = e
+    return out
+  endunless
+
+  # Claim under the row lock: an operator may be approving this same row right now.
+  function claim = 'modules/mcp/commands/approval/claim', id: rec.id, handle: task_id, status: 'cancelled', decided_by: 'agent:self', result_summary: 'Cancelled by requester'
+  unless claim.claimed
+    assign e = {}
+    assign e['code'] = -32002
+    assign e['message'] = 'Task is no longer pending and cannot be cancelled'
+    assign out['_error'] = e
+    return out
+  endunless
+
+  # Re-read so the presented task reflects the persisted state.
+  graphql r2 = 'modules/mcp/approvals/find_by_handle', handle: task_id
+  assign rec2 = r2.records.results.first | default: rec
+  function task = 'modules/mcp/commands/tasks/present', rec: rec2
+  assign out['task'] = task
+  return out
+%}

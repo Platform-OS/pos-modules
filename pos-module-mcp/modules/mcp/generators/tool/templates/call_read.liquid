@@ -1,0 +1,18 @@
+{%- comment -%}
+  DRAFT handler — <%= toolName %> (read-only). Returns matching records. Review the
+  fields returned and the search behaviour before serving.
+{%- endcomment -%}
+{% liquid
+  graphql r = 'mcp/<%= toolName %>', keyword: arguments.query, limit: arguments.limit | default: 10
+  assign items = []
+  for row in r.items.results
+    assign items = items | array_add: row
+  endfor
+  assign result = {}
+  assign result['count'] = r.items.total_entries
+  assign result['items'] = items
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
+  return out
+%}

@@ -1,0 +1,80 @@
+{%- comment -%}
+  Build the prompt registry (spec §13.1 prompts) — reusable, parameterized prompt
+  templates the server offers to agents. Mirrors the tool registry: the app declares
+  prompts in a partial (config.prompts_partial, default 'mcp/prompts') returning
+  [{ name, description, arguments, template }], all reviewed code. Prompts carry no
+  side effects (they only produce text for the agent), so there is no authorization
+  or input-schema meta-validation — but name/description/template are still validated
+  and an invalid prompt is excluded + logged, never served degraded.
+
+  A prompt entry:
+    name        - ^[a-z][a-z0-9_]{2,63}$
+    title       - optional display title
+    description - required, model-read
+    arguments   - optional array of { name, description?, required? }
+    template    - partial path invoked with `arguments` → a string (one user
+                  message) or a messages array
+
+  @return {object} { prompts:[...], excluded:[{name,errors}], count }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign partial = cfg.prompts_partial | default: 'mcp/prompts'
+
+  assign raw = null
+  try
+    function raw = partial
+  catch e
+    unless e.message contains "can't find partial"
+      log e.message, type: 'mcp.prompts_build_error'
+    endunless
+    assign raw = null
+  endtry
+
+  assign prompts = []
+  assign excluded = []
+
+  if raw
+    for p in raw
+      assign errors = []
+      if p.name == blank
+        assign errors = errors | array_add: 'name: required'
+      else
+        assign name_ok = p.name | matches: '^[a-z][a-z0-9_]{2,63}$'
+        unless name_ok
+          assign errors = errors | array_add: 'name: must match ^[a-z][a-z0-9_]{2,63}$'
+        endunless
+      endif
+      if p.description == blank
+        assign errors = errors | array_add: 'description: required'
+      endif
+      if p.template == blank
+        assign errors = errors | array_add: 'template: required'
+      endif
+      unless p.arguments == blank
+        assign at = p.arguments | type_of | downcase
+        unless at == 'array'
+          assign errors = errors | array_add: 'arguments: must be an array'
+        endunless
+      endunless
+
+      if errors.size == 0
+        assign prompts = prompts | array_add: p
+      else
+        assign ex = {}
+        assign ex['name'] = p.name | default: '(unnamed)'
+        assign ex['errors'] = errors
+        assign excluded = excluded | array_add: ex
+        assign ej = errors | join: '; '
+        assign _lm = ex.name | append: ': ' | append: ej
+        log _lm, type: 'mcp.prompts_excluded'
+      endif
+    endfor
+  endif
+
+  assign out = {}
+  assign out['prompts'] = prompts
+  assign out['excluded'] = excluded
+  assign out['count'] = prompts | size
+  return out
+%}

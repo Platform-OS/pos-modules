@@ -1,0 +1,45 @@
+{%- comment -%}
+  Handler — search_events (Layer-2, app-owned; handler contract §7.3). Invoked by
+  the engine ONLY after the call has been authenticated, rate-limited, resolved,
+  argument-validated, and authorized. So this code trusts that `arguments` is
+  well-formed and the caller is permitted — its job is the business action only.
+
+  Handler rules (§7.3): arguments are passed as TYPED GraphQL variables, never
+  interpolated into the query string (injection path); no agent-supplied URL is
+  fetched; the ledger is never written here.
+
+  @param {object} arguments    - validated { query, limit? }
+  @param {object} principal     - resolved principal
+  @param {object} agent         - calling agent
+  @param {object} context_meta  - { tool_name, tool_version, request_id }
+  @return {object} { ok, result?, subject?, error? }  (contract §7.3)
+{%- endcomment -%}
+{% liquid
+  assign keyword = arguments.query
+  assign limit = arguments.limit | default: 10
+
+  graphql res = 'mcp/search_events', keyword: keyword, limit: limit
+  assign rows = res.events.results
+
+  assign events = []
+  for r in rows
+    assign e = {}
+    assign e['id'] = r.id
+    assign e['name'] = r.name
+    assign e['summary'] = r.short_description
+    assign e['start_date'] = r.start_date
+    assign e['venue'] = r.venue
+    assign e['link'] = r.link
+    assign events = events | array_add: e
+  endfor
+
+  assign result = {}
+  assign result['query'] = keyword
+  assign result['count'] = res.events.total_entries
+  assign result['events'] = events
+
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
+  return out
+%}

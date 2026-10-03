@@ -1,0 +1,15 @@
+# Lint this module only.
+#
+# Everything under modules/ other than modules/mcp is a dependency installed by
+# `pos-cli modules install`. Its offenses belong to that module's own repository,
+# and linting them here fails this repo's CI for code this repo cannot fix —
+# the fix has to be released there first.
+#
+# The pattern excludes every module directory except this one, so a newly added
+# dependency is covered without touching this file.
+#
+# Ignored files stay visible to cross-file checks (MissingPartial, MissingTable,
+# UnusedPartial, ...); only offenses reported inside them are suppressed.
+# app/ is first-party code and stays linted, including app/modules/* overrides.
+ignore:
+  - "modules/!(mcp)/**"

@@ -1,0 +1,21 @@
+{%- comment -%}
+  Authorization policy: admin_only (Layer-2, app-owned; spec §12.2, §5.1).
+  Permits the tool only when the resolved PRINCIPAL holds the mcp.admin permission
+  (user-module RBAC: role mcp_operator, or superadmin). In on_behalf_of delegation the
+  check is against the principal (the human), never the agent (§9.4), so an agent can
+  never elevate itself.
+  Fail-closed: no profile or no permission → deny.
+  Contract: return { allow, reason }. Receives principal, agent, arguments, tool,
+  delegation_mode.
+{%- endcomment -%}
+{% liquid
+  function is_admin = 'modules/mcp/queries/principal/can', principal: principal, do: 'mcp.admin'
+  assign r = {}
+  assign r['allow'] = is_admin
+  if is_admin
+    assign r['reason'] = 'admin'
+  else
+    assign r['reason'] = 'not_admin'
+  endif
+  return r
+%}

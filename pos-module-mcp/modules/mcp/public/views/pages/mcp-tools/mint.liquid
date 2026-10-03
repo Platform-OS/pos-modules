@@ -1,0 +1,23 @@
+---
+slug: mcp-tools/mint
+method: post
+---
+{%- comment -%}
+  POST handler — mint a per-user token. Requires mcp.tokens.manage; binds the token
+  to the signed-in user_id. The raw token is stashed in a one-shot session flash and shown
+  once on the redirected /mcp-tools page (Post-Redirect-Get).
+{%- endcomment -%}
+{%- liquid
+  # Access gate — enforced SERVER-SIDE, not just in the UI: without mcp.tokens.manage a
+  # signed-in user cannot POST here directly to mint a token.
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.tokens.manage', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-tools', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
+  assign uid = current_profile.user.id | append: ''
+  function minted = 'modules/mcp/commands/tokens/mint', user_id: uid, label: context.params.label
+  session mcp_flash_token = minted.raw
+  redirect_to '/mcp-tools'
+-%}

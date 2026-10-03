@@ -1,0 +1,18 @@
+# Insert a test_note row (host-side test fixture). Called by the gated test tools
+# via TYPED variables (never string-interpolated) — the handler-contract injection
+# rule applies to test tools too. Returns the new row id so the handler can surface
+# it as the tool's subject.
+mutation test_note_create($user_id: String!, $label: String!, $source: String!) {
+  record_create(
+    record: {
+      table: "test_note"
+      properties: [
+        { name: "user_id", value: $user_id }
+        { name: "label", value: $label }
+        { name: "source", value: $source }
+      ]
+    }
+  ) {
+    id
+  }
+}

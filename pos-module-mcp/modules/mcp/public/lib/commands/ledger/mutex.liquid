@@ -1,0 +1,31 @@
+{%- comment -%}
+  Take the ledger's mutex row lock (the same singleton mcp_chain_lock row that
+  ledger/append serializes on). MUST be called inside a {% transaction %}: the UPDATE
+  holds a Postgres row-write-lock until the surrounding transaction commits or rolls
+  back, so a concurrent caller blocks here and then sees everything we committed.
+
+  Used by tools/call to make the idempotency check-then-execute atomic for mutating
+  tools: two concurrent retries with the same key serialize, and the second one
+  re-reads the first one's committed replay record instead of executing again.
+  ledger/append re-bumping the same row later in the same transaction is a no-op wait
+  (we already hold the lock).
+
+  @return {boolean} true when the lock was taken
+{%- endcomment -%}
+{% liquid
+  assign lock_table = 'modules/mcp/mcp_chain_lock'
+  graphql lock_probe = 'modules/mcp/ledger/lock_find', table: lock_table
+  assign lock_row = lock_probe.records.results.first
+  if lock_row == blank
+    graphql _seed = 'modules/mcp/ledger/lock_create', table: lock_table, token: 'genesis'
+    graphql lock_probe = 'modules/mcp/ledger/lock_find', table: lock_table
+    assign lock_row = lock_probe.records.results.first
+  endif
+  if lock_row == blank
+    return false
+  endif
+  # A unique token so the UPDATE is never a no-op (a no-op update would take no lock).
+  assign lock_token = '' | uuid
+  graphql _held = 'modules/mcp/ledger/lock_bump', id: lock_row.id, token: lock_token
+  return true
+%}

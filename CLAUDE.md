@@ -126,6 +126,7 @@ core (no dependencies)
 │   └── payments-stripe
 ├── openai
 ├── data-export-api
+├── mcp (+ user, community, components)
 └── instance-portal (+ common-styling)
 
 common-styling (standalone, used by UI modules)

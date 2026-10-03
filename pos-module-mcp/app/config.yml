@@ -1,0 +1,35 @@
+---
+do_not_add_return_to_to_authorization_policies: true
+escape_output_instead_of_sanitize: true
+liquid_raise_mode: true
+require_table_for_record_delete_mutation: true
+safe_translate: true
+slug_exact_match: true
+disable_slow_query_log: true
+skip_elasticsearch: true
+theme_search_paths:
+  - ''
+  - modules/community
+  - modules/components
+  - modules/user
+  - modules/chat
+modules_that_allow_delete_on_deploy:
+- chat
+- community
+- components
+- core
+- profile
+- common-styling
+- tests
+- user
+- openai
+graphql_argument_type_mismatch_mode: error
+websockets_require_csrf_token: true
+maintenance:
+  enabled: false
+  password_constant: 'MAINTENANCE_PASSWORD'
+  partial: 'maintenance'
+liquid_check_mode: error
+sync_translations: true
+sync_assets: true
+default_layout: 'modules/community/community'

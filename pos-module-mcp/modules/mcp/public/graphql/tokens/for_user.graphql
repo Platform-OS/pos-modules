@@ -1,0 +1,17 @@
+query for_user($user_id: String!) {
+  records(
+    per_page: 50
+    filter: {
+      table: { value: "modules/mcp/mcp_token" }
+      properties: [{ name: "user_id", value: $user_id }]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      label: property(name: "label")
+      status: property(name: "status")
+      created_at
+    }
+  }
+}
