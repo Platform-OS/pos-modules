@@ -14,6 +14,10 @@ layout: null
       function response = 'modules/payments_stripe/commands/webhooks/charge', params: context.params, host: context.location.host, request_url: context.location.url
     when 'charge.failed'
       function response = 'modules/payments_stripe/commands/webhooks/charge', params: context.params, host: context.location.host, request_url: context.location.url
+     when 'charge.dispute.created'
+      function response = 'modules/payments_stripe/commands/webhooks/dispute', params: context.params, request_url: context.location.url
+    when 'charge.dispute.closed'
+      function response = 'modules/payments_stripe/commands/webhooks/dispute', params: context.params, request_url: context.location.url
     when 'checkout.session.expired'
       function response = 'modules/payments_stripe/commands/webhooks/session_expired', params: context.params, host: context.location.host, request_url: context.location.url
     when 'setup_intent.succeeded'

@@ -88,3 +88,6 @@ pos-module-websocket/modules/*
 **/pos-supervisor.jsonl
 pos-module-push-notifications/modules/*
 !pos-module-push-notifications/modules/push_notifications/
+
+pos-module-accela_construct/modules/*
+!pos-module-accela_construct/modules/accela_construct/
