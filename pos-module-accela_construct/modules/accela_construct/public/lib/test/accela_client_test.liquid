@@ -44,6 +44,6 @@
   assign expected_encoded_value = raw_value | url_encode
   assign encode_params = { "fields": raw_value }
   function qs_encoded = 'modules/accela_construct/accela_client/build_query_string', params: encode_params
-  assign expected_qs = "fields={{ expected_encoded_value }}"
+  assign expected_qs = 'fields=' | append: expected_encoded_value
   function contract = 'modules/tests/assertions/equal', contract: contract, given: qs_encoded, expected: expected_qs, field_name: 'build_query_string_url_encodes_values'
 %}

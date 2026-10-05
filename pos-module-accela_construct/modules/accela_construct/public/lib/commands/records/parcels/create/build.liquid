@@ -9,6 +9,6 @@
 
 {% liquid
   assign object.path = "/records/{{ object.record_id | url_encode }}/parcels"
-  assign object.payload = object.parcel | json
+  assign object.payload = [object.parcel] | json
   return object
 %}

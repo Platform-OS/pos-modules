@@ -52,7 +52,7 @@ const CONSTANTS = [
   {
     name: 'ACCELA_CONSTRUCT_SCOPE',
     message: 'Space-delimited OAuth scope, per endpoint you plan to call',
-    default: 'records search_records search_owners run_emse_script get_settings_inspection_types get_parcel_conditions get_address_parcels'
+    default: 'records search_records search_owners run_emse_script get_settings_inspection_types get_parcel_conditions get_address_parcels get_inspections get_inspection get_inspection_histories get_inspection_available_dates schedule_inspection schedule_pending_inspection reschedule_inspection update_inspection result_inspection assign_inspections cancel_inspection delete_inspections get_inspection_related create_inspection_related delete_inspection_related get_inspection_checklists create_inspection_checklists delete_inspection_checklists get_inspection_conditions get_inspection_condition get_inspection_condition_histories create_inspection_conditions update_inspection_condition delete_inspection_conditions download_document global_search search_addresses search_assessments search_contacts search_costs search_inspections search_parts search_professionals'
   },
   {
     name: 'ACCELA_CONSTRUCT_MAX_RETRIES',

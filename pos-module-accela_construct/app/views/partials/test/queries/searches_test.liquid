@@ -1,0 +1,51 @@
+{% doc %}
+  @description Exercises every searches/* query against the real Accela sandbox. Most
+    of these scopes are now granted (see ACCELA_CONSTRUCT_SCOPE) and
+    genuinely succeed. Three don't, for two different real reasons, not
+    fixable by adding an app scope:
+    - agencies and parcels return 401 anonymous_user_unavailable - Accela
+      resolves this app credential to an anonymous CivicID user, and these
+      two endpoints specifically require a real authenticated user context.
+    - assessments and parts return a real 403 even with search_assessments/
+      search_parts granted, with a terse, non-scope error message
+      ("8308R|0227R" / "8273R|8192R" rather than the usual "Scope '...' ...
+      CivicID" text) - most likely an agency-level module restriction
+      rather than an app-scope gap.
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  assign criteria = { "module": "Building" }
+
+  function addresses_result = 'modules/accela_construct/queries/searches/addresses', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_result.success, expected: true, field_name: 'searches_addresses_success'
+
+  function agencies_result = 'modules/accela_construct/queries/searches/agencies', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: agencies_result.status, expected: 401, field_name: 'searches_agencies_unauthorized_status'
+
+  function global_result = 'modules/accela_construct/queries/searches/global', query: 'main street', type: 'address'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: global_result.success, expected: true, field_name: 'searches_global_success'
+
+  function assessments_result = 'modules/accela_construct/queries/searches/assessments', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: assessments_result.status, expected: 403, field_name: 'searches_assessments_forbidden_status'
+
+  function contacts_result = 'modules/accela_construct/queries/searches/contacts', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: contacts_result.success, expected: true, field_name: 'searches_contacts_success'
+
+  function costs_result = 'modules/accela_construct/queries/searches/costs', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: costs_result.success, expected: true, field_name: 'searches_costs_success'
+
+  function inspections_result = 'modules/accela_construct/queries/searches/inspections', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_result.success, expected: true, field_name: 'searches_inspections_success'
+
+  function owners_result = 'modules/accela_construct/queries/searches/owners', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_result.success, expected: true, field_name: 'searches_owners_success'
+
+  function parcels_result = 'modules/accela_construct/queries/searches/parcels', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_result.status, expected: 401, field_name: 'searches_parcels_unauthorized_status'
+
+  function parts_result = 'modules/accela_construct/queries/searches/parts', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parts_result.status, expected: 403, field_name: 'searches_parts_forbidden_status'
+
+  function professionals_result = 'modules/accela_construct/queries/searches/professionals', criteria: criteria
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: professionals_result.success, expected: true, field_name: 'searches_professionals_success'
+%}

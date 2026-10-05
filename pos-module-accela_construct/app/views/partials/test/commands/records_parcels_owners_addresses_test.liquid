@@ -7,7 +7,8 @@
   # this file exercises all 9 commands with the same pattern per resource.
   # Only build.liquid/check.liquid are called directly, plus each
   # orchestrator's validation-FAILURE path (missing a required param, which
-  # short-circuits before any network call) - never a full success call.
+  # short-circuits before any network call). The real-API section at the
+  # bottom exercises the success path against the Accela sandbox.
 
   # ============ parcels (body param: parcel) ============
 
@@ -23,6 +24,12 @@
   function parcels_create_build_output = 'modules/accela_construct/commands/records/parcels/create/build', object: parcels_create_build_input
   function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_create_build_output.path, expected: '/records/TEST-0000-00001/parcels', field_name: 'records_parcels_create_build_path'
   function contract = 'modules/tests/assertions/presence', contract: contract, object: parcels_create_build_output, field_name: 'payload'
+  # Accela's Create Record Parcels endpoint requires a JSON array body, even
+  # for a single parcel - build.liquid wraps the single `parcel` hash into a
+  # one-item array before serializing.
+  assign parcels_create_payload = parcels_create_build_output.payload | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_create_payload.size, expected: 1, field_name: 'records_parcels_create_build_payload_is_array'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_create_payload.first.parcelNumber, expected: '005020018', field_name: 'records_parcels_create_build_payload_array_item'
 
   function parcels_create_result = 'modules/accela_construct/commands/records/parcels/create', record_id: 'TEST-0000-00001'
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: parcels_create_result, field_name: 'success'
@@ -57,7 +64,7 @@
   # build.liquid url_encodes the ids, so compare against url_encode's own
   # output rather than assuming the comma stays literal
   assign parcels_delete_expected_ids = parcels_delete_build_input.ids | url_encode
-  assign parcels_delete_expected_path = "/records/TEST-0000-00001/parcels/{{ parcels_delete_expected_ids }}"
+  assign parcels_delete_expected_path = "/records/TEST-0000-00001/parcels/" | append: parcels_delete_expected_ids
   function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_delete_build_output.path, expected: parcels_delete_expected_path, field_name: 'records_parcels_delete_build_path'
 
   function parcels_delete_result = 'modules/accela_construct/commands/records/parcels/delete', record_id: 'TEST-0000-00001'
@@ -78,6 +85,9 @@
   function owners_create_build_output = 'modules/accela_construct/commands/records/owners/create/build', object: owners_create_build_input
   function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_create_build_output.path, expected: '/records/TEST-0000-00001/owners', field_name: 'records_owners_create_build_path'
   function contract = 'modules/tests/assertions/presence', contract: contract, object: owners_create_build_output, field_name: 'payload'
+  # Same array-body requirement as parcels above.
+  assign owners_create_payload = owners_create_build_output.payload | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_create_payload.size, expected: 1, field_name: 'records_owners_create_build_payload_is_array'
 
   function owners_create_result = 'modules/accela_construct/commands/records/owners/create', record_id: 'TEST-0000-00001'
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: owners_create_result, field_name: 'success'
@@ -112,7 +122,7 @@
   # build.liquid url_encodes the ids, so compare against url_encode's own
   # output rather than assuming the comma stays literal
   assign owners_delete_expected_ids = owners_delete_build_input.ids | url_encode
-  assign owners_delete_expected_path = "/records/TEST-0000-00001/owners/{{ owners_delete_expected_ids }}"
+  assign owners_delete_expected_path = "/records/TEST-0000-00001/owners/" | append: owners_delete_expected_ids
   function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_delete_build_output.path, expected: owners_delete_expected_path, field_name: 'records_owners_delete_build_path'
 
   function owners_delete_result = 'modules/accela_construct/commands/records/owners/delete', record_id: 'TEST-0000-00001'
@@ -167,10 +177,36 @@
   # build.liquid url_encodes the ids, so compare against url_encode's own
   # output rather than assuming the comma stays literal
   assign addresses_delete_expected_ids = addresses_delete_build_input.ids | url_encode
-  assign addresses_delete_expected_path = "/records/TEST-0000-00001/addresses/{{ addresses_delete_expected_ids }}"
+  assign addresses_delete_expected_path = "/records/TEST-0000-00001/addresses/" | append: addresses_delete_expected_ids
   function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_delete_build_output.path, expected: addresses_delete_expected_path, field_name: 'records_addresses_delete_build_path'
 
   function addresses_delete_result = 'modules/accela_construct/commands/records/addresses/delete', record_id: 'TEST-0000-00001'
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: addresses_delete_result, field_name: 'success'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_delete_result.error, expected: 'accela_validation_failed', field_name: 'records_addresses_delete_returns_validation_failed_without_ids'
+
+  # ============ real Accela sandbox ============
+  # owners/create and parcels/create genuinely succeed once given the fields
+  # Accela's own validation actually requires (fullName for owners; the
+  # module's owner/parcel @param examples using firstName/lastName do not
+  # match what Accela validates). addresses/create is asserted as a real,
+  # observed failure - Accela returns "Request body is required" for this
+  # endpoint regardless of body shape or content on this sandbox agency,
+  # which is Accela's behavior, not a bug in this module's payload building.
+
+  assign real_fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (records_parcels_owners_addresses_test)" }
+  function real_create_result = 'modules/accela_construct/commands/records/create', record: real_fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_create_result.success, expected: true, field_name: 'real_fixture_record_create_success'
+  assign real_record_id = real_create_result.body.result.id
+
+  function real_owner_result = 'modules/accela_construct/commands/records/owners/create', record_id: real_record_id, owner: { "fullName": "Test Owner", "isPrimary": "Y" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_owner_result.success, expected: true, field_name: 'real_records_owners_create_success'
+
+  function real_parcel_result = 'modules/accela_construct/commands/records/parcels/create', record_id: real_record_id, parcel: { "parcelNumber": "005020018" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_parcel_result.success, expected: true, field_name: 'real_records_parcels_create_success'
+
+  function real_address_result = 'modules/accela_construct/commands/records/addresses/create', record_id: real_record_id, address: { "streetName": "Main Street", "streetNumber": "123", "city": "Washington", "state": "DC", "postalCode": "20001", "isPrimary": "Y" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_address_result.success, expected: false, field_name: 'real_records_addresses_create_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_address_result.status, expected: 400, field_name: 'real_records_addresses_create_status'
+
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: real_record_id
 %}

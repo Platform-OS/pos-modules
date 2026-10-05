@@ -2,22 +2,19 @@
   @description Wraps POST /v4/records/{recordId}/documents (Accela "Create Record Documents").
 
     Accela requires multipart/form-data with two parts: `uploadedFile`
-    (the binary) and `fileInfo` (a JSON string array of metadata).
-
-    *** VERIFY BEFORE PRODUCTION USE ***
-    platformOS API Call Notifications support a `post_multipart` request
-    type, but the exact Liquid syntax for attaching a raw file part inside
-    the notification template is not clearly documented. The current
-    implementation in public/api_calls/accela_post_multipart.liquid is a
-    best-effort scaffold - confirm against your platformOS instance/support
-    how binary file uploads should be represented in an API Call
-    Notification body (likely needs the file made available via a prior
-    file-upload mutation and referenced by URL/id rather than inlined).
-
-    MULTIPART requests are only retried when `file_object_id`/
-    `file_object_property` are given alongside `with_retries` - file
-    content otherwise can't be safely re-sent from a detached background
-    job (see lib/accela_client/send.liquid).
+    (the file) and `fileInfo` (a JSON string array of metadata). This is
+    sent via `api_call_send`'s inline `form_data` support
+    (graphql/accela_client/multipart_upload.graphql,  called from
+    lib/accela_client/send.liquid) - platformOS fetches and streams the
+    file server-side from a URL, so this module never downloads or holds
+    the file's bytes itself unless you give it `file_content_base64`
+    instead. Identify the file one of three ways:
+    - `file_url`: any URL platformOS's servers can fetch directly.
+    - `file_content_base64`: the file's own bytes, base64-encoded, when
+      you have them in hand rather than a fetchable URL.
+    - `file_object_id`/`file_object_property`: a platformOS generic_object
+      record and the file property on it holding an already-uploaded
+      file - see those params below for why this is the retry-safe option.
 
     Follows the pos-module-core build/check/execute command pattern (see
     upload/{build,check}.liquid): build prepares the request URL and the
@@ -25,7 +22,11 @@
     executes the request itself once valid (rather than delegating to a
     separate execute.liquid).
   @param {string} record_id - Record id (required)
-  @param {string} [file_field] - Raw file content or a reference to already-uploaded file data
+  @param {string} [file_url] - URL of the file to upload; required unless
+    `file_content_base64` or `file_object_id`/`file_object_property` are
+    given instead.
+  @param {string} [file_content_base64] - base64-encoded file content, as
+    an alternative to `file_url`.
   @param {string} file_name - Original file name, e.g. "site_plan.pdf"
   @param {string} content_type - MIME type, e.g. "application/pdf" (required)
   @param {string} [category] - must match a value from documents/categories
@@ -36,46 +37,35 @@
     failed attempt in the background with increasing delay - see
     lib/accela_client/send.liquid. Only meaningful when
     `file_object_id`/`file_object_property` are also given (see below) -
-    otherwise this MULTIPART request still can't be retried, since raw
-    file bytes can't be carried through a background job.
+    a directly-passed `file_url` may be a short-lived signed URL that's
+    no longer valid by the time a retry fires, and `file_content_base64`
+    isn't carried through the retry chain at all (see send.liquid).
   @param {string} [file_object_id] - optional, given together with
-    file_object_property. Identify a platformOS generic_object record and
-    the file property on it holding this upload's file content (already
-    stored there by an earlier upload step), as an alternative to relying
-    on `file_field`'s raw bytes surviving into a background retry.
-    Forwarded to send.liquid as `metadata.file_object_id`/
-    `metadata.file_object_property` - when both are present,
-    send.liquid re-downloads the file fresh from that generic_object
-    on every attempt (this call and any retries) instead of needing
-    the file content itself carried down the retry chain. This is what
+    file_object_property, as an alternative to `file_url`/`file_content_base64`.
+    Identifies a platformOS generic_object record and the file property on
+    it holding this upload's file. Forwarded to send.liquid as
+    `metadata.file_object_id`/`metadata.file_object_property` - when both
+    are present, send.liquid resolves a fresh signed URL from that
+    generic_object before every attempt (this call and any retries)
+    instead of relying on a single `file_url` staying valid. This is what
     makes `with_retries` viable for a MULTIPART upload - see
     lib/accela_client/send.liquid.
   @param {string} [file_object_property] - optional, given together with
-    file_object_id. Identify a platformOS generic_object record and
-    the file property on it holding this upload's file content (already
-    stored there by an earlier upload step), as an alternative to relying
-    on `file_field`'s raw bytes surviving into a background retry.
-    Forwarded to send.liquid as `metadata.file_object_id`/
-    `metadata.file_object_property` - when both are present,
-    send.liquid re-downloads the file fresh from that generic_object
-    on every attempt (this call and any retries) instead of needing
-    the file content itself carried down the retry chain. This is what
-    makes `with_retries` viable for a MULTIPART upload - see
-    lib/accela_client/send.liquid.
+    file_object_id - see file_object_id above.
   @example
     {% function result = 'modules/accela_construct/commands/records/documents/upload',
-       record_id: record_id, file_field: file_content, file_name: 'site_plan.pdf',
+       record_id: record_id, file_url: file_url, file_name: 'site_plan.pdf',
        content_type: 'application/pdf', description: 'Site plan' %}
 {% enddoc %}
 
 {% liquid
-  assign object = { "errors": {}, "valid": true, "record_id": record_id, "file_field": file_field, "file_name": file_name, "content_type": content_type, "category": category, "description": description }
+  assign object = { "errors": {}, "valid": true, "record_id": record_id, "file_url": file_url, "file_content_base64": file_content_base64, "file_object_id": file_object_id, "file_object_property": file_object_property, "file_name": file_name, "content_type": content_type, "category": category, "description": description }
   function object = 'modules/accela_construct/commands/records/documents/upload/build', object: object
   function object = 'modules/accela_construct/commands/records/documents/upload/check', object: object
 
   if object.valid
     assign metadata = { "file_object_id": file_object_id, "file_object_property": file_object_property }
-    function result = 'modules/accela_construct/accela_client/send', method: 'MULTIPART', path: object.path, file_field: object.file_field, file_info: object.file_info, reference: reference, caller: 'modules/accela_construct/commands/records/documents/upload', with_retries: with_retries, metadata: metadata
+    function result = 'modules/accela_construct/accela_client/send', method: 'MULTIPART', path: object.path, file_url: object.file_url, file_content_base64: object.file_content_base64, file_name: object.file_name, content_type: object.content_type, file_info: object.file_info, reference: reference, caller: 'modules/accela_construct/commands/records/documents/upload', with_retries: with_retries, metadata: metadata
   else
     function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/commands/records/documents/upload'
   endif

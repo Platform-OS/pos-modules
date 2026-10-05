@@ -10,7 +10,6 @@
 
 {% liquid
   assign object.path = "/records/{{ object.record_id | url_encode }}/documents"
-
   assign file_info_item = { "fileName": object.file_name, "type": object.content_type }
   if object.category != blank
     assign file_info_item.category = object.category

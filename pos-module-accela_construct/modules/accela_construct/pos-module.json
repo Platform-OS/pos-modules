@@ -1,7 +1,7 @@
 {
   "name": "Accela Construct API Wrapper",
   "machine_name": "accela_construct",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "platformOS module that wraps the Accela Construct API (v4) - Records and all its sub-resources (WorkflowTasks, Payments, Parcels, Owners, Inspections, Documents, Conditions, Addresses), Inspections (including Checklists and Conditions), and Searches - including OAuth2 password-grant token management with automatic refresh.",
   "dependencies": {
     "core": "^2.1.10"

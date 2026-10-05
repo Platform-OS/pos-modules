@@ -1,0 +1,66 @@
+{% doc %}
+  @description Exercises records sub-resource queries against the real Accela sandbox
+    using a fixture record created for this test run. Workflow tasks are
+    auto-created by Accela when a record is created, so workflow_tasks/get
+    and /statuses use the real task id from workflow_tasks/list rather than
+    a made-up one. Conditions/payments have no real rows on a fresh record,
+    so conditions/get and payments/get are exercised with an id that can't
+    exist and assert Accela's actual (not client-side) error response -
+    404 for conditions/get, 500 for payments/get (Accela's own behavior for
+    an unrecognized payment id on this endpoint, not a bug in this module).
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  assign fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (records_sub_resources_test)" }
+  function create_result = 'modules/accela_construct/commands/records/create', record: fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: create_result.success, expected: true, field_name: 'fixture_record_create_success'
+  assign record_id = create_result.body.result.id
+
+  function parcels_result = 'modules/accela_construct/queries/records/parcels/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parcels_result.success, expected: true, field_name: 'records_parcels_list_success'
+
+  function owners_result = 'modules/accela_construct/queries/records/owners/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owners_result.success, expected: true, field_name: 'records_owners_list_success'
+
+  function addresses_result = 'modules/accela_construct/queries/records/addresses/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: addresses_result.success, expected: true, field_name: 'records_addresses_list_success'
+
+  function conditions_list_result = 'modules/accela_construct/queries/records/conditions/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_list_result.success, expected: true, field_name: 'records_conditions_list_success'
+
+  function conditions_get_result = 'modules/accela_construct/queries/records/conditions/get', record_id: record_id, id: 'nonexistent'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_get_result.success, expected: false, field_name: 'records_conditions_get_not_found_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_get_result.status, expected: 404, field_name: 'records_conditions_get_not_found_status'
+
+  function conditions_histories_result = 'modules/accela_construct/queries/records/conditions/histories', record_id: record_id, id: 'nonexistent'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_histories_result.success, expected: false, field_name: 'records_conditions_histories_not_found_success'
+
+  # Accela auto-creates workflow tasks when a record is created, so a fresh
+  # fixture always has at least one real task to fetch/inspect.
+  function workflow_tasks_list_result = 'modules/accela_construct/queries/records/workflow_tasks/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: workflow_tasks_list_result.success, expected: true, field_name: 'records_workflow_tasks_list_success'
+  assign real_task = workflow_tasks_list_result.body.result.first
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: real_task, field_name: 'id'
+
+  function workflow_tasks_get_result = 'modules/accela_construct/queries/records/workflow_tasks/get', record_id: record_id, id: real_task.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: workflow_tasks_get_result.success, expected: true, field_name: 'records_workflow_tasks_get_success'
+
+  function workflow_tasks_statuses_result = 'modules/accela_construct/queries/records/workflow_tasks/statuses', record_id: record_id, id: real_task.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: workflow_tasks_statuses_result.success, expected: true, field_name: 'records_workflow_tasks_statuses_success'
+
+  function workflow_tasks_histories_result = 'modules/accela_construct/queries/records/workflow_tasks/histories', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: workflow_tasks_histories_result.success, expected: true, field_name: 'records_workflow_tasks_histories_success'
+
+  function workflow_tasks_comments_histories_result = 'modules/accela_construct/queries/records/workflow_tasks/comments_histories', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: workflow_tasks_comments_histories_result.success, expected: true, field_name: 'records_workflow_tasks_comments_histories_success'
+
+  function payments_list_result = 'modules/accela_construct/queries/records/payments/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: payments_list_result.success, expected: true, field_name: 'records_payments_list_success'
+
+  function payments_get_result = 'modules/accela_construct/queries/records/payments/get', record_id: record_id, payment_id: 'nonexistent'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: payments_get_result.success, expected: false, field_name: 'records_payments_get_not_found_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: payments_get_result.status, expected: 500, field_name: 'records_payments_get_not_found_status'
+
+  # cleanup: delete the fixture record created above
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: record_id
+%}

@@ -92,4 +92,59 @@
   function inspection_condition_delete_result = 'modules/accela_construct/commands/inspections/conditions/delete', inspection_id: '1001'
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: inspection_condition_delete_result, field_name: 'success'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_condition_delete_result.error, expected: 'accela_validation_failed', field_name: 'inspections_conditions_delete_without_ids_returns_validation_failed'
+
+  # ============ real Accela sandbox ============
+  # create_inspection_checklists/create_inspection_conditions and friends are
+  # now granted (see ACCELA_CONSTRUCT_SCOPE), so these reach Accela for
+  # real - but each one still fails, for reasons that are Accela's own
+  # behavior rather than a missing scope or a bug in this module:
+  # - checklists/create: 500 - a bare {"name": ...} isn't a complete
+  #   checklist payload for this agency/inspection type (Accela's real
+  #   checklist schema needs checklist items, which is beyond this
+  #   module's/this test's scope to construct); since nothing gets
+  #   created, checklists/delete on any id then gets a 403 rather than a
+  #   404 - Accela's own "nothing to operate on" response here, not a
+  #   scope gap.
+  # - conditions/create: the same "Request body is required" quirk
+  #   documented on records/conditions/create and inspections/related/
+  #   create - occurs regardless of payload shape.
+  # - conditions/update and conditions/delete, given a condition id that
+  #   was never created, get a clean real 404 instead.
+
+  assign real_fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (inspections_checklists_conditions_test)" }
+  function real_create_result = 'modules/accela_construct/commands/records/create', record: real_fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_create_result.success, expected: true, field_name: 'real_fixture_record_create_success'
+  assign real_record_id = real_create_result.body.result.id
+
+  function real_inspection_types_result = 'modules/accela_construct/queries/records/inspection_types/list', record_ids: real_record_id
+  assign real_inspection_type = real_inspection_types_result.body.result.first.inspectionTypes.first
+
+  assign real_new_inspection = { "recordId": { "id": real_record_id }, "type": { "id": real_inspection_type.id }, "scheduleDate": "2026-10-01" }
+  function real_schedule_result = 'modules/accela_construct/commands/inspections/schedule', inspection: real_new_inspection
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_schedule_result.success, expected: true, field_name: 'real_fixture_inspection_schedule_success'
+  assign real_inspection_id = real_schedule_result.body.result.id
+
+  function real_checklist_create_result = 'modules/accela_construct/commands/inspections/checklists/create', inspection_id: real_inspection_id, checklist: { "name": "Site Visit" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_checklist_create_result.success, expected: false, field_name: 'real_inspections_checklists_create_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_checklist_create_result.status, expected: 500, field_name: 'real_inspections_checklists_create_status'
+
+  function real_checklist_delete_result = 'modules/accela_construct/commands/inspections/checklists/delete', inspection_id: real_inspection_id, ids: '999999999'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_checklist_delete_result.success, expected: false, field_name: 'real_inspections_checklists_delete_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_checklist_delete_result.status, expected: 403, field_name: 'real_inspections_checklists_delete_status'
+
+  function real_condition_create_result = 'modules/accela_construct/commands/inspections/conditions/create', inspection_id: real_inspection_id, condition: { "description": "Must fix wiring" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_create_result.success, expected: false, field_name: 'real_inspections_conditions_create_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_create_result.status, expected: 400, field_name: 'real_inspections_conditions_create_status'
+
+  function real_condition_update_result = 'modules/accela_construct/commands/inspections/conditions/update', inspection_id: real_inspection_id, id: '999999999', condition: { "description": "Fixed" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_update_result.success, expected: false, field_name: 'real_inspections_conditions_update_not_found_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_update_result.status, expected: 404, field_name: 'real_inspections_conditions_update_not_found_status'
+
+  function real_condition_delete_result = 'modules/accela_construct/commands/inspections/conditions/delete', inspection_id: real_inspection_id, ids: '999999999'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_delete_result.success, expected: false, field_name: 'real_inspections_conditions_delete_not_found_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_delete_result.status, expected: 404, field_name: 'real_inspections_conditions_delete_not_found_status'
+
+  # cleanup: delete the real inspection, then the fixture record
+  function _delete_inspection_result = 'modules/accela_construct/commands/inspections/delete', ids: real_inspection_id
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: real_record_id
 %}

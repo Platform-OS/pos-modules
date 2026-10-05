@@ -26,6 +26,14 @@
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: upload_result, field_name: 'success'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: upload_result.error, expected: 'accela_validation_failed', field_name: 'documents_upload_without_record_id_returns_validation_failed'
 
+  # A full real upload isn't exercised here: send.liquid's MULTIPART path
+  # expects the file content to come from an actual platformOS
+  # generic_object upload field (via metadata.file_object_id/
+  # file_object_property - see accela_client/send.liquid), not a raw
+  # base64 string passed directly as file_field. Setting up a real
+  # generic_object upload just to exercise this is out of scope for this
+  # suite; documents/delete below is exercised for real instead.
+
   # modules/accela_construct/commands/records/documents/delete
 
   assign delete_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
@@ -44,4 +52,20 @@
   function delete_result = 'modules/accela_construct/commands/records/documents/delete', record_id: 'TEST-0000-00001'
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: delete_result, field_name: 'success'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: delete_result.error, expected: 'accela_validation_failed', field_name: 'documents_delete_without_document_ids_returns_validation_failed'
+
+  # ============ real Accela sandbox ============
+  # documents/delete against a real record but a document id that doesn't
+  # exist - Accela genuinely returns a real 400 for this (not a client-side
+  # URL error, confirming the path/id are being sent correctly).
+
+  assign real_fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (documents_test)" }
+  function real_create_result = 'modules/accela_construct/commands/records/create', record: real_fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_create_result.success, expected: true, field_name: 'real_fixture_record_create_success'
+  assign real_record_id = real_create_result.body.result.id
+
+  function real_delete_result = 'modules/accela_construct/commands/records/documents/delete', record_id: real_record_id, document_ids: '999999999'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_delete_result.success, expected: false, field_name: 'real_documents_delete_nonexistent_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_delete_result.status, expected: 400, field_name: 'real_documents_delete_nonexistent_status'
+
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: real_record_id
 %}

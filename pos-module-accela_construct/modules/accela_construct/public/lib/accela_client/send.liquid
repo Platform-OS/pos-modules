@@ -1,13 +1,19 @@
 {% doc %}
   @description Generic authenticated Accela API request. Handles token retrieval,
     builds the api_call_send `data` hash, and normalizes the result.
-    GET/POST/PUT/DELETE all share one API Call Notification template
+    GET/POST/PUT/DELETE share one API Call Notification template
     (`api_calls/accela_generic.liquid`), with `method` passed through as
-    `data.request_type`; only MULTIPART needs its own template
-    (`accela_post_multipart.liquid`) since its body/headers shape differs.
-    Fires the request through pos-module-core's generic api_call_send
-    wrapper (modules/core/api_calls/send) rather than a module-owned
-    GraphQL mutation.
+    `data.request_type`, fired through pos-module-core's generic
+    api_call_send wrapper (modules/core/api_calls/send).
+
+    MULTIPART is different: it calls `api_call_send` directly via
+    graphql/accela_client/multipart_upload.graphql (the mutation's inline
+    `api_call: { url, method, headers, form_data }` form, not the named-
+    template form the other methods use) so the file part can be a
+    `form_data` file reference - `{ file: { url, filename, content_type } }`
+    - fetched and streamed server-side by platformOS itself. This module
+    never downloads or holds the file's bytes; it only ever passes along a
+    URL.
 
     Every attempt (success or failure) is written via
     lib/accela_client/log_request.liquid: one accela_request row per
@@ -43,7 +49,16 @@
     never reference that constant directly.
   @param {string} [payload] - JSON string request body (POST/PUT only)
   @param {string} [file_info] - JSON string array, required for MULTIPART (see commands/records/documents/upload/build.liquid)
-  @param {string} [file_field] - raw file content, required for MULTIPART
+  @param {string} [file_url] - URL of the file to upload. For MULTIPART, exactly one of
+    `file_url` or `file_content_base64` must resolve to a value - directly, or via
+    `metadata.file_object_id`/`metadata.file_object_property` overriding `file_url` (see
+    below). A URL is fetched and streamed server-side by the `api_call_send` GraphQL
+    mutation's `form_data` file upload; this module never downloads it itself.
+  @param {string} [file_content_base64] - base64-encoded file content, as the
+    alternative to `file_url` for MULTIPART when the caller already has the bytes in
+    hand rather than a fetchable URL.
+  @param {string} [file_name] - original file name, e.g. "site_plan.pdf", required for MULTIPART
+  @param {string} [content_type] - MIME type, e.g. "application/pdf", required for MULTIPART
   @param {boolean} [with_retries] - default false/blank. When true and
     this attempt fails, schedules up to `ACCELA_CONSTRUCT_MAX_RETRIES` background
     retries (see schedule_retry.liquid) with linearly increasing delay
@@ -53,9 +68,9 @@
     is only observable via the accela_request/accela_request_response
     tables (see below), not through this function's return value. For
     a MULTIPART request, only safe to use alongside `metadata.file_object_id`/
-    `metadata.file_object_property` (see below) - otherwise the file
-    content itself can't be safely re-sent from a detached background
-    job. Retries don't carry `method`/`path`/`payload` through the chain - `schedule_retry.liquid`/
+    `metadata.file_object_property` (see below) - a directly-passed
+    `file_url` may be a short-lived signed URL that's no longer valid by
+    the time a retry actually fires. Retries don't carry `method`/`path`/`payload` through the chain - `schedule_retry.liquid`/
     `perform_retry_attempt.liquid` only pass around this accela_request's
     id, looking the request itself back up from the accela_request row
     when it's time to resend (see schedule_retry.liquid).
@@ -99,15 +114,16 @@
     Two keys are also special-cased by this function itself, not just
     logged: `file_object_id`/`file_object_property`, given together,
     identify a platformOS generic_object record and the file property
-    on it holding a file's content. When both are present, that file
-    is downloaded fresh (via queries/generic_objects/find) and
-    base64-encoded into `payload.file_field` before every attempt
-    (this call and any retries) - letting a MULTIPART upload be
-    resent on retry without carrying raw file bytes through the retry
-    chain. If that download fails, this attempt schedules its own
-    retry directly rather than going through the `with_retries`
-    handling below. See commands/records/documents/upload.liquid for
-    the intended caller-facing usage.
+    on it holding a file's content. When both are present, a fresh
+    signed URL for that file (via queries/generic_objects/find,
+    `property_upload(expires_in: 600)`) overrides `file_url` before
+    every attempt (this call and any retries) - letting a MULTIPART
+    upload be resent on retry without a directly-passed `file_url`
+    possibly having expired. If that lookup fails to produce a URL,
+    this attempt schedules its own retry directly rather than going
+    through the `with_retries` handling below. See
+    commands/records/documents/upload.liquid for the intended
+    caller-facing usage.
   @returns {object} { "success": true|false, "status": <http status or null>,
     "body": <parsed JSON response, or null>, "raw": <raw response body string>,
     "error": <error message, nil when success is true> }
@@ -121,28 +137,32 @@
   if access_token == blank
     function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_authentication_failed: unable to obtain an access token - check ACCELA_* constants', caller: caller
   else
-    assign template = 'modules/accela_construct/accela_generic'
-    if method == 'MULTIPART'
-      assign template = 'modules/accela_construct/accela_post_multipart'
-    endif
+    function accela_app_id = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_APP_ID'
 
-    if metadata.file_object_id != blank and metadata.file_object_property != blank
-      function file_object = 'modules/accela_construct/queries/generic_objects/find', id: metadata.file_object_id, file_property: metadata.file_object_property
-      if file_object.file.url
-        assign file_content = file_object.file.url | download_file: 50 | base64_encode
-        if file_content == blank
-          assign last_error = "Failed to download file from generic_object {{metadata.file_object_id}} property {{metadata.file_object_property}}"
+    if method == 'MULTIPART'
+      if metadata.file_object_id != blank and metadata.file_object_property != blank
+        function file_object = 'modules/accela_construct/queries/generic_objects/find', id: metadata.file_object_id, file_property: metadata.file_object_property
+        if file_object.file.url == blank
+          assign last_error = "Failed to resolve a file URL from generic_object {{ metadata.file_object_id }} property {{ metadata.file_object_property }}"
           function _schedule_result = 'modules/accela_construct/accela_client/schedule_retry', attempt_number: 2, last_error: last_error, request_id: correlation_id
           return { "success": false, "status": 400, "raw": "", "body": nil, "error": last_error }
         endif
-        #assign file_field = file_content
-        assign file_field = "<file content placeholder>"
+        # a resolved generic_object URL always wins over a directly-passed
+        # file_url/file_content_base64, since this is the one source that's
+        # safely re-resolvable on a retry
+        assign file_url = file_object.file.url
       endif
+
+      function accela_base_url = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_BASE_URL'
+      assign full_url = accela_base_url | append: path
+      assign request_headers = { "x-accela-appid": accela_app_id, "Authorization": access_token }
+      assign payload = { "url": full_url, "file_name": file_name, "content_type": content_type, "file_info": file_info } | json
+      graphql send_result = 'modules/accela_construct/accela_client/multipart_upload', url: full_url, headers: request_headers, file_url: file_url, content_base64: file_content_base64, file_name: file_name, content_type: content_type, file_info: file_info
+    else
+      assign request_data = { "app_id": accela_app_id, "access_token": access_token, "path": path, "payload": payload, "request_type": method }
+      graphql send_result = 'modules/core/api_calls/send', template: 'modules/accela_construct/accela_generic', data: request_data
     endif
 
-    function accela_app_id = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_APP_ID'
-    assign request_data = { "app_id": accela_app_id, "access_token": access_token, "path": path, "payload": payload, "file_info": file_info, "file_field": file_field, "request_type": method }
-    graphql send_result = 'modules/core/api_calls/send', template: template, data: request_data
     assign response = send_result.api_call.response
     assign call_errors = send_result.api_call.errors
 

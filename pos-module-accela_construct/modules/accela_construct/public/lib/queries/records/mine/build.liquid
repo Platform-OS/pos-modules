@@ -11,7 +11,7 @@
 
   assign object.path = '/records/mine'
   if qs != blank
-    assign object.path = "{{ object.path }}?{{ qs }}"
+    assign object.path = object.path | append: '?' | append: qs
   endif
 
   return object

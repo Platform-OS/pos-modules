@@ -12,19 +12,29 @@ refresh. See [Supported endpoints](#supported-endpoints) for the full list.
 platformOS doesn't let you attach custom resolvers to GraphQL, so this isn't
 a "GraphQL API" in the REST-wrapper sense. The real architecture is:
 
-1. **API Call Notifications** (`public/api_calls/*.liquid`) are the only way
-   to make outbound HTTP requests. There are three of them:
+1. **API Call Notifications** (`public/api_calls/*.liquid`) are the way
+   most outbound HTTP requests are made. There are two of them:
    `accela_generic` (handles GET/POST/PUT/DELETE, with the HTTP verb passed
-   through as `data.request_type` — one template, not one per verb),
-   `accela_post_multipart` (its headers/body shape differs enough from the
-   plain-JSON case to need its own file), and `accela_token_request` for
-   OAuth. They're generic (path/method/body come from the caller) rather
-   than one file per Accela endpoint, to keep the module maintainable.
-   `accela_generic` and `accela_post_multipart` build their `to:` URL as
+   through as `data.request_type` — one template, not one per verb) and
+   `accela_token_request` for OAuth. They're generic (path/method/body come
+   from the caller) rather than one file per Accela endpoint, to keep the
+   module maintainable. `accela_generic` builds its `to:` URL as
    `{% function accela_base_url = 'modules/core/queries/constants/find', name: 'ACCELA_CONSTRUCT_BASE_URL' %}{{ accela_base_url }}{{ data.path }}`
-   — `ACCELA_CONSTRUCT_BASE_URL` is looked up in exactly those 2 places, nowhere
+   — `ACCELA_CONSTRUCT_BASE_URL` is looked up in exactly that one place plus
+   `lib/accela_client/send.liquid`'s MULTIPART branch (see below), nowhere
    else in the module; every query/command only ever builds a bare path
    (e.g. `/records`), never a full URL.
+
+   MULTIPART (document upload) is the exception: it skips API Call
+   Notifications entirely and calls `api_call_send` directly via
+   `graphql/accela_client/multipart_upload.graphql`, using the mutation's
+   inline `api_call: { url, method, headers, form_data }` form rather than
+   a named template. That's what lets the file part be a `form_data` file
+   reference (`{ file: { url, filename, content_type } }`) that platformOS
+   fetches and streams server-side — this module only ever passes a URL,
+   never the file's bytes. `lib/accela_client/send.liquid` builds that
+   `url` itself (`ACCELA_CONSTRUCT_BASE_URL` + path) since there's no
+   notification template to do it inline.
 2. **[pos-module-core](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-core)'s
    `modules/core/api_calls/send`** is the GraphQL operation that fires those
    notifications synchronously via the built-in `api_call_send` mutation
@@ -72,9 +82,11 @@ template's frontmatter (see Known gaps), the lookup still works.
 of manually `url_encode`-ing and concatenating each field.
 
 5. **Background retries** are opt-in per call via a `with_retries: true`
-   param, present on every query and command except `records/documents/upload`
-   (always MULTIPART, so retrying would never apply - the param is simply
-   not exposed there rather than being a documented no-op).
+   param, present on every query and command including
+   `records/documents/upload` - meaningful there only when the file is
+   identified via `file_object_id`/`file_object_property` rather than a
+   direct `file_url`, since a signed URL passed straight through may have
+   expired by the time a retry fires (see upload.liquid).
    `lib/accela_client/send.liquid` still makes its first attempt
    synchronously and returns that result either way; if it fails and
    `with_retries` was set, it hands off to `lib/accela_client/schedule_retry.liquid`,
@@ -99,9 +111,11 @@ of manually `url_encode`-ing and concatenating each field.
    there's no table tracking retry state, and nothing observes the
    eventual outcome except logs (`accela_retry_scheduled`/
    `accela_retry_succeeded`/`accela_retry_exhausted`) and the
-   `accela_request`/`accela_request_response` tables below. MULTIPART
-   requests are never retried, since file content can't be safely
-   re-sent from a detached background job.
+   `accela_request`/`accela_request_response` tables below. A MULTIPART
+   request retries like any other when `file_object_id`/`file_object_property`
+   were given (see point 1 above and upload.liquid) - otherwise a directly-
+   passed `file_url` may no longer be valid by the time a retry fires, so
+   treat `with_retries` as unsafe in that case.
 
 6. **Every request/response is logged, in two tables - one row per
    logical request, one row per attempt against it** - unconditionally,
@@ -212,7 +226,7 @@ the `generators/install` generator - see Install step 3 above):
 | `ACCELA_CONSTRUCT_PASSWORD` | — | |
 | `ACCELA_CONSTRUCT_AGENCY` | `Nullisland` | agency name |
 | `ACCELA_CONSTRUCT_ENVIRONMENT` | `TEST` or `PROD` | must match the agency's configured environments |
-| `ACCELA_CONSTRUCT_SCOPE` | `get_record create_record update_record get_inspections create_inspections update_inspections get_documents create_documents` | space-delimited, per endpoint you plan to call |
+| `ACCELA_CONSTRUCT_SCOPE` | `records search_records search_owners run_emse_script get_settings_inspection_types get_parcel_conditions get_address_parcels get_inspections get_inspection get_inspection_histories get_inspection_available_dates schedule_inspection schedule_pending_inspection reschedule_inspection update_inspection result_inspection assign_inspections cancel_inspection delete_inspections get_inspection_related create_inspection_related delete_inspection_related get_inspection_checklists create_inspection_checklists delete_inspection_checklists get_inspection_conditions get_inspection_condition get_inspection_condition_histories create_inspection_conditions update_inspection_condition delete_inspection_conditions download_document global_search search_addresses search_assessments search_contacts search_costs search_inspections search_parts search_professionals` | space-delimited, per endpoint you plan to call - this is `generators/install`'s default, covering every endpoint this module wraps |
 | `ACCELA_CONSTRUCT_MAX_RETRIES` | `3` | optional, defaults to `3`; total background retries per call when `with_retries: true` is passed (0 disables retrying) |
 | `ACCELA_CONSTRUCT_RETRY_DELAY_MINUTES` | `1` | optional, defaults to `1`; base delay in minutes, multiplied by the retry number (1st, 2nd, ...) for linear backoff |
 
@@ -478,14 +492,9 @@ later. Before relying on it, verify:
   fields differ from what's documented here, only `check.liquid`'s
   presence checks need updating — `build.liquid`'s path/payload
   construction is generic and doesn't hardcode field names it doesn't need.
-- **Multipart document upload** (`commands/records/documents/upload/build.liquid`,
-  `api_calls/accela_post_multipart.liquid`): platformOS's `post_multipart`
-  request type is documented to exist, but the exact Liquid syntax for
-  attaching a raw binary part inside an API Call Notification body is not
-  documented. The current implementation is a best-effort scaffold.
-- **`{% function %}` calls inside an API Call Notification body**: both
-  generic templates (`api_calls/accela_{generic,post_multipart}.liquid`)
-  build their `to:` URL by calling `modules/core/queries/constants/find`
+- **`{% function %}` calls inside an API Call Notification body**: `api_calls/accela_generic.liquid`
+  (the last remaining API Call Notification template - see point 1 above,
+  MULTIPART no longer uses one) builds its `to:` URL by calling `modules/core/queries/constants/find`
   inline inside the `to:` frontmatter string (a `{% function %}` tag with
   no output, immediately followed by `{{ accela_base_url }}{{ data.path }}`
   on the same line). Every other `{% function %}` call in this module is
@@ -682,12 +691,12 @@ later. Before relying on it, verify:
   *our own* templates (`api_calls/accela_*.liquid`) instead declares an
   explicit `name:` and is referenced by that literal name, and the exact
   rule platformOS uses to resolve an unnamed template to a `template: {name: X}`
-  lookup isn't confirmed, this module keeps its own 3 templates
-  (`accela_generic`, `accela_post_multipart`, `accela_token_request`)
-  rather than gambling on an unconfirmed identifier. If you confirm the correct
-  identifier on your instance, `commands/records/documents/upload`'s and
-  `get_valid_token.liquid`'s hand-built bodies could shrink further by
-  switching to core's generic templates.
+  lookup isn't confirmed, this module keeps its own 2 templates
+  (`accela_generic`, `accela_token_request` - MULTIPART no longer uses a
+  named template at all, see point 1 in "How it's built") rather than
+  gambling on an unconfirmed identifier. If you confirm the correct
+  identifier on your instance, `get_valid_token.liquid`'s hand-built body
+  could shrink further by switching to core's generic template.
 - **`lib/legacy/to_legacy_record.liquid`** was built by diffing exactly one
   before/after pair of real responses, not from any documented mapping -
   every field it derives (`recordId`'s `downcase`, `availableInspGroup`'s
@@ -802,12 +811,12 @@ modules/accela_construct/
     │   ├── accela_oauth_token/{create,update,find_latest}.graphql
     │   ├── accela_request/{create,get,list}.graphql
     │   ├── accela_request_response/{create,list}.graphql
+    │   ├── accela_client/multipart_upload.graphql  (document upload - calls api_call_send directly, no named template)
     │   ├── reference/get_table.graphql        (generic any-table lookup by id)
     │   └── constants/set.graphql
     ├── api_calls/
     │   ├── accela_token_request.liquid
-    │   ├── accela_generic.liquid
-    │   └── accela_post_multipart.liquid
+    │   └── accela_generic.liquid
     ├── views/pages/accela_construct/test.liquid
     └── lib/
         ├── accela_client/

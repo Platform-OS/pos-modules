@@ -1,0 +1,60 @@
+{% doc %}
+  @description Exercises records queries against the real Accela sandbox (dev
+    environment, agency DC, NONPROD1) instead of asserting graceful failure.
+    describe_create/list/search/mine aren't record-scoped, so they run
+    against whatever data already exists in the agency; the rest need a
+    concrete record, so this creates one fixture record up front (type
+    "Building/Home Occupation/NA/NA", which Accela's own describe/create
+    endpoint reports has no required fields) and deletes it at the end.
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  # --- non-record-scoped queries ---
+
+  function describe_result = 'modules/accela_construct/queries/records/describe_create', type: 'Building/Home Occupation/NA/NA'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: describe_result.success, expected: true, field_name: 'records_describe_create_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: describe_result.body.result, field_name: 'fields'
+
+  assign search_criteria = { "module": "Building" }
+  function search_result = 'modules/accela_construct/queries/records/search', criteria: search_criteria, limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: search_result.success, expected: true, field_name: 'records_search_success'
+
+  function list_result = 'modules/accela_construct/queries/records/list', module: 'Building', limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: list_result.success, expected: true, field_name: 'records_list_success'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: list_result.body, field_name: 'result'
+
+  function mine_result = 'modules/accela_construct/queries/records/mine'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: mine_result.success, expected: true, field_name: 'records_mine_success'
+
+  # --- record-scoped queries: create a real fixture record to query against ---
+
+  assign fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (records_test)" }
+  function create_result = 'modules/accela_construct/commands/records/create', record: fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: create_result.success, expected: true, field_name: 'fixture_record_create_success'
+
+  assign record_id = create_result.body.result.id
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: create_result.body.result, field_name: 'id'
+
+  function get_result = 'modules/accela_construct/queries/records/get', ids: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: get_result.success, expected: true, field_name: 'records_get_success'
+  assign fetched_record = get_result.body.result.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: fetched_record.id, expected: record_id, field_name: 'records_get_returns_fixture_record'
+
+  function additional_result = 'modules/accela_construct/queries/records/additional', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: additional_result.success, expected: true, field_name: 'records_additional_success'
+
+  function related_result = 'modules/accela_construct/queries/records/related', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_result.success, expected: true, field_name: 'records_related_success'
+
+  function usercomments_result = 'modules/accela_construct/queries/records/usercomments', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: usercomments_result.success, expected: true, field_name: 'records_usercomments_success'
+
+  function votes_result = 'modules/accela_construct/queries/records/votes', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: votes_result.success, expected: true, field_name: 'records_votes_success'
+
+  function votes_summary_result = 'modules/accela_construct/queries/records/votes_summary', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: votes_summary_result.success, expected: true, field_name: 'records_votes_summary_success'
+
+  # cleanup: delete the fixture record created above
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: record_id
+%}

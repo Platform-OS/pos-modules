@@ -10,6 +10,6 @@
 
 {% liquid
   assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/conditions"
-  assign object.payload = object.condition | json
+  assign object.payload = [object.condition] | json
   return object
 %}

@@ -12,7 +12,7 @@
   assign qs_params = { "query": object.query, "type": object.type, "modules": object.modules, "offset": object.offset, "limit": object.limit, "sort": object.sort, "direction": object.direction }
   function qs = 'modules/accela_construct/accela_client/build_query_string', params: qs_params
 
-  assign object.path = "/search/global?{{ qs }}"
+  assign object.path = '/search/global?' | append: qs
 
   return object
 %}

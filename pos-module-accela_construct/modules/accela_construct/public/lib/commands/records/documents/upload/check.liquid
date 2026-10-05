@@ -1,6 +1,10 @@
 {% doc %}
   Validates the object built by build.liquid before it's sent to Accela,
-  using pos-module-core's validation contract convention.
+  using pos-module-core's validation contract convention. The file itself
+  must be identifiable one of three ways: a direct `file_url`, raw
+  `file_content_base64`, or `file_object_id` together with
+  `file_object_property` - see upload.liquid for why the last one is the
+  retry-safe option.
 {% enddoc %}
 
 {% liquid
@@ -8,6 +12,14 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'record_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'file_name'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'content_type'
+
+  assign has_file_object_ref = false
+  if object.file_object_id != blank and object.file_object_property != blank
+    assign has_file_object_ref = true
+  endif
+  if object.file_url == blank and object.file_content_base64 == blank and has_file_object_ref == false
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'file_url', message: 'file_url, file_content_base64, or file_object_id together with file_object_property, is required'
+  endif
 
   assign object.valid = c.valid
   assign object.errors = c.errors

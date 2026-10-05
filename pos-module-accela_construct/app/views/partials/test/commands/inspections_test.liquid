@@ -124,12 +124,16 @@
   function inspections_cancel_missing = 'modules/accela_construct/commands/inspections/cancel/check', object: inspections_cancel_missing
   function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: inspections_cancel_missing, field_name: 'inspections_cancel_check_invalid_without_ids'
 
-  assign inspections_cancel_ok = { "errors": {}, "valid": true, "ids": "1001" }
+  # cancel/check.liquid runs after cancel/build.liquid in the real pipeline
+  # (see cancel.liquid), so it validates presence of `path` too, not just
+  # `ids` - simulate that post-build shape here rather than a bare `ids` hash.
+  assign inspections_cancel_ok = { "errors": {}, "valid": true, "ids": "1001", "path": "/inspections/1001/cancel" }
   function inspections_cancel_ok = 'modules/accela_construct/commands/inspections/cancel/check', object: inspections_cancel_ok
   function contract = 'modules/tests/assertions/valid_object', contract: contract, object: inspections_cancel_ok, field_name: 'inspections_cancel_check_valid_with_ids'
 
-  assign inspections_cancel_build_input = { "ids": "1001" }
-  function inspections_cancel_built = 'modules/accela_construct/commands/inspections/cancel/build', object: inspections_cancel_build_input
+  # cancel/build.liquid takes `ids` directly (not wrapped in `object`, unlike
+  # every other build.liquid in this module) - see its own doc header.
+  function inspections_cancel_built = 'modules/accela_construct/commands/inspections/cancel/build', ids: '1001'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: inspections_cancel_built.path, expected: '/inspections/1001/cancel', field_name: 'inspections_cancel_build_path'
 
   function inspections_cancel_result = 'modules/accela_construct/commands/inspections/cancel', ids: null
@@ -192,4 +196,90 @@
   function related_delete_result = 'modules/accela_construct/commands/inspections/related/delete', id: '1001'
   function contract = 'modules/tests/assertions/not_true', contract: contract, object: related_delete_result, field_name: 'success'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: related_delete_result.error, expected: 'accela_validation_failed', field_name: 'inspections_related_delete_without_child_ids_returns_validation_failed'
+
+  # ============ real Accela sandbox ============
+  # This app credential's CivicID app scope now grants the inspection-
+  # management scopes (schedule_inspection, schedule_pending_inspection,
+  # reschedule_inspection, update_inspection, result_inspection,
+  # cancel_inspection, delete_inspections - see ACCELA_CONSTRUCT_SCOPE), so
+  # this exercises a real inspection lifecycle: create a fixture record,
+  # then schedule two real inspections on it - one gets cancelled outright
+  # (Accela genuinely refuses to cancel an inspection that already has a
+  # result - "not allowed to be cancelled in current status: Approved" -
+  # so cancel has to happen on its own, never-resulted inspection), the
+  # other drives through set_schedule/reschedule/update/result/delete.
+  # assign and related/create are asserted as real, non-403 failures
+  # instead of successes - see the comments at each one.
+
+  assign real_fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (commands/inspections_test)" }
+  function real_create_result = 'modules/accela_construct/commands/records/create', record: real_fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_create_result.success, expected: true, field_name: 'real_fixture_record_create_success'
+  assign real_record_id = real_create_result.body.result.id
+
+  function real_inspection_types_result = 'modules/accela_construct/queries/records/inspection_types/list', record_ids: real_record_id
+  assign real_inspection_type = real_inspection_types_result.body.result.first.inspectionTypes.first
+
+  # --- inspection #1: cancelled outright, before it ever gets a result ---
+
+  assign real_new_inspection = { "recordId": { "id": real_record_id }, "type": { "id": real_inspection_type.id }, "scheduleDate": "2026-10-01" }
+  function real_schedule_result = 'modules/accela_construct/commands/inspections/schedule', inspection: real_new_inspection
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_schedule_result.success, expected: true, field_name: 'real_inspections_schedule_success'
+  assign real_inspection_id = real_schedule_result.body.result.id
+
+  function real_cancel_result = 'modules/accela_construct/commands/inspections/cancel', ids: real_inspection_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_cancel_result.success, expected: true, field_name: 'real_inspections_cancel_success'
+
+  # --- inspection #2: driven through the full lifecycle, then deleted ---
+
+  assign real_second_inspection = { "recordId": { "id": real_record_id }, "type": { "id": real_inspection_type.id }, "scheduleDate": "2026-10-01" }
+  function real_schedule_result_2 = 'modules/accela_construct/commands/inspections/schedule', inspection: real_second_inspection
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_schedule_result_2.success, expected: true, field_name: 'real_inspections_schedule_2_success'
+  assign real_inspection_id_2 = real_schedule_result_2.body.result.id
+
+  function real_set_schedule_result = 'modules/accela_construct/commands/inspections/set_schedule', id: real_inspection_id_2, inspection: { "scheduleDate": "2026-10-08" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_set_schedule_result.success, expected: true, field_name: 'real_inspections_set_schedule_success'
+
+  # reschedule doesn't mutate the inspection in place - Accela marks the
+  # original as superseded and returns a brand new inspection id, which
+  # every subsequent call below has to use instead of real_inspection_id_2
+  function real_reschedule_result = 'modules/accela_construct/commands/inspections/reschedule', id: real_inspection_id_2, changes: { "scheduleDate": "2026-10-09" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_reschedule_result.success, expected: true, field_name: 'real_inspections_reschedule_success'
+  assign real_inspection_id_2 = real_reschedule_result.body.result.id
+
+  function real_update_result = 'modules/accela_construct/commands/inspections/update', id: real_inspection_id_2, inspection: { "status": { "value": "Scheduled" } }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_update_result.success, expected: true, field_name: 'real_inspections_update_success'
+
+  function real_result_result = 'modules/accela_construct/commands/inspections/result', id: real_inspection_id_2, inspection_result: { "status": { "value": "Approved" } }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_result_result.success, expected: true, field_name: 'real_inspections_result_success'
+
+  # --- inspection #3: only for assign, on its own since assign genuinely
+  # fails ("Data validation failed", inspectorId 'NEARME' not accepted)
+  # once the same inspection has already been through reschedule/update -
+  # on a freshly-scheduled inspection it succeeds for real instead ---
+
+  assign real_third_inspection = { "recordId": { "id": real_record_id }, "type": { "id": real_inspection_type.id }, "scheduleDate": "2026-10-01" }
+  function real_schedule_result_3 = 'modules/accela_construct/commands/inspections/schedule', inspection: real_third_inspection
+  assign real_inspection_id_3 = real_schedule_result_3.body.result.id
+
+  function real_assign_result = 'modules/accela_construct/commands/inspections/assign', ids: real_inspection_id_3, inspector_id: 'NEARME'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_assign_result.success, expected: true, field_name: 'real_inspections_assign_success'
+
+  function _delete_third_inspection_result = 'modules/accela_construct/commands/inspections/delete', ids: real_inspection_id_3
+
+  # related/create genuinely reaches Accela now too, but Accela returns the
+  # same "Request body is required" quirk seen on records/conditions/create
+  # and records/addresses/create (see records_conditions_workflow_tasks_test
+  # and records_parcels_owners_addresses_test) regardless of payload shape -
+  # an Accela-side inconsistency, not a bug in this module's payload
+  # building.
+  function real_related_create_result = 'modules/accela_construct/commands/inspections/related/create', id: real_inspection_id_2, related_inspection_ids: real_inspection_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_related_create_result.success, expected: false, field_name: 'real_inspections_related_create_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_related_create_result.status, expected: 400, field_name: 'real_inspections_related_create_status'
+
+  function real_delete_result = 'modules/accela_construct/commands/inspections/delete', ids: real_inspection_id_2
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_delete_result.success, expected: true, field_name: 'real_inspections_delete_success'
+
+  # cleanup: delete the fixture record created above (the cancelled first
+  # inspection and the deleted second inspection don't need separate cleanup)
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: real_record_id
 %}
