@@ -1,4 +1,5 @@
 {%- liquid
+  # platformos-check-disable MetadataParamsCheck
   assign response = null | hash_merge: status: 200
   assign gateway_transaction_ids = params.data.object.charge | split: '!!' | array_add: params.data.object.payment_intent | array_compact
   if params.data.object.metadata.transaction_id
@@ -18,7 +19,7 @@
     assign event_payload = { "transaction_id": transaction.id, "status": params.data.object.status }
     assign type = params.type | replace: ".", "_" | prepend: 'payments_stripe_'
     function _ = 'modules/core/commands/events/publish', type: type, object: event_payload
-    hash_assign response['body'] = transaction
+    assign response.body = transaction
   endif
 
   return response
