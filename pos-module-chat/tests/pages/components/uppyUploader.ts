@@ -16,7 +16,8 @@ export class UppyUploader {
     const sectionLocator = this.page.locator('#chat-uploader');
     return {
       container: () => sectionLocator,
-      dashboard: () => sectionLocator.locator('.pos-upload-dashboard'),
+      // uppy mounts its dashboard on the .pos-upload container itself, not on the (empty) .pos-upload-dashboard div
+      dashboard: () => sectionLocator.locator('.uppy-Dashboard'),
       buttonWithText: (text: string) => sectionLocator.getByRole('button', { name: text, exact: true }),
       inputFile: () => sectionLocator.locator('input[type="file"]').first(),
       completedFile: (fileName: string) => sectionLocator.locator('.uppy-Dashboard-Item.is-complete', { hasText: fileName })
