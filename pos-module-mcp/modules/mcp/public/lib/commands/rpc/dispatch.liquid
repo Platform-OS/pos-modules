@@ -87,6 +87,23 @@
     endif
   endif
 
+  # ---- OAuth connect-time challenge (opt-in: MCP_CONFIG.oauth.challenge_initialize). ----
+  #      Most MCP clients only start the authorization flow when the connection itself
+  #      answers 401, so `initialize` without a valid bearer gets the RFC 9728 challenge.
+  if method == 'initialize' and cfg.oauth.challenge_initialize == true
+    function ini = 'modules/mcp/commands/identity/resolve_principal', headers: headers
+    unless ini.authenticated
+      log ini.reason, type: 'mcp.auth_denied'
+      function body = 'modules/mcp/commands/rpc/error', id: id, code: ini.error_code, message: ini.message
+      assign hdrs = {}
+      assign hdrs['WWW-Authenticate'] = ini.www_authenticate
+      assign out['headers'] = hdrs
+      assign out['http_status'] = ini.http_status
+      assign out['body'] = body
+      return out
+    endunless
+  endif
+
   # ---- Authenticated methods return a full outcome (status/headers/body). ----
   if method == 'tools/call'
     function oc = 'modules/mcp/commands/rpc/tools_call', params: params, headers: headers, id: id

@@ -1,0 +1,29 @@
+mutation code_create(
+  $code_digest: String!
+  $client_id: String!
+  $client_name: String!
+  $redirect_uri: String!
+  $code_challenge: String!
+  $user_id: String!
+  $scope: String!
+  $resource: String!
+  $expires_at: Int!
+) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_oauth_code"
+    properties: [
+      { name: "code_digest", value: $code_digest }
+      { name: "client_id", value: $client_id }
+      { name: "client_name", value: $client_name }
+      { name: "redirect_uri", value: $redirect_uri }
+      { name: "code_challenge", value: $code_challenge }
+      { name: "user_id", value: $user_id }
+      { name: "scope", value: $scope }
+      { name: "resource", value: $resource }
+      { name: "expires_at", value_int: $expires_at }
+      { name: "status", value: "issued" }
+    ]
+  }) {
+    id
+  }
+}

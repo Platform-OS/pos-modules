@@ -1,10 +1,11 @@
 ---
-slug: .well-known/oauth-protected-resource
+slug: .well-known/oauth-protected-resource/mcp
 method: get
 format: json
 ---
 {%- comment -%}
-  RFC 9728 Protected Resource Metadata — see queries/oauth/protected_resource_metadata.
+  RFC 9728 §3.1 path-inserted variant for the /mcp resource — clients that do not get
+  (or ignore) the WWW-Authenticate resource_metadata link probe this URL first.
 {%- endcomment -%}
 {%- liquid
   function doc = 'modules/mcp/queries/oauth/protected_resource_metadata'

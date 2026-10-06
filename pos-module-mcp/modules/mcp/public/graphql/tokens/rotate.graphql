@@ -1,0 +1,24 @@
+mutation rotate(
+  $id: ID!
+  $token_digest: String!
+  $refresh_digest: String!
+  $prev_refresh_digest: String!
+  $expires_at: Int!
+  $refresh_expires_at: Int!
+) {
+  # Refresh-token rotation (OAuth 2.1 §4.3.1): new access + refresh digests on the SAME
+  # grant row; the presented refresh digest is kept as prev_refresh_digest so a replay
+  # of it is detected as reuse (commands/oauth/refresh).
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_token"
+    properties: [
+      { name: "token_digest", value: $token_digest }
+      { name: "refresh_digest", value: $refresh_digest }
+      { name: "prev_refresh_digest", value: $prev_refresh_digest }
+      { name: "expires_at", value_int: $expires_at }
+      { name: "refresh_expires_at", value_int: $refresh_expires_at }
+    ]
+  }) {
+    id
+  }
+}

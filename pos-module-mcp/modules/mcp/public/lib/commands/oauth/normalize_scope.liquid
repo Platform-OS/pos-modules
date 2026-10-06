@@ -1,0 +1,25 @@
+{%- comment -%}
+  Resolve the scope to GRANT from a requested scope string. Unknown scopes are
+  dropped (RFC 6749 §3.3 lets the AS grant less than asked); mcp:read is always
+  included (it is the floor for any useful session). Blank request → default_scope.
+  Output is canonical: supported order, space-separated, no duplicates.
+
+  @param {string} requested - space-separated scope from the client (may be blank)
+  @return {string}
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign req = requested | default: '' | strip
+  if req == blank
+    assign req = cfg.oauth.default_scope
+  endif
+  assign wanted = req | split: ' '
+  assign granted = []
+  for s in cfg.oauth.scopes_supported
+    if s == 'mcp:read' or wanted contains s
+      assign granted = granted | array_add: s
+    endif
+  endfor
+  assign out = granted | join: ' '
+  return out
+%}

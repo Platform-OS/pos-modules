@@ -1,0 +1,20 @@
+query find_by_id($id: ID!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_token" }
+      id: { value: $id }
+    }
+  ) {
+    results {
+      id
+      user_id: property(name: "user_id")
+      status: property(name: "status")
+      kind: property(name: "kind")
+      client_id: property(name: "client_id")
+      scope: property(name: "scope")
+      refresh_digest: property(name: "refresh_digest")
+      refresh_expires_at: property(name: "refresh_expires_at")
+    }
+  }
+}

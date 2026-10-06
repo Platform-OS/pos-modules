@@ -121,6 +121,32 @@
   assign le['tool_version'] = tool.version
   assign le['authz_policy'] = tool.authorization_policy
 
+  # Step 4b — OAuth scope (decision-4). A mutating tool needs mcp:write; anything
+  # else mcp:read. Scope only NARROWS what the named policy allows (step 6 still
+  # runs). Manual tokens carry every scope. Insufficient scope is a 403 with an
+  # RFC 6750 insufficient_scope challenge so the client can step up (re-authorize
+  # with the wider scope) instead of failing opaquely.
+  assign required_scope = 'mcp:read'
+  if tool.mutating
+    assign required_scope = 'mcp:write'
+  endif
+  unless auth.scopes contains required_scope
+    assign le['authz_decision'] = 'deny'
+    assign le['authz_reason'] = 'insufficient_scope'
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    function origin = 'modules/mcp/queries/origin'
+    assign wa = 'Bearer resource_metadata="' | append: origin | append: '/.well-known/oauth-protected-resource", realm="mcp", error="insufficient_scope", scope="' | append: cfg.oauth.default_scope | append: '"'
+    assign hdrs = {}
+    assign hdrs['WWW-Authenticate'] = wa
+    assign out['headers'] = hdrs
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32001, message: 'Insufficient scope'
+    assign out['http_status'] = 403
+    assign out['body'] = body
+    return out
+  endunless
+
   # Step 5 — validate arguments against the tool's input_schema (STRICT, §10).
   # Normalize through a JSON round-trip first: request params arrive as
   # ActiveSupport::HashWithIndifferentAccess (not a plain Hash), and this also

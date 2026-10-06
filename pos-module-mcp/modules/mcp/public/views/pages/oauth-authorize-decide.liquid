@@ -1,0 +1,45 @@
+---
+slug: oauth/authorize
+method: post
+---
+{%- comment -%}
+  Consent decision (POST /oauth/authorize). CSRF: the platform runs a POST without a
+  valid authenticity_token with a NULL session, so a forged submit has no user and no
+  parked request and falls through to the error path. The request being approved is
+  the one parked in the session by the GET (matched by rid) — never form input.
+{%- endcomment -%}
+{%- liquid
+  response_headers '{"Cache-Control": "no-store", "Pragma": "no-cache"}'
+  function cfg = 'modules/mcp/commands/config'
+  function origin = 'modules/mcp/queries/origin'
+  assign raw_req = context.session.mcp_oauth_req
+  session mcp_oauth_req = null
+
+  assign req = null
+  unless raw_req == blank
+    assign req = raw_req | parse_json
+  endunless
+  if req == blank or req.rid != context.params.rid or cfg.oauth.builtin != true
+    response_status 400
+    echo 'This authorization request has expired. Return to your MCP client and reconnect.'
+  else
+    assign p = {}
+    assign p['state'] = req.state
+    assign p['iss'] = origin
+
+    function current_profile = 'modules/user/helpers/current_profile'
+    assign allowed = false
+    unless current_profile.user == blank
+      function allowed = 'modules/user/helpers/can_do', requester: current_profile, do: cfg.oauth.required_permission, entity: null, access_callback: null
+    endunless
+
+    if allowed and context.params.decision == 'approve'
+      function url = 'modules/mcp/commands/oauth/issue_code', req: req, user_id: current_profile.user.id
+    else
+      assign p['error'] = 'access_denied'
+      assign p['error_description'] = 'The user denied the request'
+      function url = 'modules/mcp/commands/oauth/append_params', url: req.redirect_uri, params: p
+    endif
+    redirect_to url
+  endif
+-%}

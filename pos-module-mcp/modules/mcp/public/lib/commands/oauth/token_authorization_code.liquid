@@ -1,0 +1,75 @@
+{%- comment -%}
+  grant_type=authorization_code (OAuth 2.1 §4.1.3). The code is CONSUMED before any
+  other check (row-locked claim inside a transaction), so a wrong verifier or
+  redirect_uri still burns it — a stolen code gets exactly one guess.
+
+  @param {object} params - context.params
+  @return {object} { http_status, body }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign code = params.code | default: '' | append: ''
+  if code == blank or params.client_id == blank
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_request', error_description: 'code and client_id are required', http_status: null
+    return e
+  endif
+
+  assign code_digest = code | digest: 'sha256'
+  graphql f = 'modules/mcp/oauth/code_find_by_digest', code_digest: code_digest
+  assign rec = f.records.results.first
+  if rec == blank
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Invalid authorization code', http_status: null
+    return e
+  endif
+
+  assign claimed = false
+  assign lock = '' | uuid
+  transaction timeout: 10
+    graphql _l = 'modules/mcp/oauth/code_claim_lock', id: rec.id, token: lock
+    graphql f2 = 'modules/mcp/oauth/code_find_by_digest', code_digest: code_digest
+    assign cur = f2.records.results.first
+    if cur and cur.status == 'issued'
+      graphql _u = 'modules/mcp/oauth/code_mark_used', id: cur.id
+      assign claimed = true
+    endif
+  endtransaction
+  unless claimed
+    log rec.client_id, type: 'mcp.oauth.code_replay'
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Authorization code already used', http_status: null
+    return e
+  endunless
+
+  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  assign exp = rec.expires_at | plus: 0
+  if exp <= now_s
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Authorization code expired', http_status: null
+    return e
+  endif
+  if params.client_id != rec.client_id
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Code was issued to another client', http_status: null
+    return e
+  endif
+  if params.redirect_uri != blank and params.redirect_uri != rec.redirect_uri
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'redirect_uri mismatch', http_status: null
+    return e
+  endif
+  function pkce_ok = 'modules/mcp/commands/oauth/pkce_verify', verifier: params.code_verifier, challenge: rec.code_challenge
+  unless pkce_ok
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'PKCE verification failed', http_status: null
+    return e
+  endunless
+  unless params.resource == blank
+    assign want = params.resource | replace_regex: '/+\z', ''
+    assign bound = rec.resource | default: '' | replace_regex: '/+\z', ''
+    if want != bound
+      function e = 'modules/mcp/commands/oauth/error', error: 'invalid_target', error_description: 'resource does not match the authorization request', http_status: null
+      return e
+    endif
+  endunless
+
+  function body = 'modules/mcp/commands/oauth/issue_tokens', user_id: rec.user_id, client_id: rec.client_id, client_name: rec.client_name, scope: rec.scope, resource: rec.resource
+  assign out = {}
+  assign out['http_status'] = 200
+  assign out['body'] = body
+  return out
+%}

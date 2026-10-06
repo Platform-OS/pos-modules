@@ -1,0 +1,33 @@
+{%- comment -%}
+  Does the presented redirect_uri match one the client registered? Exact string
+  match (OAuth 2.1 §4.1.1), with the single RFC 8252 §7.3 exception: for http
+  loopback redirects the PORT may differ (native apps bind an ephemeral port).
+
+  @param {string} redirect_uri  - as presented on /authorize
+  @param {array}  registered    - the client's redirect_uris
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  if redirect_uri == blank
+    return false
+  endif
+  function valid = 'modules/mcp/commands/oauth/redirect_uri_valid', uri: redirect_uri
+  unless valid
+    return false
+  endunless
+  if registered contains redirect_uri
+    return true
+  endif
+
+  function p = 'modules/mcp/commands/oauth/parse_url', url: redirect_uri
+  unless p.scheme == 'http' and p.is_loopback
+    return false
+  endunless
+  for r in registered
+    function q = 'modules/mcp/commands/oauth/parse_url', url: r
+    if q.valid and q.scheme == 'http' and q.is_loopback and q.host == p.host and q.path == p.path and q.query == p.query
+      return true
+    endif
+  endfor
+  return false
+%}

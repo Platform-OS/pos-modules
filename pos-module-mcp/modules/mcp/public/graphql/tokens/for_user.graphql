@@ -11,6 +11,8 @@ query for_user($user_id: String!) {
       id
       label: property(name: "label")
       status: property(name: "status")
+      kind: property(name: "kind")
+      scope: property(name: "scope")
       created_at
     }
   }

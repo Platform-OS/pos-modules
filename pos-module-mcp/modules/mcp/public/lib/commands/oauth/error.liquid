@@ -1,0 +1,24 @@
+{%- comment -%}
+  OAuth error response for the token / registration / revocation endpoints
+  (RFC 6749 §5.2, RFC 7591 §3.2.2). Pure.
+
+  @param {string}  error             - e.g. invalid_request, invalid_grant, invalid_client
+  @param {string}  error_description - human-readable, caller-safe
+  @param {integer} http_status       - default 400 (invalid_client → 401)
+  @return {object} { http_status, body }
+{%- endcomment -%}
+{% liquid
+  assign body = {}
+  assign body['error'] = error
+  unless error_description == blank
+    assign body['error_description'] = error_description
+  endunless
+  assign st = http_status | default: 400
+  if error == 'invalid_client' and http_status == blank
+    assign st = 401
+  endif
+  assign out = {}
+  assign out['http_status'] = st
+  assign out['body'] = body
+  return out
+%}

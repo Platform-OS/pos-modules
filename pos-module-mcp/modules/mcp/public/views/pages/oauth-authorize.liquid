@@ -1,0 +1,137 @@
+---
+slug: oauth/authorize
+method: get
+layout: ''
+---
+{%- comment -%}
+  OAuth 2.1 authorization endpoint (built-in AS; backlog/decision-4).
+
+  1. Validate the request (commands/oauth/validate_authorize). Client / redirect_uri
+     problems render an error HERE (never redirect to an unverified URI); every other
+     problem is redirected back to the client as error=….
+  2. Require a signed-in user (anonymous → /sessions/new, returning to this exact URL
+     with its query) holding cfg.oauth.required_permission (else access_denied).
+  3. Park the validated request in the session (keyed by a fresh rid) and render the
+     consent screen. The POST handler (oauth-authorize-decide) reads the request from
+     the SESSION, not from form fields, so nothing on the consent form can be tampered
+     with to widen scope or swap the redirect.
+
+  The page is never cacheable and never frameable (consent click-jacking).
+{%- endcomment -%}
+{%- liquid
+  assign sec = {}
+  assign sec['Cache-Control'] = 'no-store'
+  assign sec['Pragma'] = 'no-cache'
+  assign sec['X-Frame-Options'] = 'DENY'
+  assign sec['Content-Security-Policy'] = "frame-ancestors 'none'"
+  assign sec['Referrer-Policy'] = 'no-referrer'
+  assign sec_json = sec | json
+  response_headers sec_json
+  function cfg = 'modules/mcp/commands/config'
+  function origin = 'modules/mcp/queries/origin'
+  assign view = 'error'
+  assign error_message = ''
+
+  # Per-IP rate limit BEFORE validation: validating a CIMD client_id makes an outbound
+  # fetch, and this page is reachable anonymously.
+  assign rl_scope = 'oauth_authorize_ip:' | append: context.visitor.ip
+  function rl = 'modules/mcp/commands/limits/check', scope: rl_scope, limit: cfg.oauth.token_rate_limit_per_min
+  if rl.allowed
+    function v = 'modules/mcp/commands/oauth/validate_authorize', params: context.params
+  else
+    assign v = {}
+    assign v['ok'] = false
+    assign v['redirectable'] = false
+    assign v['error_description'] = 'Too many authorization requests — try again in a minute'
+  endif
+  if v.ok
+    function current_profile = 'modules/user/helpers/current_profile'
+    if current_profile.user == blank
+      session return_to = context.location.href
+      redirect_to '/sessions/new'
+      assign view = 'none'
+    else
+      function can = 'modules/user/helpers/can_do', requester: current_profile, do: cfg.oauth.required_permission, entity: null, access_callback: null
+      if can
+        assign req_json = v.req | json
+        session mcp_oauth_req = req_json
+        assign req = v.req
+        function ru = 'modules/mcp/commands/oauth/parse_url', url: req.redirect_uri
+        function cu = 'modules/mcp/commands/oauth/parse_url', url: req.client_id
+        assign scopes = req.scope | split: ' '
+        assign view = 'consent'
+      else
+        assign p = {}
+        assign p['error'] = 'access_denied'
+        assign p['error_description'] = 'The user is not allowed to authorize MCP clients'
+        assign p['state'] = v.req.state
+        assign p['iss'] = origin
+        function url = 'modules/mcp/commands/oauth/append_params', url: v.req.redirect_uri, params: p
+        redirect_to url
+        assign view = 'none'
+      endif
+    endif
+  elsif v.redirectable
+    assign p = {}
+    assign p['error'] = v.error
+    assign p['error_description'] = v.error_description
+    assign p['state'] = v.state
+    assign p['iss'] = origin
+    function url = 'modules/mcp/commands/oauth/append_params', url: v.redirect_uri, params: p
+    redirect_to url
+    assign view = 'none'
+  else
+    response_status 400
+    assign error_message = v.error_description | default: 'Invalid authorization request'
+  endif
+-%}
+{%- if view != 'none' -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{% if view == 'consent' %}Authorize {{ req.client_name }}{% else %}Authorization error{% endif %}</title>
+{% render 'modules/mcp/oauth/styles' %}
+</head>
+<body>
+<main class="wrap">
+  <div class="card">
+  {%- if view == 'consent' %}
+    <h1>Authorize <b>{{ req.client_name }}</b>?</h1>
+    <p><b>{{ req.client_name }}</b> wants to use <b>{{ cfg.server_name }}</b> as you (<b>{{ current_profile.user.email }}</b>). Everything it does is authorized as your account and recorded in the audit ledger.</p>
+    <p>It is asking to:</p>
+    <ul class="scopes">
+      {%- for s in scopes %}
+        {%- case s %}
+          {%- when 'mcp:read' %}<li><b>Read</b> — list tools, read resources and prompts, and call tools that do not change anything.</li>
+          {%- when 'mcp:write' %}<li><b>Act</b> — call tools that create or change data on your behalf.</li>
+          {%- else %}<li><code>{{ s }}</code></li>
+        {%- endcase %}
+      {%- endfor %}
+    </ul>
+    {%- if req.client_kind == 'cimd' %}
+      <p class="note">Client identity is published at <code>{{ cu.host }}</code>.</p>
+    {%- else %}
+      <div class="warn">This client registered itself; its name is not verified. Only continue if you started this connection yourself.</div>
+    {%- endif %}
+    <p class="note">After you approve, you will be sent to <code>{{ ru.scheme }}://{{ ru.host }}{% if ru.port != blank %}:{{ ru.port }}{% endif %}</code>. You can revoke access at any time on <a href="/mcp-tools">/mcp-tools</a>.</p>
+    <form method="post" action="/oauth/authorize">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="rid" value="{{ req.rid }}">
+      <div class="actions">
+        <button type="submit" name="decision" value="approve" class="btn btn-primary">Approve</button>
+        <button type="submit" name="decision" value="deny" class="btn">Deny</button>
+      </div>
+    </form>
+  {%- else %}
+    <h1>Authorization request rejected</h1>
+    <p class="err">{{ error_message }}</p>
+    <p class="note">Return to your MCP client and reconnect. If this keeps happening, the client is misconfigured.</p>
+  {%- endif %}
+  </div>
+</main>
+</body>
+</html>
+{%- endif -%}

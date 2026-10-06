@@ -1,0 +1,33 @@
+{%- comment -%}
+  Mint a new OAuth grant: an access token + refresh token pair on ONE mcp_token row
+  (kind=oauth), bound to user, client, scope and resource. Returns the RFC 6749 §5.1
+  token response body. Raw tokens are returned once, never stored.
+
+  @param {string} user_id
+  @param {string} client_id
+  @param {string} client_name
+  @param {string} scope
+  @param {string} resource
+  @return {object} token response body
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  function access = 'modules/mcp/commands/oauth/random_secret', prefix: 'mcp_at_'
+  function refresh = 'modules/mcp/commands/oauth/random_secret', prefix: 'mcp_rt_'
+  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  assign ttl = cfg.oauth.access_token_ttl_seconds | plus: 0
+  assign expires_at = now_s | plus: ttl
+  assign refresh_expires_at = cfg.oauth.refresh_token_ttl_seconds | plus: now_s
+  assign label = client_name | default: 'OAuth client' | strip | truncate: 40, ''
+  assign token_digest = access | digest: 'sha256'
+  assign refresh_digest = refresh | digest: 'sha256'
+  graphql _t = 'modules/mcp/tokens/create_oauth', user_id: user_id, token_digest: token_digest, refresh_digest: refresh_digest, label: label, client_id: client_id, scope: scope, resource: resource, expires_at: expires_at, refresh_expires_at: refresh_expires_at
+
+  assign body = {}
+  assign body['access_token'] = access
+  assign body['token_type'] = 'Bearer'
+  assign body['expires_in'] = ttl
+  assign body['refresh_token'] = refresh
+  assign body['scope'] = scope
+  return body
+%}

@@ -1,0 +1,26 @@
+{%- comment -%}
+  Issue a single-use authorization code for a consented request and build the
+  redirect back to the client (code + state + iss, RFC 9207). Only the code's digest
+  is stored.
+
+  @param {object} req     - the validated request (validate_authorize → req)
+  @param {string} user_id - the consenting user (the principal)
+  @return {string} the redirect URL
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  function origin = 'modules/mcp/queries/origin'
+  function raw = 'modules/mcp/commands/oauth/random_secret', prefix: 'mcp_ac_'
+  assign code_digest = raw | digest: 'sha256'
+  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  assign expires_at = cfg.oauth.code_ttl_seconds | plus: now_s
+  assign uid = user_id | append: ''
+  graphql _c = 'modules/mcp/oauth/code_create', code_digest: code_digest, client_id: req.client_id, client_name: req.client_name, redirect_uri: req.redirect_uri, code_challenge: req.code_challenge, user_id: uid, scope: req.scope, resource: req.resource, expires_at: expires_at
+
+  assign p = {}
+  assign p['code'] = raw
+  assign p['state'] = req.state
+  assign p['iss'] = origin
+  function url = 'modules/mcp/commands/oauth/append_params', url: req.redirect_uri, params: p
+  return url
+%}

@@ -114,14 +114,36 @@
   assign r['markdown_page_prefixes'] = default_prefixes
   assign c['resources'] = r
 
-  # OAuth resource-server metadata (spec §9.5, RFC 9728). v1 authenticates
-  # instance-issued tokens bound to a real user (backlog/decision-2), so no JWT
-  # signing keys are needed here. `issuer`, when set via the MCP_OAUTH_ISSUER
-  # constant, is advertised in the well-known doc as the authorization server for
-  # a future external-AS/JWT strategy; empty by default.
+  # OAuth (spec §9.5, RFC 9728; backlog/decision-4). The instance is BOTH the protected
+  # resource and — via the built-in authorization server (/oauth/*) — the issuer of
+  # opaque access tokens bound to a real user (same mcp_token store as manual tokens,
+  # so no JWT signing keys are needed). `issuer`, when set via the MCP_OAUTH_ISSUER
+  # constant, advertises an EXTERNAL AS instead (future JWT strategy); empty by default.
   assign o = {}
   assign o['issuer'] = context.constants.MCP_OAUTH_ISSUER | default: ''
   assign o['audience'] = context.constants.MCP_OAUTH_AUDIENCE | default: c.server_name
+  # Built-in authorization server (OAuth 2.1 authorization code + PKCE S256).
+  assign o['authorization_server'] = true
+  # User permission required to authorize a client (same gate as minting at /mcp-tools).
+  assign o['required_permission'] = 'mcp.tokens.manage'
+  # mcp:read = discovery, resources, prompts, non-mutating tools (always granted).
+  # mcp:write = tools whose manifest declares mutating:true. Manual tokens carry all.
+  assign scopes = 'mcp:read,mcp:write' | split: ','
+  assign o['scopes_supported'] = scopes
+  assign o['default_scope'] = 'mcp:read mcp:write'
+  assign o['access_token_ttl_seconds'] = 3600
+  assign o['refresh_token_ttl_seconds'] = 2592000
+  assign o['code_ttl_seconds'] = 60
+  # Client registration: Client ID Metadata Documents (client_id = https URL; the
+  # 2026-07-28 preferred path) and/or Dynamic Client Registration (RFC 7591).
+  assign o['client_id_metadata_documents'] = true
+  assign o['dynamic_client_registration'] = true
+  assign o['registration_rate_limit_per_min'] = 10
+  assign o['token_rate_limit_per_min'] = 60
+  # When true, `initialize` WITHOUT a valid bearer answers 401 + WWW-Authenticate so
+  # MCP clients start the OAuth flow on connect (most clients only begin auth on a
+  # 401 at connect time). Off by default: discovery stays open for existing clients.
+  assign o['challenge_initialize'] = false
   assign c['oauth'] = o
   # The OAuth resource identifier this instance defends (RFC 9728) = the /mcp URL.
   function origin = 'modules/mcp/queries/origin'
@@ -145,10 +167,23 @@
         assign merged_resources = c.resources | hash_merge: override.resources
         assign override['resources'] = merged_resources
       endunless
+      unless override.oauth == blank
+        assign merged_oauth = c.oauth | hash_merge: override.oauth
+        assign override['oauth'] = merged_oauth
+      endunless
       # platformos-check-enable UnknownProperty
       assign c = c | hash_merge: override
     endunless
   endif
+
+  # Derived: the built-in AS is live only when enabled AND no external issuer is
+  # configured (an external issuer owns token issuance; we must not mint in parallel).
+  assign oauth_cfg = c.oauth
+  assign builtin = false
+  if oauth_cfg.authorization_server and oauth_cfg.issuer == blank
+    assign builtin = true
+  endif
+  assign oauth_cfg['builtin'] = builtin
 
   # Memoize the fully-resolved config for the remainder of THIS request (see the
   # top-of-file note). `export` stores `config` under context.exports.mcp.config,

@@ -1,0 +1,71 @@
+{%- comment -%}
+  Split an absolute URL into the parts the OAuth checks need. Pure. Never throws:
+  anything that is not `scheme://authority[path][?query][#fragment]` → valid:false.
+
+  @param {string} url
+  @return {object} { valid, scheme, host, port, path, query, has_userinfo, has_fragment,
+                     has_trailing_dot, is_ip_literal, is_loopback }
+                   scheme/host are lower-cased (host without trailing dots); port is ''
+                   when absent.
+{%- endcomment -%}
+{% liquid
+  assign out = {}
+  assign out['valid'] = false
+  assign s = url | default: '' | append: ''
+  if s == blank or s.size > 2048
+    return out
+  endif
+
+  assign m = s | regex_matches: '\A([a-zA-Z][a-zA-Z0-9+.\-]*)://([^/?#]*)([^?#]*)(\?[^#]*)?(#.*)?\z'
+  if m.size == 0
+    return out
+  endif
+  assign g = m[0]
+  assign authority = g[1] | default: ''
+  assign out['scheme'] = g[0] | downcase
+  assign out['path'] = g[2] | default: ''
+  assign out['query'] = g[3] | default: ''
+  assign out['has_fragment'] = false
+  if g[4] != blank
+    assign out['has_fragment'] = true
+  endif
+
+  assign out['has_userinfo'] = false
+  if authority contains '@'
+    assign out['has_userinfo'] = true
+    assign authority = authority | split: '@' | last
+  endif
+
+  assign hm = authority | regex_matches: '\A(\[[0-9a-fA-F:.]+\]|[^:\[\]]+)(?::(\d{1,5}))?\z'
+  if hm.size == 0
+    return out
+  endif
+  # A fully-qualified name may end in '.', which resolvers ignore ('localhost.' IS
+  # localhost). Normalize it away so every host check below sees the real name, and
+  # report it so fetch guards can refuse it outright.
+  assign raw_host = hm[0][0] | downcase
+  assign host = raw_host | replace_regex: '\.+\z', ''
+  assign out['has_trailing_dot'] = false
+  if host != raw_host
+    assign out['has_trailing_dot'] = true
+  endif
+  assign out['host'] = host
+  assign out['port'] = hm[0][1] | default: ''
+
+  # IP literals in EVERY form the system resolver (inet_aton) accepts: bracketed IPv6,
+  # dotted or bare decimal, octal (0177.0.0.1) and hex (0x7f.0.0.1, 0x7f000001) parts.
+  assign is_ip = host | matches: '\A(\[.*\]|(0x[0-9a-f]*|[0-9]+)(\.(0x[0-9a-f]*|[0-9]+))*)\z'
+  if is_ip != true
+    assign is_ip = false
+  endif
+  assign out['is_ip_literal'] = is_ip
+
+  assign loop = host | matches: '\A(localhost|\[::1\]|127\.\d{1,3}\.\d{1,3}\.\d{1,3})\z'
+  if loop != true
+    assign loop = false
+  endif
+  assign out['is_loopback'] = loop
+
+  assign out['valid'] = true
+  return out
+%}

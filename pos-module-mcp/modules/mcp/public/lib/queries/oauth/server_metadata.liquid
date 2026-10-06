@@ -1,0 +1,29 @@
+{%- comment -%}
+  OAuth 2.0 Authorization Server Metadata (RFC 8414) for the built-in authorization
+  server. issuer = this instance's origin (no path), so the document lives at
+  /.well-known/oauth-authorization-server.
+
+  @return {object}
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  function origin = 'modules/mcp/queries/origin'
+  assign doc = {}
+  assign doc['issuer'] = origin
+  assign doc['authorization_endpoint'] = origin | append: '/oauth/authorize'
+  assign doc['token_endpoint'] = origin | append: '/oauth/token'
+  assign doc['revocation_endpoint'] = origin | append: '/oauth/revoke'
+  if cfg.oauth.dynamic_client_registration
+    assign doc['registration_endpoint'] = origin | append: '/oauth/register'
+  endif
+  assign doc['scopes_supported'] = cfg.oauth.scopes_supported
+  assign doc['response_types_supported'] = 'code' | split: ','
+  assign doc['response_modes_supported'] = 'query' | split: ','
+  assign doc['grant_types_supported'] = 'authorization_code,refresh_token' | split: ','
+  assign doc['code_challenge_methods_supported'] = 'S256' | split: ','
+  assign doc['token_endpoint_auth_methods_supported'] = 'none' | split: ','
+  assign doc['revocation_endpoint_auth_methods_supported'] = 'none' | split: ','
+  assign doc['client_id_metadata_document_supported'] = cfg.oauth.client_id_metadata_documents
+  assign doc['authorization_response_iss_parameter_supported'] = true
+  return doc
+%}

@@ -1,0 +1,10 @@
+mutation code_sweep($now: String!) {
+  # Drop authorization codes past expiry (used or not; expires_at is unix seconds).
+  # Redemption already rejects them; this only reclaims the rows.
+  deleted: records_delete_all(
+    table: "modules/mcp/mcp_oauth_code"
+    filter: { properties: [{ name: "expires_at", range: { lt: $now } }] }
+  ) {
+    count
+  }
+}

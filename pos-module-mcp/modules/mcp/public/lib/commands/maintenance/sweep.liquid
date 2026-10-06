@@ -1,10 +1,11 @@
 {%- comment -%}
   Reclaim short-lived rows that nothing reads any more: closed rate/abuse counter
-  windows and expired idempotency records. Both tables otherwise grow by a row per
-  principal per active minute (counters) / per keyed call (idempotency), forever.
+  windows, expired idempotency records and expired OAuth authorization codes. These
+  tables otherwise grow by a row per principal per active minute (counters) / per
+  keyed call (idempotency) / per authorization (codes), forever.
 
   Counters are kept for max(1 hour, 2 × abuse window) so a row is never deleted while
-  its window can still be read. Both deletes run as async platform jobs, so calling
+  its window can still be read. All deletes run as async platform jobs, so calling
   this is cheap; limits/check triggers it at most once per principal per 10 minutes.
 
   @return {boolean} true
@@ -22,5 +23,6 @@
 
   assign now_s = now_unix | append: ''
   graphql _i = 'modules/mcp/idempotency/sweep', now: now_s
+  graphql _c = 'modules/mcp/oauth/code_sweep', now: now_s
   return true
 %}

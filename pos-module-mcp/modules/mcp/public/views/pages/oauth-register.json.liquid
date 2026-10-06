@@ -1,0 +1,23 @@
+---
+slug: oauth/register
+method: post
+format: json
+---
+{%- comment -%}
+  Dynamic Client Registration (RFC 7591) — see commands/oauth/register. Per-IP rate
+  limited (unauthenticated endpoint that writes a row).
+{%- endcomment -%}
+{%- liquid
+  function cfg = 'modules/mcp/commands/config'
+  function hdrs = 'modules/mcp/queries/oauth/endpoint_headers', cacheable: false
+  response_headers hdrs
+  assign rl_scope = 'oauth_register_ip:' | append: context.visitor.ip
+  function rl = 'modules/mcp/commands/limits/check', scope: rl_scope, limit: cfg.oauth.registration_rate_limit_per_min
+  if rl.allowed
+    function out = 'modules/mcp/commands/oauth/register', params: context.params
+  else
+    function out = 'modules/mcp/commands/oauth/error', error: 'slow_down', error_description: 'Too many registrations', http_status: 429
+  endif
+  response_status out.http_status
+  echo out.body
+-%}

@@ -1,0 +1,80 @@
+{%- comment -%}
+  grant_type=refresh_token (OAuth 2.1 §4.3) with ROTATION: every refresh issues a new
+  access + refresh pair on the same grant row and invalidates the presented refresh
+  token. Presenting an already-rotated refresh token is treated as theft (OAuth 2.1
+  §4.3.1, Security BCP §4.14.2): the whole grant is revoked.
+
+  Concurrency: the grant row is write-locked inside a transaction and the refresh
+  digest re-checked under the lock, so two racing refreshes cannot both succeed.
+
+  @param {object} params - context.params
+  @return {object} { http_status, body }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign rt = params.refresh_token | default: '' | append: ''
+  if rt == blank
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_request', error_description: 'refresh_token is required', http_status: null
+    return e
+  endif
+  assign digest = rt | digest: 'sha256'
+
+  graphql f = 'modules/mcp/tokens/find_by_refresh_digest', digest: digest
+  assign g = f.records.results.first
+  if g == blank
+    graphql pf = 'modules/mcp/tokens/find_by_prev_refresh_digest', digest: digest
+    assign stale = pf.records.results.first
+    if stale and stale.status == 'active'
+      graphql _r = 'modules/mcp/tokens/revoke', id: stale.id
+      log stale.id, type: 'mcp.oauth.refresh_reuse_revoked'
+    endif
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Invalid refresh token', http_status: null
+    return e
+  endif
+
+  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  assign rexp = g.refresh_expires_at | plus: 0
+  if g.status != 'active' or g.kind != 'oauth' or rexp <= now_s
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Invalid refresh token', http_status: null
+    return e
+  endif
+  if params.client_id != blank and params.client_id != g.client_id
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Refresh token was issued to another client', http_status: null
+    return e
+  endif
+
+  function access = 'modules/mcp/commands/oauth/random_secret', prefix: 'mcp_at_'
+  function refresh = 'modules/mcp/commands/oauth/random_secret', prefix: 'mcp_rt_'
+  assign ttl = cfg.oauth.access_token_ttl_seconds | plus: 0
+  assign expires_at = now_s | plus: ttl
+  assign refresh_expires_at = cfg.oauth.refresh_token_ttl_seconds | plus: now_s
+  assign token_digest = access | digest: 'sha256'
+  assign new_refresh_digest = refresh | digest: 'sha256'
+
+  assign rotated = false
+  assign lock = '' | uuid
+  transaction timeout: 10
+    graphql _l = 'modules/mcp/tokens/claim_lock', id: g.id, token: lock
+    graphql f2 = 'modules/mcp/tokens/find_by_id', id: g.id
+    assign cur = f2.records.results.first
+    if cur and cur.status == 'active' and cur.refresh_digest == digest
+      graphql _u = 'modules/mcp/tokens/rotate', id: g.id, token_digest: token_digest, refresh_digest: new_refresh_digest, prev_refresh_digest: digest, expires_at: expires_at, refresh_expires_at: refresh_expires_at
+      assign rotated = true
+    endif
+  endtransaction
+  unless rotated
+    function e = 'modules/mcp/commands/oauth/error', error: 'invalid_grant', error_description: 'Invalid refresh token', http_status: null
+    return e
+  endunless
+
+  assign body = {}
+  assign body['access_token'] = access
+  assign body['token_type'] = 'Bearer'
+  assign body['expires_in'] = ttl
+  assign body['refresh_token'] = refresh
+  assign body['scope'] = g.scope
+  assign out = {}
+  assign out['http_status'] = 200
+  assign out['body'] = body
+  return out
+%}

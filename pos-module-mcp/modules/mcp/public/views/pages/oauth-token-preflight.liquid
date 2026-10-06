@@ -1,0 +1,12 @@
+---
+slug: oauth/token
+method: options
+---
+{%- comment -%}
+  CORS preflight for POST /oauth/token (browser-based MCP clients).
+{%- endcomment -%}
+{%- liquid
+  function hdrs = 'modules/mcp/queries/oauth/endpoint_headers', cacheable: false
+  response_headers hdrs
+  response_status 204
+-%}

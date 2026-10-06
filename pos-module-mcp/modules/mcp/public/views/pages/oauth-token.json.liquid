@@ -1,0 +1,35 @@
+---
+slug: oauth/token
+method: post
+format: json
+---
+{%- comment -%}
+  OAuth 2.1 token endpoint (built-in AS). Public clients only — no client
+  authentication; PKCE (authorization_code) and rotation + reuse detection
+  (refresh_token) carry the security. Form-encoded or JSON bodies both land on
+  context.params. Per-IP rate limited. Responses are never cacheable (RFC 6749 §5.1).
+{%- endcomment -%}
+{%- liquid
+  function cfg = 'modules/mcp/commands/config'
+  function hdrs = 'modules/mcp/queries/oauth/endpoint_headers', cacheable: false
+  response_headers hdrs
+
+  assign rl_scope = 'oauth_token_ip:' | append: context.visitor.ip
+  function rl = 'modules/mcp/commands/limits/check', scope: rl_scope, limit: cfg.oauth.token_rate_limit_per_min
+  if cfg.oauth.builtin != true
+    function out = 'modules/mcp/commands/oauth/error', error: 'invalid_request', error_description: 'The authorization server is disabled', http_status: 404
+  elsif rl.allowed != true
+    function out = 'modules/mcp/commands/oauth/error', error: 'slow_down', error_description: 'Too many requests', http_status: 429
+  else
+    case context.params.grant_type
+      when 'authorization_code'
+        function out = 'modules/mcp/commands/oauth/token_authorization_code', params: context.params
+      when 'refresh_token'
+        function out = 'modules/mcp/commands/oauth/token_refresh', params: context.params
+      else
+        function out = 'modules/mcp/commands/oauth/error', error: 'unsupported_grant_type', error_description: 'grant_type must be authorization_code or refresh_token', http_status: null
+    endcase
+  endif
+  response_status out.http_status
+  echo out.body
+-%}
