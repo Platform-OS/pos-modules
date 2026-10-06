@@ -37,9 +37,9 @@ export class UppyUploader {
       await section.buttonWithText('Save').click();
     }
 
-    // the uploader auto-proceeds; wait for this specific file to finish, so adding a second
-    // file doesn't pass on the 'Upload complete' state left over from the first one
+    // the uploader auto-proceeds; wait for this specific file to finish uploading - the dashboard's
+    // 'Upload complete' title isn't reliable here (it depends on uppy's totalProgress, which doesn't
+    // reach 100 in the chat uploader), and it would also match the state left over from a previous file
     await section.completedFile(fileName).waitFor({ state: 'visible', timeout: 15000 });
-    await this.headingWithText('Upload complete').waitFor({ state: 'visible', timeout: 15000 });
   }
 }
