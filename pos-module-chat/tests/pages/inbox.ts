@@ -1,5 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './page';
+import { UppyUploader } from './components/uppyUploader';
 
 export class PeoplePage extends BasePage {
   readonly page: Page;
@@ -266,6 +267,32 @@ class MessageBox {
     }
   }
 
+  getSentMessages(): Locator {
+    return this.page.locator('li.pos-chat-message.pos-chat-message-authored');
+  }
+
+  getLastSentMessage(): Locator {
+    return this.getSentMessages().last();
+  }
+
+  getLastSentImage(): Locator {
+    return this.getLastSentMessage().locator('.pos-chat-message-image img');
+  }
+
+  getLastSentFileLink(fileName: string): Locator {
+    return this.getLastSentMessage().locator('.pos-chat-message-file a').filter({ hasText: fileName });
+  }
+
+  async isImageLoaded(image: Locator) {
+    await image.waitFor({ state: 'visible' });
+    // a freshly rendered <img> can be visible before it has finished downloading - wait for it to settle
+    return await image.evaluate((img: HTMLImageElement) => new Promise<boolean>((resolve) => {
+      if (img.complete) return resolve(img.naturalWidth > 0);
+      img.addEventListener('load', () => resolve(img.naturalWidth > 0), { once: true });
+      img.addEventListener('error', () => resolve(false), { once: true });
+    }));
+  }
+
   async isMessageReceived(text: string) {
     const message = await this.getMessage('received').innerText();
     const isMessageVisible = await this.isMessageVisible(text);
@@ -281,6 +308,8 @@ class Chat {
   readonly messageBox: MessageBox;
   readonly messageInputField: Locator;
   readonly messageInputFieldEnabled: Locator;
+  readonly uploadButton: Locator;
+  readonly uploader: UppyUploader;
   private buttonWithText: (text: string) => Locator;
 
   constructor(private page: Page, private chatLocator: Locator) {
@@ -289,6 +318,28 @@ class Chat {
     this.messageInputField = this.chatLocator.locator('#chat-messageInput');
     this.messageInputFieldEnabled = this.chatLocator.locator('#chat-messageInput:not([disabled])');
     this.buttonWithText = (text: string) => this.page.getByRole('button', { name: text, exact: true });
+    this.uploadButton = this.chatLocator.locator('#chat-uploadButton');
+    this.uploader = new UppyUploader(this.page);
+  }
+
+  async showUploader() {
+    await this.messageInputFieldEnabled.waitFor();
+    await this.uploadButton.click();
+    await this.uploader.section().dashboard().waitFor({ state: 'visible' });
+    return this.uploader.isVisible();
+  }
+
+  async attachFiles(fileNames: string[]) {
+    for (const fileName of fileNames) {
+      await this.uploader.uploadFile(fileName);
+    }
+  }
+
+  // sends the staged attachments (without text) and waits for the new message to be rendered
+  async sendAttachments() {
+    const sentCount = await this.messageBox.getSentMessages().count();
+    await this.buttonWithText('Send').click();
+    await this.messageBox.getSentMessages().nth(sentCount).waitFor();
   }
 
   async sendMessage(text: string) {
