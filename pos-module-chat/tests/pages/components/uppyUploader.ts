@@ -31,6 +31,11 @@ export class UppyUploader {
   async uploadFile(fileName: string) {
     const section = this.section();
 
+    // once a file is in the uploader, uppy only renders the file input after opening the 'Add more files' panel
+    if (await section.buttonWithText('Add more files').isVisible()) {
+      await section.buttonWithText('Add more files').click();
+    }
+
     await section.inputFile().setInputFiles(path.join(__dirname, '..', '..', 'data', 'files', fileName));
 
     if (await section.buttonWithText('Save').isVisible()) {

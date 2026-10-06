@@ -285,7 +285,12 @@ class MessageBox {
 
   async isImageLoaded(image: Locator) {
     await image.waitFor({ state: 'visible' });
-    return await image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
+    // a freshly rendered <img> can be visible before it has finished downloading - wait for it to settle
+    return await image.evaluate((img: HTMLImageElement) => new Promise<boolean>((resolve) => {
+      if (img.complete) return resolve(img.naturalWidth > 0);
+      img.addEventListener('load', () => resolve(img.naturalWidth > 0), { once: true });
+      img.addEventListener('error', () => resolve(false), { once: true });
+    }));
   }
 
   async isMessageReceived(text: string) {
