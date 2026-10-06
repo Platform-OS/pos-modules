@@ -67,6 +67,7 @@ export class InboxPage extends BasePage {
   readonly chat: Chat;
   readonly message: MessageBox;
   readonly peoplePage: PeoplePage;
+  readonly search: Search;
 
   constructor(page: Page) {
     super(page, '/inbox');
@@ -79,6 +80,7 @@ export class InboxPage extends BasePage {
     this.chat = new Chat(page, chatLocator);
     this.message = new MessageBox(page);
     this.peoplePage = new PeoplePage(page);
+    this.search = new Search(page);
   }
 
   async sendMessage(fullName: string, text: string) {
@@ -101,11 +103,54 @@ export class InboxPage extends BasePage {
     return isAuthorHeaderVisible;
   }
 
+  async isChatOpenedFromSearch(query: string, fullName: string) {
+    await this.search.searchFor(query);
+    await this.search.openResult(fullName);
+    await this.chat.messageInputField.waitFor({ state: 'visible' });
+    const isAuthorHeaderVisible = await this.chat.header(fullName).isVisible();
+
+    return isAuthorHeaderVisible;
+  }
+
   // The id of the currently open conversation (the `conversate` channel's room id),
   // exposed by the inbox as #pos-chat-inbox[data-conversation-id].
   async currentConversationId() {
     const id = await this.page.locator('#pos-chat-inbox').getAttribute('data-conversation-id');
     return id ?? '';
+  }
+}
+
+class Search {
+  readonly input: Locator;
+  readonly clearButton: Locator;
+  readonly results: Locator;
+
+  constructor(private page: Page) {
+    this.input = this.page.getByRole('textbox', { name: 'Search for a person' });
+    this.clearButton = this.page.getByRole('button', { name: 'Clear search' });
+    this.results = this.page.locator('.pos-chat-search-results');
+  }
+
+  getResultByFullName(fullName: string) {
+    return this.results.locator('.pos-chat-conversationCard-name').getByText(fullName, { exact: true });
+  }
+
+  // fill() fires a single input event, so only one search request is made
+  async searchFor(query: string) {
+    await this.input.fill(query);
+  }
+
+  async openResult(fullName: string) {
+    await this.getResultByFullName(fullName).click();
+  }
+
+  async clear() {
+    await this.clearButton.click();
+  }
+
+  async isResultVisible(fullName: string) {
+    await this.getResultByFullName(fullName).waitFor({ state: 'visible' });
+    return await this.getResultByFullName(fullName).isVisible();
   }
 }
 

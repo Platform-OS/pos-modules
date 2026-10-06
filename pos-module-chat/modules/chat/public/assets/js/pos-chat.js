@@ -218,8 +218,8 @@ window.pos.modules.chat = function(userSettings = {}){
     // search for users
     let searchTimeout = '';
     module.settings.search.input?.addEventListener('input', event => {
+      clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
-        clearTimeout(searchTimeout);
         if(event.target.value.trim().length > 0){
           module.search.run(event.target.value.trim());
         } else {
@@ -799,7 +799,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.search.run = (query) => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Running search query', query);
     // get the data
-    fetch(`/search.frame?q=${query}`)
+    fetch(`/search.frame?q=${encodeURIComponent(query)}`)
     .then(response => {
       if(response.ok){
         pos.modules.debug(module.settings.debug, module.settings.id, 'Query run successfull', response);
@@ -812,6 +812,13 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     })
     .then(data => {
+      // the input changed (or was cleared) while the request was in flight, a newer search owns the results
+      if(module.settings.search.input.value.trim() !== query){
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Ignoring stale search results for', query);
+
+        return;
+      }
+
       module.settings.search.results.innerHTML = data;
       
       pos.modules.debug(module.settings.debug, module.settings.id, 'Applied serach results HTML to the page', data);

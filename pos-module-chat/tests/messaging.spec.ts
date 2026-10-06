@@ -341,4 +341,79 @@ test.describe('Testing messaging', () => {
 
     await context?.close();
   })
+
+  test(`user can start a conversation by searching for a person in the inbox`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // Dedicated pair: avoid test7 (must stay empty for the "conversation card not created" test).
+    const sender = users.test3;
+    const receiver = users.test5;
+    const searchQuery = receiver.firstName.slice(0, 5).toLowerCase();
+    // Unique per run so repeated local runs don't pile up identical messages.
+    const senderMessage = `search conversation probe ${Date.now()}`;
+
+    await test.step(`${sender.fullName} searches for "${searchQuery}" and opens a chat with ${receiver.fullName}`, async () => {
+      ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
+      const inboxPage = new InboxPage(page);
+
+      await inboxPage.goto();
+
+      const isChatOpened = await inboxPage.isChatOpenedFromSearch(searchQuery, receiver.fullName);
+      expect(isChatOpened).toBe(true);
+
+      const isMessageSent = await inboxPage.chat.sendMessage(senderMessage);
+      expect(isMessageSent).toBe(true);
+    });
+
+    await test.step(`verify chatCard with ${receiver.fullName} is visible after page refresh`, async () => {
+      ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
+      const inboxPage = new InboxPage(page);
+
+      await inboxPage.goto();
+
+      const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(receiver.fullName);
+      expect(isChatCardVisible).toBe(true);
+    });
+
+    await context?.close();
+  })
+
+  test(`clearing the search brings back the conversations list`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // test6 has seeded conversations, so the conversations list is never empty.
+    const user = users.test6;
+    const searchedPerson = users.test1;
+    const searchQuery = searchedPerson.lastName.slice(0, 4).toLowerCase();
+    const conversationsList = '#pos-chat-conversations';
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+
+    await inboxPage.goto();
+
+    await test.step(`search results for "${searchQuery}" replace the conversations list`, async () => {
+      await expect(page.locator(conversationsList)).toBeVisible();
+
+      await inboxPage.search.searchFor(searchQuery);
+
+      const isResultVisible = await inboxPage.search.isResultVisible(searchedPerson.fullName);
+      expect(isResultVisible).toBe(true);
+      await expect(page.locator(conversationsList)).toBeHidden();
+    });
+
+    await test.step(`clicking the clear button brings back the conversations list`, async () => {
+      await inboxPage.search.clear();
+
+      await expect(inboxPage.search.input).toHaveValue('');
+      await expect(inboxPage.search.results).toBeEmpty();
+      await expect(inboxPage.search.results).toBeHidden();
+      await expect(page.locator(conversationsList)).toBeVisible();
+      expect(await inboxPage.chatList.countCards()).toBeGreaterThan(0);
+    });
+
+    await context?.close();
+  })
 });

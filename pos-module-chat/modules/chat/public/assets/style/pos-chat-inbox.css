@@ -105,6 +105,11 @@
     outline-offset: 2px;
   }
 
+  .pos-chat-search-clear .pos-label {
+    position: absolute;
+    inset-inline-start: -200vw;
+  }
+
 /* search results */
 .pos-chat-search-results {
   position: relative;
