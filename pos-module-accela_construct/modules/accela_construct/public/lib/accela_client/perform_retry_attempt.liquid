@@ -11,7 +11,13 @@
     this file owns the retry loop explicitly, rather than letting
     send.liquid re-trigger its own scheduling on top of this one). On
     success, logs and stops. On failure, logs and either schedules the next
-    attempt (if `retry_number < data.max_retries`) or gives up.
+    attempt (if `retry_number < data.max_retries`) or gives up, publishing an
+    `accela_construct_request_failed` event (see
+    lib/events/accela_construct_request_failed.liquid) so apps can react to a
+    request that will never succeed. That last attempt's
+    accela_request_response row is written by send.liquid in the background,
+    so a consumer may run before it exists - the event carries the attempt's
+    `error` for that reason.
   @param {object} data - Hash with `request_id`, `attempt_number`- the exact shape `schedule_retry.liquid`
     builds and passes as this function's `data` argument via
     `{% background %}`.
@@ -30,6 +36,7 @@
     return null
   endif
 
+  assign reference = { "id": accela_request.reference_id, "table": accela_request.reference_schema }
   function result = 'modules/accela_construct/accela_client/send',
     caller: accela_request.caller,
     method: accela_request.method,
@@ -37,15 +44,14 @@
     payload: accela_request.request_payload,
     attempt_number: data.attempt_number,
     request_id: data.request_id,
-    reference: {
-      "id": accela_request.reference_id,
-      "table": accela_request.reference_schema
-    }
+    reference: reference
 
   if result.success
     log "Accela retry {{ retry_number }}/{{ data.max_retries }} for accela_request {{ data.request_id }} succeeded", type: "accela_retry_succeeded"
   elsif retry_number >= data.max_retries
     log "Accela retry {{ retry_number }}/{{ data.max_retries }} for accela_request {{ data.request_id }} failed, giving up: {{ result.error }}", type: "accela_retry_exhausted"
+    assign event_payload = { "caller": accela_request.caller, "method": accela_request.method, "path": accela_request.path, "reference": reference, "request_id": data.request_id, "attempt_number": data.attempt_number, "error": result.error }
+    function _ = 'modules/core/commands/events/publish', type: 'accela_construct_request_failed', object: event_payload, delay: nil, max_attempts: nil
   else
     assign next_attempt_number = data.attempt_number | plus: 1
     function schedule_result = 'modules/accela_construct/accela_client/schedule_retry', attempt_number: next_attempt_number, last_error: result.error, request_id: data.request_id

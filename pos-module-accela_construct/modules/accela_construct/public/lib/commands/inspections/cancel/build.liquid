@@ -7,6 +7,6 @@
 {% enddoc %}
 
 {% liquid
-  assign object = { "path": "/inspections/{{ ids | url_encode }}/cancel", ids: ids }
+  assign object = { "path": "/inspections/{{ ids | url_encode }}/cancel", "ids": ids }
   return object
 %}

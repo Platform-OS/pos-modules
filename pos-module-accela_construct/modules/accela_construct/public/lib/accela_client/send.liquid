@@ -39,9 +39,10 @@
     the ids of the log rows this attempt itself just wrote synchronously:
     `request_id` (the accela_request row) and `response_id` (this specific
     attempt's accela_request_response row) - both blank only in the rare
-    case the corresponding write itself failed. No event fires on failure -
-    use the `accela_request`/`accela_request_response` rows (or
-    `with_retries`) to react to those instead.
+    case the corresponding write itself failed. No event fires on a single
+    failed attempt - with `with_retries`, perform_retry_attempt.liquid
+    publishes `accela_construct_request_failed` once the last retry fails;
+    otherwise use the `accela_request`/`accela_request_response` rows.
   @param {string} method - "GET" | "POST" | "PUT" | "DELETE" | "MULTIPART" (required)
   @param {string} path - request path relative to ACCELA_CONSTRUCT_BASE_URL, e.g. "/records" or
     "/records/123?expand=parcels" (required). The api_calls/*

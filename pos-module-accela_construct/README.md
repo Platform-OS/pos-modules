@@ -107,9 +107,10 @@ of manually `url_encode`-ing and concatenating each field.
    `queries/accela_request/get`, calls `send` again with it (without
    `with_retries`, so it doesn't re-trigger its own scheduling), and
    either logs success, schedules the next attempt, or logs
-   `accela_retry_exhausted` and gives up. Retries are log-only -
-   there's no table tracking retry state, and nothing observes the
-   eventual outcome except logs (`accela_retry_scheduled`/
+   `accela_retry_exhausted`, publishes an `accela_construct_request_failed`
+   event (see "Events" below) and gives up. There's no table tracking
+   retry state - the eventual outcome is observable through that event,
+   the success event, logs (`accela_retry_scheduled`/
    `accela_retry_succeeded`/`accela_retry_exhausted`) and the
    `accela_request`/`accela_request_response` tables below. A MULTIPART
    request retries like any other when `file_object_id`/`file_object_property`
@@ -860,7 +861,8 @@ modules/accela_construct/
         ├── legacy/
         │   └── to_legacy_record.liquid  (pure data reshape, no Accela call - see below)
         ├── events/
-        │   └── accela_construct_request_succeeded.liquid  (validates the event send.liquid broadcasts - see below)
+        │   ├── accela_construct_request_succeeded.liquid  (validates the event send.liquid broadcasts - see below)
+        │   └── accela_construct_request_failed.liquid  (validates the event perform_retry_attempt.liquid broadcasts when retries run out - see below)
         └── test/                        (pos-module-tests suite; see above)
             ├── accela_client_test.liquid
             ├── queries/*_test.liquid            (9 files)
@@ -980,6 +982,18 @@ To react to it, add your own consumer at
 `lib/consumers/accela_construct_request_succeeded/<your_consumer_name>.liquid`
 (see pos-module-core's docs linked above) - this module doesn't ship one
 itself, since what to do on success is entirely app-specific.
+
+When a `with_retries: true` request still fails on its last retry,
+`lib/accela_client/perform_retry_attempt.liquid` gives up and broadcasts
+`accela_construct_request_failed`, with `caller`, `method`, `path`,
+`reference`, `request_id`, `attempt_number` and `error` (that last
+attempt's error message). No event fires for a failed request made without
+`with_retries`. The last attempt's `accela_request_response` row is written
+in the background, so a consumer may run before it exists - use the event's
+`error` rather than looking that row up. See
+`lib/events/accela_construct_request_failed.liquid` for the validated shape,
+and react to it with a consumer at
+`lib/consumers/accela_construct_request_failed/<your_consumer_name>.liquid`.
 
 ## Legacy response shape (backwards compatibility)
 
