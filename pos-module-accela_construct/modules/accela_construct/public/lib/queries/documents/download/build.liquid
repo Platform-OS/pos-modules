@@ -1,0 +1,10 @@
+{% doc %}
+  Builds the request path for GET /v4/documents/{documentId}/download.
+  @param {object} object - Hash with `document_id` (see documents/download.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = "/documents/{{ object.document_id | url_encode }}/download"
+  return object
+%}

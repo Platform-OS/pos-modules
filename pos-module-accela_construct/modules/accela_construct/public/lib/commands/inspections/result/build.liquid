@@ -1,0 +1,15 @@
+{% doc %}
+  Normalizes input and prepares the request for PUT
+  /v4/inspections/{id}/result: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the inspection id) and the JSON-serialized
+  result body.
+  @param {object} object - Hash with `id` and `inspection_result` (see
+    inspections/result.liquid)
+  @returns {object} object with `path` and `payload` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.id | url_encode }}/result"
+  assign object.payload = object.inspection_result | json
+  return object
+%}

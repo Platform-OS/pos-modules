@@ -1,0 +1,11 @@
+{% doc %}
+  Builds the request path for GET /v4/inspections/{inspectionId}/conditions.
+  @param {object} object - Hash with `inspection_id` (see
+    inspections/conditions/list.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = "/inspections/{{ object.inspection_id | url_encode }}/conditions"
+  return object
+%}

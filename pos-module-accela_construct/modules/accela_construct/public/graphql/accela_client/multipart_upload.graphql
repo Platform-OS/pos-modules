@@ -1,0 +1,16 @@
+mutation accela_client_multipart_upload($url: String!, $headers: HashObject!, $file_url: String, $file_name: String!, $content_type: String!, $file_info: String!) {
+  api_call: api_call_send(
+    api_call: {
+      url: $url
+      method: "POST"
+      headers: $headers
+      form_data: [
+        { name: "uploadedFile", file: { url: $file_url, filename: $file_name, content_type: $content_type } }
+        { name: "fileInfo", value: $file_info, content_type: "application/json" }
+      ]
+    }
+  ) {
+    response { status body }
+    errors { message }
+  }
+}

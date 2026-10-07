@@ -1,0 +1,15 @@
+{% doc %}
+  Normalizes input and prepares the request for PUT
+  /v4/records/{recordId}/conditions/{id}: the request path (relative to
+  ACCELA_CONSTRUCT_BASE_URL, with the record and condition ids) and the
+  JSON-serialized condition body.
+  @param {object} object - Hash with `record_id`, `id`, and `condition` (see
+    records/conditions/update.liquid)
+  @returns {object} object with `path` and `payload` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/conditions/{{ object.id | url_encode }}"
+  assign object.payload = object.condition | json
+  return object
+%}

@@ -1,0 +1,13 @@
+---
+name: accela_token_request
+delay: '0'
+format: http
+request_headers: >
+  {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Accept": "application/json"
+  }
+request_type: POST
+to: "{{ data.auth_url }}"
+---
+{{ data.form_body }}
