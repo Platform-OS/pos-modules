@@ -1,5 +1,5 @@
 ---
-slug: websocket/demo
+slug: demo
 method: get
 layout: application
 ---
@@ -17,7 +17,7 @@ layout: application
     assign via_sse = true
   endif
   assign room_param = room | url_encode
-  assign other_transport_url = '/websocket/demo?room=' | append: room_param
+  assign other_transport_url = '/demo?room=' | append: room_param
   unless via_sse
     assign other_transport_url = other_transport_url | append: '&transport=sse'
   endunless
@@ -27,5 +27,5 @@ layout: application
     room_id: room_id,
     via_sse: via_sse,
     other_transport_url: other_transport_url,
-    sender_name: current_profile.email
+    current_user_id: current_profile.user.id
 %}
