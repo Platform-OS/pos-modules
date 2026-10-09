@@ -28,15 +28,17 @@
   (function() {
     var roomId = {% print room_id | json %};
     var viaSSE = {% print via_sse | json %};
-    var senderName = {% print sender_name | json %};
+    var currentUserId = {% print current_user_id | json %};
     var status = document.getElementById('pos-ws-status');
     var list = document.getElementById('pos-ws-messages');
     var form = document.getElementById('pos-ws-form');
 
     function appendMessage(data) {
       var li = document.createElement('li');
-      if (data.sender_name === senderName) li.className = 'pos-ws-message-you';
-      li.textContent = (data.sender_name || 'Someone') + ': ' + data.text;
+      // user_id is stamped server-side by receive.liquid, so it can't be spoofed.
+      var isYou = String(data.user_id) === String(currentUserId);
+      if (isYou) li.className = 'pos-ws-message-you';
+      li.textContent = (isYou ? 'You' : 'User ' + (data.user_id || '?')) + ': ' + data.text;
       list.appendChild(li);
       list.scrollTop = list.scrollHeight;
     }
@@ -58,7 +60,7 @@
         e.preventDefault();
         var text = input.value.trim();
         if (!text) return;
-        window.pos.modules.active.websocket.send(roomId, { text: text, sender_name: senderName });
+        window.pos.modules.active.websocket.send(roomId, { text: text });
         input.value = '';
       });
     }

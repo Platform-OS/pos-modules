@@ -5,13 +5,15 @@
   e.g. a room going from public back to... it can't currently, but a
   member being removed is plausible in an app-specific override — and a
   client could otherwise call `send` on a room_id it never actually
-  subscribed to) and, unless rejected, lets ActionCable's default behavior
-  broadcast the payload to every current subscriber of `room_id` —
-  returning anything other than the literal string 'false' means "broadcast
-  it" per platformOS's channel convention, so there is no explicit
-  `channel_send_message` call needed for this client-to-room relay path
-  (that mutation is only needed for server-initiated pushes — see
-  commands/messages/broadcast.liquid).
+  subscribed to) and, unless rejected, broadcasts it to every current
+  subscriber of `room_id` via channel_send_message.
+
+  The client's payload is never relayed verbatim: `user_id` is always
+  overwritten with the sender's real id, so subscribers can trust who a
+  message came from. Everything else in the payload is client-supplied —
+  treat it as untrusted input. Echoing 'false' suppresses ActionCable's
+  default rebroadcast of the raw payload, which would let a client claim
+  any identity it likes.
 
   Also publishes `websocket_message_received` via the core Event System so
   consuming apps can react (persist it, moderate it, fan it out elsewhere)
@@ -20,22 +22,25 @@
   System) if you need to reject/transform messages before they broadcast.
 {% enddoc %}
 {% liquid
+  # Always suppress the default raw rebroadcast; authorized messages are
+  # re-sent below with a server-stamped user_id.
+  echo 'false'
+
   assign room_id = context.params.room_id
 
-  if context.current_user == blank
-    echo 'false'
-  else
+  if context.current_user != blank
     function authorized = 'modules/websocket/queries/rooms/authorized', room_id: room_id, user_id: context.current_user.id
 
-    unless authorized
-      echo 'false'
-    else
+    if authorized
+      assign payload = context.params | hash_merge: user_id: context.current_user.id
+      graphql _result = 'modules/websocket/messages/broadcast', room_id: room_id, payload: payload
+
       assign event_payload = {
         "room_id": room_id,
         "user_id": context.current_user.id,
-        "payload": context.params
+        "payload": payload
       }
       function _ = 'modules/core/commands/events/publish', type: 'websocket_message_received', object: event_payload, delay: null, max_attempts: null
-    endunless
+    endif
   endif
 %}

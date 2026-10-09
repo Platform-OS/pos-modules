@@ -1,5 +1,5 @@
 ---
-slug: websocket/rooms
+slug: sockets/rooms
 method: post
 format: json
 layout: ''
@@ -12,6 +12,7 @@ layout: ''
 {% enddoc %}
 {% liquid
   if context.current_user == blank
+    response_status 401
     print '{"ok":false,"error":"unauthorized"}'
     return
   endif
@@ -25,5 +26,9 @@ layout: ''
     room_id: context.params.room_id,
     public: is_public,
     created_by: context.current_user.id
+
+  unless result.valid
+    response_status 422
+  endunless
 %}
-{% if result.valid %}{"ok":true,"room_id":"{{ result.room_id }}","public":{% if result.public %}true{% else %}false{% endif %}}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}
+{% if result.valid %}{"ok":true,"room_id":{{ result.room_id | json }},"public":{% if result.public %}true{% else %}false{% endif %}}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}
