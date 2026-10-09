@@ -1,0 +1,46 @@
+name: mcp_ledger
+# Append-only attestation ledger (spec §6.1). One row per governed request
+# outcome — allowed AND denied. Rows are hash-chained (entry_hash over the
+# canonical payload || prev_entry_hash) so any edit or backdating is detectable
+# by ledger/verify_chain. Immutability is TWO-fold (see docs/security-model.md §4.5):
+# append-only BY CONSTRUCTION (no code path updates/deletes an entry — the ledger/
+# ops are create+read only), and TAMPER-EVIDENT for out-of-band edits (a direct DB /
+# admin-API change is detected by verify_chain, not prevented — this is an audit log,
+# not tamper-proof against the instance owner).
+# NEVER store raw tool arguments here — only input_sha256 + input_bytes, plus
+# manifest-declared non-sensitive audit_fields (audit_json).
+properties:
+  - name: seq
+    type: integer     # monotonic per instance (advisory; chain order is by id)
+  - name: occurred_at
+    # Stored as an ISO-8601 UTC STRING, not a datetime column, on purpose: the
+    # datetime type reformats on read (append writes "…:03Z", the column returns
+    # "…:03.000Z"), which would break the hash chain. A string round-trips byte-
+    # exact, and ISO-8601 UTC ('…Z') sorts lexically = chronologically, so
+    # time-range queries still work.
+  - name: method
+  - name: tool_name
+  - name: tool_version
+  - name: client_id
+  - name: agent_id
+  - name: principal_id
+  - name: delegation_mode   # direct | on_behalf_of
+  - name: input_sha256      # hash of the canonical arguments — never the arguments
+  - name: input_bytes
+    type: integer
+  - name: authz_policy
+  - name: authz_decision    # allow | deny | not_applicable
+  - name: authz_reason
+  - name: execution_outcome # success | error | rolled_back | pending_approval | denied | invalid
+  - name: error_code
+    type: integer
+  - name: duration_ms
+    type: integer
+  - name: subject_type      # record | asset | none
+  - name: subject_id
+  - name: idempotency_key   # §16.3 (foresight; used in Phase 2)
+  - name: request_id        # correlation id for a single JSON-RPC call
+  - name: audit_json
+    type: text              # JSON of declared non-sensitive audit_fields only
+  - name: prev_entry_hash
+  - name: entry_hash

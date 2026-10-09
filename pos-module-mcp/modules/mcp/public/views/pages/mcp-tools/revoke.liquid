@@ -1,0 +1,25 @@
+---
+slug: mcp-tools/revoke
+method: post
+---
+{%- comment -%}
+  POST handler — revoke a token. IDOR-guarded: the token is only revoked if it
+  belongs to the signed-in user (ownership verified before the update), so one
+  member can never revoke another's token by guessing an id.
+{%- endcomment -%}
+{%- liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.tokens.manage', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-tools', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
+  assign uid = current_profile.user.id | append: ''
+  assign id = context.params.id
+  graphql owned = 'modules/mcp/tokens/find_owned', id: id, user_id: uid
+  assign hit = owned.records.results.first
+  if hit
+    graphql _ = 'modules/mcp/tokens/revoke', id: id
+  endif
+  redirect_to '/mcp-tools'
+-%}

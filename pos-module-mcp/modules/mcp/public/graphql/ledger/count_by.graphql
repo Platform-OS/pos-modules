@@ -1,0 +1,13 @@
+query count_by($name: String!, $value: String!) {
+  # Exact count of ledger entries whose STRING property `name` == `value`
+  # (e.g. execution_outcome / authz_decision / tool_name). Server-side total_entries.
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_ledger" }
+      properties: [{ name: $name, value: $value }]
+    }
+  ) {
+    total_entries
+  }
+}

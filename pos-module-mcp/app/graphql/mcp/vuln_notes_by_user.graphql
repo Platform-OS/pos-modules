@@ -1,0 +1,20 @@
+query vuln_notes_by_user($user_id: String!) {
+  # NEGATIVE CONTROL: reads test_note rows for an ARBITRARY user_id with no ownership
+  # check — the caller can read any principal's notes (IDOR). Real tools scope reads to
+  # the calling principal.
+  records(
+    per_page: 50
+    filter: {
+      table: { value: "test_note" }
+      properties: [{ name: "user_id", value: $user_id }]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      label: property(name: "label")
+      user_id: property(name: "user_id")
+      source: property(name: "source")
+    }
+  }
+}

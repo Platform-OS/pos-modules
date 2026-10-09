@@ -1,0 +1,17 @@
+query recent_for_principal($principal_id: String!, $per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: {
+      table: { value: "modules/mcp/mcp_ledger" }
+      properties: [{ name: "principal_id", value: $principal_id }]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      occurred_at: property(name: "occurred_at")
+      authz_decision: property(name: "authz_decision")
+      execution_outcome: property(name: "execution_outcome")
+      error_code: property(name: "error_code")
+    }
+  }
+}

@@ -1,0 +1,14 @@
+name: mcp_eval_case
+# Golden eval cases (spec §19.3) — realistic requests with the tool + arguments a
+# correct agent should select. Stored as records so the set is versioned data,
+# queryable, and extendable without a deploy. The in-platform eval checks each case
+# deterministically (expected tool still exists; the golden arguments still validate
+# against its schema); the external runner additionally drives an LLM to check that
+# the tool DESCRIPTIONS actually lead a model to this selection.
+properties:
+  - name: name           # short case id
+  - name: prompt         # the user request an agent would receive
+  - name: expected_tool  # the tool a correct agent should call
+  - name: expected_args_json
+    type: text           # example arguments a correct call would carry (JSON object)
+  - name: notes

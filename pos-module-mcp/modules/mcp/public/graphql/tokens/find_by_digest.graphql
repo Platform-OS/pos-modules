@@ -1,0 +1,23 @@
+query find_by_digest($token_digest: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_token" }
+      properties: [{ name: "token_digest", value: $token_digest }]
+    }
+  ) {
+    results {
+      id
+      user_id: property(name: "user_id")
+      label: property(name: "label")
+      status: property(name: "status")
+      allowed_tools: property_array(name: "allowed_tools")
+      last_used_at: property(name: "last_used_at")
+      kind: property(name: "kind")
+      client_id: property(name: "client_id")
+      scope: property(name: "scope")
+      resource: property(name: "resource")
+      expires_at: property(name: "expires_at")
+    }
+  }
+}

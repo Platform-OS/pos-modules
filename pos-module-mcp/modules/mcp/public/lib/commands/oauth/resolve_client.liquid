@@ -1,0 +1,106 @@
+{%- comment -%}
+  Resolve an OAuth client_id to its metadata. Two registration models:
+
+  1. Client ID Metadata Document (CIMD; MCP 2026-07-28 preferred). The client_id IS an
+     https URL; we GET it and require a JSON document whose `client_id` equals that
+     URL exactly (proof the URL owner speaks for the client) with non-empty
+     redirect_uris. Only public clients (token_endpoint_auth_method absent or "none").
+  2. Dynamic Client Registration (RFC 7591) — an mcp_oauth_client row created by
+     /oauth/register.
+
+  Fail-closed: anything unexpected → found:false with a caller-safe description.
+
+  @param {string} client_id
+  @return {object} { found, kind: 'cimd'|'dcr', client_id, client_name, client_uri,
+                     redirect_uris, error_description }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign out = {}
+  assign out['found'] = false
+  assign out['client_id'] = client_id
+  if client_id == blank or client_id.size > 2048
+    assign out['error_description'] = 'Missing or invalid client_id'
+    return out
+  endif
+
+  if client_id contains '://'
+    unless cfg.oauth.client_id_metadata_documents
+      assign out['error_description'] = 'Client ID Metadata Documents are not enabled'
+      return out
+    endunless
+    function safe = 'modules/mcp/commands/oauth/public_https_url', url: client_id
+    unless safe
+      assign out['error_description'] = 'client_id URL is not an acceptable https URL'
+      return out
+    endunless
+
+    assign status = 0
+    assign body = ''
+    try
+      graphql res = 'modules/mcp/oauth/fetch_client_metadata', url: client_id
+      assign status = res.api_call.response.status | plus: 0
+      assign body = res.api_call.response.body | default: ''
+    catch err
+      log err.message, type: 'mcp.oauth.cimd_fetch_failed'
+      assign out['error_description'] = 'Could not fetch the client metadata document'
+      return out
+    endtry
+    if status != 200 or body.size > 10240
+      assign out['error_description'] = 'Could not fetch the client metadata document'
+      return out
+    endif
+
+    assign doc = null
+    try
+      assign doc = body | parse_json
+    catch err
+      assign doc = null
+    endtry
+    # parse_json of a non-object (array / scalar) has no client_id → rejected below.
+    # platformos-check-disable UnknownProperty
+    if doc == blank or doc.client_id != client_id
+      assign out['error_description'] = 'Client metadata document is invalid (client_id mismatch)'
+      return out
+    endif
+    assign auth_method = doc.token_endpoint_auth_method | default: 'none'
+    if auth_method != 'none'
+      assign out['error_description'] = 'Only public clients (token_endpoint_auth_method "none") are supported'
+      return out
+    endif
+    assign uris = doc.redirect_uris
+    assign client_name = doc.client_name
+    assign client_uri = doc.client_uri
+    # platformos-check-enable UnknownProperty
+    assign uris_type = uris | type_of | downcase
+    if uris_type != 'array' or uris.size == 0
+      assign out['error_description'] = 'Client metadata document has no redirect_uris'
+      return out
+    endif
+
+    function host = 'modules/mcp/commands/oauth/parse_url', url: client_id
+    assign out['kind'] = 'cimd'
+    assign out['client_name'] = client_name | default: host.host | append: '' | strip | truncate: 60, ''
+    assign out['client_uri'] = client_uri | default: ''
+    assign out['redirect_uris'] = uris
+    assign out['found'] = true
+    return out
+  endif
+
+  unless cfg.oauth.dynamic_client_registration
+    assign out['error_description'] = 'Unknown client'
+    return out
+  endunless
+  graphql cres = 'modules/mcp/oauth/client_find', client_id: client_id
+  assign c = cres.records.results.first
+  if c == blank or c.status != 'active'
+    assign out['error_description'] = 'Unknown client'
+    return out
+  endif
+  assign out['kind'] = 'dcr'
+  assign out['client_name'] = c.client_name | default: 'MCP client'
+  assign out['client_uri'] = c.client_uri | default: ''
+  assign out['redirect_uris'] = c.redirect_uris
+  assign out['found'] = true
+  return out
+%}

@@ -1,0 +1,25 @@
+{%- comment -%}
+  NEGATIVE CONTROL handler — vuln_xss. Writes the label verbatim (no sanitization) into a
+  test_note row via the typed mutation. The vulnerability is the MISSING schema pattern
+  (manifest), so `<script>…` reaches storage and later the operator console unescaped.
+{%- endcomment -%}
+{% liquid
+  assign uid = principal.user_id | append: ''
+  graphql g = 'mcp/test_note_create', user_id: uid, label: arguments.label, source: 'vuln_xss'
+  assign nid = g.record_create.id
+
+  assign result = {}
+  assign result['id'] = nid
+  assign result['label'] = arguments.label
+  assign result['stored_raw'] = true
+
+  assign subject = {}
+  assign subject['type'] = 'record'
+  assign subject['id'] = nid
+
+  assign out = {}
+  assign out['ok'] = true
+  assign out['result'] = result
+  assign out['subject'] = subject
+  return out
+%}

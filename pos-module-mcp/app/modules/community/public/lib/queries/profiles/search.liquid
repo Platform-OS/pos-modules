@@ -1,0 +1,38 @@
+{% comment %}
+  Override of modules/community/queries/profiles/search for the MCP test harness.
+
+  The community module expects profile records with a nested `properties` hash, which
+  the full community app gets from its own app/modules/user overrides. This harness
+  runs the stock user module, whose profiles/search returns the fields at the top
+  level — so the original crashed on `profile['properties']['slug']` (e.g. on
+  /dashboard, where sign-in lands). This version accepts both shapes.
+{% endcomment %}
+{% liquid
+  if not_ids == blank
+    assign not_ids = null
+  endif
+
+  graphql r = 'modules/user/profiles/search', limit: limit, uuid: uuid, id: id, ids: ids, user_id: user_id, not_ids: not_ids, roles: roles, query: query, sort: sort, page: page, with_avatar: with_avatar, with_user: with_user, with_profile_cover: with_profile_cover
+
+  assign records = r.records
+  assign profiles = []
+  for profile in records.results
+    function slug = 'modules/user/helpers/profiles/slugs/build', profile: profile, current_profile: null
+    if profile.properties
+      assign profile['properties']['slug'] = slug
+      assign p = profile | hash_merge: profile.properties
+    else
+      assign p = profile
+      assign p['slug'] = slug
+    endif
+    assign profiles << p
+  endfor
+  assign records['results'] = profiles
+
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/community/helpers/handle_graphql_response', r: r, name: 'queries/profiles/search'
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
+  return r.records
+%}

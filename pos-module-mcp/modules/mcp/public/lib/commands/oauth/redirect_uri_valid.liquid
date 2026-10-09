@@ -1,0 +1,29 @@
+{%- comment -%}
+  Is `uri` an acceptable redirect URI to REGISTER (OAuth 2.1 §2.3.1, RFC 8252 §7)?
+    - https://… (any host), or
+    - http:// on a loopback host (127.0.0.1, [::1], localhost) — native/CLI clients, or
+    - a private-use scheme for native apps (e.g. vscode://, cursor://) — never the
+      script-capable/local schemes javascript:, data:, vbscript:, file:, blob:.
+  No fragment, no userinfo.
+
+  @param {string} uri
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  function u = 'modules/mcp/commands/oauth/parse_url', url: uri
+  unless u.valid
+    return false
+  endunless
+  if u.has_fragment or u.has_userinfo
+    return false
+  endif
+  case u.scheme
+    when 'https'
+      return true
+    when 'http'
+      return u.is_loopback
+    when 'javascript', 'data', 'vbscript', 'file', 'blob', 'about', 'ws', 'wss', 'ftp'
+      return false
+  endcase
+  return true
+%}

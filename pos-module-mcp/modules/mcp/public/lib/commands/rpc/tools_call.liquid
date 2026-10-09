@@ -1,0 +1,435 @@
+{%- comment -%}
+  tools/call pipeline (spec §9.2). This is the permanent home of the call path;
+  Phase 1 wires steps 3 (authenticate) and 9 (attest). Registry/validation/
+  authorization/execute (steps 4–8) arrive in tasks 1.4/1.5/1.6/1.8; until a tool
+  is registered, an authenticated call resolves to "unknown tool" (-32602) — the
+  surface never executes an unvalidated action.
+
+  Ledger policy (refinement of §9.3, see decision-1): a cryptographically
+  AUTHENTICATED request writes a chained ledger entry for every outcome (including
+  future authz denials — accountable identities). A PRE-AUTH failure (missing /
+  invalid / expired token — no accountable identity) is sent to the platform log
+  only, NOT the hash chain, so anonymous probes cannot spam or grow the tamper-
+  evident chain (a DoS / integrity-noise vector). Rate-limiting (task-1.6) will
+  additionally bound anonymous traffic ahead of this point.
+
+  @param {object} params  - context.params (JSON-RPC envelope)
+  @param {object} headers - context.headers
+  @param {*}      id       - JSON-RPC request id
+  @return {object} { http_status, headers?, body }
+{%- endcomment -%}
+{% liquid
+  assign out = {}
+  # Pipeline latency clock (unix ms). Stamped onto ledger entries as `_start_ms`;
+  # ledger/append records duration_ms from it.
+  assign start_ms = 'now' | to_time | strftime: '%s%3N' | plus: 0
+  function auth = 'modules/mcp/commands/identity/resolve_principal', headers: headers
+
+  unless auth.authenticated
+    log auth.reason, type: 'mcp.auth_denied'
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: auth.error_code, message: auth.message
+    assign out['http_status'] = auth.http_status
+    unless auth.www_authenticate == blank
+      assign hdrs = {}
+      assign hdrs['WWW-Authenticate'] = auth.www_authenticate
+      assign out['headers'] = hdrs
+    endunless
+    assign out['body'] = body
+    return out
+  endunless
+
+  # Step 1b — auto-suspend on abuse (a real control, not a message). If this
+  # principal has crossed the violation threshold in the window, its token is
+  # suspended (revoked) and this call is rejected; subsequent calls fail auth.
+  function abuse = 'modules/mcp/commands/limits/enforce_abuse', token_id: auth.token_id, principal_id: auth.principal.id, agent_id: auth.agent.id
+  if abuse.suspended
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32001, message: 'Access suspended'
+    assign out['http_status'] = 403
+    assign out['body'] = body
+    return out
+  endif
+
+  # Step 2 (post-auth) — per-principal rate limit (spec §12.4). Bounds blast
+  # radius per identity. Rejected calls are ledgered (accountable identity) and
+  # carry Retry-After.
+  function cfg = 'modules/mcp/commands/config'
+  assign rl_scope = 'principal:' | append: auth.principal.id
+  function rl = 'modules/mcp/commands/limits/check', scope: rl_scope, limit: cfg.defaults.rate_limit_per_min
+  unless rl.allowed
+    assign rle = {}
+    assign rle['method'] = 'tools/call'
+    assign rle['tool_name'] = params.params.name
+    assign rle['client_id'] = auth.agent.client_id
+    assign rle['agent_id'] = auth.agent.id
+    assign rle['principal_id'] = auth.principal.id
+    assign rle['delegation_mode'] = auth.delegation_mode
+    assign rle['authz_decision'] = 'not_applicable'
+    assign rle['execution_outcome'] = 'error'
+    assign rle['error_code'] = -32002
+    assign rle['request_id'] = '' | uuid
+    assign rle['_start_ms'] = start_ms
+    function _ = 'modules/mcp/commands/ledger/append', entry: rle
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    assign hdrs = {}
+    assign hdrs['Retry-After'] = rl.retry_after | append: ''
+    assign out['headers'] = hdrs
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32002, message: 'Rate limit exceeded'
+    assign out['http_status'] = 429
+    assign out['body'] = body
+    return out
+  endunless
+
+  # Authenticated. Hash the arguments — NEVER store them raw (spec §6.1).
+  assign tool_name = params.params.name
+  assign args = params.params.arguments
+  assign args_json = 'null'
+  unless args == blank
+    assign args_json = args | json
+  endunless
+  assign input_sha256 = args_json | digest: 'sha256'
+  assign input_bytes = args_json | size
+  assign request_id = '' | uuid
+
+  # Base ledger entry for this authenticated call (fields filled per outcome).
+  assign le = {}
+  assign le['method'] = 'tools/call'
+  assign le['tool_name'] = tool_name
+  assign le['client_id'] = auth.agent.client_id
+  assign le['agent_id'] = auth.agent.id
+  assign le['principal_id'] = auth.principal.id
+  assign le['delegation_mode'] = auth.delegation_mode
+  assign le['input_sha256'] = input_sha256
+  assign le['input_bytes'] = input_bytes
+  assign le['request_id'] = request_id
+  assign le['_start_ms'] = start_ms
+
+  # Step 4 — resolve the tool from the registry (explicit registration + valid
+  # manifest + per-token allowed_tools narrowing). Unregistered → unknown tool.
+  function tool = 'modules/mcp/commands/registry/resolve_tool', name: tool_name, allowed_tools: auth.agent.allowed_tools
+  if tool == blank
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Unknown tool'
+    assign out['http_status'] = 400
+    assign out['body'] = body
+    return out
+  endif
+
+  assign le['tool_version'] = tool.version
+  assign le['authz_policy'] = tool.authorization_policy
+
+  # Step 4b — OAuth scope (decision-4). A mutating tool needs mcp:write; anything
+  # else mcp:read. Scope only NARROWS what the named policy allows (step 6 still
+  # runs). Manual tokens carry every scope. Insufficient scope is a 403 with an
+  # RFC 6750 insufficient_scope challenge so the client can step up (re-authorize
+  # with the wider scope) instead of failing opaquely.
+  assign required_scope = 'mcp:read'
+  if tool.mutating
+    assign required_scope = 'mcp:write'
+  endif
+  unless auth.scopes contains required_scope
+    assign le['authz_decision'] = 'deny'
+    assign le['authz_reason'] = 'insufficient_scope'
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    function origin = 'modules/mcp/queries/origin'
+    assign wa = 'Bearer resource_metadata="' | append: origin | append: '/.well-known/oauth-protected-resource", realm="mcp", error="insufficient_scope", scope="' | append: cfg.oauth.default_scope | append: '"'
+    assign hdrs = {}
+    assign hdrs['WWW-Authenticate'] = wa
+    assign out['headers'] = hdrs
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32001, message: 'Insufficient scope'
+    assign out['http_status'] = 403
+    assign out['body'] = body
+    return out
+  endunless
+
+  # Step 5 — validate arguments against the tool's input_schema (STRICT, §10).
+  # Normalize through a JSON round-trip first: request params arrive as
+  # ActiveSupport::HashWithIndifferentAccess (not a plain Hash), and this also
+  # coerces every nested value to a canonical JSON type so strict type checks are
+  # uniform. Absent arguments validate as an empty object so required checks fire.
+  assign val_args = {}
+  unless args == blank
+    assign val_args = args_json | parse_json
+  endunless
+  function val = 'modules/mcp/commands/validate/json_schema', value: val_args, schema: tool.input_schema, depth: 1, max_depth: cfg.defaults.max_schema_depth, path: 'arguments'
+  unless val.valid
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    # Validation errors are argument-shape facts (which key, which constraint) —
+    # safe to return so the agent can self-correct; they carry no server internals.
+    assign edata = {}
+    assign edata['validation_errors'] = val.errors
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    # `error` declares and emits an optional `data` param (see rpc/error.liquid); the
+    # linter's arg check doesn't detect it. Valid call.
+    # platformos-check-disable PartialCallArguments
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Invalid arguments', data: edata
+    # platformos-check-enable PartialCallArguments
+    assign out['http_status'] = 400
+    assign out['body'] = body
+    return out
+  endunless
+
+  # Step 6 — authorize against the tool's named policy (evaluated for the
+  # principal; fail-closed, no implicit allow, §12.2).
+  function authz = 'modules/mcp/commands/authorize/evaluate', policy: tool.authorization_policy, principal: auth.principal, agent: auth.agent, arguments: val_args, tool: tool, delegation_mode: auth.delegation_mode
+  assign le['authz_reason'] = authz.reason
+  unless authz.allow
+    assign le['authz_decision'] = 'deny'
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    # Stable, generic wire message — the specific reason is in the ledger, not the
+    # response (§13.2). Denials never leak policy internals.
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32001, message: 'Forbidden'
+    assign out['http_status'] = 403
+    assign out['body'] = body
+    return out
+  endunless
+  assign le['authz_decision'] = 'allow'
+
+  # Step 7a — approval gate (§9.6). A `requires_approval` tool NEVER executes inline.
+  # Record the intent, return an opaque handle, and attest a pending_approval
+  # outcome. An operator later approves in the console; execution happens then, as
+  # THIS principal. Idempotency does not apply (there is no result yet — the handle
+  # is the dedup).
+  if tool.requires_approval
+    # Step 7a-guard — approval-queue flood control (§9.6, §12.4). Before recording a
+    # new pending intent, bound how many NON-EXPIRED proposals this principal already
+    # holds and reject exact duplicates (same tool AND same input_sha256 — full
+    # validated-args hash). Rejection is a tool-level business error (isError, HTTP 200 — not a
+    # protocol error), feeds the abuse counter (repeat flooding trips auto-suspend),
+    # and is ledgered under the accountable identity for audit. Generic: any
+    # requires_approval tool inherits this — no per-tool coupling.
+    assign ap_cap = cfg.defaults.approval_max_pending_per_principal | plus: 0
+    if ap_cap > 0
+      assign ap_now = 'now' | to_time | strftime: '%s' | plus: 0
+      graphql pend = 'modules/mcp/approvals/pending_by_principal', principal_id: auth.principal.id, per_page: 100
+      assign live_pending = 0
+      assign is_dup = false
+      for pa_row in pend.records.results
+        assign exp = pa_row.expires_at | plus: 0
+        if exp > ap_now
+          assign live_pending = live_pending | plus: 1
+          if pa_row.tool_name == tool_name and pa_row.input_sha256 == input_sha256
+            assign is_dup = true
+          endif
+        endif
+      endfor
+
+      assign over_cap = false
+      if live_pending >= ap_cap
+        assign over_cap = true
+      endif
+
+      if is_dup or over_cap
+        function _v = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+        if is_dup
+          assign le['execution_outcome'] = 'approval_duplicate'
+          assign reject_msg = 'An identical proposal is already awaiting operator approval. It was NOT re-queued. Poll mcp_approval_status for the existing handle instead of resubmitting.'
+          assign reject_status = 'duplicate'
+        else
+          assign le['execution_outcome'] = 'approval_throttled'
+          assign reject_msg = 'Too many proposals from this identity are already awaiting operator approval. This action was NOT queued. Wait for pending proposals to be decided before submitting more.'
+          assign reject_status = 'queue_full'
+        endif
+        function _ = 'modules/mcp/commands/ledger/append', entry: le
+
+        assign content = []
+        assign item = {}
+        assign item['type'] = 'text'
+        assign item['text'] = reject_msg
+        assign content = content | array_add: item
+        assign result = {}
+        assign result['content'] = content
+        assign result['isError'] = true
+        assign sc = {}
+        assign sc['status'] = reject_status
+        assign sc['pending_count'] = live_pending
+        assign result['structuredContent'] = sc
+        function body = 'modules/mcp/commands/rpc/success', id: id, result: result
+        assign out['http_status'] = 200
+        assign out['body'] = body
+        return out
+      endif
+    endif
+
+    assign store_args = val_args | json
+    function pa = 'modules/mcp/commands/approval/create', tool: tool, arguments_json: store_args, input_sha256: input_sha256, principal: auth.principal, agent: auth.agent, request_id: request_id
+    assign le['execution_outcome'] = 'pending_approval'
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+
+    assign content = []
+    assign item = {}
+    assign item['type'] = 'text'
+    assign item['text'] = 'This action requires operator approval and has NOT run. Poll mcp_approval_status with the handle to check its status.'
+    assign content = content | array_add: item
+    assign result = {}
+    assign result['content'] = content
+    assign result['isError'] = false
+    assign sc = {}
+    assign sc['status'] = 'pending_approval'
+    assign sc['handle'] = pa.handle
+    # 2026-07-28 Tasks alias: the handle IS the taskId — a Tasks-aware client can poll
+    # tasks/get / withdraw via tasks/update. Additive; 2025 clients ignore the extra key.
+    assign sc['taskId'] = pa.handle
+    assign sc['expires_at'] = pa.expires_at
+    assign result['structuredContent'] = sc
+    function body = 'modules/mcp/commands/rpc/success', id: id, result: result
+    assign out['http_status'] = 200
+    assign out['body'] = body
+    return out
+  endif
+
+  # Step 7 — idempotency (§16.3). For an idempotent tool with a client-supplied key
+  # (MCP `params._meta.idempotencyKey`): replay a prior result for (key, principal,
+  # tool) instead of re-executing — agents retry far more than humans, and a retried
+  # mutating call must not duplicate the write. Runs AFTER authorization so a cached
+  # result is never served to an unauthorized caller.
+  assign mcp_params = params.params
+  assign idem_meta = mcp_params['_meta']
+  assign idem_key = idem_meta.idempotencyKey | default: mcp_params.idempotencyKey
+  assign le['idempotency_key'] = idem_key
+  assign idem_store = false
+  if tool.idempotent and idem_key != blank
+    function hit = 'modules/mcp/commands/idempotency/lookup', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name
+    if hit.found
+      # Same arguments → replay without re-executing; different arguments → 409.
+      function out = 'modules/mcp/commands/idempotency/replay', hit: hit, input_sha256: input_sha256, entry: le, id: id
+      return out
+    endif
+    assign idem_store = true
+  endif
+
+  # Step 8 — execute the tool handler (§7.3). context_meta gives the handler its
+  # call identity without exposing engine internals.
+  assign context_meta = {}
+  assign context_meta['tool_name'] = tool_name
+  assign context_meta['tool_version'] = tool.version
+  assign context_meta['request_id'] = request_id
+
+  if tool.mutating
+    # Step 8+9, MUTATING (§11.1, §4.3): handler + attestation share ONE transaction.
+    # On success both commit together — an action cannot exist without its
+    # attestation, and vice versa. On handler failure OR a failed ledger append we
+    # roll back the whole thing (no partial state), then record the rolled_back
+    # outcome OUTSIDE the transaction so the failure is still audited (§9.3).
+    # Liquid variables assigned in the block survive rollback, so `exec` is
+    # available afterwards — but after a rollback the response is built from
+    # `committed`, never from exec alone (see below).
+    assign committed = false
+    assign raced = null
+    transaction
+      # Concurrent retries (§16.3): the lookup above is not atomic with execution, so
+      # two in-flight calls with the same key can both miss it. Take the ledger mutex
+      # (held until this transaction ends) and look again — a retry that lost the race
+      # blocks here, then finds the winner's committed replay record and does not run.
+      # Cost: keyed mutating calls hold the mutex for the handler's duration, not
+      # just the ledger append.
+      if idem_store
+        function _locked = 'modules/mcp/commands/ledger/mutex'
+        function hit2 = 'modules/mcp/commands/idempotency/lookup', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name
+        if hit2.found
+          assign raced = hit2
+        endif
+      endif
+      # `rollback` is a valid platformOS transaction tag; the linter's HTML/Liquid
+      # parser mis-flags it inside this block. Correct at runtime.
+      # platformos-check-disable LiquidHTMLSyntaxError
+      if raced != blank
+        rollback
+      else
+        function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: auth.principal, agent: auth.agent, context_meta: context_meta
+        if exec.outcome == 'success'
+          assign le['execution_outcome'] = 'success'
+          unless exec.subject_type == blank
+            assign le['subject_type'] = exec.subject_type
+            assign le['subject_id'] = exec.subject_id
+          endunless
+          assign append_ok = false
+          try
+            # Idempotency record commits INSIDE this transaction (§16.3) — the
+            # mutation and its replay record are atomic: a mutation can never commit
+            # without its replay record, and a rolled-back call leaves none.
+            if idem_store
+              function sres = 'modules/mcp/commands/execute/result_of', exec: exec
+              assign rj = sres | json
+              function _ = 'modules/mcp/commands/idempotency/store', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name, input_sha256: input_sha256, response_json: rj, window: cfg.defaults.idempotency_window_seconds
+            endif
+            function _ = 'modules/mcp/commands/ledger/append', entry: le
+            assign append_ok = true
+          catch e
+            log e.message, type: 'mcp.ledger_append_failed_in_tx'
+          endtry
+          if append_ok
+            assign committed = true
+          else
+            rollback
+          endif
+        else
+        rollback
+        endif
+      endif
+    endtransaction
+    # platformos-check-enable LiquidHTMLSyntaxError
+
+    unless raced == blank
+      function out = 'modules/mcp/commands/idempotency/replay', hit: raced, input_sha256: input_sha256, entry: le, id: id
+      return out
+    endunless
+
+    unless committed
+      assign le['execution_outcome'] = 'rolled_back'
+      assign le['error_code'] = -32003
+      function _ = 'modules/mcp/commands/ledger/append', entry: le
+      # Nothing was persisted, so the agent MUST be told the call failed — even when
+      # the handler itself succeeded and only the attestation / replay record failed
+      # (exec still says success; answering from it would report a rolled-back action
+      # as done). A handler business error keeps its own message.
+      if exec.outcome == 'success'
+        assign rb_content = []
+        assign rb_item = {}
+        assign rb_item['type'] = 'text'
+        assign rb_item['text'] = 'The action failed and was rolled back; no changes were saved.'
+        assign rb_content = rb_content | array_add: rb_item
+        assign rb_result = {}
+        assign rb_result['content'] = rb_content
+        assign rb_result['isError'] = true
+        function body = 'modules/mcp/commands/rpc/success', id: id, result: rb_result
+        assign out['http_status'] = 200
+        assign out['body'] = body
+        return out
+      endif
+    endunless
+  else
+    # Step 8+9, READ: execute, then attest the outcome. No transaction.
+    function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: auth.principal, agent: auth.agent, context_meta: context_meta
+    assign le['execution_outcome'] = exec.outcome
+    unless exec.subject_type == blank
+      assign le['subject_type'] = exec.subject_type
+      assign le['subject_id'] = exec.subject_id
+    endunless
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    if idem_store and exec.outcome == 'success'
+      function sres = 'modules/mcp/commands/execute/result_of', exec: exec
+      assign rj = sres | json
+      function _ = 'modules/mcp/commands/idempotency/store', key: idem_key, principal_id: auth.principal.id, tool_name: tool_name, input_sha256: input_sha256, response_json: rj, window: cfg.defaults.idempotency_window_seconds
+    endif
+  endif
+
+  # Step 10 — respond. Handler business errors are MCP tool errors (isError), not
+  # protocol errors, so a successful protocol call carries HTTP 200 either way.
+  function result = 'modules/mcp/commands/execute/result_of', exec: exec
+  function body = 'modules/mcp/commands/rpc/success', id: id, result: result
+  assign out['http_status'] = 200
+  assign out['body'] = body
+  return out
+%}

@@ -1,0 +1,22 @@
+{%- comment -%}
+  Authorization policy: test_principal_member (Layer-2, app-owned; TEST fixture).
+  Permits a tool only when the calling PRINCIPAL (the bearer's user, not the browser
+  session) holds mcp.tokens.manage — i.e. an approved member (role mcp_user or
+  mcp_operator). Unlike the shipped `members_can_write` (which allows any authenticated
+  caller), this distinguishes an approved member from a bare token holder, so the
+  coverage suite can prove per-principal tool visibility and authz-deny.
+  Fail-closed: no profile or no permission → deny.
+  Contract: return { allow, reason }. Receives principal, agent, arguments, tool,
+  delegation_mode.
+{%- endcomment -%}
+{% liquid
+  function allow = 'modules/mcp/queries/principal/can', principal: principal, do: 'mcp.tokens.manage'
+  assign r = {}
+  assign r['allow'] = allow
+  if allow
+    assign r['reason'] = 'member'
+  else
+    assign r['reason'] = 'not_member'
+  endif
+  return r
+%}

@@ -1,0 +1,82 @@
+{%- comment -%}
+  MCP `prompts/get` (spec §13.1). Resolves a prompt by name, checks required
+  arguments are present, invokes the prompt's template partial with the arguments,
+  and returns the rendered messages.
+
+  The template partial receives `arguments` (a hash of arg name → string) and returns
+  EITHER a plain string (wrapped as a single `user` text message) OR a ready messages
+  array. The template is authored code (reviewed); arguments are the agent's own, and
+  the server never acts on the rendered prompt — so there is no server-side injection
+  surface here.
+
+  @param {object} params - MCP params { name, arguments? }
+  @return {object} result { description, messages:[...] } OR { _error:{code,message} }
+{%- endcomment -%}
+{% liquid
+  assign name = params.name
+  assign args = params.arguments
+  if args == blank
+    assign args = {}
+  endif
+
+  function reg = 'modules/mcp/commands/registry/build_prompts'
+  assign prompt = null
+  for p in reg.prompts
+    if p.name == name
+      assign prompt = p
+      break
+    endif
+  endfor
+
+  if prompt == blank
+    assign err = {}
+    assign err['code'] = -32602
+    assign err['message'] = 'Unknown prompt'
+    assign out = {}
+    assign out['_error'] = err
+    return out
+  endif
+
+  # Required-argument presence check (safe to report — argument names are public).
+  assign missing = []
+  unless prompt.arguments == blank
+    for a in prompt.arguments
+      if a.required == true
+        assign v = args[a.name]
+        if v == blank
+          assign missing = missing | array_add: a.name
+        endif
+      endif
+    endfor
+  endunless
+  if missing.size > 0
+    assign mj = missing | join: ', '
+    assign err = {}
+    assign err['code'] = -32602
+    assign err['message'] = 'Missing required arguments: ' | append: mj
+    assign out = {}
+    assign out['_error'] = err
+    return out
+  endif
+
+  # Render the template. String → one user message; array → used as-is.
+  function rendered = prompt.template, arguments: args
+  assign messages = []
+  assign rtype = rendered | type_of | downcase
+  if rtype == 'array'
+    assign messages = rendered
+  else
+    assign msg = {}
+    assign msg['role'] = 'user'
+    assign content = {}
+    assign content['type'] = 'text'
+    assign content['text'] = rendered | append: ''
+    assign msg['content'] = content
+    assign messages = messages | array_add: msg
+  endif
+
+  assign result = {}
+  assign result['description'] = prompt.description
+  assign result['messages'] = messages
+  return result
+%}

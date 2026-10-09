@@ -1,0 +1,13 @@
+query count_by_int($name: String!, $value_int: Int!) {
+  # Exact count of ledger entries whose INTEGER property `name` == `value_int`
+  # (e.g. error_code -32602 / -32002). Server-side total_entries.
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_ledger" }
+      properties: [{ name: $name, value_int: $value_int }]
+    }
+  ) {
+    total_entries
+  }
+}

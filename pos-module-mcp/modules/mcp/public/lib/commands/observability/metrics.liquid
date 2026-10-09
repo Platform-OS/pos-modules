@@ -1,0 +1,155 @@
+{%- comment -%}
+  Observability baseline (spec §20) — aggregate metrics computed from the ledger,
+  the single source of truth for what agents did.
+
+  Counts are EXACT and ALL-TIME via server-side `total_entries` (a fixed set of
+  filtered COUNTs — one per known bucket value), NOT a paged row scan. This is
+  O(1)-ish per count and FLAT as the ledger grows; the previous scan was O(N) and
+  capped at 10k rows (measured: ~10s at 10k, exceeding the request budget — see
+  tests/perf/ledger-metrics-bench.mjs, which is why counts win). Latency percentiles
+  are the one metric a COUNT cannot produce (they need the values), so they come
+  from a bounded RECENT sample and are labeled as such.
+
+  @param {integer} chain_tail     - 0 (default) = full verify_chain; >0 = bounded recent verify
+  @param {integer} latency_sample - recent rows sampled for p50/p95 (default 500)
+  @return {object} { total, by_outcome, by_tool, by_decision, denials, denial_rate,
+                     blocked, blocked_rate, suspends, rollbacks, rollback_rate,
+                     pending_approvals, schema_rejections, rate_limited, chain, latency }
+{%- endcomment -%}
+{% liquid
+  # ── EXACT ALL-TIME COUNTS (server-side total_entries). A FIXED set of filtered
+  #    counts keyed by the known vocabularies — not an N+1 over data rows. ──
+  # platformos-check-disable NestedGraphQLQuery
+  graphql ct = 'modules/mcp/ledger/count_all'
+  assign total = ct.records.total_entries | plus: 0
+
+  # by_outcome — the execution_outcome vocabulary emitted by the call pipeline (§9.2).
+  assign outcome_names = 'success,error,rolled_back,pending_approval,denied,invalid,replayed,suspended,approval_duplicate,approval_throttled' | split: ','
+  assign by_outcome = {}
+  for o in outcome_names
+    graphql co = 'modules/mcp/ledger/count_by', name: 'execution_outcome', value: o
+    assign n = co.records.total_entries | plus: 0
+    if n > 0
+      assign by_outcome[o] = n
+    endif
+  endfor
+
+  # by_decision — allow | deny | not_applicable.
+  assign decision_names = 'allow,deny,not_applicable' | split: ','
+  assign by_decision = {}
+  for d in decision_names
+    graphql cd = 'modules/mcp/ledger/count_by', name: 'authz_decision', value: d
+    assign n = cd.records.total_entries | plus: 0
+    if n > 0
+      assign by_decision[d] = n
+    endif
+  endfor
+
+  # error-code buckets (stored as an integer property).
+  graphql csr = 'modules/mcp/ledger/count_by_int', name: 'error_code', value_int: -32602
+  assign schema_rejections = csr.records.total_entries | plus: 0
+  graphql crl = 'modules/mcp/ledger/count_by_int', name: 'error_code', value_int: -32002
+  assign rate_limited = crl.records.total_entries | plus: 0
+
+  # by_tool — exact count per REGISTERED tool (+ the built-in poll tool), enumerated
+  # from the (cached) registry. Historical calls to tools no longer registered are not
+  # attributed — the registered set is what an operator manages.
+  assign by_tool = {}
+  function reg = 'modules/mcp/commands/registry/load'
+  assign tool_names = '' | split: ','
+  for t in reg.tools
+    assign tool_names = tool_names | array_add: t.name
+  endfor
+  assign tool_names = tool_names | array_add: 'mcp_approval_status'
+  for tn in tool_names
+    graphql ctool = 'modules/mcp/ledger/count_by', name: 'tool_name', value: tn
+    assign cnt = ctool.records.total_entries | plus: 0
+    if cnt > 0
+      assign by_tool[tn] = cnt
+    endif
+  endfor
+  # platformos-check-enable NestedGraphQLQuery
+
+  # ── Derived scalars (from the exact counts above). ──
+  # by_outcome / by_decision are dynamically-keyed hashes; the linter can't see the keys.
+  # platformos-check-disable UnknownProperty
+  assign denials = by_decision['deny'] | default: 0
+  assign rollbacks = by_outcome['rolled_back'] | default: 0
+  assign suspends = by_outcome['suspended'] | default: 0
+  assign pending_approvals = by_outcome['pending_approval'] | default: 0
+  # platformos-check-enable UnknownProperty
+  # "Blocked" = everything the governance layer stopped: policy denials + schema/arg
+  # rejections + rate-limits. A suspend entry already carries authz_decision:deny, so it
+  # is counted in `denials` — not added again here (no double-count).
+  assign blocked = denials | plus: schema_rejections | plus: rate_limited
+
+  assign denial_rate = 0
+  assign rollback_rate = 0
+  assign blocked_rate = 0
+  if total > 0
+    assign denial_rate = denials | times: 1.0 | divided_by: total
+    assign rollback_rate = rollbacks | times: 1.0 | divided_by: total
+    assign blocked_rate = blocked | times: 1.0 | divided_by: total
+  endif
+
+  # ── LATENCY — the one metric COUNTs cannot produce (percentiles need the values).
+  #    Bounded RECENT sample → p50/p95 over the most recent calls, labeled `window`. ──
+  assign lat_sample = latency_sample | default: 500 | plus: 0
+  graphql dres = 'modules/mcp/ledger/recent_durations', per_page: lat_sample
+  assign durations = []
+  for r in dres.records.results
+    unless r.duration_ms == blank
+      assign dm = r.duration_ms | plus: 0
+      assign durations = durations | array_add: dm
+    endunless
+  endfor
+
+  assign latency = {}
+  assign dcount = durations | size
+  if dcount > 0
+    assign sorted = durations | sort
+    assign i50 = dcount | times: 50 | divided_by: 100
+    assign i95 = dcount | times: 95 | divided_by: 100
+    if i50 >= dcount
+      assign i50 = dcount | minus: 1
+    endif
+    if i95 >= dcount
+      assign i95 = dcount | minus: 1
+    endif
+    assign latency['p50_ms'] = sorted[i50]
+    assign latency['p95_ms'] = sorted[i95]
+    assign latency['samples'] = dcount
+    assign latency['window'] = lat_sample
+    assign latency['recent'] = true
+  else
+    assign latency['available'] = false
+  endif
+
+  # ── Chain verification. Default (chain_tail unset/0) = full walk; chain_tail:N = the
+  #    bounded recent-window check (the console uses it for a cheap per-load status). ──
+  assign chain_tail = chain_tail | default: 0 | plus: 0
+  if chain_tail > 0
+    function chain = 'modules/mcp/commands/ledger/verify_chain_recent', limit: chain_tail
+  else
+    function chain = 'modules/mcp/commands/ledger/verify_chain'
+  endif
+
+  assign out = {}
+  assign out['total'] = total
+  assign out['by_outcome'] = by_outcome
+  assign out['by_tool'] = by_tool
+  assign out['by_decision'] = by_decision
+  assign out['denials'] = denials
+  assign out['denial_rate'] = denial_rate
+  assign out['blocked'] = blocked
+  assign out['blocked_rate'] = blocked_rate
+  assign out['suspends'] = suspends
+  assign out['rollbacks'] = rollbacks
+  assign out['rollback_rate'] = rollback_rate
+  assign out['pending_approvals'] = pending_approvals
+  assign out['schema_rejections'] = schema_rejections
+  assign out['rate_limited'] = rate_limited
+  assign out['chain'] = chain
+  assign out['latency'] = latency
+  return out
+%}

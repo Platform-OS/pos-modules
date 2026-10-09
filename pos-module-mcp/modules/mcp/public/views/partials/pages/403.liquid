@@ -1,0 +1,30 @@
+{%- comment -%}
+  Forbidden page for the MCP consoles — the `forbidden_partial` passed to
+  modules/user/helpers/can_do_or_unauthorized. The consoles render without a layout,
+  so this is a complete, self-contained document in the consoles' dark theme.
+{%- endcomment -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>403 Forbidden</title>
+<style>
+  :root { color-scheme: dark; --bg: #14152E; --text: #ebdbb2; --muted: #a89984; --accent: #83a598;
+          --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace; }
+  html, body { background: var(--bg); }
+  body { font-family: var(--mono); color: var(--muted); line-height: 1.55; margin: 0; }
+  .wrap { max-width: 34rem; margin: 3rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.25rem; color: var(--text); margin: 0 0 .5rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>403 — No MCP access</h1>
+  <p>Your account does not have access to this page. MCP access is granted by an operator.</p>
+  <p><a href="/">Back to the home page</a></p>
+</div>
+</body>
+</html>

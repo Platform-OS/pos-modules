@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/deepseek-v4-flash-free",
+  "small_model": "opencode/deepseek-v4-flash-free",
+  "mcp": {
+    "pos-module-mcp": {
+      "type": "remote",
+      "url": "https://pos-module-mcp.ps-01-platformos.com/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer {env:MCP_EVAL_TOKEN}"
+      }
+    },
+    "platformos-liquid": { "enabled": false },
+    "platformos-graphql": { "enabled": false },
+    "pos-bridge": { "enabled": false },
+    "chrome-devtools": { "enabled": false }
+  },
+  "permission": {
+    "webfetch": "deny",
+    "edit": "deny",
+    "bash": "deny",
+    "write": "deny"
+  }
+}

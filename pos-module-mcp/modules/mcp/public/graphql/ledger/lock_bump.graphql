@@ -1,0 +1,11 @@
+mutation lock_bump($id: ID!, $token: String!) {
+  # UPDATE the mutex row → Postgres row-write-lock held until the surrounding
+  # {% transaction %} commits. `token` is always a fresh unique value so ActiveRecord
+  # never skips the write (a no-op update would take no lock). Serializes ledger appends.
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_chain_lock"
+    properties: [{ name: "token", value: $token }]
+  }) {
+    id
+  }
+}

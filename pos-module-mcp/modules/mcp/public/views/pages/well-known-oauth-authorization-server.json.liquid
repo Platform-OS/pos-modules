@@ -1,0 +1,22 @@
+---
+slug: .well-known/oauth-authorization-server
+method: get
+format: json
+---
+{%- comment -%}
+  RFC 8414 Authorization Server Metadata for the built-in AS. 404 when disabled (or
+  when an external issuer is configured — then that issuer serves its own metadata).
+{%- endcomment -%}
+{%- liquid
+  function cfg = 'modules/mcp/commands/config'
+  function hdrs = 'modules/mcp/queries/oauth/endpoint_headers', cacheable: true
+  response_headers hdrs
+  if cfg.oauth.builtin
+    function doc = 'modules/mcp/queries/oauth/server_metadata'
+    response_status 200
+    echo doc
+  else
+    response_status 404
+    echo '{"error":"not_found"}'
+  endif
+-%}

@@ -1,0 +1,167 @@
+---
+slug: mcp-tools
+layout: ''
+---
+{%- comment -%}
+  MCP token console (operator UX, part of the module so it travels with the
+  standalone repo). A signed-in member mints a PER-USER bearer token bound to
+  their identity, sees the exact client-connect command once, and can revoke.
+
+  Gated on the mcp.tokens.manage permission (user-module RBAC): anonymous visitors are
+  sent to sign in and brought back; members without it get the 403 page. The raw token
+  is shown ONCE (passed via a one-shot session flash after minting) — only its digest
+  is stored.
+
+  STYLING: gruvbox-dark TUI (square corners, flat surfaces, monospace) to match the
+  operator console. ONE html skeleton + ONE <style> block. NO inline style=""
+  attributes anywhere — all presentation is in classes.
+{%- endcomment -%}
+{%- liquid
+  # SECURITY: never cache this page. It is authenticated and briefly renders a
+  # one-shot RAW bearer token (via the session flash below). `no-store` also makes
+  # the page bfcache-ineligible, so Back/Forward cannot restore the rendered token
+  # from browser history — it forces a server round-trip, by which point the flash
+  # has already been consumed and the token is gone.
+  response_headers '{"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}'
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.tokens.manage', redirect_anonymous_to_login: true, forbidden_partial: 'modules/mcp/pages/403', access_callback: null, anonymous_return_to: null, entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
+  assign uid = current_profile.user.id | append: ''
+  assign host = context.location.host
+  function origin = 'modules/mcp/queries/origin'
+  assign endpoint = origin | append: '/mcp'
+  # Client-side connection alias for `claude mcp add`. Defaults to the configured
+  # server_name (MCP_CONFIG.server_name, default 'pos-module-mcp') so operators can
+  # brand it; falls back to the host if that is somehow blank.
+  function cfg = 'modules/mcp/commands/config'
+  assign server_name = cfg.server_name | default: host
+  graphql toks = 'modules/mcp/tokens/for_user', user_id: uid
+  assign rows = toks.records.results
+  assign flash = context.session.mcp_flash_token
+  session mcp_flash_token = null
+-%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>MCP tokens</title>
+<style>
+  /* Gruvbox-dark TUI — mirrors the operator console (modules/mcp/.../mcp-admin.liquid). */
+  :root {
+    color-scheme: dark;
+    --bg: #14152E;          /* navy page background (override of gruvbox bg0) */
+    --bg-2: #0d0e1f;        /* darker navy — code blocks / inputs */
+    --panel: #2b2838;       /* warm dark indigo — cards */
+    --panel-2: #393450;     /* warm indigo — raised */
+    --border: #4c4560;      /* warm indigo-gray — visible TUI borders */
+    --border-soft: #393450; /* warm indigo — dividers */
+    --text: #ebdbb2;        /* fg */
+    --muted: #a89984;       /* white */
+    --dim: #928374;         /* bright black */
+    --accent: #83a598;      /* bright blue — links */
+    --ok: #b8bb26;   --ok-bg: #333a1e;   /* bright green */
+    --bad: #fb4934;  --bad-bg: #3f2120;  /* bright red */
+    --warn: #fabd2f; --warn-bg: #3d3420; /* bright yellow */
+    --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { font-family: var(--mono); margin: 0; background: var(--bg); color: var(--muted);
+         line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+  .wrap { max-width: 48rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+  h1 { font-size: 1.25rem; color: var(--text); margin: 0 0 .5rem; }
+  h2 { font-size: 1rem; color: var(--muted); margin: 2rem 0 .5rem; text-transform: uppercase; letter-spacing: .04em; }
+  .lead { color: var(--muted); }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 0; padding: 1rem 1.15rem; margin: 1rem 0; }
+  .card.new { border-color: var(--ok); }
+  .card.new h2 { margin-top: 0; color: var(--ok); }
+
+  code, pre { font-family: var(--mono); }
+  pre { background: var(--bg-2); border: 1px solid var(--border); border-radius: 0; padding: .8rem; overflow-x: auto; font-size: .8rem; color: var(--text); }
+  .token { color: var(--ok); word-break: break-all; }
+  .warn { color: var(--warn); font-size: .85rem; }
+
+  .btn { font: inherit; padding: .5rem .9rem; border-radius: 0; border: 1px solid var(--ok); background: var(--ok-bg); color: var(--ok); cursor: pointer; text-decoration: none; }
+  .btn:hover { background: #3f4a20; }
+  .btn-revoke { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); padding: .25rem .6rem; font-size: .78rem; }
+  .btn-revoke:hover { background: #4a2926; }
+
+  .field { font: inherit; padding: .5rem; border-radius: 0; border: 1px solid var(--border); background: var(--bg-2); color: var(--text); width: 16rem; }
+  label { color: var(--muted); }
+  .mint-form { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  td, th { text-align: left; padding: .45rem .4rem; border-bottom: 1px solid var(--border-soft); }
+  th { color: var(--muted); font-weight: 600; }
+  .revoked { color: var(--dim); text-decoration: line-through; }
+
+  /* ── Slight motion (CSS-only, JS-free). Disabled under prefers-reduced-motion. ── */
+  .card { transition: border-color .15s ease, transform .12s ease; }
+  .card:hover { transform: translateY(-1px); }
+  .btn { transition: background .12s ease, border-color .12s ease; }
+  .wrap { animation: fadeInUp .3s ease both; }
+  .card.new { animation: fadeInUp .3s ease both, okGlow 1.6s ease-in-out .3s 2; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes okGlow { 0%, 100% { border-color: var(--ok); } 50% { border-color: var(--ok-bg); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after { animation: none !important; transition-duration: .01ms !important; }
+    .card:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Your MCP connection tokens</h1>
+  <p class="lead">Generate a bearer token to connect an MCP client (e.g. Claude Code) to this community as <b>you</b>. Every call it makes is authorized as your identity and recorded.</p>
+
+  {%- if flash != blank -%}
+  <div class="card new">
+    <h2>✓ New token — copy it now, it will not be shown again</h2>
+    <p class="token"><code>{{ flash }}</code></p>
+    <p>Add it to Claude Code:</p>
+    <pre>claude mcp add --transport http {{ server_name }} {{ endpoint }} --header "Authorization: Bearer {{ flash }}"</pre>
+    <p class="warn">Only the token’s fingerprint is stored — we cannot recover this value. If you lose it, revoke it and mint a new one.</p>
+  </div>
+  {%- endif -%}
+
+  <div class="card">
+    <form method="post" action="/mcp-tools/mint" class="mint-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <label>Label <input type="text" name="label" placeholder="my laptop" maxlength="40" class="field"></label>
+      <button type="submit" class="btn">Generate token</button>
+    </form>
+  </div>
+
+  <h2>Existing tokens</h2>
+  <table>
+    <thead><tr><th>label</th><th>type</th><th>status</th><th>created</th><th></th></tr></thead>
+    <tbody>
+    {%- for t in rows -%}
+      <tr>
+        <td class="{% if t.status != 'active' %}revoked{% endif %}">{{ t.label }}</td>
+        <td>{% if t.kind == 'oauth' %}oauth · {{ t.scope }}{% else %}token{% endif %}</td>
+        <td>{{ t.status }}</td>
+        <td>{{ t.created_at | date: '%Y-%m-%d' }}</td>
+        <td>
+          {%- if t.status == 'active' -%}
+          <form method="post" action="/mcp-tools/revoke" onsubmit="return confirm('Revoke this token? Clients using it stop working immediately.')">
+            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+            <input type="hidden" name="id" value="{{ t.id }}">
+            <button type="submit" class="btn btn-revoke">Revoke</button>
+          </form>
+          {%- endif -%}
+        </td>
+      </tr>
+    {%- endfor -%}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

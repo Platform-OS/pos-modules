@@ -1,0 +1,98 @@
+{%- comment -%}
+  Validate an authorization request (GET /oauth/authorize; OAuth 2.1 §4.1.1, PKCE
+  RFC 7636, resource indicators RFC 8707).
+
+  Errors split into two classes (OAuth 2.1 §4.1.2.1):
+    - NOT redirectable — bad/unknown client_id or a redirect_uri that is not
+      registered for it. Redirecting would make us an open redirector, so the page
+      shows the error to the user instead.
+    - redirectable — everything else; the client gets error=… on its redirect_uri.
+
+  @param {object} params - context.params
+  @return {object} { ok, redirectable, error, error_description, redirect_uri, state, req }
+                   req (when ok) = { rid, client_id, client_name, client_uri, client_kind,
+                   redirect_uri, state, code_challenge, scope, resource }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign out = {}
+  assign out['ok'] = false
+  assign out['redirectable'] = false
+  assign out['error'] = 'invalid_request'
+  assign out['state'] = params.state
+
+  unless cfg.oauth.builtin
+    assign out['error_description'] = 'The authorization server is disabled'
+    return out
+  endunless
+
+  function client = 'modules/mcp/commands/oauth/resolve_client', client_id: params.client_id
+  unless client.found
+    assign out['error'] = 'invalid_client'
+    assign out['error_description'] = client.error_description
+    return out
+  endunless
+
+  # redirect_uri: required unless the client registered exactly one.
+  assign redirect_uri = params.redirect_uri
+  if redirect_uri == blank and client.redirect_uris.size == 1
+    assign redirect_uri = client.redirect_uris.first
+  endif
+  function allowed = 'modules/mcp/commands/oauth/redirect_uri_allowed', redirect_uri: redirect_uri, registered: client.redirect_uris
+  unless allowed
+    assign out['error_description'] = 'redirect_uri is not registered for this client'
+    return out
+  endunless
+
+  # From here on, errors go back to the client.
+  assign out['redirectable'] = true
+  assign out['redirect_uri'] = redirect_uri
+
+  if params.response_type != 'code'
+    assign out['error'] = 'unsupported_response_type'
+    assign out['error_description'] = 'response_type must be "code"'
+    return out
+  endif
+  if params.code_challenge == blank
+    assign out['error_description'] = 'PKCE code_challenge is required'
+    return out
+  endif
+  if params.code_challenge_method != 'S256'
+    assign out['error_description'] = 'code_challenge_method must be "S256"'
+    return out
+  endif
+  assign cc_ok = params.code_challenge | matches: '\A[A-Za-z0-9\-_]{43}\z'
+  unless cc_ok
+    assign out['error_description'] = 'Malformed code_challenge'
+    return out
+  endunless
+
+  # RFC 8707: the token is bound to THIS server's MCP endpoint. A client that asks for
+  # another resource is refused (no tokens usable elsewhere = no token passthrough).
+  assign resource = params.resource | default: cfg.resource_identifier
+  assign want = resource | replace_regex: '/+\z', ''
+  assign mine = cfg.resource_identifier | replace_regex: '/+\z', ''
+  if want != mine
+    assign out['error'] = 'invalid_target'
+    assign out['error_description'] = 'Unknown resource'
+    return out
+  endif
+
+  function scope = 'modules/mcp/commands/oauth/normalize_scope', requested: params.scope
+
+  assign req = {}
+  assign req['rid'] = '' | uuid
+  assign req['client_id'] = client.client_id
+  assign req['client_name'] = client.client_name
+  assign req['client_uri'] = client.client_uri
+  assign req['client_kind'] = client.kind
+  assign req['redirect_uri'] = redirect_uri
+  assign req['state'] = params.state
+  assign req['code_challenge'] = params.code_challenge
+  assign req['scope'] = scope
+  assign req['resource'] = cfg.resource_identifier
+  assign out['req'] = req
+  assign out['ok'] = true
+  assign out['error'] = null
+  return out
+%}

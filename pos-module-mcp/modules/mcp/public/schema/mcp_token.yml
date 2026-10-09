@@ -1,0 +1,31 @@
+name: mcp_token
+# MCP bearer tokens (identity source — see backlog/decision-2, decision-4).
+# Each token authorizes as a REAL platformOS user (user_id = the principal). Two kinds:
+#   manual — minted by the user at /mcp-tools (no expiry, full scopes)
+#   oauth  — issued by the built-in OAuth 2.1 authorization server (/oauth/token):
+#            short-lived access token + rotating refresh token, bound to one client,
+#            one resource (audience) and a scope set. One row = one grant; refresh
+#            rotates the digests IN PLACE so token_id stays stable for revocation,
+#            abuse suspension and the "last used" stamp.
+# Raw tokens are NEVER stored — only SHA-256 digests — so a DB read cannot recover a
+# usable credential. Revocable (status) and narrowable per token (allowed_tools
+# intersects the served set, never widens).
+properties:
+  - name: user_id        # the pOS user this bearer acts as (the principal)
+  - name: token_digest   # sha256(raw access token), hex — the raw token is shown once, never stored
+  - name: label          # human label / agent name (OAuth: the client_name) shown in the ledger + operator UI
+  - name: status         # active | revoked
+  - name: allowed_tools
+    type: array
+  - name: last_used_at   # ISO-8601 UTC string (best-effort; not on the hot read path)
+  - name: kind           # manual (blank on legacy rows) | oauth
+  - name: client_id      # OAuth client_id (CIMD URL or DCR id); blank for manual tokens
+  - name: scope          # space-separated granted scopes (OAuth only; manual = all scopes)
+  - name: resource       # RFC 8707 resource the token is bound to (= the /mcp URL)
+  - name: expires_at     # access token expiry, unix seconds (OAuth only)
+    type: integer
+  - name: refresh_digest       # sha256(current refresh token)
+  - name: prev_refresh_digest  # sha256(the refresh token rotated away) — reuse detection
+  - name: refresh_expires_at   # refresh token expiry, unix seconds
+    type: integer
+  - name: claim_token    # row-lock bump value for refresh rotation (see commands/oauth/refresh)

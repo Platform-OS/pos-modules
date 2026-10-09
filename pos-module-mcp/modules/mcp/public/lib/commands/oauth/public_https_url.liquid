@@ -1,0 +1,36 @@
+{%- comment -%}
+  Is `url` safe for the server to FETCH (Client ID Metadata Document)? The platform's
+  outbound HTTP applies no SSRF filtering, so this is the guard: https only, default
+  port, no userinfo/fragment, a real path, and a public-looking DNS name (no IP
+  literals in any notation, no trailing-dot names, no localhost / .local / .internal /
+  .localhost names). DNS that resolves a
+  public name to a private address is NOT detectable from Liquid — documented residual
+  risk (security-model §2.5).
+
+  @param {string} url
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  function u = 'modules/mcp/commands/oauth/parse_url', url: url
+  unless u.valid
+    return false
+  endunless
+  if u.scheme != 'https' or u.has_userinfo or u.has_fragment or u.has_trailing_dot or u.is_ip_literal or u.is_loopback
+    return false
+  endif
+  if u.port != blank and u.port != '443'
+    return false
+  endif
+  if u.path == blank or u.path == '/' or u.path contains '/..' or u.path contains '/./'
+    return false
+  endif
+  unless u.host contains '.'
+    return false
+  endunless
+  assign h = u.host
+  assign private_name = h | matches: '\.(local|localhost|internal|intranet|lan|home|corp|arpa)\z'
+  if private_name
+    return false
+  endif
+  return true
+%}

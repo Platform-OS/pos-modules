@@ -1,0 +1,31 @@
+mutation create(
+  $handle: String!
+  $tool_name: String!
+  $tool_version: String
+  $arguments_json: String!
+  $input_sha256: String!
+  $requested_by_agent: String
+  $principal_id: String!
+  $authz_policy: String
+  $expires_at: Int!
+  $request_id: String
+) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_pending_approval"
+    properties: [
+      { name: "handle", value: $handle }
+      { name: "tool_name", value: $tool_name }
+      { name: "tool_version", value: $tool_version }
+      { name: "arguments_json", value: $arguments_json }
+      { name: "input_sha256", value: $input_sha256 }
+      { name: "requested_by_agent", value: $requested_by_agent }
+      { name: "principal_id", value: $principal_id }
+      { name: "authz_policy", value: $authz_policy }
+      { name: "status", value: "pending" }
+      { name: "expires_at", value_int: $expires_at }
+      { name: "request_id", value: $request_id }
+    ]
+  }) {
+    id
+  }
+}

@@ -1,0 +1,16 @@
+name: mcp_oauth_code
+# Authorization codes issued by /oauth/authorize (OAuth 2.1 §4.1). Single-use,
+# short-lived, PKCE-bound. Only the code's SHA-256 digest is stored.
+properties:
+  - name: code_digest     # sha256(raw code), hex
+  - name: client_id
+  - name: client_name
+  - name: redirect_uri    # exact redirect_uri used on /authorize — must match on /token
+  - name: code_challenge  # PKCE S256 challenge (base64url, no padding)
+  - name: user_id         # the user who consented (the principal)
+  - name: scope           # granted scope (space-separated)
+  - name: resource        # RFC 8707 resource the resulting token is bound to
+  - name: expires_at      # unix seconds
+    type: integer
+  - name: status          # issued | used
+  - name: claim_token     # row-lock bump value (single-use claim)

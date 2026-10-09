@@ -1,0 +1,20 @@
+mutation client_create(
+  $client_id: String!
+  $client_name: String!
+  $client_uri: String
+  $redirect_uris: [String!]!
+) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_oauth_client"
+    properties: [
+      { name: "client_id", value: $client_id }
+      { name: "client_name", value: $client_name }
+      { name: "client_uri", value: $client_uri }
+      { name: "redirect_uris", value_array: $redirect_uris }
+      { name: "status", value: "active" }
+    ]
+  }) {
+    id
+    created_at
+  }
+}

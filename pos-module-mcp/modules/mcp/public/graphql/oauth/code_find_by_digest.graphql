@@ -1,0 +1,22 @@
+query code_find_by_digest($code_digest: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_oauth_code" }
+      properties: [{ name: "code_digest", value: $code_digest }]
+    }
+  ) {
+    results {
+      id
+      client_id: property(name: "client_id")
+      client_name: property(name: "client_name")
+      redirect_uri: property(name: "redirect_uri")
+      code_challenge: property(name: "code_challenge")
+      user_id: property(name: "user_id")
+      scope: property(name: "scope")
+      resource: property(name: "resource")
+      expires_at: property(name: "expires_at")
+      status: property(name: "status")
+    }
+  }
+}

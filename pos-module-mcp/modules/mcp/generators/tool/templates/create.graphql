@@ -1,0 +1,16 @@
+mutation <%= toolName %>(
+<% attributes.forEach(function(a){ -%>
+  $<%= a.name %>: <%= GQL_ARG[a.type] %>
+<% }); -%>
+) {
+  record: record_create(record: {
+    table: "<%= table %>"
+    properties: [
+<% attributes.forEach(function(a){ -%>
+      { name: "<%= a.name %>", <%= GQL_VALUE[a.type] %>: $<%= a.name %> }
+<% }); -%>
+    ]
+  }) {
+    id
+  }
+}

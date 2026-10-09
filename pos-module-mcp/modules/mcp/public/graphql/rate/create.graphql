@@ -1,0 +1,12 @@
+mutation create($key: String!) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_rate_counter"
+    properties: [
+      { name: "key", value: $key }
+      { name: "count", value_int: 1 }
+    ]
+  }) {
+    id
+    count: property(name: "count")
+  }
+}

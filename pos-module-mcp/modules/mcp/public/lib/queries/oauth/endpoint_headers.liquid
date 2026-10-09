@@ -1,0 +1,23 @@
+{%- comment -%}
+  Response headers for the machine-facing OAuth endpoints (token, register, revoke,
+  well-known metadata): never cacheable (RFC 6749 §5.1) and readable cross-origin by
+  browser-based MCP clients. `*` is safe — these endpoints never use cookies.
+
+  @param {boolean} [cacheable] - metadata documents may be cached briefly
+  @return {string} JSON for the response_headers tag
+{%- endcomment -%}
+{% liquid
+  assign h = {}
+  assign h['Access-Control-Allow-Origin'] = '*'
+  assign h['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+  assign h['Access-Control-Allow-Headers'] = 'Authorization, Content-Type, MCP-Protocol-Version'
+  assign h['Access-Control-Max-Age'] = '600'
+  if cacheable
+    assign h['Cache-Control'] = 'public, max-age=300'
+  else
+    assign h['Cache-Control'] = 'no-store'
+    assign h['Pragma'] = 'no-cache'
+  endif
+  assign out = h | json
+  return out
+%}

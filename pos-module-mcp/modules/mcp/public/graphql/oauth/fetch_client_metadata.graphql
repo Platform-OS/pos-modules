@@ -1,0 +1,15 @@
+mutation fetch_client_metadata($url: String!) {
+  # Client ID Metadata Document fetch (draft-ietf-oauth-client-id-metadata-document).
+  # Synchronous outbound GET; the caller validates the URL first (https, public host)
+  # because the platform applies no SSRF filtering, and wraps this in try/catch since
+  # network errors raise under liquid_raise_mode.
+  api_call: api_call_send(
+    api_call: { url: $url, method: "GET", headers: { Accept: "application/json" } }
+    options: { timeout: 3 }
+  ) {
+    response {
+      status
+      body
+    }
+  }
+}

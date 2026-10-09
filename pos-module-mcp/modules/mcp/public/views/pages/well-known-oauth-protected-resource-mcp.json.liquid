@@ -1,0 +1,16 @@
+---
+slug: .well-known/oauth-protected-resource/mcp
+method: get
+format: json
+---
+{%- comment -%}
+  RFC 9728 §3.1 path-inserted variant for the /mcp resource — clients that do not get
+  (or ignore) the WWW-Authenticate resource_metadata link probe this URL first.
+{%- endcomment -%}
+{%- liquid
+  function doc = 'modules/mcp/queries/oauth/protected_resource_metadata'
+  function hdrs = 'modules/mcp/queries/oauth/endpoint_headers', cacheable: true
+  response_headers hdrs
+  response_status 200
+  echo doc
+-%}

@@ -1,0 +1,31 @@
+{%- comment -%}
+  Resolve a tool name to its validated manifest (spec §9.2 step 4). Only tools in
+  the built registry (explicitly registered + meta-schema-valid) are resolvable —
+  an unregistered or excluded tool is simply not found, so the surface can never
+  execute an unvalidated action.
+
+  Optional per-agent narrowing: `allowed_tools`, when non-empty, intersects the
+  served set (never widens, §6.2). A tool absent from a non-empty allowed_tools is
+  treated as not found for that agent.
+
+  @param {string} name          - requested tool name
+  @param {array}  allowed_tools - optional per-token narrowing (nil/empty = all)
+  @return {object|null} the manifest, or null if not resolvable
+{%- endcomment -%}
+{% liquid
+  if allowed_tools != blank and allowed_tools != empty
+    unless allowed_tools contains name
+      return null
+    endunless
+  endif
+
+  function reg = 'modules/mcp/commands/registry/load'
+  assign found = null
+  for m in reg.tools
+    if m.name == name
+      assign found = m
+      break
+    endif
+  endfor
+  return found
+%}

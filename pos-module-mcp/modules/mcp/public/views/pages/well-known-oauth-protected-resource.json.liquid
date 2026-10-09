@@ -1,0 +1,15 @@
+---
+slug: .well-known/oauth-protected-resource
+method: get
+format: json
+---
+{%- comment -%}
+  RFC 9728 Protected Resource Metadata — see queries/oauth/protected_resource_metadata.
+{%- endcomment -%}
+{%- liquid
+  function doc = 'modules/mcp/queries/oauth/protected_resource_metadata'
+  function hdrs = 'modules/mcp/queries/oauth/endpoint_headers', cacheable: true
+  response_headers hdrs
+  response_status 200
+  echo doc
+-%}

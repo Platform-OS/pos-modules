@@ -1,0 +1,20 @@
+{%- comment -%}
+  Authorization policy: test_principal_admin (Layer-2, app-owned; TEST fixture).
+  Permits a tool only when the calling PRINCIPAL (the bearer's user, not the browser
+  session) holds mcp.admin — the same permission that gates the operator console — so
+  the coverage suite can prove the admin tier is invisible to a plain member.
+  Fail-closed: anything short of a proven operator principal → deny.
+  Contract: return { allow, reason }. Receives principal, agent, arguments, tool,
+  delegation_mode.
+{%- endcomment -%}
+{% liquid
+  function is_admin = 'modules/mcp/queries/principal/can', principal: principal, do: 'mcp.admin'
+  assign r = {}
+  assign r['allow'] = is_admin
+  if is_admin
+    assign r['reason'] = 'admin'
+  else
+    assign r['reason'] = 'not_admin'
+  endif
+  return r
+%}

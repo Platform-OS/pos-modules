@@ -1,0 +1,28 @@
+{%- comment -%}
+  Reclaim short-lived rows that nothing reads any more: closed rate/abuse counter
+  windows, expired idempotency records and expired OAuth authorization codes. These
+  tables otherwise grow by a row per principal per active minute (counters) / per
+  keyed call (idempotency) / per authorization (codes), forever.
+
+  Counters are kept for max(1 hour, 2 × abuse window) so a row is never deleted while
+  its window can still be read. All deletes run as async platform jobs, so calling
+  this is cheap; limits/check triggers it at most once per principal per 10 minutes.
+
+  @return {boolean} true
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/commands/config'
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign keep_s = cfg.defaults.abuse_window_seconds | plus: 0 | times: 2
+  if keep_s < 3600
+    assign keep_s = 3600
+  endif
+  assign back_s = keep_s | times: -1
+  assign before = 'now' | add_to_time: back_s, 's' | strftime: '%Y-%m-%dT%H:%M:%S%:z'
+  graphql _r = 'modules/mcp/rate/sweep', before: before
+
+  assign now_s = now_unix | append: ''
+  graphql _i = 'modules/mcp/idempotency/sweep', now: now_s
+  graphql _c = 'modules/mcp/oauth/code_sweep', now: now_s
+  return true
+%}

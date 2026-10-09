@@ -1,0 +1,139 @@
+{%- comment -%}
+  Identity resolution (spec §9.4, §9.5; token source = backlog/decision-2) — the
+  confused-deputy / standing-credential control. Verifies the Bearer token and
+  maps it to a principal (a REAL platformOS user) + agent identity.
+
+  MODEL: instance-issued opaque tokens bound to a real user_id, from two sources
+  (same mcp_token store, decision-2 / decision-4):
+    - manual — the user mints a bearer at /mcp-tools (no expiry, all scopes);
+    - oauth  — issued by the built-in OAuth 2.1 AS (/oauth/token): short-lived,
+      bound to ONE client, ONE resource (audience = this /mcp URL) and a scope set.
+  The raw token is never stored — only its sha256 digest — so we match on the digest
+  and a DB read cannot recover a usable credential. delegation_mode is 'direct' (the
+  agent acts AS the user); the agent/principal split is preserved in the contract
+  so 'on_behalf_of' can be added later without changing callers.
+
+  SECURITY POSTURE (fail-closed at every step):
+    - Missing / malformed Authorization header → 401 + WWW-Authenticate.
+    - Unknown digest or a token whose status != active → 401 (revocation is a
+      central kill switch; a leaked token is cut off by flipping status).
+    - OAuth token past expires_at → 401 invalid_token (client refreshes).
+    - OAuth token whose bound resource != this server's resource identifier → 401
+      (RFC 8707 audience check: a token minted for another MCP server/instance is
+      never accepted here — no token passthrough).
+    - No token internals are ever returned on the wire; failures carry only a
+      generic message + a stable machine `reason` for the ledger/log.
+    - Constant work regardless of match: we always compute the digest before the
+      lookup, so timing does not distinguish "no such token" from other paths.
+
+  A future external-AS/JWT strategy (jwt_decode, verified working) can be
+  dispatched here by token shape; v1 does not depend on it (decision-2).
+
+  @param {object} headers - context.headers (needs HTTP_AUTHORIZATION)
+  @return {object} success { authenticated:true, principal:{id,user_id}, agent:{id,client_id,registered,allowed_tools?}, delegation_mode:'direct', token_id, token_kind, scopes:[…] }
+                   failure  (see identity/deny) { authenticated:false, http_status, error_code, message, reason, www_authenticate? }
+{%- endcomment -%}
+{% liquid
+  function origin = 'modules/mcp/queries/origin'
+  function cfg = 'modules/mcp/commands/config'
+  assign rm_url = origin | append: '/.well-known/oauth-protected-resource'
+  # resource_metadata stays the FIRST parameter (clients and the conformance suite
+  # match on it); realm + scope tell the client what to request (RFC 6750 §3).
+  assign wa_base = 'Bearer resource_metadata="' | append: rm_url | append: '", realm="mcp", scope="' | append: cfg.oauth.default_scope | append: '"'
+  assign wa_missing = wa_base
+  assign wa_invalid = wa_base | append: ', error="invalid_token"'
+
+  assign auth_header = headers.HTTP_AUTHORIZATION | default: ''
+  unless auth_header contains 'Bearer '
+    function f = 'modules/mcp/commands/identity/deny', http_status: 401, message: 'Authorization required', reason: 'missing_token', www_authenticate: wa_missing
+    return f
+  endunless
+  assign raw = auth_header | remove_first: 'Bearer' | strip
+  if raw == blank
+    function f = 'modules/mcp/commands/identity/deny', http_status: 401, message: 'Authorization required', reason: 'empty_token', www_authenticate: wa_missing
+    return f
+  endif
+
+  assign token_digest = raw | digest: 'sha256'
+  graphql tres = 'modules/mcp/tokens/find_by_digest', token_digest: token_digest
+  assign token = tres.records.results.first
+
+  if token == blank
+    function f = 'modules/mcp/commands/identity/deny', http_status: 401, message: 'Invalid token', reason: 'unknown_token', www_authenticate: wa_invalid
+    return f
+  endif
+  unless token.status == 'active'
+    function f = 'modules/mcp/commands/identity/deny', http_status: 401, message: 'Invalid token', reason: 'token_revoked', www_authenticate: wa_invalid
+    return f
+  endunless
+  if token.user_id == blank
+    function f = 'modules/mcp/commands/identity/deny', http_status: 401, message: 'Invalid token', reason: 'token_unbound', www_authenticate: wa_invalid
+    return f
+  endif
+
+  # OAuth-issued tokens: expiry + audience (RFC 8707) + scopes.
+  assign all_scopes = cfg.oauth.scopes_supported
+  assign scopes = all_scopes
+  if token.kind == 'oauth'
+    assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+    assign exp = token.expires_at | plus: 0
+    if exp <= now_s
+      function f = 'modules/mcp/commands/identity/deny', http_status: 401, message: 'Invalid token', reason: 'token_expired', www_authenticate: wa_invalid
+      return f
+    endif
+    assign bound = token.resource | default: '' | replace_regex: '/+\z', ''
+    assign mine = cfg.resource_identifier | replace_regex: '/+\z', ''
+    if bound != mine
+      function f = 'modules/mcp/commands/identity/deny', http_status: 401, message: 'Invalid token', reason: 'wrong_audience', www_authenticate: wa_invalid
+      return f
+    endif
+    assign scopes = token.scope | default: '' | split: ' '
+  endif
+
+  # Stable principal id namespaced by kind so ledger subjects never collide.
+  assign principal_id = 'user:' | append: token.user_id
+  # v1: the agent is the same user acting directly. Label identifies the bearer.
+  assign agent_id = token.label | default: principal_id
+
+  assign principal = {}
+  assign principal['id'] = principal_id
+  assign principal['user_id'] = token.user_id
+
+  assign agent = {}
+  assign agent['id'] = agent_id
+  # OAuth: the real client_id (CIMD URL or DCR id) — a stable agent identity for the
+  # ledger, independent of the human-chosen label.
+  assign agent['client_id'] = token.client_id | default: agent_id
+  assign agent['registered'] = true
+  assign agent['allowed_tools'] = token.allowed_tools
+
+  # Best-effort recency stamp for the operator console ("last used"). THROTTLED to at most
+  # one write per token per minute (coarse granularity is plenty for a "last seen" display),
+  # so it never becomes a per-request hot-path cost. Semantics: last successful auth of this
+  # token — stamped even if the specific call is later authz-denied (the token WAS used).
+  assign _now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  assign _stamp = false
+  if token.last_used_at == blank
+    assign _stamp = true
+  else
+    assign _last_s = token.last_used_at | to_time | strftime: '%s' | plus: 0
+    assign _age = _now_s | minus: _last_s
+    if _age >= 60
+      assign _stamp = true
+    endif
+  endif
+  if _stamp
+    assign _now_iso = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    graphql _touch = 'modules/mcp/tokens/touch', id: token.id, last_used_at: _now_iso
+  endif
+
+  assign ok = {}
+  assign ok['authenticated'] = true
+  assign ok['principal'] = principal
+  assign ok['agent'] = agent
+  assign ok['delegation_mode'] = 'direct'
+  assign ok['token_id'] = token.id
+  assign ok['token_kind'] = token.kind | default: 'manual'
+  assign ok['scopes'] = scopes
+  return ok
+%}

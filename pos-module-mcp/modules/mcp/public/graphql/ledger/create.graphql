@@ -1,0 +1,60 @@
+mutation create(
+  $table: String!
+  $seq: Int
+  $occurred_at: String
+  $method: String
+  $tool_name: String
+  $tool_version: String
+  $client_id: String
+  $agent_id: String
+  $principal_id: String
+  $delegation_mode: String
+  $input_sha256: String
+  $input_bytes: Int
+  $authz_policy: String
+  $authz_decision: String
+  $authz_reason: String
+  $execution_outcome: String
+  $error_code: Int
+  $duration_ms: Int
+  $subject_type: String
+  $subject_id: String
+  $idempotency_key: String
+  $request_id: String
+  $audit_json: String
+  $prev_entry_hash: String
+  $entry_hash: String
+) {
+  record: record_create(record: {
+    table: $table
+    properties: [
+      { name: "seq", value_int: $seq }
+      { name: "occurred_at", value: $occurred_at }
+      { name: "method", value: $method }
+      { name: "tool_name", value: $tool_name }
+      { name: "tool_version", value: $tool_version }
+      { name: "client_id", value: $client_id }
+      { name: "agent_id", value: $agent_id }
+      { name: "principal_id", value: $principal_id }
+      { name: "delegation_mode", value: $delegation_mode }
+      { name: "input_sha256", value: $input_sha256 }
+      { name: "input_bytes", value_int: $input_bytes }
+      { name: "authz_policy", value: $authz_policy }
+      { name: "authz_decision", value: $authz_decision }
+      { name: "authz_reason", value: $authz_reason }
+      { name: "execution_outcome", value: $execution_outcome }
+      { name: "error_code", value_int: $error_code }
+      { name: "duration_ms", value_int: $duration_ms }
+      { name: "subject_type", value: $subject_type }
+      { name: "subject_id", value: $subject_id }
+      { name: "idempotency_key", value: $idempotency_key }
+      { name: "request_id", value: $request_id }
+      { name: "audit_json", value: $audit_json }
+      { name: "prev_entry_hash", value: $prev_entry_hash }
+      { name: "entry_hash", value: $entry_hash }
+    ]
+  }) {
+    id
+    created_at
+  }
+}

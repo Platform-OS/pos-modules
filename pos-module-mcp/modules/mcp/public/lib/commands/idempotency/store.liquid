@@ -1,0 +1,20 @@
+{%- comment -%}
+  Persist an idempotent result so a later retry with the same key replays it
+  (spec §16.3). For mutating tools the caller invokes this INSIDE the business
+  transaction, so the mutation and this record commit or roll back together — a
+  mutation can never commit without its replay record, and a rolled-back call
+  leaves no record (so a retry legitimately re-executes).
+
+  @param {string}  key
+  @param {string}  principal_id
+  @param {string}  tool_name
+  @param {string}  input_sha256   - guards against key reuse with different args
+  @param {string}  response_json  - the cached MCP result, already JSON-serialized
+  @param {integer} window         - seconds until the entry expires
+{%- endcomment -%}
+{% liquid
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign exp = now_unix | plus: window
+  graphql _ = 'modules/mcp/idempotency/create', key: key, principal_id: principal_id, tool_name: tool_name, input_sha256: input_sha256, response_json: response_json, expires_at: exp
+  return true
+%}

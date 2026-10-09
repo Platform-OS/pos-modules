@@ -1,0 +1,30 @@
+{%- comment -%}
+  Answer a tools/call from a stored idempotency record (spec §16.3). The record was
+  found for the same (key, principal, tool): same arguments → replay the original
+  result without re-executing; different arguments → 409, never silently served.
+  Attests the outcome in the ledger either way.
+
+  @param {object} hit          - idempotency/lookup result (found:true)
+  @param {string} input_sha256 - hash of THIS request's validated arguments
+  @param {object} entry        - the call's ledger entry (outcome fields are set here)
+  @param {*}      id           - JSON-RPC request id
+  @return {object} { http_status, body }
+{%- endcomment -%}
+{% liquid
+  assign out = {}
+  if hit.input_sha256 != input_sha256
+    assign entry['execution_outcome'] = 'invalid'
+    assign entry['error_code'] = -32602
+    function _ = 'modules/mcp/commands/ledger/append', entry: entry
+    function body = 'modules/mcp/commands/rpc/error', id: id, code: -32602, message: 'Idempotency-Key reused with different arguments'
+    assign out['http_status'] = 409
+    assign out['body'] = body
+    return out
+  endif
+  assign entry['execution_outcome'] = 'replayed'
+  function _ = 'modules/mcp/commands/ledger/append', entry: entry
+  function body = 'modules/mcp/commands/rpc/success', id: id, result: hit.response
+  assign out['http_status'] = 200
+  assign out['body'] = body
+  return out
+%}
