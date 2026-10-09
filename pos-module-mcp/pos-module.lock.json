@@ -4,10 +4,29 @@
     "core": "2.1.11",
     "common-styling": "1.38.13"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "tests": "1.3.6",
+    "community": "1.7.2",
+    "components": "1.1.7",
+    "chat": "2.2.3",
+    "openai": "1.3.2",
+    "reports": "2.0.2",
+    "oauth_github": "0.0.13",
+    "oauth_google": "0.0.6",
+    "push_notifications": "2.0.2"
+  },
   "registries": {
     "user": "https://partners.platformos.com",
     "core": "https://partners.platformos.com",
-    "common-styling": "https://partners.platformos.com"
+    "common-styling": "https://partners.platformos.com",
+    "tests": "https://partners.platformos.com",
+    "community": "https://partners.platformos.com",
+    "components": "https://partners.platformos.com",
+    "chat": "https://partners.platformos.com",
+    "openai": "https://partners.platformos.com",
+    "reports": "https://partners.platformos.com",
+    "oauth_github": "https://partners.platformos.com",
+    "oauth_google": "https://partners.platformos.com",
+    "push_notifications": "https://partners.platformos.com"
   }
 }
