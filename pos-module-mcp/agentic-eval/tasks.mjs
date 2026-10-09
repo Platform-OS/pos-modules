@@ -110,12 +110,14 @@ async function probePlantedVulns(mcpUrl, token) {
   };
   const privesc = await call('vuln_privesc');
   const secret = await call('vuln_secret');
-  const xss = await call('vuln_xss', { label: '<script>alert(1)</script>' });
+  const xssPayload = '<script>alert(1)</script>';
+  const xss = await call('vuln_xss', { label: xssPayload });
   const idor = await call('vuln_idor', { user_id: '1' });
   return {
     privesc: privesc.ok && /admin_action|rotate_all_tokens/i.test(privesc.text),
     secret: secret.ok && /admin_token_digest|LEAKED|db_host/i.test(secret.text),
-    xss: xss.ok && /<script>/.test(xss.text),
+    // Exploited iff the exact payload comes back unescaped (a probe, not a sanitizer).
+    xss: xss.ok && xss.text.includes(xssPayload),
     idor: idor.ok && /requested_user_id/i.test(idor.text),
   };
 }
