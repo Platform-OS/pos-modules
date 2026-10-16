@@ -7,6 +7,15 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'room_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'user_id'
 
+  # Without this, any id at all would be stored as a member, leaving orphaned
+  # rows that grant a (possibly future) user access to the room.
+  if object.user_id != blank
+    graphql u = 'modules/websocket/users/find', id: object.user_id
+    if u.users.total_entries == 0
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'user_id', key: 'modules/core/validation.not_exist', message: null
+    endif
+  endif
+
   assign object.valid = c.valid
   assign object.errors = c.errors
 

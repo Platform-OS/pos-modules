@@ -1,5 +1,5 @@
 ---
-slug: websocket/join
+slug: demo/join
 method: post
 ---
 {% doc %}
@@ -28,6 +28,6 @@ method: post
     public: is_public,
     created_by: current_profile.user.id
 
-  assign redirect_url = '/websocket/demo?room=' | append: room
+  assign redirect_url = '/demo?room=' | append: room
   redirect_to redirect_url
 %}

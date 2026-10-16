@@ -1,5 +1,5 @@
 ---
-slug: websocket/rooms/members
+slug: sockets/members
 method: post
 format: json
 layout: ''
@@ -13,6 +13,7 @@ layout: ''
 {% enddoc %}
 {% liquid
   if context.current_user == blank
+    response_status 401
     print '{"ok":false,"error":"unauthorized"}'
     return
   endif
@@ -21,10 +22,15 @@ layout: ''
   function caller_authorized = 'modules/websocket/queries/rooms/authorized', room_id: room_id, user_id: context.current_user.id
 
   unless caller_authorized
-    print '{"ok":false,"error":"unauthorized"}'
+    response_status 403
+    print '{"ok":false,"error":"forbidden"}'
     return
   endunless
 
   function result = 'modules/websocket/commands/rooms/members/add', room_id: room_id, user_id: context.params.user_id
+
+  unless result.valid
+    response_status 422
+  endunless
 %}
 {% if result.valid %}{"ok":true}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}

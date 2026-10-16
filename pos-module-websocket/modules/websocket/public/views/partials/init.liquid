@@ -3,7 +3,7 @@ metadata:
   name: Websocket Init
   params:
     websocket_url: "/websocket"
-    events_url: "/events"
+    events_url: "/anycable-events"
 ---
 {% doc %}
   Sets up window.pos.modules.websocket, a thin generalized wrapper around
@@ -13,13 +13,12 @@ metadata:
                       from a CDN as an ES module, the same way pos-module-chat
                       does it — no npm bundling required). Two-way: also
                       supports send().
-    - subscribeSSE - AnyCable-go's native SSE gateway (`/events`), a plain
+    - subscribeSSE - AnyCable-go's native SSE gateway (`/anycable-events`), a plain
                       EventSource under the hood. Read-only: there is no
                       working way to invoke a channel's `receive` partial
                       over this transport, so there is no sseSend — use
                       commands/messages/broadcast for server-initiated
-                      pushes into a room an SSE client is reading (see
-                      docs/sse-transport.md).
+                      pushes into a room an SSE client is reading.
 
   Both transports drive the exact same Connect/Command RPC server-side and
   therefore the exact same `pos_websocket` channel and room authorization
@@ -40,7 +39,7 @@ metadata:
 {% enddoc %}
 {% liquid
   assign websocket_url = websocket_url | default: '/websocket'
-  assign events_url = events_url | default: '/events'
+  assign events_url = events_url | default: '/anycable-events'
 %}
 <script type="module">
   import { createConsumer } from "https://unpkg.com/@rails/actioncable@8.0.100/app/assets/javascripts/actioncable.esm.js";
@@ -83,9 +82,23 @@ metadata:
       var url = '{{ events_url }}' + '?identifier=' + encodeURIComponent(identifier) + '&authenticity_token=' + encodeURIComponent(csrfToken);
       var source = new EventSource(url);
 
-      source.onerror = function() { if (callbacks.disconnected) callbacks.disconnected(); };
+      var confirmed = false;
+
+      // The gateway answers a rejected subscription with a non-200 response
+      // rather than a reject_subscription event, and EventSource can't expose
+      // the status — so an error before confirmation is treated as a rejection.
+      source.onerror = function() {
+        if (!confirmed) {
+          source.close();
+          delete sseSubscriptions[roomId];
+          if (callbacks.rejected) callbacks.rejected();
+          return;
+        }
+        if (callbacks.disconnected) callbacks.disconnected();
+      };
 
       source.addEventListener('confirm_subscription', function() {
+        confirmed = true;
         if (callbacks.connected) callbacks.connected();
       });
       source.addEventListener('reject_subscription', function() {
