@@ -1,0 +1,18 @@
+mutation revoke_for_user($user_id: String!) {
+  # Revoke EVERY active token bound to a user in one statement — used when the user's
+  # MCP access is removed. sync:true so the tokens are dead before the operator's
+  # request returns (the default async run would leave a window where they still work).
+  tokens: records_update_all(
+    table: "modules/mcp/mcp_token"
+    filter: {
+      properties: [
+        { name: "user_id", value: $user_id }
+        { name: "status", value: "active" }
+      ]
+    }
+    record: { properties: [{ name: "status", value: "revoked" }] }
+    sync: true
+  ) {
+    count
+  }
+}

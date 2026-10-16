@@ -1,0 +1,21 @@
+{%- comment -%}
+  @param {string}  key
+  @param {string}  principal_id
+  @param {string}  tool_name
+  @param {string}  input_sha256
+  @param {string}  response_json
+  @param {integer} window - seconds until the entry expires
+{%- endcomment -%}
+{% liquid
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign expires_at = now_unix | plus: window
+  assign object = {
+    "key": key,
+    "principal_id": principal_id,
+    "tool_name": tool_name,
+    "input_sha256": input_sha256,
+    "response_json": response_json,
+    "expires_at": expires_at
+  }
+  return object
+%}

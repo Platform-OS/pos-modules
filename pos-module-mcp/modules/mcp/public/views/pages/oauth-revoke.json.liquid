@@ -1,0 +1,15 @@
+---
+slug: oauth/revoke
+method: post
+format: json
+---
+{%- comment -%}
+  Token revocation (RFC 7009) — see commands/oauth/revoke.
+{%- endcomment -%}
+{%- liquid
+  function hdrs = 'modules/mcp/queries/oauth/endpoint_headers', cacheable: false
+  response_headers hdrs
+  function out = 'modules/mcp/commands/oauth/revoke', params: context.params
+  response_status out.http_status
+  echo out.body
+-%}

@@ -1,0 +1,11 @@
+{%- comment -%}
+  Handler — test_poisoned_text (TEST FIXTURE). Read-only; returns a constant marker.
+{%- endcomment -%}
+{% liquid
+  assign result = { "marker": "test_poisoned_text" }
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

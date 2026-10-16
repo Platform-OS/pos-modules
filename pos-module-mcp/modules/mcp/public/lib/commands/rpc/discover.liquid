@@ -1,0 +1,43 @@
+{%- comment -%}
+  MCP `server/discover` (2026-07-28). The MODERN replacement for the `initialize`
+  handshake: supported revisions, capabilities, server identity and instructions.
+  Servers must implement it; clients may skip it. Open method: no auth, no ledger.
+
+  `supportedVersions` lists only the modern revisions, because a client uses them
+  per request; a legacy revision needs `initialize`. The Tasks extension is advertised:
+  an approval-gated tools/call becomes a task for a client that declares it.
+
+  @return {object} DiscoverResult { supportedVersions, capabilities, instructions,
+                   ttlMs, cacheScope, _meta["io.modelcontextprotocol/serverInfo"] }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+
+  assign result = { "supportedVersions": cfg.modern_protocol_versions }
+
+  # listChanged is false (no notifications until streaming lands, spec §16.2/§13.1 Phase 4).
+  assign caps = {
+    "tools": {"listChanged":false},
+    "resources": {"listChanged":false,"subscribe":false},
+    "prompts": {"listChanged":false}
+  }
+  assign extensions = { "io.modelcontextprotocol/tasks": {} }
+  assign caps['extensions'] = extensions
+  assign result['capabilities'] = caps
+
+  function instructions = 'modules/mcp/queries/instructions'
+  assign result['instructions'] = instructions
+
+  function hint = 'modules/mcp/helpers/protocol/cache_hint', kind: 'discover', scope: 'public'
+  assign result['ttlMs'] = hint.ttlMs
+  assign result['cacheScope'] = hint.cacheScope
+
+  assign info = {
+    "name": cfg.server_name,
+    "version": cfg.server_version
+  }
+  assign rmeta = { "io.modelcontextprotocol/serverInfo": info }
+  assign result['_meta'] = rmeta
+
+  return result
+%}

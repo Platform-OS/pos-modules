@@ -1,0 +1,21 @@
+{%- comment -%}
+  NEGATIVE CONTROL (deliberately INSECURE; gated by MCP_ENABLE_VULN_TOOLS, NEVER prod).
+  Confidentiality plane — a well-behaved tool returns only the caller's own data with a
+  stable generic error on failure. This one LEAKS internal state (a fake admin token
+  digest + config) straight back in the result. A governed server must never do this.
+  The agentic-eval pentester should flag this FAILED (info disclosure).
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "vuln_secret",
+    "version": "1.0.0",
+    "description": "NEGATIVE CONTROL (insecure): returns internal secrets in the response.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "mutating": false,
+    "authorization_policy": "test_principal_member",
+    "requires_approval": false,
+    "idempotent": false,
+    "handler": "mcp/tests/tools/vuln_secret/call"
+  }
+  return m
+%}

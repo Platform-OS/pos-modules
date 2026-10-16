@@ -57,6 +57,10 @@ pos-module-oauth-github/modules/*
 pos-module-oauth-google/modules/*
 !pos-module-oauth-google/modules/oauth_google/
 
+pos-module-mcp/modules/*
+!pos-module-mcp/modules/mcp/
+pos-module-mcp/tests/.vitest-junit.xml
+
 pos-module-openai/modules/*
 !pos-module-openai/modules/openai/
 

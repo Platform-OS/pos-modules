@@ -1,0 +1,8 @@
+mutation suspend($id: ID!) {
+  record: record_update(id: $id, record: {
+    properties: [{ name: "status", value: "revoked" }]
+  }) {
+    id
+    status: property(name: "status")
+  }
+}

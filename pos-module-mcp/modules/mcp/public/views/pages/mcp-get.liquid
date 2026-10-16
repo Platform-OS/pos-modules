@@ -1,0 +1,16 @@
+---
+slug: mcp
+method: get
+---
+{%- comment -%}
+  GET /mcp answers 405 Method Not Allowed: the endpoint is POST-only. The server
+  opens no standalone server-to-client SSE stream; the 2025-06-18 Streamable HTTP
+  transport requires such a server to answer GET with 405, and 2026-07-28 recommends
+  405 for clients of earlier revisions.
+{%- endcomment -%}
+{%- liquid
+  assign allow = { "Allow": "POST" }
+  assign allow_json = allow | json
+  response_headers allow_json
+  response_status 405
+-%}

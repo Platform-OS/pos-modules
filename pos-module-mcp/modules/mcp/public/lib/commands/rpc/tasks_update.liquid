@@ -1,0 +1,21 @@
+{%- comment -%}
+  MCP `tasks/update` (Tasks extension, "Task Update Requests"). Carries the client's
+  `inputResponses` to a task in `input_required`. Approval tasks never ask the client
+  for input — the decision belongs to an operator — so no response is ever outstanding
+  and the server ignores them, as the extension requires, then acknowledges with an
+  empty result. The request cannot change the task: an agent can never approve its
+  own action. Self-scoped (tasks/find_owned).
+
+  @param {object} params  - { taskId, inputResponses }
+  @param {object} headers - context.headers (bearer identity)
+  @return {object} {} | { _error:{code,message} }
+{%- endcomment -%}
+{% liquid
+  function found = 'modules/mcp/commands/tasks/find_owned', params: params, headers: headers
+  unless found._error == blank
+    return found
+  endunless
+
+  assign ack = {}
+  return ack
+%}

@@ -1,0 +1,14 @@
+{%- comment -%}
+  @param {object} object - built by approval/claim/build
+{%- endcomment -%}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'id'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'handle'
+  assign statuses = 'approved,rejected,cancelled,expired' | split: ','
+  function c = 'modules/core/validations/included', c: c, object: object, field_name: 'status', array: statuses
+
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

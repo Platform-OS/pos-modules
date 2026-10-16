@@ -1,0 +1,25 @@
+{%- comment -%}
+  Dynamic Client Registration (RFC 7591) — public clients only. Every client gets
+  token_endpoint_auth_method "none" (no secret is issued; PKCE is the proof of
+  possession), grant_types authorization_code + refresh_token, response_types code.
+  A client asking for other values is answered with what we actually registered
+  (RFC 7591 §3.2.1 lets the server substitute).
+
+  Registration is unauthenticated by design (MCP clients self-register). The real
+  control is the consent screen — it shows the client name AND the redirect host the
+  user is about to be sent to. Rate-limited per IP by the page.
+
+  @param {object} params - context.params (parsed JSON body)
+  @return {object} { http_status, body }
+{%- endcomment -%}
+{% liquid
+  function object = 'modules/mcp/commands/oauth/register/build', params: params
+  function object = 'modules/mcp/commands/oauth/register/check', object: object
+  if object.valid
+    function out = 'modules/mcp/commands/oauth/register/execute', object: object
+    return out
+  endif
+
+  function e = 'modules/mcp/helpers/oauth/error', error: object.oauth_error.error, error_description: object.oauth_error.error_description, http_status: object.oauth_error.http_status
+  return e
+%}

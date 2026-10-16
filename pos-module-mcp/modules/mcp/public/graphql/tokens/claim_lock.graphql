@@ -1,0 +1,11 @@
+mutation claim_lock($id: ID!, $token: String!) {
+  # Row-write-lock on a grant, held until the surrounding {% transaction %} commits —
+  # serializes concurrent refreshes of the same grant (same technique as
+  # approvals/claim_lock).
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_token"
+    properties: [{ name: "claim_token", value: $token }]
+  }) {
+    id
+  }
+}

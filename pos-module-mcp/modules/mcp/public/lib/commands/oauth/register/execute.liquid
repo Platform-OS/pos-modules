@@ -1,0 +1,32 @@
+{%- comment -%}
+  @param {object} object - validated by oauth/register/check
+  @return {object} { http_status: 201, body } — the RFC 7591 §3.2.1 client information response
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign hex = '' | uuid | replace: '-', ''
+  assign client_id = 'mcp_client_' | append: hex
+  graphql r = 'modules/mcp/oauth/client_create', client_id: client_id, client_name: object.client_name, client_uri: object.client_uri, redirect_uris: object.redirect_uris
+
+  assign issued_at = 'now' | to_time | strftime: '%s' | plus: 0
+  assign grants = 'authorization_code,refresh_token' | split: ','
+  assign rtypes = 'code' | split: ','
+  assign body = {
+    "client_id": client_id,
+    "client_id_issued_at": issued_at,
+    "client_name": object.client_name
+  }
+  unless object.client_uri == blank
+    assign body['client_uri'] = object.client_uri
+  endunless
+  assign body['redirect_uris'] = object.redirect_uris
+  assign body['grant_types'] = grants
+  assign body['response_types'] = rtypes
+  assign body['token_endpoint_auth_method'] = 'none'
+  assign body['scope'] = cfg.oauth.scopes_supported | join: ' '
+  assign out = {
+    "http_status": 201,
+    "body": body
+  }
+  return out
+%}

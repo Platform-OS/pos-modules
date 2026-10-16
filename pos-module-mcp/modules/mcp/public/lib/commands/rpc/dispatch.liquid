@@ -1,0 +1,163 @@
+{%- comment -%}
+  JSON-RPC 2.0 dispatch (spec §9.2 steps 1–2, §13). The single entry point behind
+  the POST /mcp page. Validates the transport and envelope, negotiates the protocol
+  era, routes the method (commands/rpc/route) and returns a transport-agnostic
+  outcome the page turns into an HTTP response.
+
+  PROTOCOL ERAS (helpers/protocol/negotiate). The server is dual-era:
+  - LEGACY (2025-06-18): `initialize` handshake; requests carry at most the
+    MCP-Protocol-Version header. A version-less request is legacy, so existing clients
+    are unchanged. 2025-06-18 removed JSON-RPC batching: one request object per POST.
+  - MODERN (2026-07-28): every request carries its revision in `_meta`, mirrored in
+    headers. The standard request headers are validated (helpers/protocol/check_headers),
+    every result carries `resultType`, and a method the revision does not define
+    answers 404.
+
+  HEADER ROUTING, LEGACY. A gateway may carry the method + target name in
+  `Mcp-Method` / `Mcp-Name`. A header may supply a missing body method; a header that
+  DISAGREES with a present body value is a desync we reject (-32600), never silently
+  resolve. Modern requests follow the stricter 2026-07-28 rules instead.
+
+  @param {object} params  - context.params (parsed JSON body merged with query)
+  @param {object} headers - context.headers (auth in tools/call; Mcp-* routing headers)
+  @return {object} { http_status:int, headers?:object, body?:object }
+                   body is a JSON-RPC envelope (or omitted for notifications).
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+
+  assign id = params.id
+  assign out = {}
+
+  # ---- Transport size cap (spec §12.4). Reject before doing any real work. ----
+  assign input_bytes = params | json | size
+  if input_bytes > cfg.defaults.max_input_bytes
+    function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32600, message: 'Request too large'
+    assign out['http_status'] = 413
+    assign out['body'] = body
+    return out
+  endif
+
+  # ---- Envelope validation (§13.2). jsonrpc must be exactly "2.0" when present. ----
+  if params.jsonrpc != blank and params.jsonrpc != '2.0'
+    function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32600, message: 'Invalid Request'
+    assign out['http_status'] = 400
+    assign out['body'] = body
+    return out
+  endif
+
+  # ---- Protocol era + revision. A refused version is answered before routing. ----
+  function proto = 'modules/mcp/helpers/protocol/negotiate', params: params, headers: headers
+  unless proto.error == blank
+    function body = 'modules/mcp/helpers/rpc/error', id: id, code: proto.error.code, message: proto.error.message, data: proto.error.data
+    assign out['http_status'] = proto.error.http_status
+    assign out['body'] = body
+    return out
+  endunless
+
+  assign method = params.method
+  if proto.modern
+    function header_error = 'modules/mcp/helpers/protocol/check_headers', params: params, headers: headers
+    unless header_error == blank
+      function body = 'modules/mcp/helpers/rpc/error', id: id, code: header_error.code, message: header_error.message
+      assign out['http_status'] = header_error.http_status
+      assign out['body'] = body
+      return out
+    endunless
+  else
+    # ---- Legacy header routing: reconcile Mcp-Method / Mcp-Name with the body. ----
+    assign hdr_method = headers.HTTP_MCP_METHOD | default: ''
+    assign hdr_name = headers.HTTP_MCP_NAME | default: ''
+    if hdr_method != blank
+      if method == blank
+        assign method = hdr_method
+      elsif method != hdr_method
+        function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32600, message: 'Invalid Request: Mcp-Method header disagrees with request method'
+        assign out['http_status'] = 400
+        assign out['body'] = body
+        return out
+      endif
+    endif
+
+    assign inner_name = params.params.name
+    if hdr_name != blank and inner_name != blank and hdr_name != inner_name
+      if method == 'tools/call' or method == 'prompts/get'
+        function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32600, message: 'Invalid Request: Mcp-Name header disagrees with target name'
+        assign out['http_status'] = 400
+        assign out['body'] = body
+        return out
+      endif
+    endif
+  endif
+
+  # A missing method (neither body nor header) is Invalid Request.
+  if method == blank
+    function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32600, message: 'Invalid Request'
+    assign out['http_status'] = 400
+    assign out['body'] = body
+    return out
+  endif
+
+  # ---- Notifications: acknowledge, no response body (JSON-RPC notification). ----
+  if method contains 'notifications/'
+    assign out['http_status'] = 202
+    return out
+  endif
+
+  # ---- Credentials. A request that PRESENTS a bearer is checked on every method, open
+  #      discovery included: an invalid, revoked or expired token answers 401 with the
+  #      WWW-Authenticate challenge (RFC 6750 §3.1; MCP authorization: invalid or expired
+  #      tokens MUST receive HTTP 401), so a client learns to re-authenticate instead of
+  #      seeing an empty tool list. A request WITHOUT a bearer stays open, except the
+  #      opt-in connect-time challenge (MCP_CONFIG.oauth.challenge_initialize): most MCP
+  #      clients only start the authorization flow when the connection itself answers 401,
+  #      so `initialize` (legacy) or `server/discover` (modern) without a valid bearer gets
+  #      the RFC 9728 challenge. tools/call and tasks/* authenticate inside their handlers.
+  #      The identity resolved here is passed to the router so it is looked up once.
+  assign auth_header = headers.HTTP_AUTHORIZATION | default: '' | downcase
+  assign presented = false
+  if auth_header contains 'bearer'
+    assign presented = true
+  endif
+  assign self_authenticating = false
+  if method == 'tools/call' or method == 'tasks/get' or method == 'tasks/update' or method == 'tasks/cancel'
+    assign self_authenticating = true
+  endif
+  assign connect_method = false
+  if method == 'initialize' or method == 'server/discover'
+    assign connect_method = true
+  endif
+  assign must_authenticate = false
+  if presented and self_authenticating == false
+    assign must_authenticate = true
+  endif
+  if connect_method and cfg.oauth.challenge_initialize == true
+    assign must_authenticate = true
+  endif
+  assign identity = null
+  if must_authenticate
+    function ini = 'modules/mcp/commands/identity/resolve_principal', headers: headers
+    unless ini.authenticated
+      log ini.reason, type: 'mcp.auth_denied'
+      function body = 'modules/mcp/helpers/rpc/error', id: id, code: ini.error_code, message: ini.message
+      assign hdrs = { "WWW-Authenticate": ini.www_authenticate }
+      assign out['headers'] = hdrs
+      assign out['http_status'] = ini.http_status
+      assign out['body'] = body
+      return out
+    endunless
+    assign identity = ini
+  endif
+
+  function routed = 'modules/mcp/commands/rpc/route', method: method, params: params, headers: headers, id: id, proto: proto, identity: identity
+
+  # ---- Modern results always state their type (2026-07-28 `Result.resultType`). ----
+  if proto.modern
+    assign routed_result = routed.body.result
+    if routed_result != nil and routed_result.resultType == blank
+      assign routed_result['resultType'] = 'complete'
+    endif
+  endif
+
+  return routed
+%}

@@ -1,0 +1,22 @@
+query find_by_prev_refresh_digest($digest: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_token" }
+      properties: [{ name: "prev_refresh_digest", value: $digest }]
+    }
+  ) {
+    results {
+      id
+      user_id: property(name: "user_id")
+      label: property(name: "label")
+      status: property(name: "status")
+      kind: property(name: "kind")
+      client_id: property(name: "client_id")
+      scope: property(name: "scope")
+      resource: property(name: "resource")
+      refresh_digest: property(name: "refresh_digest")
+      refresh_expires_at: property(name: "refresh_expires_at")
+    }
+  }
+}

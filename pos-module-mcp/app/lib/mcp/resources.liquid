@@ -1,0 +1,109 @@
+{%- comment -%}
+  Layer-2 resource provider (app-owned; spec §13.1 resources), called by the engine
+  (queries/resources/provider) for an AUTHENTICATED caller with `operation`, `uri`,
+  `cursor`, `principal` and `agent`.
+
+  TEST FIXTURE: serves only when the MCP_ENABLE_TEST_TOOLS constant is set, so a normal
+  deploy offers no provider resources. Each signed-in caller owns notes at
+  test-note://<user_id>/<name> and can read only their own. The list also carries two
+  entries the engine must drop (a reserved mcp+page: URI and one without a name) and
+  pages once through `next_cursor`. Reading `boom` raises, `inner_missing` calls a
+  partial that does not exist, and `malformed` returns contents without text, so the
+  suite can check the engine's failure handling.
+{%- endcomment -%}
+{% liquid
+  assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+  unless test_gate == '1' or test_gate == 'true'
+    return null
+  endunless
+
+  assign user_id = principal.user_id | append: ''
+  assign base = 'test-note://' | append: user_id | append: '/'
+
+  case operation
+    when 'list'
+      assign resources = []
+      if cursor == 'page-2'
+        assign second_uri = base | append: 'second'
+        assign second = {
+          "uri": second_uri,
+          "name": "second"
+        }
+        assign resources = resources | array_add: second
+        assign out = { "resources": resources }
+        return out
+      endif
+      assign hello_uri = base | append: 'hello'
+      assign hello = {
+        "uri": hello_uri,
+        "name": "hello",
+        "title": "Hello note",
+        "description": "TEST FIXTURE: a note only its owner can read.",
+        "mimeType": "text/plain",
+        "internal": "never listed"
+      }
+      assign resources = resources | array_add: hello
+      assign reserved = {
+        "uri": "mcp+page:///forged",
+        "name": "forged"
+      }
+      assign resources = resources | array_add: reserved
+      assign nameless_uri = base | append: 'nameless'
+      assign nameless = { "uri": nameless_uri }
+      assign resources = resources | array_add: nameless
+      assign out = {
+        "resources": resources,
+        "next_cursor": "page-2"
+      }
+      return out
+
+    when 'templates'
+      assign template = {
+        "uriTemplate": "test-note://{user_id}/{name}",
+        "name": "test_note",
+        "mimeType": "text/plain"
+      }
+      assign templates = []
+      assign templates = templates | array_add: template
+      assign out = { "resource_templates": templates }
+      return out
+
+    when 'read'
+      assign wanted = uri | append: ''
+      assign owner_prefix = wanted | slice: 0, base.size
+      unless owner_prefix == base
+        return null
+      endunless
+      assign name = wanted | remove_first: base
+      case name
+        when 'hello', 'second'
+          assign text = 'note ' | append: name | append: ' for ' | append: principal.id | append: ' via ' | append: agent.id
+          assign item = {
+            "uri": wanted,
+            "mimeType": "text/plain",
+            "text": text
+          }
+          assign contents = []
+          assign contents = contents | array_add: item
+          assign out = { "contents": contents }
+          return out
+        when 'boom'
+          assign raised = 1 | divided_by: 0
+          return raised
+        when 'inner_missing'
+          # Deliberately missing: the engine must report this as a provider failure.
+          # platformos-check-disable MissingPartial
+          function inner = 'mcp/no_such_inner_partial'
+          # platformos-check-enable MissingPartial
+          return inner
+        when 'malformed'
+          assign item = { "uri": wanted }
+          assign contents = []
+          assign contents = contents | array_add: item
+          assign out = { "contents": contents }
+          return out
+      endcase
+      return null
+  endcase
+  return null
+%}

@@ -1,0 +1,26 @@
+---
+slug: test/mcp-client-metadata
+format: json
+---
+{%- comment -%}
+  TEST FIXTURE (gated): a Client ID Metadata Document served by the test instance
+  itself, so tests/oauth.test.mjs can drive commands/oauth/resolve_client through a
+  real fetch. Its client_id is this page's own URL, as CIMD requires. The client name
+  holds a real quote and HTML entities: the document must be parsed without decoding
+  them. Served only when MCP_ENABLE_TEST_TOOLS is '1'/'true' (CI + eval hosts).
+
+  The JSON is written as literal text: platformOS encodes a hash with & < > as
+  & < >, but other servers (JSON.stringify, for one) send them as is,
+  and only literal entities show whether the parser decodes them.
+{%- endcomment -%}
+{%- liquid
+  assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+  if test_gate == '1' or test_gate == 'true'
+    function origin = 'modules/mcp/queries/origin'
+    assign doc = '{"client_id":"' | append: origin | append: '/test/mcp-client-metadata.json","client_name":"CIMD \"q\" &quot;e&quot; &amp; &lt;b&gt;","redirect_uris":["https://client-cimd.example.test/cb"],"token_endpoint_auth_method":"none"}'
+    print doc
+  else
+    response_status 404
+    echo '{}'
+  endif
+-%}

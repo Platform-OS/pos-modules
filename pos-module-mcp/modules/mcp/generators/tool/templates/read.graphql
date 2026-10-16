@@ -1,0 +1,23 @@
+query <%= toolName %>($keyword: String!, $limit: Int!) {
+  items: records(
+    per_page: $limit
+    filter: {
+      table: { value: "<%= table %>" }
+      or: [
+<% if (searchable.length > 0) { searchable.forEach(function(a){ -%>
+        { properties: { name: "<%= a.name %>", contains: $keyword } }
+<% }); } else { -%>
+        { properties: { name: "name", contains: $keyword } }
+<% } -%>
+      ]
+    }
+  ) {
+    total_entries
+    results {
+      id
+<% selectFields.forEach(function(a){ -%>
+      <%= a.name %>: property(name: "<%= a.name %>")
+<% }); -%>
+    }
+  }
+}

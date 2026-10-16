@@ -1,0 +1,26 @@
+{%- comment -%}
+  Tool manifest — search_events (Layer-2, app-owned; spec §5.2/§7.1). Co-located
+  with its handler (call.liquid). Returns the manifest hash; the pos-module-mcp
+  engine validates it against the meta-schema and serves it via tools/list.
+
+  The description is model-read text and is reviewed as security-relevant (§12.1).
+  authorization_policy is REQUIRED (no implicit allow). handler names the call
+  partial the engine invokes with validated arguments.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "search_events",
+    "version": "1.0.0",
+    "title": "Search events",
+    "description": "Search the community PUBLISHED events by keyword and return upcoming matches (title, date, venue, link). Read-only; returns at most 20 events.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","minLength":1,"maxLength":80,"description":"keyword to match against event title and description"},"limit":{"type":"integer","minimum":1,"maximum":20,"description":"max events to return (default 10)"}}},
+    "output_schema": {"type":"object","properties":{"query":{"type":"string"},"count":{"type":"integer","description":"matching events, before the limit"},"events":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"summary":{"type":["string","null"]},"start_date":{"type":["string","null"]},"venue":{"type":["string","null"]},"link":{"type":["string","null"]}}}}}},
+    "annotations": {"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tools/search_events/call"
+  }
+  return m
+%}

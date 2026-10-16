@@ -1,0 +1,18 @@
+query client_find($client_id: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_oauth_client" }
+      properties: [{ name: "client_id", value: $client_id }]
+    }
+  ) {
+    results {
+      id
+      client_id: property(name: "client_id")
+      client_name: property(name: "client_name")
+      client_uri: property(name: "client_uri")
+      redirect_uris: property_array(name: "redirect_uris")
+      status: property(name: "status")
+    }
+  }
+}

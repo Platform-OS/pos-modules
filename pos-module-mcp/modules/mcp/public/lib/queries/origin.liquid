@@ -1,0 +1,16 @@
+{% doc %}
+  The instance's public origin — scheme://host[:port] — taken from the current request
+  URL, so every absolute URL the engine emits (the RFC 9728 resource identifier, the
+  WWW-Authenticate resource_metadata link, resource public_url, the client-connect
+  command) matches the address clients actually reach, including non-default ports
+  and plain http in local development. Falls back to https://<host>.
+{% enddoc %}
+{% liquid
+  assign parts = context.location.url | split: '/'
+  if parts[0] == 'http:' or parts[0] == 'https:'
+    assign origin = parts[0] | append: '//' | append: parts[2]
+  else
+    assign origin = 'https://' | append: context.location.host
+  endif
+  return origin
+%}

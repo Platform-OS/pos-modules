@@ -1,0 +1,14 @@
+{%- comment -%}
+  Handler — test_member (TEST FIXTURE). Read-only member-tier probe.
+{%- endcomment -%}
+{% liquid
+  assign result = {
+    "tier": "member",
+    "principal": principal.id
+  }
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

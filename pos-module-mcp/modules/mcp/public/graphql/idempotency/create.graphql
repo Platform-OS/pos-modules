@@ -1,0 +1,22 @@
+mutation create(
+  $key: String!
+  $principal_id: String!
+  $tool_name: String!
+  $input_sha256: String!
+  $response_json: String!
+  $expires_at: Int!
+) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_idempotency"
+    properties: [
+      { name: "key", value: $key }
+      { name: "principal_id", value: $principal_id }
+      { name: "tool_name", value: $tool_name }
+      { name: "input_sha256", value: $input_sha256 }
+      { name: "response_json", value: $response_json }
+      { name: "expires_at", value_int: $expires_at }
+    ]
+  }) {
+    id
+  }
+}

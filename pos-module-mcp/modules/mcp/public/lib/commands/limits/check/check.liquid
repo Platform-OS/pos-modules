@@ -1,0 +1,12 @@
+{%- comment -%}
+  @param {object} object - built by limits/check/build
+{%- endcomment -%}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'scope'
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'limit'
+
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

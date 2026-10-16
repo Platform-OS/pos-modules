@@ -1,0 +1,18 @@
+# Profiles holding an MCP role (mcp_user / mcp_operator) — the operator console's member list.
+query members($per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: {
+      table: { value: "modules/user/profile" }
+      properties: [{ name: "roles", array_overlaps: ["mcp_user", "mcp_operator"] }]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      user_id: property(name: "user_id")
+      email: property(name: "email")
+      roles: property_array(name: "roles")
+    }
+  }
+}

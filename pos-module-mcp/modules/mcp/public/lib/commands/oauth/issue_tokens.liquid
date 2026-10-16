@@ -1,0 +1,23 @@
+{%- comment -%}
+  Mint a new OAuth grant: an access token + refresh token pair on ONE mcp_token row
+  (kind=oauth), bound to user, client, scope and resource. Returns the RFC 6749 §5.1
+  token response body. Raw tokens are returned once, never stored.
+
+  @param {string} user_id
+  @param {string} client_id
+  @param {string} client_name
+  @param {string} scope
+  @param {string} resource
+  @return {object} token response body, or { error: 'server_error' } when user/client is missing
+{%- endcomment -%}
+{% liquid
+  function object = 'modules/mcp/commands/oauth/issue_tokens/build', user_id: user_id, client_id: client_id, client_name: client_name, scope: scope, resource: resource
+  function object = 'modules/mcp/commands/oauth/issue_tokens/check', object: object
+  if object.valid
+    function body = 'modules/mcp/commands/oauth/issue_tokens/execute', object: object
+    return body
+  endif
+
+  assign body = { "error": "server_error" }
+  return body
+%}

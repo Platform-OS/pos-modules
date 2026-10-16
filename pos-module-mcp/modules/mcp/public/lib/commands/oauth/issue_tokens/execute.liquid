@@ -1,0 +1,22 @@
+{%- comment -%}
+  Mint the access + refresh pair on one mcp_token row; only digests are stored.
+
+  @param {object} object - validated by oauth/issue_tokens/check
+  @return {object} RFC 6749 §5.1 token response body
+{%- endcomment -%}
+{% liquid
+  function access = 'modules/mcp/helpers/oauth/random_secret', prefix: 'mcp_at_'
+  function refresh = 'modules/mcp/helpers/oauth/random_secret', prefix: 'mcp_rt_'
+  assign token_digest = access | digest: 'sha256'
+  assign refresh_digest = refresh | digest: 'sha256'
+  graphql _t = 'modules/mcp/tokens/create_oauth', user_id: object.user_id, token_digest: token_digest, refresh_digest: refresh_digest, label: object.label, client_id: object.client_id, scope: object.scope, resource: object.resource, expires_at: object.expires_at, refresh_expires_at: object.refresh_expires_at
+
+  assign body = {
+    "access_token": access,
+    "token_type": "Bearer",
+    "expires_in": object.ttl,
+    "refresh_token": refresh,
+    "scope": object.scope
+  }
+  return body
+%}

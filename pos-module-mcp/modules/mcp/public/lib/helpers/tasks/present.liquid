@@ -1,0 +1,111 @@
+{%- comment -%}
+  Present an approval record as a Tasks-extension task (io.modelcontextprotocol/tasks,
+  "Tasks" and "Task Status"). An approval-gated tools/call IS a task: requested,
+  waiting for an operator, then executed. Used for the CreateTaskResult of tools/call
+  and for tasks/get.
+
+  approval status → task status:
+    pending (window open) | approved (executing) → working
+    executed                                     → completed, `result` = the tool result
+    failed, with a stored tool result            → completed, `result` (isError: true)
+    failed, with a stored JSON-RPC error         → failed, `error`
+    rejected | cancelled                         → cancelled
+    expired, or pending past its window          → failed, `error` -32005
+
+  `ttlMs` is null: approval rows are kept, not discarded. `_meta` carries the tool
+  name and the approval deadline, which the Task shape has no field for.
+
+  @param {object} rec - an approval record from approvals/find_by_handle
+  @return {object} Task + status-specific `result` / `error`
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign expires_at = rec.expires_at | plus: 0
+
+  assign expired_error = {
+    "code": -32005,
+    "message": "Approval expired: no operator decided before the deadline"
+  }
+
+  assign status = 'working'
+  assign message = 'Waiting for an operator to approve or reject this action.'
+  assign result = null
+  assign error = null
+
+  case rec.status
+    when 'pending'
+      if expires_at < now_unix
+        assign status = 'failed'
+        assign message = 'The approval window closed before an operator decided; the action did not run.'
+        assign error = expired_error
+      endif
+    when 'approved'
+      assign message = 'Approved; the action is running.'
+    when 'executed'
+      assign status = 'completed'
+      assign message = rec.result_summary | default: 'Executed'
+      if rec.result_json != blank
+        assign result = rec.result_json | parse_json: raw_text: true
+      else
+        assign legacy_item = {
+          "type": "text",
+          "text": message
+        }
+        assign legacy_content = []
+        assign legacy_content = legacy_content | array_add: legacy_item
+        assign result = {
+          "content": legacy_content,
+          "isError": false
+        }
+      endif
+    when 'failed'
+      assign message = rec.result_summary | default: 'The action failed.'
+      if rec.result_json != blank
+        assign status = 'completed'
+        assign result = rec.result_json | parse_json: raw_text: true
+      else
+        assign status = 'failed'
+        if rec.error_json != blank
+          assign error = rec.error_json | parse_json: raw_text: true
+        else
+          assign error = {
+            "code": -32603,
+            "message": message
+          }
+        endif
+      endif
+    when 'rejected'
+      assign status = 'cancelled'
+      assign message = 'An operator rejected this action; it did not run.'
+    when 'cancelled'
+      assign status = 'cancelled'
+      assign message = 'The requester withdrew this action; it did not run.'
+    when 'expired'
+      assign status = 'failed'
+      assign message = 'The approval window closed before an operator decided; the action did not run.'
+      assign error = expired_error
+  endcase
+
+  assign approval_meta = { "tool": rec.tool_name }
+  assign approval_meta['expiresAt'] = expires_at | to_time | strftime: '%Y-%m-%dT%H:%M:%S%:z'
+  assign task_meta = { "com.platformos.mcp/approval": approval_meta }
+
+  assign task = {
+    "taskId": rec.handle,
+    "status": status,
+    "statusMessage": message
+  }
+  assign task['createdAt'] = rec.created_at | to_time | strftime: '%Y-%m-%dT%H:%M:%S%:z'
+  assign task['lastUpdatedAt'] = rec.updated_at | to_time | strftime: '%Y-%m-%dT%H:%M:%S%:z'
+  assign task['ttlMs'] = null
+  assign task['pollIntervalMs'] = cfg.defaults.task_poll_interval_ms | plus: 0
+  unless result == null
+    assign task['result'] = result
+  endunless
+  unless error == null
+    assign task['error'] = error
+  endunless
+  assign task['_meta'] = task_meta
+  return task
+%}

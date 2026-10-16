@@ -1,0 +1,15 @@
+{%- comment -%}
+  Handler — test_public (TEST FIXTURE). Read-only. Returns a constant tier marker +
+  the resolved principal id so the coverage suite can assert who reached it.
+{%- endcomment -%}
+{% liquid
+  assign result = {
+    "tier": "public",
+    "principal": principal.id
+  }
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

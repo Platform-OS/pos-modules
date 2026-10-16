@@ -1,0 +1,24 @@
+mutation run_create(
+  $run_id: String!
+  $total: Int!
+  $passed: Int!
+  $failed: Int!
+  $failures_json: String!
+  $warnings_json: String
+  $occurred_at: String!
+) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_eval_run"
+    properties: [
+      { name: "run_id", value: $run_id }
+      { name: "total", value_int: $total }
+      { name: "passed", value_int: $passed }
+      { name: "failed", value_int: $failed }
+      { name: "failures_json", value: $failures_json }
+      { name: "warnings_json", value: $warnings_json }
+      { name: "occurred_at", value: $occurred_at }
+    ]
+  }) {
+    id
+  }
+}

@@ -60,6 +60,8 @@ jobs:
               - 'pos-module-oauth-github/**'
             oauth-google:
               - 'pos-module-oauth-google/**'
+            mcp:
+              - 'pos-module-mcp/**'
             openai:
               - 'pos-module-openai/**'
             reports:

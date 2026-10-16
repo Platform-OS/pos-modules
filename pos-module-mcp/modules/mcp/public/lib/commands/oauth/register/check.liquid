@@ -1,0 +1,53 @@
+{%- comment -%}
+  Registration must be enabled; redirect_uris must be a non-empty array (max 10) of
+  valid redirect URIs; only authorization_code and refresh_token grants. The first
+  failure is kept as `oauth_error` ({ error, error_description, http_status }) for the
+  RFC 7591 error response. On success `redirect_uris` holds the stringified URIs.
+
+  @param {object} object - built by oauth/register/build
+{%- endcomment -%}
+{% liquid
+  assign oauth_error = null
+  function cfg = 'modules/mcp/helpers/config'
+  unless cfg.oauth.builtin and cfg.oauth.dynamic_client_registration
+    assign oauth_error = { "error": "invalid_request", "error_description": "Dynamic client registration is disabled", "http_status": 404 }
+  endunless
+
+  if oauth_error == blank
+    assign uris = object.redirect_uris
+    assign uris_type = uris | type_of | downcase
+    if uris_type != 'array' or uris.size == 0 or uris.size > 10
+      assign oauth_error = { "error": "invalid_redirect_uri", "error_description": "redirect_uris must be a non-empty array (max 10)", "http_status": null }
+    else
+      assign clean = []
+      for u in uris
+        assign s = u | append: ''
+        function ok = 'modules/mcp/helpers/oauth/redirect_uri_valid', uri: s
+        unless ok
+          assign oauth_error = { "error": "invalid_redirect_uri", "error_description": "Redirect URIs must be https, http on a loopback host, or a private-use app scheme, without a fragment", "http_status": null }
+          break
+        endunless
+        assign clean = clean | array_add: s
+      endfor
+      assign object['redirect_uris'] = clean
+    endif
+  endif
+
+  if oauth_error == blank
+    for gt in object.grant_types
+      unless gt == 'authorization_code' or gt == 'refresh_token'
+        assign oauth_error = { "error": "invalid_client_metadata", "error_description": "Only authorization_code and refresh_token grants are supported", "http_status": null }
+        break
+      endunless
+    endfor
+  endif
+
+  assign c = { "errors": {}, "valid": true }
+  if oauth_error
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'base', message: oauth_error.error
+  endif
+  assign object.oauth_error = oauth_error
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

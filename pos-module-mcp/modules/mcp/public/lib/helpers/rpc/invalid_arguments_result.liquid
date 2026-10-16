@@ -1,0 +1,35 @@
+{%- comment -%}
+  CallToolResult for arguments that fail the tool's input_schema (spec §10). Since MCP
+  2025-11-25 (SEP-1303) input validation errors are tool execution errors, not protocol
+  errors, so the model sees them and can correct its call. Shared by the inline
+  tools/call path and approval/execute so both answer the same. Pure — no side effects.
+
+  structuredContent carries the errors only when the tool declares no output_schema:
+  a client may check structuredContent against the advertised outputSchema, which an
+  error object would not match. The text content always carries them.
+
+  @param {array}  errors - validate/json_schema errors (argument-shape facts only)
+  @param {object} tool   - the resolved manifest
+  @return {object} { content:[text], isError:true, structuredContent?:{validation_errors} }
+{%- endcomment -%}
+{% liquid
+  assign joined = errors | join: '; '
+  assign text = 'Invalid arguments: ' | append: joined
+  assign item = {
+    "type": "text",
+    "text": text
+  }
+  assign content = []
+  assign content = content | array_add: item
+
+  assign sc = { "validation_errors": errors }
+
+  assign result = {
+    "content": content,
+    "isError": true
+  }
+  if tool.output_schema == blank
+    assign result['structuredContent'] = sc
+  endif
+  return result
+%}

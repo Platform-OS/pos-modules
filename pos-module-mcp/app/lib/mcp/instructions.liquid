@@ -1,0 +1,21 @@
+{%- comment -%}
+  Connection instructions (Layer-2, app-owned) — the house rules sent to the agent
+  on `initialize`. This is where THIS instance sets tone, scope, and etiquette for
+  agents. It is model-read text and is reviewed as security-relevant (§12.3): keep
+  it factual, no secrets, no instructions that could be turned against the user.
+
+  Return a single string.
+{%- endcomment -%}
+{% liquid
+  capture text
+    echo 'You are connected to a community platformOS instance exposed as a governed MCP server. '
+    echo 'You can search and read the public information of this community through the tools in tools/list '
+    echo 'and the documentation in resources/list. '
+    echo 'Every action is authenticated to a real member identity, checked against a named authorization '
+    echo 'policy, validated against a typed schema, and recorded in a tamper-evident ledger — so act '
+    echo 'transparently and only within the tools provided. '
+    echo 'Pass arguments exactly as each tool schema requires; malformed or unknown arguments are rejected, '
+    echo 'never guessed. Be concise, accurate, and helpful to community members.'
+  endcapture
+  return text | strip
+%}

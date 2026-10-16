@@ -1,0 +1,28 @@
+{%- comment -%}
+  OAuth 2.0 Protected Resource Metadata (RFC 9728, spec §9.5). An MCP client that
+  receives a 401 discovers where to obtain a token by reading this document. The
+  resource identifier is per-instance (multi-tenancy, §15).
+
+  authorization_servers: this instance itself when the built-in authorization server
+  is enabled; absent otherwise.
+
+  @return {object}
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  function origin = 'modules/mcp/queries/origin'
+  assign doc = {
+    "resource": cfg.resource_identifier,
+    "resource_name": cfg.server_name,
+    "bearer_methods_supported": ["header"],
+    "scopes_supported": cfg.oauth.scopes_supported
+  }
+  assign servers = []
+  if cfg.oauth.builtin
+    assign servers = servers | array_add: origin
+  endif
+  if servers.size > 0
+    assign doc['authorization_servers'] = servers
+  endif
+  return doc
+%}

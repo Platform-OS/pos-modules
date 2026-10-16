@@ -1,0 +1,14 @@
+{%- comment -%}
+  The OAuth scope a tool call needs (docs/oauth.md): mcp:write for a tool whose
+  manifest declares mutating:true, mcp:read for anything else. Single source for the
+  inline tools/call path and approval/execute.
+
+  @param {object} tool - the resolved manifest
+  @return {string}
+{%- endcomment -%}
+{% liquid
+  if tool.mutating
+    return 'mcp:write'
+  endif
+  return 'mcp:read'
+%}

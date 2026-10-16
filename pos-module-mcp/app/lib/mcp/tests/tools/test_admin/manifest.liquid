@@ -1,0 +1,20 @@
+{%- comment -%}
+  Tool manifest — test_admin (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  Visibility probe for the ADMIN tier: policy admin_only → only an operator
+  principal (holding mcp.admin: role mcp_operator, or superadmin). The
+  coverage suite asserts it is visible/callable by operator ONLY.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_admin",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): admin-tier visibility probe; returns a constant marker.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "mutating": false,
+    "authorization_policy": "admin_only",
+    "requires_approval": false,
+    "idempotent": false,
+    "handler": "mcp/tests/tools/test_admin/call"
+  }
+  return m
+%}

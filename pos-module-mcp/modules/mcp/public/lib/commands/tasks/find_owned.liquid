@@ -1,0 +1,49 @@
+{%- comment -%}
+  Resolve the task a tasks/* request names, for THIS caller (Tasks extension,
+  "Security Considerations": authentication and authorization on every task request).
+
+  SELF-SCOPED: a caller only reaches tasks it requested. An unknown task and another
+  principal's task answer the same -32602 "Task not found", so task IDs cannot be
+  probed. Authentication failure is -32001.
+
+  @param {object} params  - the request params ({ taskId })
+  @param {object} headers - context.headers (bearer identity)
+  @return {object} { rec } on success | { _error:{code,message} } otherwise
+{%- endcomment -%}
+{% liquid
+  assign out = {}
+
+  function idr = 'modules/mcp/commands/identity/resolve_principal', headers: headers
+  unless idr.authenticated == true
+    assign e = {
+      "code": -32001,
+      "message": "Authentication required"
+    }
+    assign out['_error'] = e
+    return out
+  endunless
+
+  assign task_id = params.taskId
+  if task_id == blank
+    assign e = {
+      "code": -32602,
+      "message": "Invalid params: taskId is required"
+    }
+    assign out['_error'] = e
+    return out
+  endif
+
+  graphql r = 'modules/mcp/approvals/find_by_handle', handle: task_id
+  assign rec = r.records.results.first
+  if rec == blank or rec.principal_id != idr.principal.id
+    assign e = {
+      "code": -32602,
+      "message": "Task not found"
+    }
+    assign out['_error'] = e
+    return out
+  endif
+
+  assign out['rec'] = rec
+  return out
+%}

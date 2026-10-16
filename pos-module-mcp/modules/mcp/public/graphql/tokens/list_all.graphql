@@ -1,0 +1,17 @@
+query list_all($per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: { table: { value: "modules/mcp/mcp_token" } }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      id
+      user_id: property(name: "user_id")
+      label: property(name: "label")
+      status: property(name: "status")
+      last_used_at: property(name: "last_used_at")
+      created_at
+    }
+  }
+}

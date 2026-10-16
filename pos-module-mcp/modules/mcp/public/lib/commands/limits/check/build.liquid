@@ -1,0 +1,21 @@
+{%- comment -%}
+  The per-minute window, its counter key and the seconds left in it.
+
+  @param {string}  scope
+  @param {integer} limit
+{%- endcomment -%}
+{% liquid
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign window = now_unix | divided_by: 60
+  assign key = scope | append: ':' | append: window
+  assign elapsed = now_unix | modulo: 60
+  assign retry_after = 60 | minus: elapsed
+  assign object = {
+    "scope": scope,
+    "limit": limit,
+    "window": window,
+    "key": key,
+    "retry_after": retry_after
+  }
+  return object
+%}

@@ -1,0 +1,12 @@
+name: mcp_oauth_client
+# Clients registered via Dynamic Client Registration (RFC 7591, /oauth/register).
+# Clients using Client ID Metadata Documents (client_id = https URL) are NOT stored
+# here — their metadata is fetched from the client_id URL on each /authorize.
+# Public clients only (token_endpoint_auth_method = none; PKCE is the proof).
+properties:
+  - name: client_id
+  - name: client_name
+  - name: client_uri
+  - name: redirect_uris
+    type: array
+  - name: status          # active | revoked

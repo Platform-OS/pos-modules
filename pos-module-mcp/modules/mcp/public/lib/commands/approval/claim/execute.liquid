@@ -1,0 +1,25 @@
+{%- comment -%}
+  The row-locked claim: rewrite claim_token (takes the row lock), re-read, and move the
+  row only while it is still pending. See approval/claim for why.
+
+  @param {object} object - validated by approval/claim/check
+  @return {object} { claimed:boolean, rec }
+{%- endcomment -%}
+{% liquid
+  assign out = { "claimed": false }
+  assign token = '' | uuid
+  assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+
+  transaction timeout: 10
+    graphql _lock = 'modules/mcp/approvals/claim_lock', id: object.id, token: token
+    graphql f = 'modules/mcp/approvals/find_by_handle', handle: object.handle
+    assign rec = f.records.results.first
+    if rec and rec.status == 'pending'
+      graphql _u = 'modules/mcp/approvals/update', id: rec.id, status: object.status, decided_by: object.decided_by, decided_at: decided_at, result_summary: object.result_summary
+      assign out['claimed'] = true
+    endif
+  endtransaction
+
+  assign out['rec'] = rec
+  return out
+%}

@@ -1,0 +1,41 @@
+{%- comment -%}
+  Bump this window's counter (atomic increment, or create on the first request) and
+  compare it with the limit.
+
+  @param {object} object - validated by limits/check/check
+  @return {object} { allowed, count, limit, retry_after }
+{%- endcomment -%}
+{% liquid
+  graphql fres = 'modules/mcp/rate/find', key: object.key
+  assign existing = fres.records.results.first
+
+  # property(name:) returns a string — coerce to integer for numeric comparison.
+  assign count = 0
+  if existing
+    graphql ires = 'modules/mcp/rate/increment', id: existing.id
+    assign count = ires.record.count | plus: 0
+  else
+    graphql cres = 'modules/mcp/rate/create', key: object.key
+    assign count = cres.record.count | plus: 0
+    # First request of this scope in a new window: every 10th minute, also reclaim
+    # closed counter windows + expired idempotency rows (async platform jobs), so the
+    # tables stay bounded without a scheduler. At most once per scope per 10 minutes.
+    assign sweep_slot = object.window | modulo: 10
+    if sweep_slot == 0
+      function _swept = 'modules/mcp/commands/maintenance/sweep'
+    endif
+  endif
+
+  assign allowed = true
+  if count > object.limit
+    assign allowed = false
+  endif
+
+  assign out = {
+    "allowed": allowed,
+    "count": count,
+    "limit": object.limit,
+    "retry_after": object.retry_after
+  }
+  return out
+%}

@@ -1,0 +1,35 @@
+{%- comment -%}
+  Flatten the request into the approval row and mint its opaque handle + expiry.
+
+  @param {object} tool
+  @param {string} arguments_json
+  @param {string} input_sha256
+  @param {object} principal
+  @param {object} agent
+  @param {string} token_id
+  @param {string} request_id
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign expires_at = now_unix | plus: cfg.defaults.approval_window_seconds
+  assign u1 = '' | uuid | replace: '-', ''
+  assign handle = 'mcp_pa_' | append: u1
+
+  assign object = {
+    "handle": handle,
+    "expires_at": expires_at,
+    "tool_name": tool.name,
+    "tool_version": tool.version,
+    "authz_policy": tool.authorization_policy,
+    "arguments_json": arguments_json,
+    "input_sha256": input_sha256,
+    "requested_by_agent": agent.id,
+    "requested_by_client_id": agent.client_id,
+    "requested_by_token_id": agent.token_id,
+    "principal_id": principal.id,
+    "token_id": token_id,
+    "request_id": request_id
+  }
+  return object
+%}

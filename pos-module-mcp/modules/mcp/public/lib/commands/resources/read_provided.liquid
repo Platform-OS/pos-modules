@@ -1,0 +1,157 @@
+{%- comment -%}
+  resources/read of a resource served by the app's provider (spec §13.1, §9.2). The
+  caller is authenticated (rpc/dispatch resolved the bearer); this applies the same
+  controls as a tools/call before the provider runs, because the read returns app data:
+    1. auto-suspend on abuse (limits/enforce_abuse);
+    2. the per-principal rate limit, shared with tools/call (429 + Retry-After);
+    3. the mcp:read scope (an OAuth token without it gets 403 insufficient_scope);
+    4. the provider read (queries/resources/provider), which applies the app's own
+       access rules for this principal and returns nil for anything the caller may not
+       read, so "forbidden" and "missing" are the same "Resource not found".
+  Every outcome after authentication is written to the ledger as method resources/read,
+  with the URI hashed (input_sha256), never stored. A provider that raises or returns a
+  malformed result is logged and answered with a generic -32603.
+
+  @param {string} uri      - the requested URI (a provider URI, see queries/resources/provided_uri)
+  @param {object} identity - the authenticated caller from rpc/dispatch
+  @return {object} { contents:[...] } OR { _error:{ code, message, http_status?, headers? } }
+{%- endcomment -%}
+{% liquid
+  assign start_ms = 'now' | to_time | strftime: '%s%3N' | plus: 0
+  function cfg = 'modules/mcp/helpers/config'
+  assign out = {}
+
+  function abuse = 'modules/mcp/commands/limits/enforce_abuse', token_id: identity.token_id, principal_id: identity.principal.id, agent_id: identity.agent.id
+  if abuse.suspended
+    assign err = {
+      "code": -32001,
+      "message": "Access suspended",
+      "http_status": 403
+    }
+    assign out['_error'] = err
+    return out
+  endif
+
+  assign uri_text = uri | append: ''
+  assign le = {
+    "method": "resources/read",
+    "client_id": identity.agent.client_id,
+    "agent_id": identity.agent.id,
+    "principal_id": identity.principal.id,
+    "delegation_mode": identity.delegation_mode
+  }
+  assign le['input_sha256'] = uri_text | digest: 'sha256'
+  assign le['input_bytes'] = uri_text | size
+  assign le['request_id'] = '' | uuid
+  assign le['authz_decision'] = 'not_applicable'
+  assign le['_start_ms'] = start_ms
+
+  assign rate_scope = 'principal:' | append: identity.principal.id
+  function rate = 'modules/mcp/commands/limits/check', scope: rate_scope, limit: cfg.defaults.rate_limit_per_min
+  unless rate.allowed
+    assign le['execution_outcome'] = 'error'
+    assign le['error_code'] = -32002
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: identity.principal.id
+    assign headers_retry_after = rate.retry_after | append: ''
+    assign headers = { "Retry-After": headers_retry_after }
+    assign err = {
+      "code": -32002,
+      "message": "Rate limit exceeded",
+      "http_status": 429,
+      "headers": headers
+    }
+    assign out['_error'] = err
+    return out
+  endunless
+
+  unless identity.scopes contains 'mcp:read'
+    assign le['authz_decision'] = 'deny'
+    assign le['authz_reason'] = 'insufficient_scope'
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    function origin = 'modules/mcp/queries/origin'
+    assign challenge = 'Bearer resource_metadata="' | append: origin | append: '/.well-known/oauth-protected-resource", realm="mcp", error="insufficient_scope", scope="' | append: cfg.oauth.default_scope | append: '"'
+    assign headers = { "WWW-Authenticate": challenge }
+    assign err = {
+      "code": -32001,
+      "message": "Insufficient scope",
+      "http_status": 403,
+      "headers": headers
+    }
+    assign out['_error'] = err
+    return out
+  endunless
+
+  function provided = 'modules/mcp/queries/resources/provider', operation: 'read', uri: uri_text, cursor: null, principal: identity.principal, agent: identity.agent
+
+  # A well-formed result has at least one content item, each with a string uri and a
+  # string text or blob. Only the keys MCP defines are returned.
+  assign contents = []
+  assign malformed = false
+  unless provided.failed or provided.value == blank
+    assign raw_contents = provided.value.contents
+    assign raw_kind = raw_contents | type_of | downcase
+    if raw_kind != 'array' or raw_contents.size == 0
+      assign malformed = true
+    else
+      for raw in raw_contents
+        assign item_kind = raw | type_of | downcase
+        assign item_uri_kind = raw.uri | type_of | downcase
+        assign text_kind = raw.text | type_of | downcase
+        assign blob_kind = raw.blob | type_of | downcase
+        if item_kind != 'hash' or raw.uri == blank or item_uri_kind != 'string'
+          assign malformed = true
+          break
+        endif
+        assign item = { "uri": raw.uri }
+        if text_kind == 'string'
+          assign item['text'] = raw.text
+        elsif blob_kind == 'string'
+          assign item['blob'] = raw.blob
+        else
+          assign malformed = true
+          break
+        endif
+        assign mime_kind = raw.mimeType | type_of | downcase
+        if mime_kind == 'string'
+          assign item['mimeType'] = raw.mimeType
+        endif
+        assign contents = contents | array_add: item
+      endfor
+    endif
+  endunless
+
+  if provided.failed or malformed
+    if malformed
+      log 'read returned malformed contents', type: 'mcp.resources_provider_error'
+    endif
+    assign le['execution_outcome'] = 'error'
+    assign le['error_code'] = -32603
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    assign err = {
+      "code": -32603,
+      "message": "Internal error"
+    }
+    assign out['_error'] = err
+    return out
+  endif
+
+  if provided.value == blank
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32002
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    assign err = {
+      "code": -32002,
+      "message": "Resource not found"
+    }
+    assign out['_error'] = err
+    return out
+  endif
+
+  assign le['execution_outcome'] = 'success'
+  function _ = 'modules/mcp/commands/ledger/append', entry: le
+  assign result = { "contents": contents }
+  return result
+%}

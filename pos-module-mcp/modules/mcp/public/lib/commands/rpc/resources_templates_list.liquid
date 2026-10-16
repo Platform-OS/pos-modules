@@ -1,0 +1,28 @@
+{%- comment -%}
+  MCP `resources/templates/list` (spec §13.1). The engine's markdown pages have no
+  templates; the app's resource provider (queries/resources/provider) may declare
+  parameterized URIs (RFC 6570 uriTemplate) for an AUTHENTICATED caller. Its entries are
+  checked (helpers/resources/clean_entries) before they are listed. A caller without a
+  bearer gets an empty list.
+
+  @param {object} cache     - 2026-07-28 cache hint, or nil
+  @param {object} principal - the caller's principal, or nil when anonymous
+  @param {object} agent     - the caller's agent, or nil when anonymous
+  @return {object} { resourceTemplates:[{uriTemplate,name,title?,description?,mimeType?}] }
+{%- endcomment -%}
+{% liquid
+  assign templates = []
+  unless principal == blank
+    function provided = 'modules/mcp/queries/resources/provider', operation: 'templates', uri: null, cursor: null, principal: principal, agent: agent
+    unless provided.failed or provided.value == blank
+      function templates = 'modules/mcp/helpers/resources/clean_entries', entries: provided.value.resource_templates, kind: 'template'
+    endunless
+  endunless
+
+  assign result = { "resourceTemplates": templates }
+  unless cache == blank
+    assign result['ttlMs'] = cache.ttlMs
+    assign result['cacheScope'] = cache.cacheScope
+  endunless
+  return result
+%}

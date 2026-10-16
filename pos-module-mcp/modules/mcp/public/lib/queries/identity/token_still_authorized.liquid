@@ -1,0 +1,73 @@
+{%- comment -%}
+  Can a stored token row still make this tool call? Used when an action runs later
+  than the request that asked for it (approval/execute), so an operator's approval
+  never revives a credential that could no longer make the call itself. Applies the
+  same rules as the inline path — identity/resolve_principal (status, binding, OAuth
+  audience, required permission), registry/resolve_tool (allowed_tools) and the scope
+  gate in rpc/tools_call (queries/oauth/required_scope) — except the access-token
+  expiry: OAuth access tokens rotate on the same row, so the grant counts while its
+  refresh token is still valid.
+
+  @param {string} token_id     - mcp_token row id
+  @param {string} principal_id - the principal the action runs as ('user:<id>')
+  @param {object} tool         - the resolved manifest
+  @return {object} { ok:boolean, reason:string }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign out = { "ok": false }
+
+  if token_id == blank
+    assign out['reason'] = 'no_token'
+    return out
+  endif
+  graphql tf = 'modules/mcp/tokens/find_by_id', id: token_id
+  assign token = tf.records.results.first
+  if token == blank or token.status != 'active'
+    assign out['reason'] = 'token_revoked'
+    return out
+  endif
+  assign token_principal = 'user:' | append: token.user_id
+  if token.user_id == blank or token_principal != principal_id
+    assign out['reason'] = 'token_unbound'
+    return out
+  endif
+  unless token.allowed_tools == blank
+    unless token.allowed_tools contains tool.name
+      assign out['reason'] = 'tool_not_allowed'
+      return out
+    endunless
+  endunless
+
+  if token.kind == 'oauth'
+    assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+    assign rexp = token.refresh_expires_at | plus: 0
+    if rexp <= now_s
+      assign out['reason'] = 'grant_expired'
+      return out
+    endif
+    assign bound = token.resource | default: '' | replace_regex: '/+\z', ''
+    assign mine = cfg.resource_identifier | replace_regex: '/+\z', ''
+    if bound != mine
+      assign out['reason'] = 'wrong_audience'
+      return out
+    endif
+    function needed = 'modules/mcp/queries/oauth/required_scope', tool: tool
+    assign scopes = token.scope | default: '' | split: ' '
+    unless scopes contains needed
+      assign out['reason'] = 'insufficient_scope'
+      return out
+    endunless
+  endif
+
+  assign perm_principal = { "user_id": token.user_id }
+  function still_allowed = 'modules/mcp/queries/principal/can', principal: perm_principal, do: cfg.oauth.required_permission
+  unless still_allowed
+    assign out['reason'] = 'permission_revoked'
+    return out
+  endunless
+
+  assign out['ok'] = true
+  assign out['reason'] = 'authorized'
+  return out
+%}

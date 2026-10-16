@@ -1,0 +1,22 @@
+{%- comment -%}
+  Tool manifest — test_echo (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  Read-only, public_read. Non-mutating workhorse for the plane tests that don't need a
+  side effect: strict argument validation (type/required/additionalProperties/maxLength),
+  rate limiting, abuse counting, and ledger attestation. Echoes its input back. Its
+  description holds HTML entities so the suite can check that the cached registry keeps
+  them exactly in every page context.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_echo",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): echoes the given message. Used to exercise validation, rate limiting and attestation. Text such as &quot;quotes&quot; &amp; &lt;tags&gt; comes back as sent.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["message"],"properties":{"message":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[^<>]*$","description":"text to echo back"}}},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": false,
+    "handler": "mcp/tests/tools/test_echo/call"
+  }
+  return m
+%}

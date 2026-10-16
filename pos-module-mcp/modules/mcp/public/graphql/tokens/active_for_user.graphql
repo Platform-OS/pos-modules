@@ -1,0 +1,18 @@
+query active_for_user($user_id: String!) {
+  # A person's ACTIVE tokens (revoked ones excluded), for the label uniqueness check in
+  # commands/tokens/mint. Labels name agents, so two active manual tokens of one person
+  # must not share one.
+  records(
+    per_page: 200
+    filter: {
+      table: { value: "modules/mcp/mcp_token" }
+      properties: [{ name: "user_id", value: $user_id }, { name: "status", value: "active" }]
+    }
+  ) {
+    results {
+      id
+      label: property(name: "label")
+      kind: property(name: "kind")
+    }
+  }
+}

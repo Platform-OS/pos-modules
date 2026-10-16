@@ -1,0 +1,21 @@
+{%- comment -%}
+  Tool manifest — test_bad_annotations (TEST FIXTURE, app-owned). Registered ONLY when
+  the MCP_ENABLE_TEST_TOOLS constant is set (see registry). Negative control for the
+  manifest meta-schema: readOnlyHint is a string, not a boolean, so the engine must
+  exclude this tool from tools/list rather than serve a wrong hint.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_bad_annotations",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): declares a malformed annotation and must never be served.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "annotations": {"readOnlyHint":"yes"},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tests/tools/test_bad_annotations/call"
+  }
+  return m
+%}

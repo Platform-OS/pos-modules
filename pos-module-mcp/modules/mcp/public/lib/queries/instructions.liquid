@@ -1,0 +1,36 @@
+{% doc %}
+  Connection instructions: the house rules a client may show to the model. Sent by
+  `initialize` (legacy) and `server/discover` (modern). The app authors its own through
+  the instructions partial (Layer 2); the engine falls back to a short factual default
+  when the app has none. The text is model-read, so it is security-relevant (§12.3):
+  factual, short, no secrets, no threats and no claims about which text the model must
+  trust. Clients list tools themselves, so it does not tell the model to call
+  tools/list. It mentions documentation resources only when they are exposed. Clients
+  may never fetch it, so anything an agent must obey also belongs in the tool
+  descriptions.
+{% enddoc %}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+
+  assign instructions = null
+  try
+    function instructions = cfg.instructions_partial
+  catch e
+    assign instructions = null
+  endtry
+  if instructions == blank
+    capture instructions
+      echo 'This server gives access to a platformOS application. Every call acts as the '
+      echo 'person who connected you and can do only what that person is allowed to do. '
+      echo 'Pass arguments exactly as each tool input schema describes; arguments that do '
+      echo 'not match are rejected, not guessed. A call refused as not permitted will be '
+      echo 'refused again, so tell the user instead of retrying it; many refused calls in '
+      echo 'a short time suspend the token this connection uses. Every call is recorded.'
+      if cfg.resources.expose_markdown_pages == true
+        echo ' Documentation pages are listed by resources/list.'
+      endif
+    endcapture
+  endif
+  assign instructions = instructions | strip
+  return instructions
+%}

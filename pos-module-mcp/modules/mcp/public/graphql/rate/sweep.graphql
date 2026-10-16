@@ -1,0 +1,11 @@
+mutation sweep($before: String!) {
+  # Delete counter rows created before `before` (ISO-8601). Every window they belong
+  # to has closed, and they carry no audit value (the ledger is the audit surface).
+  # Runs async (records_delete_all default) — cleanup, not a correctness step.
+  deleted: records_delete_all(
+    table: "modules/mcp/mcp_rate_counter"
+    filter: { created_at: { lt: $before } }
+  ) {
+    count
+  }
+}

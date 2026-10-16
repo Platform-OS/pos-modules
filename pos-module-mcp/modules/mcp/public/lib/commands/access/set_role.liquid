@@ -1,0 +1,25 @@
+{% doc %}
+  Set a member's MCP role on their user-module profile (operator action). Removes both
+  MCP roles, then appends `role` when given — so a profile holds at most one of them.
+  An empty `role` removes MCP access AND revokes every active bearer token the user
+  holds — removing access must cut off agents already connected with those tokens, not
+  only stop new mints. The caller (operator page) enforces mcp.admin.
+
+  Roles (define their permissions in the app's role_permissions override):
+    mcp_user     → mcp.tokens.manage
+    mcp_operator → mcp.tokens.manage, mcp.admin
+
+  @param {string} profile_id - the user-module profile id
+  @param {string} [role] - mcp_user | mcp_operator | blank to remove access
+{% enddoc %}
+{% liquid
+  function object = 'modules/mcp/commands/access/set_role/build', profile_id: profile_id, role: role
+  function object = 'modules/mcp/commands/access/set_role/check', object: object
+  if object.valid
+    function out = 'modules/mcp/commands/access/set_role/execute', object: object
+    return out
+  endif
+
+  assign out = { "ok": false }
+  return out
+%}

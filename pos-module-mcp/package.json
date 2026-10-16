@@ -1,0 +1,17 @@
+{
+  "name": "pos-module-mcp",
+  "version": "0.0.0",
+  "description": "Governed Model Context Protocol (MCP) server for platformOS",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:static": "sh tests/ci-static.sh",
+    "seed:generate": "node tests/seed/generate_migrations.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "vitest": "^4.1.10"
+  },
+  "author": "platformOS",
+  "license": "MIT"
+}

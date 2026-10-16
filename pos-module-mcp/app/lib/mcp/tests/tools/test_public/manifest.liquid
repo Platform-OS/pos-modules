@@ -1,0 +1,22 @@
+{%- comment -%}
+  Tool manifest — test_public (TEST FIXTURE, app-owned). Registered ONLY when the
+  MCP_ENABLE_TEST_TOOLS constant is set (see registry). Visibility probe for the
+  PUBLIC tier: policy public_read → any authenticated principal. The coverage suite
+  asserts it is listable/callable by operator, member AND outsider, but never anon.
+  Idempotent (read-only, so replay is harmless) and takes {} like test_member — the
+  pair proves an idempotency key is bound to its tool, not just its arguments.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_public",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): public-tier visibility probe; returns a constant marker.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tests/tools/test_public/call"
+  }
+  return m
+%}

@@ -1,0 +1,89 @@
+{%- comment -%}
+  MCP `resources/list` (spec §3.2, §13.1). Two sources:
+
+  1. Zero-config markdown pages: exposes markdown/doc pages as agent-readable resources
+     with NO custom authoring. Gated by config: resources.expose_markdown_pages must be
+     true (OFF by default), and only markdown GET pages under a configured slug prefix
+     (allowlist, path boundary — see queries/resources/page_allowed) are listed — so no
+     page is agent-visible unless the operator opts in. Freshness-stamped via
+     content_updated_at. The engine's own pages (mcp, well-known) never match the doc
+     prefixes, so they are never exposed. Listed on the first page only.
+  2. The app's resource provider (queries/resources/provider), for an AUTHENTICATED
+     caller only: the provider lists what this caller may read, and may page through
+     its own opaque `next_cursor`, returned as `nextCursor` and passed back as `cursor`.
+     Its entries are checked (helpers/resources/clean_entries) before they are listed.
+
+  Open discovery like tools/list: a caller without a bearer gets the markdown pages.
+
+  @param {object} params    - MCP params (`cursor` from a previous page)
+  @param {object} cache     - 2026-07-28 cache hint, or nil
+  @param {object} principal - the caller's principal, or nil when anonymous
+  @param {object} agent     - the caller's agent, or nil when anonymous
+  @return {object} { resources:[{uri,name,title?,description?,mimeType?,size?,_meta?}], nextCursor? }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign resources = []
+  assign cursor = params.cursor
+
+  if cfg.resources.expose_markdown_pages and cursor == blank
+    function origin = 'modules/mcp/queries/origin'
+    for prefix in cfg.resources.markdown_page_prefixes
+      # One query per operator-configured slug prefix (a small allowlist, default 1) —
+      # the prefixes are distinct filters, not a per-row N+1.
+      # platformos-check-disable NestedGraphQLQuery
+      graphql pres = 'modules/mcp/resources/pages_by_prefix', prefix: prefix, per_page: 100
+      # platformos-check-enable NestedGraphQLQuery
+      for page in pres.admin_pages.results
+        # starts_with is a raw string prefix ("docs" also hits "docs-internal") and
+        # can't filter handler/method — apply the shared exposure predicate.
+        function allowed = 'modules/mcp/queries/resources/page_allowed', page: page, prefixes: cfg.resources.markdown_page_prefixes
+        unless allowed
+          continue
+        endunless
+        assign r_uri = 'mcp+page:///' | append: page.slug
+        assign title = page.metadata.title | default: page.slug
+        assign r = {
+          "uri": r_uri,
+          "name": page.slug,
+          "title": title
+        }
+        assign desc = page.metadata.description | default: ''
+        unless desc == blank
+          assign r['description'] = desc
+        endunless
+        assign r['mimeType'] = 'text/markdown'
+        assign meta = { "updated_at": page.content_updated_at }
+        assign meta['public_url'] = origin | append: '/' | append: page.slug
+        assign r['_meta'] = meta
+        assign resources = resources | array_add: r
+      endfor
+    endfor
+  endif
+
+  assign next_cursor = null
+  unless principal == blank
+    function provided = 'modules/mcp/queries/resources/provider', operation: 'list', uri: null, cursor: cursor, principal: principal, agent: agent
+    unless provided.failed or provided.value == blank
+      function listed = 'modules/mcp/helpers/resources/clean_entries', entries: provided.value.resources, kind: 'resource'
+      for r in listed
+        assign resources = resources | array_add: r
+      endfor
+      assign cursor_kind = provided.value.next_cursor | type_of | downcase
+      if cursor_kind == 'string' and provided.value.next_cursor != blank
+        assign next_cursor = provided.value.next_cursor
+      endif
+    endunless
+  endunless
+
+  assign result = { "resources": resources }
+  unless next_cursor == blank
+    assign result['nextCursor'] = next_cursor
+  endunless
+  # Client-side cache hint (2026-07-28 only; dispatch passes it or nil).
+  unless cache == blank
+    assign result['ttlMs'] = cache.ttlMs
+    assign result['cacheScope'] = cache.cacheScope
+  endunless
+  return result
+%}

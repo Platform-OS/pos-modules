@@ -1,0 +1,219 @@
+{%- comment -%}
+  Validate ONE tool manifest against the manifest meta-schema (spec §7.2, §12.2).
+  This is the gate that makes the tool surface trustworthy: a manifest that fails
+  is EXCLUDED from the registry (and logged), never served in a degraded form
+  (§8.1). Three fields carry the governance posture and are hard-required so a
+  reviewer reads the manifest and knows the risk without reading the handler:
+  authorization_policy (who), mutating (reversibility), requires_approval (gate).
+
+  Load-bearing rules:
+   - NO IMPLICIT ALLOW (§12.2): a blank/missing authorization_policy = INVALID.
+     There is no default-permit path; anonymous access must name a policy.
+   - name matches ^[a-z][a-z0-9_]{2,63}$; version is SemVer.
+   - input_schema must be an object schema and pass the supported-subset walker
+     (unsupported keyword anywhere → invalid).
+   - Correct types for mutating/requires_approval/idempotent (boolean),
+     timeout_ms (integer; reserved — not enforced yet), audit_fields (array),
+     title (string).
+   - annotations, when present, hold only the MCP behaviour hints readOnlyHint,
+     destructiveHint, idempotentHint and openWorldHint, each boolean. They are hints
+     for clients; the engine enforces nothing from them.
+   - output_schema, when present, is an object schema checked in output mode: a
+     field may list several types including "null", and its depth limit is
+     max_output_depth.
+   - every model-read text is linted (non-fatal, §12.3) for human attention: the
+     description, the title, and each description and title in input_schema and
+     output_schema. Hits are returned in `lint` and as `warnings` text.
+
+  @param {object}  manifest  - the raw manifest hash
+  @param {integer} max_depth - schema depth cap (from config.defaults.max_schema_depth)
+  @param {integer} max_output_depth - output_schema depth cap (config.defaults.max_output_schema_depth)
+  @return {object} { valid, errors:[string], warnings:[string], lint:[{path, hits:[string]}], name }
+{%- endcomment -%}
+{% liquid
+  assign errors = []
+  assign lint = []
+  assign name = manifest.name
+
+  # ---- name ----
+  if name == blank
+    assign errors = errors | array_add: 'name: required'
+  else
+    assign name_ok = name | matches: '^[a-z][a-z0-9_]{2,63}$'
+    unless name_ok
+      assign errors = errors | array_add: 'name: must match ^[a-z][a-z0-9_]{2,63}$'
+    endunless
+  endif
+
+  # ---- version (SemVer) ----
+  if manifest.version == blank
+    assign errors = errors | array_add: 'version: required'
+  else
+    assign ver_ok = manifest.version | matches: '^[0-9]+\.[0-9]+\.[0-9]+'
+    unless ver_ok
+      assign errors = errors | array_add: 'version: must be SemVer (MAJOR.MINOR.PATCH)'
+    endunless
+  endif
+
+  # ---- description (model-read; lint it) ----
+  if manifest.description == blank
+    assign errors = errors | array_add: 'description: required'
+  else
+    function description_lint = 'modules/mcp/helpers/registry/lint_description', text: manifest.description
+    if description_lint.flagged
+      assign hit = {
+        "path": "description",
+        "hits": description_lint.hits
+      }
+      assign lint = lint | array_add: hit
+    endif
+  endif
+
+  # ---- governance triad (hard-required) ----
+  if manifest.authorization_policy == blank
+    assign errors = errors | array_add: 'authorization_policy: required (no implicit allow)'
+  else
+    # Policy names starting with `mcp_` belong to the engine; the only one today is
+    # mcp_authenticated (authorize/evaluate). An unknown `mcp_` name is an error now
+    # rather than a silent shadowing when a later version adds that built-in.
+    assign pol_prefix = manifest.authorization_policy | append: '' | slice: 0, 4
+    if pol_prefix == 'mcp_'
+      assign builtin_policies = 'mcp_authenticated' | split: ','
+      unless builtin_policies contains manifest.authorization_policy
+        assign errors = errors | array_add: 'authorization_policy: the mcp_ prefix is reserved for built-in policies'
+      endunless
+    endif
+  endif
+  assign mt = manifest.mutating | type_of | downcase
+  unless mt == 'boolean'
+    assign errors = errors | array_add: 'mutating: required boolean'
+  endunless
+  assign ra = manifest.requires_approval | type_of | downcase
+  unless ra == 'boolean'
+    assign errors = errors | array_add: 'requires_approval: required boolean'
+  endunless
+
+  # ---- handler ----
+  if manifest.handler == blank
+    assign errors = errors | array_add: 'handler: required'
+  endif
+
+  # ---- optional typed fields ----
+  unless manifest.idempotent == blank
+    assign it = manifest.idempotent | type_of | downcase
+    unless it == 'boolean'
+      assign errors = errors | array_add: 'idempotent: must be boolean'
+    endunless
+  endunless
+  unless manifest.timeout_ms == blank
+    assign tt = manifest.timeout_ms | type_of | downcase
+    unless tt == 'integer'
+      assign errors = errors | array_add: 'timeout_ms: must be integer'
+    endunless
+  endunless
+  unless manifest.audit_fields == blank
+    assign aft = manifest.audit_fields | type_of | downcase
+    unless aft == 'array'
+      assign errors = errors | array_add: 'audit_fields: must be array'
+    endunless
+  endunless
+  unless manifest.deprecated == blank
+    assign dt = manifest.deprecated | type_of | downcase
+    unless dt == 'boolean'
+      assign errors = errors | array_add: 'deprecated: must be boolean'
+    endunless
+  endunless
+  unless manifest.title == blank
+    assign tit = manifest.title | type_of | downcase
+    if tit == 'string'
+      function title_lint = 'modules/mcp/helpers/registry/lint_description', text: manifest.title
+      if title_lint.flagged
+        assign hit = {
+          "path": "title",
+          "hits": title_lint.hits
+        }
+        assign lint = lint | array_add: hit
+      endif
+    else
+      assign errors = errors | array_add: 'title: must be string'
+    endif
+  endunless
+  unless manifest.annotations == blank
+    assign ann_kind = manifest.annotations | type_of | downcase
+    if ann_kind == 'hash'
+      assign hint_names = 'readOnlyHint,destructiveHint,idempotentHint,openWorldHint' | split: ','
+      assign ann_keys = manifest.annotations | hash_keys
+      for ann_key in ann_keys
+        if hint_names contains ann_key
+          assign hint_kind = manifest.annotations[ann_key] | type_of | downcase
+          unless hint_kind == 'boolean'
+            assign amsg = 'annotations.' | append: ann_key | append: ': must be boolean'
+            assign errors = errors | array_add: amsg
+          endunless
+        else
+          assign amsg = 'annotations: unsupported hint "' | append: ann_key | append: '"'
+          assign errors = errors | array_add: amsg
+        endif
+      endfor
+    else
+      assign errors = errors | array_add: 'annotations: must be an object'
+    endif
+  endunless
+
+  # ---- input_schema (required; must be an object schema in the supported subset) ----
+  assign isch = manifest.input_schema
+  if isch == blank
+    assign errors = errors | array_add: 'input_schema: required'
+  else
+    if isch.type != 'object'
+      assign errors = errors | array_add: 'input_schema: root type must be "object"'
+    endif
+    function sv = 'modules/mcp/helpers/registry/validate_schema_node', node: isch, depth: 1, max_depth: max_depth, path: 'input_schema'
+    unless sv.valid
+      for e in sv.errors
+        assign errors = errors | array_add: e
+      endfor
+    endunless
+    for l in sv.lint
+      assign lint = lint | array_add: l
+    endfor
+  endif
+
+  # ---- output_schema (optional; validated when present) ----
+  assign osch = manifest.output_schema
+  unless osch == blank
+    if osch.type != 'object'
+      assign errors = errors | array_add: 'output_schema: root type must be "object"'
+    endif
+    assign output_depth = max_output_depth | default: max_depth
+    function ov = 'modules/mcp/helpers/registry/validate_schema_node', node: osch, depth: 1, max_depth: output_depth, path: 'output_schema', output: true
+    unless ov.valid
+      for e in ov.errors
+        assign errors = errors | array_add: e
+      endfor
+    endunless
+    for l in ov.lint
+      assign lint = lint | array_add: l
+    endfor
+  endunless
+
+  assign warnings = []
+  for l in lint
+    assign joined = l.hits | join: ', '
+    assign wmsg = l.path | append: ' flagged by tool-poisoning lint: ' | append: joined
+    assign warnings = warnings | array_add: wmsg
+  endfor
+
+  assign is_valid = false
+  if errors.size == 0
+    assign is_valid = true
+  endif
+  assign out = {
+    "valid": is_valid,
+    "errors": errors,
+    "warnings": warnings,
+    "lint": lint,
+    "name": name
+  }
+  return out
+%}

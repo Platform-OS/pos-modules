@@ -1,0 +1,31 @@
+{%- comment -%}
+  Record a pending approval and return its opaque handle (spec §9.6). Called when a
+  `requires_approval` tool is invoked, AFTER the caller has been authenticated and
+  authorized to REQUEST the action. The tool does not execute now; an operator
+  approves later. Arguments are persisted (unlike the ledger) because execution is
+  deferred.
+
+  @param {object} tool           - resolved manifest
+  @param {string} arguments_json - the validated arguments, JSON-serialized
+  @param {string} input_sha256
+  @param {object} principal
+  @param {object} agent
+  @param {string} token_id       - the requesting mcp_token row (approval/execute re-checks it)
+  @param {string} request_id
+  @return {object} { handle, expires_at }
+{%- endcomment -%}
+{% liquid
+  function object = 'modules/mcp/commands/approval/create/build', tool: tool, arguments_json: arguments_json, input_sha256: input_sha256, principal: principal, agent: agent, token_id: token_id, request_id: request_id
+  function object = 'modules/mcp/commands/approval/create/check', object: object
+  if object.valid
+    function out = 'modules/mcp/commands/approval/create/execute', object: object
+    return out
+  endif
+
+  assign out = {
+    "handle": null,
+    "expires_at": null,
+    "errors": object.errors
+  }
+  return out
+%}

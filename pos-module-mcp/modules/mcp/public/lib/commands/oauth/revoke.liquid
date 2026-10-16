@@ -1,0 +1,20 @@
+{%- comment -%}
+  Token revocation (RFC 7009). Accepts an access OR refresh token; revoking either
+  revokes the whole grant (one mcp_token row). Always 200 for unknown tokens (§2.2),
+  and only revokes when the token belongs to the presenting client_id (public
+  clients identify, they do not authenticate).
+
+  @param {object} params - context.params (token, token_type_hint, client_id)
+  @return {object} { http_status, body }
+{%- endcomment -%}
+{% liquid
+  function object = 'modules/mcp/commands/oauth/revoke/build', params: params
+  function object = 'modules/mcp/commands/oauth/revoke/check', object: object
+  if object.valid
+    function out = 'modules/mcp/commands/oauth/revoke/execute', object: object
+    return out
+  endif
+
+  function e = 'modules/mcp/helpers/oauth/error', error: 'invalid_request', error_description: 'token is required', http_status: null
+  return e
+%}

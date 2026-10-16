@@ -1,0 +1,12 @@
+{%- comment -%}
+  Handler — test_bad_annotations (TEST FIXTURE). Never reached: the manifest is invalid,
+  so the engine excludes the tool before any call can resolve it.
+{%- endcomment -%}
+{% liquid
+  assign result = { "reached": true }
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

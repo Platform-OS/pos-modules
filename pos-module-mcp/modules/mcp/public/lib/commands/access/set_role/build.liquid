@@ -1,0 +1,11 @@
+{% doc %}
+  @param {string} profile_id - the user-module profile id
+  @param {string} [role] - mcp_user | mcp_operator | blank to remove access
+{% enddoc %}
+{% liquid
+  assign object = {
+    "profile_id": profile_id,
+    "role": role
+  }
+  return object
+%}

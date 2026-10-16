@@ -1,0 +1,44 @@
+{%- comment -%}
+  MCP `initialize` (spec §13.1). The LEGACY (2025-06-18) handshake: capability
+  negotiation + server identity. Modern (2026-07-28) clients use `server/discover`
+  instead. Open method: no auth, no ledger (pre-auth plumbing, §9.3).
+
+  Advertises the negotiated legacy revision and the capabilities this server actually
+  implements for it.
+
+  @param {string} protocol_version - the NEGOTIATED legacy revision (from dispatch);
+                                     defaults to the server's own revision.
+  @param {array}  supported        - all revisions the server implements (advertised in
+                                     `_meta` so a dual-era client can switch to a modern one).
+  @return {object} { protocolVersion, capabilities, serverInfo, instructions, _meta }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+
+  assign protocol_version_out = protocol_version | default: cfg.protocol_version
+  assign result = { "protocolVersion": protocol_version_out }
+
+  # listChanged is false (no notifications until streaming lands, spec §16.2/§13.1 Phase 4).
+  assign caps = {
+    "tools": {"listChanged":false},
+    "resources": {"listChanged":false,"subscribe":false},
+    "prompts": {"listChanged":false},
+    "logging": {}
+  }
+  assign result['capabilities'] = caps
+
+  assign info = {
+    "name": cfg.server_name,
+    "version": cfg.server_version
+  }
+  assign result['serverInfo'] = info
+
+  function instructions = 'modules/mcp/queries/instructions'
+  assign result['instructions'] = instructions
+
+  assign supported_versions = supported | default: cfg.supported_protocol_versions
+  assign rmeta = { "supportedProtocolVersions": supported_versions }
+  assign result['_meta'] = rmeta
+
+  return result
+%}

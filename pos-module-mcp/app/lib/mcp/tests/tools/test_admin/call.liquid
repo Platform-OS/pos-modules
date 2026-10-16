@@ -1,0 +1,14 @@
+{%- comment -%}
+  Handler — test_admin (TEST FIXTURE). Read-only admin-tier probe.
+{%- endcomment -%}
+{% liquid
+  assign result = {
+    "tier": "admin",
+    "principal": principal.id
+  }
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

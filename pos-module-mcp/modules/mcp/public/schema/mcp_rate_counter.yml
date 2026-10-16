@@ -1,0 +1,11 @@
+name: mcp_rate_counter
+# Fixed-window rate-limit counters (spec §12.4). One row per (scope, window),
+# keyed by a single composite `key` = "<scope>:<window>" (scope = "principal:<id>"
+# or "client:<id>"; window = unix epoch minute) so lookups are an exact string
+# match. The ceiling bounds blast radius (agents fan out and evaluate options in
+# parallel), it is not traffic shaping. Rows are short-lived and swept by
+# retention; they carry no audit value (the ledger is the audit surface).
+properties:
+  - name: key
+  - name: count
+    type: integer

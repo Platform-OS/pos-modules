@@ -1,0 +1,17 @@
+{%- comment -%}
+  @param {string} id
+  @param {string} handle
+  @param {string} status
+  @param {string} decided_by
+  @param {string} result_summary
+{%- endcomment -%}
+{% liquid
+  assign object = {
+    "id": id,
+    "handle": handle,
+    "status": status,
+    "decided_by": decided_by,
+    "result_summary": result_summary
+  }
+  return object
+%}

@@ -1,0 +1,52 @@
+{%- comment -%}
+  Call the app's resource provider (config.resources_partial, default 'mcp/resources';
+  Layer 2, spec §13.1 resources) for ONE operation on behalf of an AUTHENTICATED caller.
+  Callers never invoke it for an anonymous request.
+
+  The provider partial receives `operation`, `uri`, `cursor`, `principal` and `agent`
+  (the same principal and agent tool handlers get) and returns:
+    list      → { resources: [{ uri, name, title?, description?, mimeType?, size? }],
+                  next_cursor? }
+    templates → { resource_templates: [{ uriTemplate, name, title?, description?, mimeType? }] }
+    read      → { contents: [{ uri, mimeType?, text | blob }] }, or nil when the resource
+                does not exist OR this caller may not read it (the two must look the
+                same, so an existence check leaks nothing)
+  The provider applies the app's access rules for the caller: the engine cannot know
+  them. The `mcp+page:` scheme is reserved for the engine's markdown pages.
+
+  An app without the partial has no provider (available: false). A provider that
+  raises is logged and reported as failed; nothing of the error reaches the caller. A
+  partial the provider itself fails to find counts as a failure, not as "no provider":
+  only the error naming the provider partial means it is absent.
+
+  @param {string} operation - 'list' | 'templates' | 'read'
+  @param {string} uri       - the requested URI (read only)
+  @param {string} cursor    - the opaque cursor a previous list returned (list only)
+  @param {object} principal - the authenticated principal
+  @param {object} agent     - the calling agent
+  @return {object} { available:boolean, failed:boolean, value }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign partial = cfg.resources_partial | default: 'mcp/resources'
+
+  assign out = {
+    "available": true,
+    "failed": false
+  }
+  assign value = null
+  assign absent_message = 'find partial "' | append: partial | append: '"'
+  try
+    function value = partial, operation: operation, uri: uri, cursor: cursor, principal: principal, agent: agent
+  catch e
+    if e.message contains absent_message
+      assign out['available'] = false
+    else
+      assign out['failed'] = true
+      assign log_message = operation | append: ': ' | append: e.message
+      log log_message, type: 'mcp.resources_provider_error'
+    endif
+  endtry
+  assign out['value'] = value
+  return out
+%}

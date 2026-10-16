@@ -1,0 +1,17 @@
+query by_keys($keys: [String!]!, $per_page: Int!) {
+  # Exact-key lookup of a set of counters (the operator console's current-window
+  # violation counts). Never scan the table: it holds a row per scope per window.
+  records(
+    per_page: $per_page
+    filter: {
+      table: { value: "modules/mcp/mcp_rate_counter" }
+      properties: [{ name: "key", value_in: $keys }]
+    }
+  ) {
+    results {
+      id
+      key: property(name: "key")
+      count: property(name: "count")
+    }
+  }
+}

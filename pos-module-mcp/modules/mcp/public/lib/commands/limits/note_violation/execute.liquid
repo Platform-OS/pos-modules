@@ -1,0 +1,13 @@
+{%- comment -%}
+  @param {object} object - validated by limits/note_violation/check
+{%- endcomment -%}
+{% liquid
+  graphql f = 'modules/mcp/rate/find', key: object.key
+  assign existing = f.records.results.first
+  if existing
+    graphql _ = 'modules/mcp/rate/increment', id: existing.id
+  else
+    graphql _ = 'modules/mcp/rate/create', key: object.key
+  endif
+  return true
+%}

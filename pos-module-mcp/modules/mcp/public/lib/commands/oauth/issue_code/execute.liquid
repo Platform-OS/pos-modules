@@ -1,0 +1,20 @@
+{%- comment -%}
+  Store only the code's digest and build the redirect (code + state + iss, RFC 9207).
+
+  @param {object} object - validated by oauth/issue_code/check
+  @return {string} the redirect URL
+{%- endcomment -%}
+{% liquid
+  function origin = 'modules/mcp/queries/origin'
+  function raw = 'modules/mcp/helpers/oauth/random_secret', prefix: 'mcp_ac_'
+  assign code_digest = raw | digest: 'sha256'
+  graphql _c = 'modules/mcp/oauth/code_create', code_digest: code_digest, client_id: object.client_id, client_name: object.client_name, redirect_uri: object.redirect_uri, redirect_uri_sent: object.redirect_uri_sent, code_challenge: object.code_challenge, user_id: object.user_id, scope: object.scope, resource: object.resource, expires_at: object.expires_at
+
+  assign p = {
+    "code": raw,
+    "state": object.state,
+    "iss": origin
+  }
+  function url = 'modules/mcp/helpers/oauth/append_params', url: object.redirect_uri, params: p
+  return url
+%}

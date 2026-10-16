@@ -1,0 +1,17 @@
+name: mcp_eval_run
+# Result of one eval run (spec §19.3) — stored as a record so runs are queryable and
+# CI can gate on regression. failures_json lists exactly which checks failed, so a
+# red run is actionable without re-running.
+properties:
+  - name: run_id
+  - name: total
+    type: integer
+  - name: passed
+    type: integer
+  - name: failed
+    type: integer
+  - name: failures_json
+    type: text           # JSON array of { category, check, target, detail }
+  - name: warnings_json
+    type: text           # JSON array of advisory hygiene warnings { tool, check, field, detail }
+  - name: occurred_at    # ISO-8601 UTC string

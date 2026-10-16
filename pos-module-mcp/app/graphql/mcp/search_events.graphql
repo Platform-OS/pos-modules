@@ -1,0 +1,25 @@
+query search_events($keyword: String!, $limit: Int!) {
+  events: records(
+    per_page: $limit
+    filter: {
+      table: { value: "modules/community/event" }
+      properties: [{ name: "status", value: "published" }]
+      or: [
+        { properties: { name: "name", contains: $keyword } }
+        { properties: { name: "short_description", contains: $keyword } }
+        { properties: { name: "description", contains: $keyword } }
+      ]
+    }
+    sort: [{ properties: [{ name: "start_date", order: ASC }] }]
+  ) {
+    total_entries
+    results {
+      id
+      name: property(name: "name")
+      short_description: property(name: "short_description")
+      start_date: property(name: "start_date")
+      venue: property(name: "venue")
+      link: property(name: "link")
+    }
+  }
+}

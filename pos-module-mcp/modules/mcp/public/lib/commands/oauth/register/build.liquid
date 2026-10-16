@@ -1,0 +1,29 @@
+{%- comment -%}
+  Normalize the registration request: client_name stripped of markup and capped at
+  60 characters (default "MCP client"); client_uri kept only when it is a valid https
+  URL. redirect_uris and grant_types are passed through for check.
+
+  @param {object} params - context.params (parsed JSON body)
+{%- endcomment -%}
+{% liquid
+  assign object = {
+    "redirect_uris": params.redirect_uris,
+    "grant_types": params.grant_types
+  }
+
+  assign name = params.client_name | default: 'MCP client' | append: '' | strip | strip_html | truncate: 60, ''
+  if name == blank
+    assign name = 'MCP client'
+  endif
+  assign object['client_name'] = name
+
+  assign client_uri = ''
+  unless params.client_uri == blank
+    function cu = 'modules/mcp/helpers/oauth/parse_url', url: params.client_uri
+    if cu.valid and cu.scheme == 'https'
+      assign client_uri = params.client_uri | append: ''
+    endif
+  endunless
+  assign object['client_uri'] = client_uri
+  return object
+%}

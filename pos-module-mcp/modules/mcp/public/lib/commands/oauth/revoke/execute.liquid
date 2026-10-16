@@ -1,0 +1,25 @@
+{%- comment -%}
+  Find the grant by access or refresh digest and revoke it when it is an active OAuth
+  grant of the presenting client. Unknown or foreign tokens still answer 200 (RFC 7009 §2.2).
+
+  @param {object} object - validated by oauth/revoke/check
+  @return {object} { http_status: 200, body: {} }
+{%- endcomment -%}
+{% liquid
+  assign d = object.token | digest: 'sha256'
+  graphql a = 'modules/mcp/tokens/find_by_digest', token_digest: d
+  assign row = a.records.results.first
+  if row == blank
+    graphql r = 'modules/mcp/tokens/find_by_refresh_digest', digest: d
+    assign row = r.records.results.first
+  endif
+  if row and row.kind == 'oauth' and row.client_id == object.client_id and row.status == 'active'
+    graphql _ = 'modules/mcp/tokens/revoke', id: row.id
+  endif
+
+  assign out = {
+    "http_status": 200,
+    "body": {}
+  }
+  return out
+%}

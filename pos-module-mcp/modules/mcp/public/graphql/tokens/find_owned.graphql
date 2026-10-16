@@ -1,0 +1,12 @@
+query find_owned($id: ID!, $user_id: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_token" }
+      id: { value: $id }
+      properties: [{ name: "user_id", value: $user_id }]
+    }
+  ) {
+    results { id }
+  }
+}

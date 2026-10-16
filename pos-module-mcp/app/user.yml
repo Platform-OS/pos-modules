@@ -1,0 +1,8 @@
+properties:
+  - name: uuid
+  - name: attempts
+    type: integer
+  - name: locked_at
+    type: datetime
+  - name: roles
+    type: array

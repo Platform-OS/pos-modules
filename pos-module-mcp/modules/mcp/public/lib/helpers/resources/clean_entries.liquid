@@ -1,0 +1,77 @@
+{%- comment -%}
+  Check the entries an app resource provider listed (queries/resources/provider) and
+  keep only well-formed ones, in the MCP wire shape. An entry is excluded, and logged,
+  when its address or name is missing or not a string, or when its address uses the
+  `mcp+page:` scheme, which is reserved for the engine's markdown pages. Only the keys
+  MCP defines are copied, and an optional key of the wrong type is dropped, so nothing
+  else the app returns reaches the client.
+
+  @param {array}  entries - provider entries (`resources` or `resource_templates`)
+  @param {string} kind    - 'resource' (address key `uri`) or 'template' (`uriTemplate`)
+  @return {array} the kept entries
+{%- endcomment -%}
+{% liquid
+  assign address_key = 'uri'
+  assign optional_keys = 'title,description,mimeType,size' | split: ','
+  if kind == 'template'
+    assign address_key = 'uriTemplate'
+    assign optional_keys = 'title,description,mimeType' | split: ','
+  endif
+
+  assign kept = []
+  assign entries_kind = entries | type_of | downcase
+  unless entries_kind == 'array'
+    unless entries == blank
+      log 'provider returned a non-array list', type: 'mcp.resources_excluded'
+    endunless
+    return kept
+  endunless
+
+  for entry in entries
+    assign problem = null
+    assign entry_kind = entry | type_of | downcase
+    if entry_kind != 'hash'
+      assign problem = 'not an object'
+    else
+      assign address = entry[address_key]
+      assign address_type = address | type_of | downcase
+      assign name_type = entry.name | type_of | downcase
+      if address == blank or address_type != 'string'
+        assign problem = address_key | append: ' missing'
+      elsif entry.name == blank or name_type != 'string'
+        assign problem = 'name missing'
+      else
+        assign scheme = address | slice: 0, 9 | downcase
+        if scheme == 'mcp+page:'
+          assign problem = 'the mcp+page: scheme is reserved'
+        endif
+      endif
+    endif
+
+    if problem
+      assign log_message = entry[address_key] | default: '(no address)' | append: ': ' | append: problem
+      log log_message, type: 'mcp.resources_excluded'
+      continue
+    endif
+
+    assign item = {}
+    assign item[address_key] = entry[address_key]
+    assign item['name'] = entry.name
+    for key in optional_keys
+      assign optional_value = entry[key]
+      if optional_value == blank
+        continue
+      endif
+      assign expected_type = 'string'
+      if key == 'size'
+        assign expected_type = 'integer'
+      endif
+      assign optional_type = optional_value | type_of | downcase
+      if optional_type == expected_type
+        assign item[key] = optional_value
+      endif
+    endfor
+    assign kept = kept | array_add: item
+  endfor
+  return kept
+%}

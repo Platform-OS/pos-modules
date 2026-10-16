@@ -1,0 +1,13 @@
+query last($table: String!) {
+  records(
+    per_page: 1
+    filter: { table: { value: $table } }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    results {
+      id
+      seq: property(name: "seq")
+      entry_hash: property(name: "entry_hash")
+    }
+  }
+}

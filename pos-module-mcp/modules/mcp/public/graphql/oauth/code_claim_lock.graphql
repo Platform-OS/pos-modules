@@ -1,0 +1,11 @@
+mutation code_claim_lock($id: ID!, $token: String!) {
+  # Row-write-lock on an authorization code, held until the surrounding
+  # {% transaction %} commits — two concurrent redemptions of one code serialize here
+  # and the loser re-reads status=used (single-use, OAuth 2.1 §4.1.2).
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_oauth_code"
+    properties: [{ name: "claim_token", value: $token }]
+  }) {
+    id
+  }
+}

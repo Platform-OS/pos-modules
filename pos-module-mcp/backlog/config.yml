@@ -1,0 +1,16 @@
+project_name: "pos-module-mcp"
+default_status: "To Do"
+statuses: ["Draft", "To Do", "In Progress", "Done"]
+labels: []
+definition_of_done: ["Automated tests written and passing (protocol conformance / validation / authz / ledger integrity as applicable)", "platformos-check lint passes with zero errors", "Docs updated (module docs/ + spec section cross-reference)", "Deployed to the community test instance (staging) and smoke-checked over real /mcp HTTP", "Security invariants verified — no-implicit-allow · identity-bound · args passed as typed variables (never string-interpolated) · ledger written on every post-auth termination", "Change reviewed before merge"]
+date_format: yyyy-mm-dd
+max_column_width: 20
+auto_open_browser: false
+default_port: 6421
+remote_operations: false
+auto_commit: false
+filesystem_only: true
+bypass_git_hooks: false
+check_active_branches: false
+active_branch_days: 30
+task_prefix: "task"

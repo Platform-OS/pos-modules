@@ -1,0 +1,159 @@
+{%- comment -%}
+  Protocol-version negotiation (spec §13.1). Decides, for THIS request, which protocol
+  era and revision the server answers in. The server is dual-era:
+
+  - MODERN (2026-07-28 and later, `config.modern_protocol_versions`): the request
+    declares its revision in `params._meta["io.modelcontextprotocol/protocolVersion"]`,
+    and the HTTP transport mirrors it in the `MCP-Protocol-Version` header. There is
+    no handshake; every request is negotiated on its own.
+  - LEGACY (2025-06-18): an `initialize` handshake, then requests that carry at most
+    the `MCP-Protocol-Version` header.
+
+  Rules (2026-07-28 basic/versioning and transports/streamable-http):
+  1. `initialize` always selects legacy semantics. Its `params.protocolVersion` is
+     honoured when it is a supported legacy revision; otherwise the server answers
+     with its default revision, as the legacy handshake requires.
+  2. A request with the body version is modern. The header is required and must
+     match the body (400, -32020 HeaderMismatch); the revision must be a modern one
+     the server implements (400, -32022 UnsupportedProtocolVersion).
+  3. A request with only the header is legacy when the header names a supported
+     legacy revision. A modern revision in the header without the body version is a
+     HeaderMismatch; any other value is an UnsupportedProtocolVersion.
+  An UnsupportedProtocolVersion lists the revisions usable in the era the client
+  speaks: modern revisions for a modern request, legacy ones otherwise.
+  4. A request with neither is legacy, at the default revision, so existing clients
+     are unchanged.
+
+  Pure + side-effect-free (no ledger, no auth). Called once per request in dispatch.
+
+  @param {object} params  - context.params (the whole parsed JSON-RPC request)
+  @param {object} headers - context.headers
+  Client capabilities are declared per modern request in
+  `_meta["io.modelcontextprotocol/clientCapabilities"]` and never carried over from an
+  earlier request. `tasks_extension` says whether this one declares the Tasks extension.
+
+  @return {object} { version, era: 'modern'|'legacy', modern, tasks_extension,
+                     requested, supported,
+                     error: null | { http_status, code, message, data? } }
+                   `modern` is true only for an accepted modern request.
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign default_version = cfg.protocol_version
+  assign supported = cfg.supported_protocol_versions
+  assign modern_versions = cfg.modern_protocol_versions
+
+  assign legacy_versions = []
+  for v in supported
+    unless modern_versions contains v
+      assign legacy_versions = legacy_versions | array_add: v
+    endunless
+  endfor
+
+  assign inner = params.params
+  assign body_version = ''
+  unless inner == blank
+    assign req_meta = inner._meta
+    unless req_meta == blank
+      assign body_version = req_meta['io.modelcontextprotocol/protocolVersion'] | default: ''
+    endunless
+  endunless
+  assign header_version = headers.HTTP_MCP_PROTOCOL_VERSION | default: ''
+
+  assign era = 'legacy'
+  assign version = default_version
+  assign requested = ''
+  assign error = null
+
+  if params.method == 'initialize'
+    unless inner == blank
+      assign requested = inner.protocolVersion | default: ''
+    endunless
+    if requested != blank and legacy_versions contains requested
+      assign version = requested
+    endif
+
+  elsif body_version != blank
+    assign era = 'modern'
+    assign requested = body_version
+    if header_version == blank
+      assign error = {
+        "http_status": 400,
+        "code": -32020,
+        "message": "Header mismatch: the MCP-Protocol-Version header is required"
+      }
+    elsif header_version != body_version
+      assign error = {
+        "http_status": 400,
+        "code": -32020,
+        "message": "Header mismatch: MCP-Protocol-Version header does not match the request protocol version"
+      }
+    elsif modern_versions contains body_version
+      assign version = body_version
+    else
+      assign data = {
+        "supported": modern_versions,
+        "requested": body_version
+      }
+      assign error = {
+        "http_status": 400,
+        "code": -32022,
+        "message": "Unsupported protocol version",
+        "data": data
+      }
+    endif
+
+  elsif header_version != blank
+    assign requested = header_version
+    if legacy_versions contains header_version
+      assign version = header_version
+    elsif modern_versions contains header_version
+      assign era = 'modern'
+      assign error = {
+        "http_status": 400,
+        "code": -32020,
+        "message": "Header mismatch: the request _meta has no io.modelcontextprotocol/protocolVersion"
+      }
+    else
+      assign data = {
+        "supported": legacy_versions,
+        "requested": header_version
+      }
+      assign error = {
+        "http_status": 400,
+        "code": -32022,
+        "message": "Unsupported protocol version",
+        "data": data
+      }
+    endif
+  endif
+
+  assign modern = false
+  if era == 'modern' and error == null
+    assign modern = true
+  endif
+
+  assign tasks_extension = false
+  if modern
+    assign client_caps = req_meta['io.modelcontextprotocol/clientCapabilities']
+    unless client_caps == blank
+      assign declared_extensions = client_caps.extensions
+      unless declared_extensions == blank
+        if declared_extensions['io.modelcontextprotocol/tasks'] != nil
+          assign tasks_extension = true
+        endif
+      endunless
+    endunless
+  endif
+
+  assign out = {
+    "version": version,
+    "era": era,
+    "modern": modern,
+    "tasks_extension": tasks_extension,
+    "requested": requested,
+    "supported": supported,
+    "error": error
+  }
+  return out
+%}

@@ -1,0 +1,22 @@
+{%- comment -%}
+  Is this resources/read URI served by the app's resource provider (true) or by the
+  engine's markdown pages (false)? Shared by rpc/route and rpc/resources_read so the
+  two can never disagree. A `mcp+page:` URI is a markdown page, and so is a bare slug
+  with no scheme (resources/read has always accepted one); a URI with any other scheme
+  belongs to the provider.
+
+  @param {string} uri - params.uri of the request
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  assign value = uri | default: '' | strip
+  assign has_scheme = value | matches: '^[A-Za-z][A-Za-z0-9+.-]*:'
+  unless has_scheme
+    return false
+  endunless
+  assign head = value | slice: 0, 9 | downcase
+  if head == 'mcp+page:'
+    return false
+  endif
+  return true
+%}

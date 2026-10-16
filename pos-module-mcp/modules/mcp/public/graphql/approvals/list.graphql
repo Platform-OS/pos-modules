@@ -1,0 +1,23 @@
+query list($status: String, $per_page: Int!) {
+  records(
+    per_page: $per_page
+    filter: {
+      table: { value: "modules/mcp/mcp_pending_approval" }
+      properties: [{ name: "status", value: $status }]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      id
+      handle: property(name: "handle")
+      tool_name: property(name: "tool_name")
+      principal_id: property(name: "principal_id")
+      requested_by_agent: property(name: "requested_by_agent")
+      status: property(name: "status")
+      created_at
+      expires_at: property(name: "expires_at")
+      result_summary: property(name: "result_summary")
+    }
+  }
+}

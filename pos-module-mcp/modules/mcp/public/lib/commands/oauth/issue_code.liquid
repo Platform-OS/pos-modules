@@ -1,0 +1,18 @@
+{%- comment -%}
+  Issue a single-use authorization code for a consented request and build the
+  redirect back to the client (code + state + iss, RFC 9207). Only the code's digest
+  is stored.
+
+  @param {object} req     - the validated request (validate_authorize → req)
+  @param {string} user_id - the consenting user (the principal)
+  @return {string} the redirect URL, or null when the request is incomplete
+{%- endcomment -%}
+{% liquid
+  function object = 'modules/mcp/commands/oauth/issue_code/build', req: req, user_id: user_id
+  function object = 'modules/mcp/commands/oauth/issue_code/check', object: object
+  if object.valid
+    function url = 'modules/mcp/commands/oauth/issue_code/execute', object: object
+    return url
+  endif
+  return null
+%}

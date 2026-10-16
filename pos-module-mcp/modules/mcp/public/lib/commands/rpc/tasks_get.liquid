@@ -1,0 +1,18 @@
+{%- comment -%}
+  MCP `tasks/get` (Tasks extension, "Task Polling"). Returns the current state of an
+  approval-gated tool call the caller requested: working, completed with the tool
+  result, failed with the JSON-RPC error, or cancelled. Self-scoped (tasks/find_owned).
+
+  @param {object} params  - { taskId }
+  @param {object} headers - context.headers (bearer identity)
+  @return {object} the task (helpers/tasks/present) | { _error:{code,message} }
+{%- endcomment -%}
+{% liquid
+  function found = 'modules/mcp/commands/tasks/find_owned', params: params, headers: headers
+  unless found._error == blank
+    return found
+  endunless
+
+  function task = 'modules/mcp/helpers/tasks/present', rec: found.rec
+  return task
+%}

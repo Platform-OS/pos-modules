@@ -1,0 +1,21 @@
+{%- comment -%}
+  Normalize the label: trimmed, at most 40 characters; blank → a generated unique
+  "mcp-client-xxxxxx" (generated labels skip the uniqueness check).
+
+  @param {string} user_id
+  @param {string} label
+{%- endcomment -%}
+{% liquid
+  assign object = {
+    "user_id": user_id,
+    "generated_label": false
+  }
+  assign safe_label = label | default: '' | strip | truncate: 40, ''
+  if safe_label == blank
+    assign suffix = '' | uuid | replace: '-', '' | slice: 0, 6
+    assign safe_label = 'mcp-client-' | append: suffix
+    assign object['generated_label'] = true
+  endif
+  assign object['label'] = safe_label
+  return object
+%}

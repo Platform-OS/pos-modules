@@ -1,0 +1,36 @@
+{%- comment -%}
+  Mint a bearer token for a user (operator UX). Generates a random raw token,
+  stores ONLY its sha256 digest bound to the user_id, and returns the raw token
+  ONCE — it is never persisted and cannot be recovered. The caller shows it a
+  single time and instructs the user to copy it.
+
+  The label names the agent: a manual token's label is its agent id and client_id
+  (commands/identity/resolve_principal). Two active manual tokens of one person with the
+  same label would therefore act as ONE agent, so a label the person already uses on an
+  active manual token (ignoring case) is refused; revoked tokens and OAuth tokens do not
+  count. A blank label gets a generated unique one ("mcp-client-" + 6 random characters)
+  instead of a shared default.
+
+  @param {string} user_id - the pOS user this token acts as (the principal)
+  @param {string} label   - human label (agent/client name), at most 40 characters
+  @return {object} { raw, id, label } — or { error: 'label_taken', label } when the label is in use,
+                   or { error: 'invalid', errors } when user_id is missing
+{%- endcomment -%}
+{% liquid
+  function object = 'modules/mcp/commands/tokens/mint/build', user_id: user_id, label: label
+  function object = 'modules/mcp/commands/tokens/mint/check', object: object
+  if object.valid
+    function out = 'modules/mcp/commands/tokens/mint/execute', object: object
+    return out
+  endif
+
+  assign failed = {}
+  if object.errors.label
+    assign failed['error'] = 'label_taken'
+    assign failed['label'] = object.label
+  else
+    assign failed['error'] = 'invalid'
+    assign failed['errors'] = object.errors
+  endif
+  return failed
+%}

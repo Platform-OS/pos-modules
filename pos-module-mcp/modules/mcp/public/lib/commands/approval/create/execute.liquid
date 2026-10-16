@@ -1,0 +1,13 @@
+{%- comment -%}
+  @param {object} object - validated by approval/create/check
+  @return {object} { handle, expires_at }
+{%- endcomment -%}
+{% liquid
+  graphql _ = 'modules/mcp/approvals/create', handle: object.handle, tool_name: object.tool_name, tool_version: object.tool_version, arguments_json: object.arguments_json, input_sha256: object.input_sha256, requested_by_agent: object.requested_by_agent, requested_by_client_id: object.requested_by_client_id, requested_by_token_id: object.requested_by_token_id, principal_id: object.principal_id, token_id: object.token_id, authz_policy: object.authz_policy, expires_at: object.expires_at, request_id: object.request_id
+
+  assign out = {
+    "handle": object.handle,
+    "expires_at": object.expires_at
+  }
+  return out
+%}

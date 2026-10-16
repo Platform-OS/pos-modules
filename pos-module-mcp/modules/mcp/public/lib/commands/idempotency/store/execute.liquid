@@ -1,0 +1,7 @@
+{%- comment -%}
+  @param {object} object - validated by idempotency/store/check
+{%- endcomment -%}
+{% liquid
+  graphql _ = 'modules/mcp/idempotency/create', key: object.key, principal_id: object.principal_id, tool_name: object.tool_name, input_sha256: object.input_sha256, response_json: object.response_json, expires_at: object.expires_at
+  return true
+%}

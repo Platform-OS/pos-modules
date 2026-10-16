@@ -1,0 +1,23 @@
+{%- comment -%}
+  @param {object} req     - the validated request (validate_authorize → req)
+  @param {string} user_id - the consenting user (the principal)
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  assign expires_at = cfg.oauth.code_ttl_seconds | plus: now_s
+  assign uid = user_id | append: ''
+  assign object = {
+    "user_id": uid,
+    "client_id": req.client_id,
+    "client_name": req.client_name,
+    "redirect_uri": req.redirect_uri,
+    "redirect_uri_sent": req.redirect_uri_sent,
+    "code_challenge": req.code_challenge,
+    "scope": req.scope,
+    "resource": req.resource,
+    "state": req.state,
+    "expires_at": expires_at
+  }
+  return object
+%}

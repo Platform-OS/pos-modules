@@ -1,0 +1,26 @@
+{%- comment -%}
+  @param {string} user_id
+  @param {string} client_id
+  @param {string} client_name
+  @param {string} scope
+  @param {string} resource
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  assign ttl = cfg.oauth.access_token_ttl_seconds | plus: 0
+  assign expires_at = now_s | plus: ttl
+  assign refresh_expires_at = cfg.oauth.refresh_token_ttl_seconds | plus: now_s
+  assign label = client_name | default: 'OAuth client' | strip | truncate: 40, ''
+  assign object = {
+    "user_id": user_id,
+    "client_id": client_id,
+    "label": label,
+    "scope": scope,
+    "resource": resource,
+    "ttl": ttl,
+    "expires_at": expires_at,
+    "refresh_expires_at": refresh_expires_at
+  }
+  return object
+%}

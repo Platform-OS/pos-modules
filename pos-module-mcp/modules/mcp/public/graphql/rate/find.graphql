@@ -1,0 +1,14 @@
+query find($key: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_rate_counter" }
+      properties: [{ name: "key", value: $key }]
+    }
+  ) {
+    results {
+      id
+      count: property(name: "count")
+    }
+  }
+}

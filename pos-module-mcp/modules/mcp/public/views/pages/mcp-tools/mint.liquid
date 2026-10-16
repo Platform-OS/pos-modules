@@ -1,0 +1,36 @@
+---
+slug: mcp-tools/mint
+method: post
+layout: ''
+---
+{%- comment -%}
+  POST handler — mint a per-user token. Requires mcp.tokens.manage; binds the token
+  to the signed-in user_id. The raw token is stashed in a one-shot session flash and shown
+  once on the redirected /mcp-tools page (Post-Redirect-Get). A label the user already has
+  on an active token is refused (commands/tokens/mint); the page then says so instead of
+  showing a token. A POST without a valid form token changes nothing (403).
+{%- endcomment -%}
+{%- liquid
+  unless context.csrf_request_valid
+    response_status 403
+    render 'modules/mcp/pages/form_expired', return_path: '/mcp-tools'
+    break
+  endunless
+
+  # Access gate — enforced SERVER-SIDE, not just in the UI: without mcp.tokens.manage a
+  # signed-in user cannot POST here directly to mint a token.
+  function current_profile = 'modules/user/helpers/current_profile'
+  # platformos-check-disable UnreachableCode
+  # platformos-check-disable DeprecatedTag
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'mcp.tokens.manage', redirect_anonymous_to_login: true, forbidden_partial: null, access_callback: null, anonymous_return_to: '/mcp-tools', entity: null
+  # platformos-check-enable DeprecatedTag
+  # platformos-check-enable UnreachableCode
+  assign uid = current_profile.user.id | append: ''
+  function minted = 'modules/mcp/commands/tokens/mint', user_id: uid, label: context.params.label
+  if minted.error == 'label_taken'
+    session mcp_flash_label_taken = minted.label
+  else
+    session mcp_flash_token = minted.raw
+  endif
+  redirect_to '/mcp-tools'
+-%}

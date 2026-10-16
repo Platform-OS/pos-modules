@@ -1,0 +1,24 @@
+query by_seq($seq: Int!) {
+  # Entries sharing a seq — used by the operator console to DIAGNOSE a chain break:
+  # a concurrency fork shows up as 2+ rows with the same seq (both linking to the same
+  # prev_entry_hash); an integrity edit shows a single row whose recomputed hash differs.
+  records(
+    per_page: 10
+    filter: {
+      table: { value: "modules/mcp/mcp_ledger" }
+      properties: [{ name: "seq", value_int: $seq }]
+    }
+    sort: [{ id: { order: ASC } }]
+  ) {
+    results {
+      id
+      seq: property(name: "seq")
+      occurred_at: property(name: "occurred_at")
+      tool_name: property(name: "tool_name")
+      principal_id: property(name: "principal_id")
+      execution_outcome: property(name: "execution_outcome")
+      prev_entry_hash: property(name: "prev_entry_hash")
+      entry_hash: property(name: "entry_hash")
+    }
+  }
+}

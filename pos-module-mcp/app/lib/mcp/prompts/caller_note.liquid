@@ -1,0 +1,9 @@
+{%- comment -%}
+  Prompt template — caller_note (TEST FIXTURE). Receives the caller from the engine and
+  names it, and repeats the `note` key of its prompt entry, so the conformance suite can
+  confirm prompts/get passes `principal`, `agent` and `prompt` to the template.
+{%- endcomment -%}
+{% liquid
+  assign text = 'You are working for ' | append: principal.id | append: ' through ' | append: agent.client_id | append: '. ' | append: prompt.note
+  return text
+%}

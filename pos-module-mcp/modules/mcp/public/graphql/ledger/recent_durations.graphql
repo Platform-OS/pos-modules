@@ -1,0 +1,13 @@
+query recent_durations($per_page: Int!) {
+  # The most recent `per_page` entries' duration_ms — the bounded sample for latency
+  # percentiles (the ONE metric a COUNT cannot produce: p50/p95 need the values).
+  records(
+    per_page: $per_page
+    sort: [{ id: { order: DESC } }]
+    filter: { table: { value: "modules/mcp/mcp_ledger" } }
+  ) {
+    results {
+      duration_ms: property(name: "duration_ms")
+    }
+  }
+}

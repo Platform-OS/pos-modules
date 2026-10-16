@@ -1,0 +1,9 @@
+---
+en:
+  time:
+    formats:
+      long: "%a, %b %e, %Y at %H:%M"
+      compact: "%b %d %Y at %H:%M"
+      date_compact: "%b %d %Y"
+      system: "%Y-%m-%dT%H:%M:%S.%L"
+      chat: "%m.%d - %H:%M"

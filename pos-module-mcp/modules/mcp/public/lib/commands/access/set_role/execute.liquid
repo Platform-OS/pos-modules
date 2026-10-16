@@ -1,0 +1,22 @@
+{% doc %}
+  @param {object} object - validated by access/set_role/check
+  @return {object} { ok: true, tokens_revoked? }
+{% enddoc %}
+{% liquid
+  assign out = { "ok": false }
+  function _ = 'modules/user/commands/profiles/roles/remove', id: object.profile_id, role: 'mcp_user'
+  function _ = 'modules/user/commands/profiles/roles/remove', id: object.profile_id, role: 'mcp_operator'
+  if object.role != blank
+    function _ = 'modules/user/commands/profiles/roles/append', id: object.profile_id, role: object.role
+  else
+    function profile = 'modules/user/queries/profiles/find', id: object.profile_id, user_id: null, uuid: null, first_name: null, last_name: null
+    assign uid = profile.user_id | append: ''
+    unless uid == blank
+      graphql revoked = 'modules/mcp/tokens/revoke_for_user', user_id: uid
+      assign out['tokens_revoked'] = revoked.tokens.count
+    endunless
+  endif
+
+  assign out['ok'] = true
+  return out
+%}

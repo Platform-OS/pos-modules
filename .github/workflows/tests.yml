@@ -68,6 +68,8 @@ jobs:
               - 'pos-module-common-styling/**'
             data-export-api:
               - 'pos-module-data-export-api/**'
+            mcp:
+              - 'pos-module-mcp/**'
             oauth-facebook:
               - 'pos-module-oauth-facebook/**'
             oauth-github:
@@ -146,6 +148,12 @@ jobs:
               "path": "pos-module-data-export-api",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run api-tests"
+            },
+            "mcp": {
+              "module": "mcp",
+              "path": "pos-module-mcp",
+              "deploy-script": "pos-cli data clean --include-schema --auto-confirm\npos-cli modules install --dev\npos-cli constants set --name MCP_SEED_TEST_FIXTURES --value 1\npos-cli deploy",
+              "test-commands": "npm ci\nnpm run test:static\nexport MCP_URL=\"$MPKIT_URL\" MCP_TOKEN=\"$MPKIT_TOKEN\" MCP_OP_EMAIL=\"$MPKIT_EMAIL\" MCP_OP_PASS=\"$E2E_TEST_PASSWORD\"\nnode tests/ci-bootstrap-operator.mjs\nnpm test"
             },
             "oauth-facebook": {
               "module": "oauth-facebook",
@@ -280,6 +288,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20.x
+
+      # Shows why the instance refuses the token, which pos-cli's generic "unauthorized"
+      # message hides: 404 "Job can not be found" = token accepted; 401 two_factor_required
+      # = the account's Partner requires 2FA; 401 "HTTP Token: Access denied." = token not
+      # valid for this instance; 503 partner_portal_unavailable = Portal down. Never fails.
+      - name: Diagnose instance auth
+        shell: sh
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        run: |
+          echo "::add-mask::$MPKIT_TOKEN"
+          pos-cli --version || true
+          curl -sS -m 30 -w '\nHTTP %{http_code}\n' -H "Authorization: Token $MPKIT_TOKEN" "$MPKIT_URL/api/app_builder/data_clean/diagnostic" || true
 
       - name: Deploy module
         timeout-minutes: 10
