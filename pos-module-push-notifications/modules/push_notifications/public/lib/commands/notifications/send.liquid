@@ -41,6 +41,16 @@
     return object
   endif
 
+  # Never POST to a host that is not a known push service, e.g. a
+  # subscription stored before endpoint validation was enforced.
+  function endpoint_allowed = 'modules/push_notifications/helpers/endpoint_allowed', endpoint: sub.endpoint
+  if endpoint_allowed != true
+    assign object.valid = false
+    assign object.errors = { "subscription": ["Subscription endpoint is not a supported push service"] }
+    log object, type: 'ERROR: modules/push_notifications/commands/notifications/send endpoint not allowed'
+    return object
+  endif
+
   assign vapid_public_key = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY']
   assign vapid_private_key = context.constants['modules/push_notifications/VAPID_PRIVATE_KEY']
   assign vapid_subject = context.constants['modules/push_notifications/VAPID_SUBJECT']

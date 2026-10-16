@@ -125,6 +125,8 @@ function result = 'modules/push_notifications/commands/subscriptions/create',
 
 Idempotent per `(user_id, endpoint)`: subscribing again with the same browser and the same user returns the existing record rather than inserting a duplicate row. On a shared device where a second user subscribes with the same browser, they get their own separate record with the same endpoint — both users legitimately receive pushes sent to their own subscription, since it's the same physical push channel. Ownership is never transferred or deleted out from under the other user.
 
+Endpoints are restricted to known Web Push services, because the server POSTs to whatever endpoint is stored: `fcm.googleapis.com`, `android.googleapis.com`, `*.push.services.mozilla.com`, `*.push.apple.com` and `*.notify.windows.com` (https only, no custom port or userinfo). Any other endpoint is rejected on create and rotate (HTTP 422), and `notifications/send` refuses to deliver to a stored subscription that does not match. To allow another push service, override `lib/helpers/endpoint_allowed.liquid` in `app/modules/push_notifications/public/`.
+
 ### Send to one subscription
 
 ```liquid

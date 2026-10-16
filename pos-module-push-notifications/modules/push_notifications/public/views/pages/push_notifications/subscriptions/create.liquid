@@ -16,5 +16,8 @@ layout: ''
     endpoint: sub_params.endpoint,
     p256dh: sub_params.keys.p256dh,
     auth: sub_params.keys.auth
+  unless result.valid
+    response_status 422
+  endunless
 %}
 {% if result.valid %}{"ok":true,"id":"{{ result.id }}"}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}

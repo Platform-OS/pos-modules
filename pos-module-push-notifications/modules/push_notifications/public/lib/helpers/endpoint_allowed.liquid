@@ -1,0 +1,33 @@
+{% doc %}
+  Checks whether a push endpoint URL points at a known Web Push service.
+  The server POSTs to whatever endpoint is stored on a subscription, so
+  accepting arbitrary URLs would let any user make the instance send
+  requests to hosts of their choosing (SSRF).
+
+  Allowed hosts:
+    - fcm.googleapis.com, android.googleapis.com (Chrome, Edge on Android, Opera, Brave, Samsung Internet)
+    - *.push.services.mozilla.com (Firefox)
+    - *.push.apple.com (Safari)
+    - *.notify.windows.com (Edge on Windows)
+
+  The URL must be https, with no explicit port or userinfo, and contain no
+  whitespace. To allow additional push services, override this file in
+  app/modules/push_notifications/public/lib/helpers/endpoint_allowed.liquid.
+
+  @param {string} endpoint - Push service endpoint URL
+  @returns {boolean} true when the endpoint host is on the allow-list
+{% enddoc %}
+{% liquid
+  if endpoint == blank
+    return false
+  endif
+
+  assign normalized = endpoint | downcase
+  assign allowed = normalized | matches: '\Ahttps:\/\/(fcm\.googleapis\.com|android\.googleapis\.com|([a-z0-9-]+\.)*(push\.services\.mozilla\.com|push\.apple\.com|notify\.windows\.com))\/\S*\z'
+
+  if allowed == true
+    return true
+  endif
+
+  return false
+%}

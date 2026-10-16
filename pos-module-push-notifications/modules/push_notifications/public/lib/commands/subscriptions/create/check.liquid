@@ -11,10 +11,14 @@
 
   unless object.endpoint == blank
     assign endpoint_is_https = object.endpoint | start_with: 'https://'
-    unless endpoint_is_https
+    function endpoint_allowed = 'modules/push_notifications/helpers/endpoint_allowed', endpoint: object.endpoint
+    if endpoint_is_https != true
       assign c.valid = false
       assign c.errors = c.errors | hash_merge: {"endpoint": ["must start with https://"]}
-    endunless
+    elsif endpoint_allowed != true
+      assign c.valid = false
+      assign c.errors = c.errors | hash_merge: {"endpoint": ["is not a supported push service"]}
+    endif
   endunless
 
   assign object.valid = c.valid

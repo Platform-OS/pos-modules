@@ -12,5 +12,8 @@ layout: ''
     endpoint: context.params.endpoint,
     p256dh: context.params.p256dh,
     auth: context.params.auth
+  unless result.valid
+    response_status 422
+  endunless
 %}
 {% if result.valid %}{"ok":true,"id":"{{ result.id }}"}{% else %}{"ok":false,"errors":{{ result.errors | json }}}{% endif %}

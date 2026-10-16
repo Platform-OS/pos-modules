@@ -30,6 +30,13 @@
     return not_found
   endif
 
+  assign new_values = { "user_id": sub.user_id, "endpoint": endpoint, "p256dh": p256dh, "auth": auth }
+  function new_values = 'modules/push_notifications/commands/subscriptions/create/check', object: new_values
+  unless new_values.valid
+    assign invalid = { "valid": false, "errors": new_values.errors }
+    return invalid
+  endunless
+
   graphql r = 'modules/push_notifications/subscriptions/update', id: sub.id, endpoint: endpoint, p256dh: p256dh, auth: auth, active: true
   assign object = r.record
   assign object.valid = true
