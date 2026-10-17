@@ -1,0 +1,14 @@
+query generic_object_find($id: ID!, $file_property: String!) {
+  records(filter: { id: { value: $id } }, per_page: 1) {
+    results {
+      id
+      created_at
+      updated_at
+      table
+
+      file: property_upload(name: $file_property, expires_in: 600) {
+        url
+      }
+    }
+  }
+}

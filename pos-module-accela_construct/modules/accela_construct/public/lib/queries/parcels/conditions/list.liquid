@@ -1,0 +1,34 @@
+{% doc %}
+  @description Wraps GET /v4/parcels/{parcelId}/conditions (Accela "Get All
+    Conditions"), mirroring queries/records/conditions/list for the parcel
+    entity type. UNVERIFIED against a live Accela sandbox - Accela's v4 API
+    documents this sub-resource symmetrically across records/parcels/addresses,
+    but only the records variant had been exercised in this module before.
+
+    Follows the pos-module-core build/check command pattern (see
+    list/{build,check}.liquid): build prepares the request path, check
+    validates required params, and this file executes the request itself
+    once valid.
+  @param {string} parcel_id - Parcel id (required)
+  @param {boolean} [with_retries] - default false. When true, retries a
+    failed attempt in the background with increasing delay - see
+    lib/accela_client/send.liquid.
+  @param {object} [reference] - hash `{ "id", "table" }` forwarded
+    to send.liquid - see send.liquid.
+  @example
+    {% function result = 'modules/accela_construct/queries/parcels/conditions/list', parcel_id: parcel_id %}
+{% enddoc %}
+
+{% liquid
+  assign object = { "errors": {}, "valid": true, "parcel_id": parcel_id }
+  function object = 'modules/accela_construct/queries/parcels/conditions/list/build', object: object
+  function object = 'modules/accela_construct/queries/parcels/conditions/list/check', object: object
+
+  if object.valid
+    function result = 'modules/accela_construct/accela_client/send', method: 'GET', path: object.path, with_retries: with_retries, reference: reference, caller: 'modules/accela_construct/queries/parcels/conditions/list'
+  else
+    function result = 'modules/accela_construct/accela_client/error_result', error: 'accela_validation_failed', errors: object.errors, caller: 'modules/accela_construct/queries/parcels/conditions/list'
+  endif
+
+  return result
+%}

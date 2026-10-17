@@ -1,0 +1,29 @@
+{% doc %}
+  @description Exercises documents queries against the real Accela sandbox using a
+    fixture record created for this test run. documents/list and
+    documents/categories are record-scoped and succeed for real, even with
+    zero documents on the fixture. documents/download now has its
+    `download_document` scope granted too (see ACCELA_CONSTRUCT_SCOPE), so a
+    genuinely nonexistent document id gets a real 404 from Accela instead of
+    a 403 - that's what's asserted below.
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  assign fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (documents_test)" }
+  function create_result = 'modules/accela_construct/commands/records/create', record: fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: create_result.success, expected: true, field_name: 'fixture_record_create_success'
+  assign record_id = create_result.body.result.id
+
+  function list_result = 'modules/accela_construct/queries/records/documents/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: list_result.success, expected: true, field_name: 'documents_list_success'
+
+  function categories_result = 'modules/accela_construct/queries/records/documents/categories', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: categories_result.success, expected: true, field_name: 'documents_categories_success'
+
+  function download_result = 'modules/accela_construct/queries/documents/download', document_id: '999999999'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: download_result.success, expected: false, field_name: 'documents_download_not_found_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: download_result.status, expected: 404, field_name: 'documents_download_not_found_status'
+
+  # cleanup: delete the fixture record created above
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: record_id
+%}

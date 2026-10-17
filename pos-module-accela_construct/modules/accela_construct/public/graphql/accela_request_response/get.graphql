@@ -1,0 +1,23 @@
+query accela_request_response_get($id: ID!) {
+  records(
+    per_page: 1
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/accela_construct/accela_request_response" }
+    }
+  ) {
+    results {
+      id
+      created_at
+      updated_at
+      table
+
+      request_id: property(name: "request_id")
+      attempt_number: property_int(name: "attempt_number")
+      status: property_int(name: "status")
+      response_body: property(name: "response_body")
+      success: property_boolean(name: "success")
+      error: property(name: "error")
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{% doc %}
+  @description Exercises inspections/checklists and inspections/conditions queries
+    against the real Accela sandbox, now that get_inspection_checklists and
+    get_inspection_conditions are granted (see ACCELA_CONSTRUCT_SCOPE).
+    checklists/list and conditions/list are asserted as real successes
+    against a real scheduled inspection (which has none of either yet, so
+    both succeed with empty results). conditions/get and conditions/histories
+    use a condition id that can't exist on that inspection, and Accela
+    genuinely returns a real 404 for that - not a bug, just "not found."
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  assign fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (inspections_checklists_conditions_test)" }
+  function create_result = 'modules/accela_construct/commands/records/create', record: fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: create_result.success, expected: true, field_name: 'fixture_record_create_success'
+  assign record_id = create_result.body.result.id
+
+  function inspection_types_result = 'modules/accela_construct/queries/records/inspection_types/list', record_ids: record_id
+  assign inspection_type = inspection_types_result.body.result.first.inspectionTypes.first
+
+  assign new_inspection = { "recordId": { "id": record_id }, "type": { "id": inspection_type.id }, "scheduleDate": "2026-10-01" }
+  function schedule_result = 'modules/accela_construct/commands/inspections/schedule', inspection: new_inspection
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: schedule_result.success, expected: true, field_name: 'fixture_inspection_schedule_success'
+  assign inspection_id = schedule_result.body.result.id
+
+  function checklists_result = 'modules/accela_construct/queries/inspections/checklists/list', inspection_id: inspection_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: checklists_result.success, expected: true, field_name: 'inspections_checklists_list_success'
+
+  function conditions_list_result = 'modules/accela_construct/queries/inspections/conditions/list', inspection_id: inspection_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_list_result.success, expected: true, field_name: 'inspections_conditions_list_success'
+
+  function conditions_get_result = 'modules/accela_construct/queries/inspections/conditions/get', inspection_id: inspection_id, id: '999999999'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_get_result.success, expected: false, field_name: 'inspections_conditions_get_not_found_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_get_result.status, expected: 404, field_name: 'inspections_conditions_get_not_found_status'
+
+  function conditions_histories_result = 'modules/accela_construct/queries/inspections/conditions/histories', inspection_id: inspection_id, id: '999999999'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_histories_result.success, expected: false, field_name: 'inspections_conditions_histories_not_found_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_histories_result.status, expected: 404, field_name: 'inspections_conditions_histories_not_found_status'
+
+  # cleanup: delete the real inspection, then the fixture record
+  function _delete_inspection_result = 'modules/accela_construct/commands/inspections/delete', ids: inspection_id
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: record_id
+%}

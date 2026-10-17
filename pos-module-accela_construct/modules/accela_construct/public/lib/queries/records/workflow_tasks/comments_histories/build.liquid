@@ -1,0 +1,11 @@
+{% doc %}
+  Builds the request path for GET /v4/records/{recordId}/workflowTasks/comments/histories.
+  @param {object} object - Hash with `record_id` (see
+    records/workflow_tasks/comments_histories.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = "/records/{{ object.record_id | url_encode }}/workflowTasks/comments/histories"
+  return object
+%}

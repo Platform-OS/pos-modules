@@ -1,0 +1,13 @@
+{% doc %}
+  Normalizes input and prepares the request for POST /v4/records: the
+  request path (relative to ACCELA_CONSTRUCT_BASE_URL) and the JSON-serialized
+  record body.
+  @param {object} object - Hash with `record` (see records/create.liquid)
+  @returns {object} object with `path` and `payload` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = '/records'
+  assign object.payload = object.record | json
+  return object
+%}

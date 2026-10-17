@@ -1,0 +1,34 @@
+mutation accela_request_response_create(
+  $request_id: String!
+  $attempt_number: Int!
+  $status: Int
+  $response_body: String
+  $success: Boolean!
+  $error: String
+) {
+  record_create(
+    record: {
+      table: "modules/accela_construct/accela_request_response"
+      properties: [
+        { name: "request_id", value: $request_id }
+        { name: "attempt_number", value_int: $attempt_number }
+        { name: "status", value_int: $status }
+        { name: "response_body", value: $response_body }
+        { name: "success", value_boolean: $success }
+        { name: "error", value: $error }
+      ]
+    }
+  ) {
+    id
+    created_at
+    updated_at
+    table
+
+    request_id: property(name: "request_id")
+    attempt_number: property_int(name: "attempt_number")
+    status: property_int(name: "status")
+    response_body: property(name: "response_body")
+    success: property_boolean(name: "success")
+    error: property(name: "error")
+  }
+}

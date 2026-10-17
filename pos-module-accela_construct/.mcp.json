@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "platformos": {
+      "command": "pos-cli-mcp"
+    },
+    "platformos-supervisor": {
+      "command": "pos-cli-supervisor"
+    }
+  }
+}

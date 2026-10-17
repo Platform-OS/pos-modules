@@ -1,0 +1,4 @@
+{% liquid
+  graphql object_result = 'modules/accela_construct/generic_objects/find', id: id, file_property: file_property
+  return object_result.records.results.first
+%}

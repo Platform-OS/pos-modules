@@ -1,0 +1,10 @@
+{% doc %}
+  Builds the request path for GET /v4/parcels/{parcelId}/conditions.
+  @param {object} object - Hash with `parcel_id` (see parcels/conditions/list.liquid)
+  @returns {object} object with `path` added.
+{% enddoc %}
+
+{% liquid
+  assign object.path = "/parcels/{{ object.parcel_id | url_encode }}/conditions"
+  return object
+%}

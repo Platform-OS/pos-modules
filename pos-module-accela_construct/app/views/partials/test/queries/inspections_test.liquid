@@ -1,0 +1,56 @@
+{% doc %}
+  @description Exercises inspections queries against the real Accela sandbox. This
+    dev credential's CivicID app scope now includes the inspection-management
+    scopes (get_inspection, get_inspection_histories, get_inspection_related,
+    get_inspection_available_dates, etc. - see ACCELA_CONSTRUCT_SCOPE), so
+    every one of these calls is asserted as a real success against a real
+    inspection: this creates a fixture record, schedules a real inspection on
+    it (commands/inspections/schedule needs its own `schedule_inspection`
+    scope, also granted), exercises every query against that real inspection,
+    then deletes the inspection and the fixture record at the end.
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  assign fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (inspections_test)" }
+  function create_result = 'modules/accela_construct/commands/records/create', record: fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: create_result.success, expected: true, field_name: 'fixture_record_create_success'
+  assign record_id = create_result.body.result.id
+
+  function inspection_types_result = 'modules/accela_construct/queries/records/inspection_types/list', record_ids: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inspection_types_result.success, expected: true, field_name: 'records_inspection_types_list_success'
+  assign inspection_type = inspection_types_result.body.result.first.inspectionTypes.first
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: inspection_type, field_name: 'id'
+
+  function record_inspections_result = 'modules/accela_construct/queries/records/inspections/list', record_id: record_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: record_inspections_result.success, expected: true, field_name: 'records_inspections_list_success'
+
+  # schedule a real inspection to query against
+  assign new_inspection = { "recordId": { "id": record_id }, "type": { "id": inspection_type.id }, "scheduleDate": "2026-10-01" }
+  function schedule_result = 'modules/accela_construct/commands/inspections/schedule', inspection: new_inspection
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: schedule_result.success, expected: true, field_name: 'inspections_schedule_success'
+  assign inspection_id = schedule_result.body.result.id
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: schedule_result.body.result, field_name: 'id'
+
+  function get_result = 'modules/accela_construct/queries/inspections/get', ids: inspection_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: get_result.success, expected: true, field_name: 'inspections_get_success'
+
+  function available_dates_result = 'modules/accela_construct/queries/inspections/available_dates', type_id: inspection_type.id, record_id: record_id, start_date: '2026-10-01'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: available_dates_result.success, expected: true, field_name: 'inspections_available_dates_success'
+
+  function histories_result = 'modules/accela_construct/queries/inspections/histories', inspection_ids: inspection_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: histories_result.success, expected: true, field_name: 'inspections_histories_success'
+
+  function related_result = 'modules/accela_construct/queries/inspections/related', id: inspection_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: related_result.success, expected: true, field_name: 'inspections_related_success'
+
+  # inspections/all scans the whole agency's Building module and can be slow
+  # enough on this sandbox to occasionally exceed a normal request timeout -
+  # a real characteristic of this endpoint, not something a small `limit`
+  # fixes, so it's exercised but not depended on by anything else here.
+  function all_result = 'modules/accela_construct/queries/inspections/all', module: 'Building', limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: all_result.success, expected: true, field_name: 'inspections_all_success'
+
+  # cleanup: delete the real inspection, then the fixture record
+  function _delete_inspection_result = 'modules/accela_construct/commands/inspections/delete', ids: inspection_id
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: record_id
+%}

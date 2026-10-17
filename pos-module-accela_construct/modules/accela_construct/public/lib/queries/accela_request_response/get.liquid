@@ -1,0 +1,17 @@
+{% doc %}
+  @description Returns one accela_request_response row by id (request_id, attempt_number,
+    status, response_body, success, error), or nil if it doesn't exist. Used
+    by an accela_construct_request_succeeded consumer to read the raw
+    response body of the specific attempt that just succeeded (`response_id`
+    in the event payload - see lib/accela_client/send.liquid), rather than
+    listing every attempt for the request and filtering client-side.
+  @param {string} id - accela_request_response row id (required)
+  @example
+    {% function response = 'modules/accela_construct/queries/accela_request_response/get', id: some_id %}
+{% enddoc %}
+
+{% liquid
+  graphql get_result = 'modules/accela_construct/accela_request_response/get', id: id
+  assign response = get_result.records.results.first
+  return response
+%}

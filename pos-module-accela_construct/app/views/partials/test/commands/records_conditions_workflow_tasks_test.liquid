@@ -1,0 +1,121 @@
+{% doc %}
+  @param {object} contract - test contract object tracking results
+{% enddoc %}
+{% liquid
+  # Only build.liquid/check.liquid are called directly, plus each
+  # orchestrator's validation-FAILURE path (missing a required param, which
+  # short-circuits before any network call). The real-API section at the
+  # bottom exercises the success path against the Accela sandbox.
+
+  # ============ records/conditions/{create,update,delete} ============
+
+  assign conditions_create_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function conditions_create_check_missing = 'modules/accela_construct/commands/records/conditions/create/check', object: conditions_create_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: conditions_create_check_missing, field_name: 'records_conditions_create_check_invalid_without_condition'
+
+  assign conditions_create_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "condition": { "type": { "value": "Standard" } } }
+  function conditions_create_check_ok = 'modules/accela_construct/commands/records/conditions/create/check', object: conditions_create_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: conditions_create_check_ok, field_name: 'records_conditions_create_check_valid_with_condition'
+
+  assign conditions_create_build_input = { "record_id": "TEST-0000-00001", "condition": { "type": { "value": "Standard" } } }
+  function conditions_create_build_output = 'modules/accela_construct/commands/records/conditions/create/build', object: conditions_create_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_create_build_output.path, expected: '/records/TEST-0000-00001/conditions', field_name: 'records_conditions_create_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: conditions_create_build_output, field_name: 'payload'
+  # Accela's Create Record Conditions endpoint requires a JSON array body,
+  # even for a single condition - build.liquid wraps the single `condition`
+  # hash into a one-item array before serializing.
+  assign conditions_create_payload = conditions_create_build_output.payload | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_create_payload.size, expected: 1, field_name: 'records_conditions_create_build_payload_is_array'
+
+  function conditions_create_result = 'modules/accela_construct/commands/records/conditions/create', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: conditions_create_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_create_result.error, expected: 'accela_validation_failed', field_name: 'records_conditions_create_returns_validation_failed_without_condition'
+
+  assign conditions_update_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1" }
+  function conditions_update_check_missing = 'modules/accela_construct/commands/records/conditions/update/check', object: conditions_update_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: conditions_update_check_missing, field_name: 'records_conditions_update_check_invalid_without_condition'
+
+  assign conditions_update_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1", "condition": { "status": { "value": "Cleared" } } }
+  function conditions_update_check_ok = 'modules/accela_construct/commands/records/conditions/update/check', object: conditions_update_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: conditions_update_check_ok, field_name: 'records_conditions_update_check_valid_with_condition'
+
+  assign conditions_update_build_input = { "record_id": "TEST-0000-00001", "id": "1", "condition": { "status": { "value": "Cleared" } } }
+  function conditions_update_build_output = 'modules/accela_construct/commands/records/conditions/update/build', object: conditions_update_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_update_build_output.path, expected: '/records/TEST-0000-00001/conditions/1', field_name: 'records_conditions_update_build_path'
+
+  function conditions_update_result = 'modules/accela_construct/commands/records/conditions/update', record_id: 'TEST-0000-00001', id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: conditions_update_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_update_result.error, expected: 'accela_validation_failed', field_name: 'records_conditions_update_returns_validation_failed_without_condition'
+
+  assign conditions_delete_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001" }
+  function conditions_delete_check_missing = 'modules/accela_construct/commands/records/conditions/delete/check', object: conditions_delete_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: conditions_delete_check_missing, field_name: 'records_conditions_delete_check_invalid_without_ids'
+
+  assign conditions_delete_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "ids": "1" }
+  function conditions_delete_check_ok = 'modules/accela_construct/commands/records/conditions/delete/check', object: conditions_delete_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: conditions_delete_check_ok, field_name: 'records_conditions_delete_check_valid_with_ids'
+
+  assign conditions_delete_build_input = { "record_id": "TEST-0000-00001", "ids": "1,2" }
+  function conditions_delete_build_output = 'modules/accela_construct/commands/records/conditions/delete/build', object: conditions_delete_build_input
+  # build.liquid url_encodes the ids, so compare against url_encode's own
+  # output rather than assuming the comma stays literal
+  assign conditions_delete_expected_ids = conditions_delete_build_input.ids | url_encode
+  assign conditions_delete_expected_path = "/records/TEST-0000-00001/conditions/" | append: conditions_delete_expected_ids
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_delete_build_output.path, expected: conditions_delete_expected_path, field_name: 'records_conditions_delete_build_path'
+
+  function conditions_delete_result = 'modules/accela_construct/commands/records/conditions/delete', record_id: 'TEST-0000-00001'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: conditions_delete_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: conditions_delete_result.error, expected: 'accela_validation_failed', field_name: 'records_conditions_delete_returns_validation_failed_without_ids'
+
+  # ============ records/workflow_tasks/update ============
+
+  assign workflow_tasks_update_check_missing = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1" }
+  function workflow_tasks_update_check_missing = 'modules/accela_construct/commands/records/workflow_tasks/update/check', object: workflow_tasks_update_check_missing
+  function contract = 'modules/tests/assertions/invalid_object', contract: contract, object: workflow_tasks_update_check_missing, field_name: 'records_workflow_tasks_update_check_invalid_without_task'
+
+  assign workflow_tasks_update_check_ok = { "errors": {}, "valid": true, "record_id": "TEST-0000-00001", "id": "1", "task": { "status": { "value": "Approved" } } }
+  function workflow_tasks_update_check_ok = 'modules/accela_construct/commands/records/workflow_tasks/update/check', object: workflow_tasks_update_check_ok
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: workflow_tasks_update_check_ok, field_name: 'records_workflow_tasks_update_check_valid_with_task'
+
+  assign workflow_tasks_update_build_input = { "record_id": "TEST-0000-00001", "id": "1", "task": { "status": { "value": "Approved" } } }
+  function workflow_tasks_update_build_output = 'modules/accela_construct/commands/records/workflow_tasks/update/build', object: workflow_tasks_update_build_input
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: workflow_tasks_update_build_output.path, expected: '/records/TEST-0000-00001/workflowTasks/1', field_name: 'records_workflow_tasks_update_build_path'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: workflow_tasks_update_build_output, field_name: 'payload'
+
+  function workflow_tasks_update_result = 'modules/accela_construct/commands/records/workflow_tasks/update', record_id: 'TEST-0000-00001', id: '1'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: workflow_tasks_update_result, field_name: 'success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: workflow_tasks_update_result.error, expected: 'accela_validation_failed', field_name: 'records_workflow_tasks_update_returns_validation_failed_without_task'
+
+  # ============ real Accela sandbox ============
+  # workflow_tasks/update genuinely succeeds: Accela auto-creates workflow
+  # tasks when a record is created, so this fetches the real first task and
+  # one of its own real valid next statuses (from workflow_tasks/statuses)
+  # rather than guessing a status value. conditions/create is asserted as a
+  # real, observed failure: Accela's own describe/validation response
+  # calls `appliedbyUser` required, but submitting it (in any casing tried)
+  # makes Accela respond "Request body is required" instead of a normal
+  # validation error - an Accela-side inconsistency, not a bug in this
+  # module's (now array-wrapped) payload building.
+
+  assign real_fixture_record = { "type": { "id": "Building-Home.cOccupation-NA-NA" }, "description": "pos-module-accela_construct test fixture (records_conditions_workflow_tasks_test)" }
+  function real_create_result = 'modules/accela_construct/commands/records/create', record: real_fixture_record
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_create_result.success, expected: true, field_name: 'real_fixture_record_create_success'
+  assign real_record_id = real_create_result.body.result.id
+
+  function real_condition_result = 'modules/accela_construct/commands/records/conditions/create', record_id: real_record_id, condition: { "type": { "value": "HOLD" }, "name": "Test Condition", "appliedbyUser": "NEARME" }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_result.success, expected: false, field_name: 'real_records_conditions_create_success'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_condition_result.status, expected: 400, field_name: 'real_records_conditions_create_status'
+
+  function real_task_list_result = 'modules/accela_construct/queries/records/workflow_tasks/list', record_id: real_record_id
+  assign real_task = real_task_list_result.body.result.first
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: real_task, field_name: 'id'
+
+  function real_task_statuses_result = 'modules/accela_construct/queries/records/workflow_tasks/statuses', record_id: real_record_id, id: real_task.id
+  assign real_next_status = real_task_statuses_result.body.result.first
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: real_next_status, field_name: 'value'
+
+  function real_task_update_result = 'modules/accela_construct/commands/records/workflow_tasks/update', record_id: real_record_id, id: real_task.id, task: { "status": { "value": real_next_status.value } }
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: real_task_update_result.success, expected: true, field_name: 'real_records_workflow_tasks_update_success'
+
+  function _cleanup_result = 'modules/accela_construct/commands/records/delete', ids: real_record_id
+%}
