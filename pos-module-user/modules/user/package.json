@@ -25,5 +25,8 @@
     "template": "changelog-template.hbs",
     "unreleased": true,
     "commitLimit": false
+  },
+  "overrides": {
+    "simple-git": "^4.0.1"
   }
 }

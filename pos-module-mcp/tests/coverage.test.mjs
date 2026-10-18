@@ -15,7 +15,7 @@
  */
 import { describe, it, beforeAll, afterAll, afterEach, expect } from 'vitest';
 import { createHash } from 'node:crypto';
-import { loadEnv, makeAdmin, pruneRate } from './fixtures.mjs';
+import { loadEnv, makeAdmin, pruneRate, awaitFreshRateWindow } from './fixtures.mjs';
 import { makeMcp, makeModern, makeConstants, makeWeb, TASKS_CAPABILITY } from './lib/harness.mjs';
 import { FIXT, applyReset, seededRecordIds } from './seed/seed.mjs';
 
@@ -429,6 +429,7 @@ describe('coverage · multi-principal governance planes', () => {
     await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 3 } }));
     await pruneRate(adm, rate.principal);
     await pruneRate(adm, op.principal);
+    await awaitFreshRateWindow();
     {
       const codes = [];
       for (let i = 0; i < 5; i++) { const r = await callTool(rate.rawToken, 'test_public', {}); codes.push(r.json?.error?.code ?? r.status); }
@@ -830,6 +831,7 @@ describe('coverage · multi-principal governance planes', () => {
     const rateUri = `test-note://${rate.userId}/hello`;
     await pruneRate(adm, rate.principal);
     await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 2 } }));
+    await awaitFreshRateWindow();
     const reads = [];
     for (let i = 0; i < 3; i++) reads.push(await rpc({ jsonrpc: '2.0', id: 10 + i, method: 'resources/read', params: { uri: rateUri } }, rate.rawToken));
     ok('reads within the limit succeed', reads[0].status === 200 && reads[1].status === 200 && !!reads[1].json?.result, reads.map(r => r.status).join(','));

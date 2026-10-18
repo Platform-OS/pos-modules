@@ -101,16 +101,18 @@ export function makeWeb(base) {
   const metaTag = (html, name) => (html.match(new RegExp(`name="${name}"[^>]*content="([^"]*)"`)) || [])[1];
   // Operator login — verifies /mcp-admin actually renders (200, not a 403 page and not the
   // redirect to sign-in a failed login gets) before returning success; retries with backoff
-  // (a freshly-seeded user can take a beat to authenticate).
+  // (a freshly-seeded user can take a beat to authenticate; the instance can drop a connection).
   async function operatorLogin({ email, password }) {
     for (let attempt = 0; attempt < 6; attempt++) {
       cookies = {};
-      const lp = await (await get('sessions/new')).text();
-      const csrf = metaTag(lp, 'csrf-token') || formTok(lp); // the layout's meta tag, else the form's own token
-      await post('sessions', { authenticity_token: csrf, email, password });
-      const adminRes = await get('mcp-admin');
-      const adminPage = await adminRes.text();
-      if (adminRes.status === 200 && !/403|Operators only|name="password"/i.test(adminPage)) return true;
+      try {
+        const lp = await (await get('sessions/new')).text();
+        const csrf = metaTag(lp, 'csrf-token') || formTok(lp); // the layout's meta tag, else the form's own token
+        await post('sessions', { authenticity_token: csrf, email, password });
+        const adminRes = await get('mcp-admin');
+        const adminPage = await adminRes.text();
+        if (adminRes.status === 200 && !/403|Operators only|name="password"/i.test(adminPage)) return true;
+      } catch {} // transient network error (e.g. ECONNRESET) — retry
       await new Promise(r => setTimeout(r, 500 + attempt * 500));
     }
     return false;
@@ -119,10 +121,12 @@ export function makeWeb(base) {
   async function sessionLogin({ email, password }) {
     for (let attempt = 0; attempt < 4; attempt++) {
       cookies = {};
-      const lp = await (await get('sessions/new')).text();
-      const csrf = metaTag(lp, 'csrf-token') || formTok(lp); // the layout's meta tag, else the form's own token
-      const res = await post('sessions', { authenticity_token: csrf, email, password });
-      if (res.status === 302) return true;
+      try {
+        const lp = await (await get('sessions/new')).text();
+        const csrf = metaTag(lp, 'csrf-token') || formTok(lp); // the layout's meta tag, else the form's own token
+        const res = await post('sessions', { authenticity_token: csrf, email, password });
+        if (res.status === 302) return true;
+      } catch {} // transient network error (e.g. ECONNRESET) — retry
       await new Promise(r => setTimeout(r, 800));
     }
     return false;
