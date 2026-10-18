@@ -119,6 +119,17 @@ export async function pruneRate(adm, principal) {
   for (const row of r?.data?.records?.results || []) await adm.recordDelete(T_RATE, row.id);
 }
 
+/**
+ * The rate limiter counts per wall-clock minute (limits/check/build), so a burst that
+ * straddles a minute boundary is split across two windows and never trips the limit.
+ * Call right before a burst that asserts exact positions: if fewer than `needSeconds`
+ * remain in the current minute, sleep into the next one (+2s margin for clock skew).
+ */
+export async function awaitFreshRateWindow(needSeconds = 30) {
+  const left = 60 - (Date.now() / 1000) % 60;
+  if (left < needSeconds) await new Promise(r => setTimeout(r, (left + 2) * 1000));
+}
+
 /** Best-effort teardown: delete each fixture's token row, profile, rate counters, then the user. */
 export async function teardownMatrix(adm, matrix) {
   for (const [k, h] of Object.entries(matrix)) {

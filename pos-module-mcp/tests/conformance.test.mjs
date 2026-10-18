@@ -16,6 +16,7 @@
 import { describe, it, beforeAll, afterAll, afterEach, expect } from 'vitest';
 import { loadEnv, makeAdmin, makeMcp, makeModern, makeConstants } from './lib/harness.mjs';
 import { FIXT, applyReset } from './seed/seed.mjs';
+import { awaitFreshRateWindow } from './fixtures.mjs';
 
 // ---- isolated conformance identity + fixtures (deterministic; TASK-5) ------
 const RAW_TOKEN = FIXT.users.conformance.rawToken;
@@ -263,6 +264,7 @@ describe('conformance · protocol + governance pipeline', () => {
   it('Rate limiting (§12.4)', async () => {
     await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 3 } }));
     await pruneRate();
+    await awaitFreshRateWindow();
     const codes = [];
     for (let i = 0; i < 6; i++) {
       const r = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'search_events', arguments: { query: 'x' } } }, { token: RAW_TOKEN });
