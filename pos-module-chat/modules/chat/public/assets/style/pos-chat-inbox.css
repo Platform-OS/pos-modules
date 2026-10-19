@@ -453,8 +453,11 @@
 .pos-chat-conversation-new {
   padding: var(--pos-padding-cell) var(--pos-padding-cell) var(--pos-padding-cell);
   display: grid;
-  grid-template-columns: min-content 1fr auto;
-  gap: var(--pos-gap-button-button);
+  grid-template-areas:
+    "tools_above uploader send_above"
+    "tools input send";
+    grid-template-columns: min-content 1fr min-content;
+  gap: calc(var(--pos-gap-button-button) / 2) var(--pos-gap-button-button);
 }
 
 @media (max-width: 768px) {
@@ -463,14 +466,21 @@
   }
 }
 
-  .pos-chat-conversation-new-input-container {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--pos-gap-button-button);
-  }
 
+
+/* conversation tools
+============================================================================ */
+.pos-chat-conversation-new-tools {
+  grid-area: tools;
+}
+
+
+
+/* conversation input
+============================================================================ */
 .pos-chat-conversation-input {
   padding: calc(var(--pos-padding-input) / 2) calc(var(--pos-padding-input) / 1.5);
+  grid-area: input;
 
   border-radius: var(--pos-radius-input);
   background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 20%, transparent 80%);
@@ -480,6 +490,84 @@
 
 .pos-chat-conversation-input:focus {
   background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 10%, transparent 90%);
+}
+
+
+
+/* new file uploader
+============================================================================ */
+.pos-chat-uploader-list {
+  padding: var(--pos-padding-input) calc(var(--pos-padding-input) / 1.5);
+  grid-area: uploader;
+  display: inline-flex;
+  gap: var(--pos-gap-button-button);
+  overflow: auto;
+
+  background-color: var(--pos-color-highlight-background);
+  border-radius: var(--pos-radius-input);
+}
+
+.pos-chat-uploader-list-item {
+  padding: .2em .5em .2em .2em;
+  display: flex;
+  align-items: center;
+  gap: var(--pos-gap-button-button-small);
+  position: relative;
+  flex-shrink: 0;
+
+  border-radius: var(--pos-radius-panel);
+  background-color: var(--pos-color-button-secondary-background);
+  border-color: var(--pos-color-button-secondary-frame);
+}
+
+.pos-chat-uploader-list-item img {
+  width: 48px;
+  height: 48px;
+
+  border-radius: var(--pos-radius-panel);
+}
+
+.pos-chat-uploader-list-item-remove {
+  width: 1.5rem;
+  height: 1.5rem;
+  position: absolute;
+  inset-block-start: -.5rem;
+  inset-inline-end: -.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-color: var(--pos-color-button-secondary-background);
+  border-radius: 50%;
+
+  color: var(--pos-color-button-secondary-text);
+}
+
+  .pos-chat-uploader-list-item-remove:hover {
+    background-color: var(--pos-color-button-secondary-hover-background);
+
+    color: var(--pos-color-button-secondary-hover-text);
+  }
+
+  .pos-chat-uploader-list-item-remove .pos-label {
+    position: absolute;
+    inset-inline-start: -200vw;
+  }
+
+  .pos-chat-uploader-list-item-remove svg {
+    width: 50%;
+    height: 50%;
+
+    fill: currentColor;
+    color: inherit;
+  }
+
+
+
+/* send button
+============================================================================ */
+.pos-chat-conversation-new-send {
+  grid-area: send;
 }
 
 

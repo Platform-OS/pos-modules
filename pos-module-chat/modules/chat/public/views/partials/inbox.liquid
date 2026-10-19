@@ -166,15 +166,23 @@
             {% render 'modules/common-styling/icon', icon: 'imageFileUpload' %}
           </label>
         </div>
-        <div class="pos-chat-conversation-new-input-container">
-          <textarea
-          placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
-            class="pos-chat-conversation-input"
-            id="chat-messageInput"
-            disabled
-          ></textarea>
-          <button type="submit" id="chat-sendButton" class="pos-button">{{ 'modules/chat/send' | t }}</button>
-        </div>
+        <ul class="pos-chat-uploader-list" id="chat-uploaderList">
+          <li class="pos-chat-uploader-list-item">
+            <img src="https://s3.us-west-2.amazonaws.com/uploads.staging.oregon.platform-os.com/instances/12088/property_uploads/modules/chat/uploads/upload/0ed9ac6e-dd25-425e-a1c0-3fa0951c673a/icon-256x256.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA4IMKIWYVJA7OS4UG%2F20261019%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20261019T104713Z&X-Amz-Expires=172800&X-Amz-SignedHeaders=host&X-Amz-Signature=6654706dbf268154f9e7d60c81bf490ce1e25b5a9449c470813b07dca6704ad1" width="256" height="256" alt="">
+            <span class="pos-chat-uploader-list-item-name">my_file.jpg</span>
+            <button class="pos-chat-uploader-list-item-remove" title="{{ 'modules/chat/remove_file' | t }}">
+              <span class="pos-label">{{ 'modules/chat/remove_file' | t }}</span>
+              {% render 'modules/common-styling/icon', icon: 'x' %}
+            </button>
+          </li>
+        </ul>
+        <textarea
+        placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
+          class="pos-chat-conversation-input"
+          id="chat-messageInput"
+          disabled
+        ></textarea>
+        <button type="submit" id="chat-sendButton" class="pos-button pos-chat-conversation-new-send">{{ 'modules/chat/send' | t }}</button>
       </footer>
     </div>
   {% else %}
