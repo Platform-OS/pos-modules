@@ -1,3 +1,0 @@
-[2026-10-19T11:57:15.894Z] session started: cwd=X:\2026, platformos, modules\pos-modules\pos-module-chat
-[2026-10-19T11:57:16.546Z] [platformos-tools] lsp-mcp-server started: ROOT=X:\2026, platformos, modules\pos-modules\pos-module-chat
-[2026-10-19T11:57:16.560Z] [platformos-tools] LSP init failed: spawn pos-cli ENOENT

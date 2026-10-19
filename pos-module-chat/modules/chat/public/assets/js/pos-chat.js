@@ -116,6 +116,16 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.pendingSaves = [];
   // button that clears the staged uploads (dom node)
   module.settings.upload.clear = document.querySelector('#chat-uploaderToggle');
+  // id of the uploader module instance (string)
+  module.settings.upload.uploaderId = 'chat-upload';
+  // list showing the files added to the uploader (dom node)
+  module.settings.upload.list = document.querySelector('#chat-uploaderList');
+  // html template for a single item on the files list (dom node)
+  module.settings.upload.listItemTemplate = document.querySelector('#pos-chat-template-uploader-list-item');
+  // class added to the files list items that are images (string)
+  module.settings.upload.listItemImageClass = 'pos-chat-uploader-list-item-image';
+  // object URLs created for image previews, keyed by the uppy file id, so they can be revoked (Map)
+  module.settings.upload.previews = new Map();
 
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
@@ -297,6 +307,24 @@ window.pos.modules.chat = function(userSettings = {}){
       pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
 
       pos.modules.debug(module.settings.debug, module.settings.id, 'Cleared all pending uploads');
+    });
+
+    // keep the files list in sync with the files in the uploader
+    ['pos-upload-file-added', 'pos-upload-file-removed', 'pos-upload-cancel-all'].forEach(eventName => {
+      document.addEventListener(eventName, event => {
+        if(event.detail.id === module.settings.upload.uploaderId){
+          module.upload.renderList();
+        }
+      });
+    });
+
+    // remove the file from the uploader when clicking the remove button on the files list
+    module.settings.upload.list?.addEventListener('click', event => {
+      const button = event.target.closest('.pos-chat-uploader-list-item-remove');
+
+      if(button){
+        pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy.removeFile(button.closest('li').dataset.fileId);
+      }
     });
 
 
@@ -969,6 +997,76 @@ window.pos.modules.chat = function(userSettings = {}){
       height: metadata.height,
       url: data.upload && data.upload.url
     };
+  };
+
+
+  // purpose:		builds a single item for the files list from the uppy file
+  // arguments:	the file from the uppy uploader (object)
+  // returns:		the file's <li> element, detached from any list (dom node)
+  // ------------------------------------------------------------------------
+  module.upload.buildListItem = (file) => {
+    const li = module.settings.upload.listItemTemplate.content.cloneNode(true).querySelector('li');
+    const img = li.querySelector('img');
+    const icon = li.querySelector('.pos-chat-uploader-list-file-type');
+
+    li.dataset.fileId = file.id;
+    li.querySelector('.pos-chat-uploader-list-item-name').textContent = file.name;
+
+    // the template carries both the image preview and the generic file icon, keep only the one that fits
+    if(file.type && file.type.startsWith('image/') && file.data instanceof Blob){
+      const previewUrl = URL.createObjectURL(file.data);
+      module.settings.upload.previews.set(file.id, previewUrl);
+
+      li.classList.add(module.settings.upload.listItemImageClass);
+      img.src = previewUrl;
+      img.alt = file.name;
+      icon?.remove();
+    } else {
+      img.remove();
+    }
+
+    return li;
+  };
+
+
+  // purpose:		syncs the files list with the files currently added to the uploader,
+  //				    keeping the same order, reusing items that are already shown
+  // ------------------------------------------------------------------------
+  module.upload.renderList = () => {
+    const list = module.settings.upload.list;
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    if(!list || !module.settings.upload.listItemTemplate){
+      return;
+    }
+
+    const files = uppy ? uppy.getFiles() : [];
+    const fileIds = files.map(file => file.id);
+
+    // remove the items for files that are no longer in the uploader
+    list.querySelectorAll(':scope > li').forEach(li => {
+      if(!fileIds.includes(li.dataset.fileId)){
+        const previewUrl = module.settings.upload.previews.get(li.dataset.fileId);
+
+        if(previewUrl){
+          URL.revokeObjectURL(previewUrl);
+          module.settings.upload.previews.delete(li.dataset.fileId);
+        }
+
+        li.remove();
+      }
+    });
+
+    // add the missing items and keep them in the uploader's order
+    files.forEach((file, index) => {
+      const li = list.querySelector(`:scope > li[data-file-id="${CSS.escape(file.id)}"]`) || module.upload.buildListItem(file);
+
+      if(list.children[index] !== li){
+        list.insertBefore(li, list.children[index] || null);
+      }
+    });
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Synced the uploaded files list with the uploader', fileIds);
   };
 
 

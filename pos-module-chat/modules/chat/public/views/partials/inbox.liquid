@@ -166,16 +166,18 @@
             {% render 'modules/common-styling/icon', icon: 'imageFileUpload' %}
           </label>
         </div>
-        <ul class="pos-chat-uploader-list" id="chat-uploaderList">
+        <template id="pos-chat-template-uploader-list-item">
           <li class="pos-chat-uploader-list-item">
+            <img src="" alt="" width="48" height="48">
             {% render 'modules/common-styling/icon', icon: 'fileEmpty', class: 'pos-chat-uploader-list-file-type' %}
-            <span class="pos-chat-uploader-list-item-name">my_file.jpg</span>
-            <button class="pos-chat-uploader-list-item-remove" title="{{ 'modules/chat/remove_file' | t }}">
+            <span class="pos-chat-uploader-list-item-name"></span>
+            <button type="button" class="pos-chat-uploader-list-item-remove" title="{{ 'modules/chat/remove_file' | t }}">
               <span class="pos-label">{{ 'modules/chat/remove_file' | t }}</span>
               {% render 'modules/common-styling/icon', icon: 'x' %}
             </button>
           </li>
-        </ul>
+        </template>
+        <ul class="pos-chat-uploader-list" id="chat-uploaderList"></ul>
         <textarea
         placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
           class="pos-chat-conversation-input"

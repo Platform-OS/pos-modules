@@ -507,6 +507,10 @@
   border-radius: var(--pos-radius-input);
 }
 
+  .pos-chat-uploader-list:empty {
+    display: none;
+  }
+
 .pos-chat-uploader-list-item {
   height: 48px;
   padding: .2em .5em .2em .2em;
@@ -534,6 +538,23 @@
     padding: 5px 0 5px 5px;
   }
 
+  .pos-chat-uploader-list-item-name {
+    max-width: 150px;
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* image files */
+  .pos-chat-uploader-list-item-image {
+    padding: 0;
+  }
+
+  .pos-chat-uploader-list-item-image .pos-chat-uploader-list-item-name {
+    display: none;
+  }
+
 .pos-chat-uploader-list-item-remove {
   width: 1.5rem;
   height: 1.5rem;
@@ -548,12 +569,22 @@
   border-radius: 50%;
 
   color: var(--pos-color-button-secondary-text);
+
+  transition-property: background-color, color, scale;
+  transition-duration: .1s .1s .3s;
+  transition-timing-function: linear, linear, var(--pos-transition-ui-detail);
 }
 
   .pos-chat-uploader-list-item-remove:hover {
     background-color: var(--pos-color-button-secondary-hover-background);
 
     color: var(--pos-color-button-secondary-hover-text);
+
+    scale: 1.1;
+  }
+
+  .pos-chat-uploader-list-item-remove:active {
+    scale: .95;
   }
 
   .pos-chat-uploader-list-item-remove .pos-label {
