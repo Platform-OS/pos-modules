@@ -508,6 +508,7 @@
 }
 
 .pos-chat-uploader-list-item {
+  height: 48px;
   padding: .2em .5em .2em .2em;
   display: flex;
   align-items: center;
@@ -526,6 +527,12 @@
 
   border-radius: var(--pos-radius-panel);
 }
+
+  .pos-chat-uploader-list-file-type {
+    width: 32px;
+    height: 32px;
+    padding: 5px 0 5px 5px;
+  }
 
 .pos-chat-uploader-list-item-remove {
   width: 1.5rem;
