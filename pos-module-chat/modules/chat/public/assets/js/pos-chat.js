@@ -1208,6 +1208,9 @@ window.pos.modules.chat = function(userSettings = {}){
         pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add file to the uploader', { file: file.name, error: error });
       }
     });
+
+    // let the user write a message to go with the files right away
+    module.settings.messageInput?.focus();
   };
 
 

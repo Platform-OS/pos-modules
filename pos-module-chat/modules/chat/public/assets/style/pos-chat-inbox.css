@@ -455,10 +455,9 @@
   padding: var(--pos-padding-cell) var(--pos-padding-cell) var(--pos-padding-cell);
   display: grid;
   grid-template-areas:
-    "tools_above uploader send_above"
     "tools input send";
     grid-template-columns: min-content 1fr min-content;
-  gap: calc(var(--pos-gap-button-button) / 2) var(--pos-gap-button-button);
+  gap: 0 var(--pos-gap-button-button);
 }
 
 @media (max-width: 768px) {
@@ -479,18 +478,33 @@
 
 /* conversation input
 ============================================================================ */
-.pos-chat-conversation-input {
-  padding: calc(var(--pos-padding-input) / 2) calc(var(--pos-padding-input) / 1.5);
+.pos-chat-conversation-new-input-container {
+  height: auto;
+  padding: 0;
   grid-area: input;
-
-  border-radius: var(--pos-radius-input);
-  background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 20%, transparent 80%);
-
-  transition: background-color .1s linear
 }
 
-.pos-chat-conversation-input:focus {
-  background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 10%, transparent 90%);
+  .pos-chat-conversation-new-input-container:hover{
+    border-color: var(--pos-color-input-hover-frame);
+    background-color: var(--pos-color-input-hover-background);
+
+    color: var(--pos-color-input-hover-text);
+  }
+
+  .pos-chat-conversation-new-input-container:has(.pos-chat-conversation-input:focus-visible){
+    border-color: var(--pos-color-input-active-frame);
+    background-color: var(--pos-color-input-active-background);
+    outline: 2px solid var(--pos-color-focused);
+
+    color: var(--pos-color-input-active-text);
+  }
+
+.pos-chat-conversation-input {
+  all: unset;
+
+  width: 100%;
+  padding: calc(var(--pos-padding-input) / 2) calc(var(--pos-padding-input) / 1.5);
+  grid-area: input;
 }
 
 
@@ -498,14 +512,11 @@
 /* new file uploader
 ============================================================================ */
 .pos-chat-uploader-list {
-  padding: var(--pos-padding-input) calc(var(--pos-padding-input) / 1.5);
-  grid-area: uploader;
+  width: 100%;
+  padding: var(--pos-padding-input) calc(var(--pos-padding-input) / 1.5) calc(var(--pos-padding-input) / 2);
   display: inline-flex;
   gap: var(--pos-gap-button-button);
   overflow: auto;
-
-  background-color: var(--pos-color-highlight-background);
-  border-radius: var(--pos-radius-input);
 }
 
   .pos-chat-uploader-list:empty {
@@ -623,6 +634,7 @@
   }
 
 
+
 /* send button
 ============================================================================ */
 .pos-chat-conversation-new-send {
@@ -682,8 +694,7 @@
   }
 
 
-
-/* uploader
+  /* uploader
 ============================================================================ */
 .pos-chat-uploader {
   padding-block-start: var(--pos-padding-page);

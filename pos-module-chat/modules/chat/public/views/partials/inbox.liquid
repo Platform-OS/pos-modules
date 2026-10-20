@@ -160,6 +160,7 @@
         %}
       </div>
       <footer class="pos-form pos-chat-conversation-new">
+
         <div class="pos-chat-conversation-new-tools">
           <button type="button" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
             <span class="pos-label">{{ 'modules/chat/upload' | t }}</span>
@@ -168,26 +169,30 @@
           <input type="file" id="chat-uploadInput" multiple hidden>
         </div>
 
-        <template id="pos-chat-template-uploader-list-item">
-          <li class="pos-chat-uploader-list-item">
-            <img src="" alt="" width="48" height="48">
-            {% render 'modules/common-styling/icon', icon: 'fileEmpty', class: 'pos-chat-uploader-list-file-type' %}
-            <span class="pos-chat-uploader-list-item-name"></span>
-            <button type="button" class="pos-chat-uploader-list-item-remove" title="{{ 'modules/chat/remove_file' | t }}">
-              <span class="pos-label">{{ 'modules/chat/remove_file' | t }}</span>
-              {% render 'modules/common-styling/icon', icon: 'x' %}
-            </button>
-          </li>
-        </template>
-        <ul class="pos-chat-uploader-list" id="chat-uploaderList"></ul>
+        <label for="chat-messageInput" class="pos-chat-conversation-new-input-container pos-form-input">
+          <template id="pos-chat-template-uploader-list-item">
+            <li class="pos-chat-uploader-list-item">
+              <img src="" alt="" width="48" height="48">
+              {% render 'modules/common-styling/icon', icon: 'fileEmpty', class: 'pos-chat-uploader-list-file-type' %}
+              <span class="pos-chat-uploader-list-item-name"></span>
+              <button type="button" class="pos-chat-uploader-list-item-remove" title="{{ 'modules/chat/remove_file' | t }}">
+                <span class="pos-label">{{ 'modules/chat/remove_file' | t }}</span>
+                {% render 'modules/common-styling/icon', icon: 'x' %}
+              </button>
+            </li>
+          </template>
+          <ul class="pos-chat-uploader-list" id="chat-uploaderList"></ul>
 
-        <textarea
-        placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
-          class="pos-chat-conversation-input"
-          id="chat-messageInput"
-          disabled
-        ></textarea>
+          <textarea
+          placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
+            class="pos-chat-conversation-input"
+            id="chat-messageInput"
+            disabled
+          ></textarea>
+        </label>
+
         <button type="submit" id="chat-sendButton" class="pos-button pos-chat-conversation-new-send">{{ 'modules/chat/send' | t }}</button>
+
       </footer>
 
       <div class="pos-chat-conversation-upload-overlay" hidden>
