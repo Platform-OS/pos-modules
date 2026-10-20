@@ -31,7 +31,7 @@
     {% for attachment in message.media %}
       {% if attachment.type contains 'image/' %}
         <div class="pos-chat-message-content pos-chat-message-image">
-          <img src="{{ attachment.url }}" alt="" width="{{ attachment.width }}" height="{{ attachment.height }}">
+          <img src="{{ attachment.url }}" alt="" width="{{ attachment.width }}" height="{{ attachment.height }}" loading="lazy" decoding="async">
         </div>
       {% else %}
         {% liquid

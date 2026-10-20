@@ -39,6 +39,10 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.messagesListContainer = document.querySelector('#chat-messagesList-container');
   // the box with all the messages stored (dom node)
   module.settings.messagesList = document.querySelector('#chat-messagesList');
+  // if the messages list is scrolled to the newest messages, the chat opens scrolled there (bool)
+  module.settings.atBottom = true;
+  // how close to the bottom, in pixels, still counts as being at the bottom (int)
+  module.settings.atBottomThreshold = 80;
   // tries to parse the date with toLocaleString (function that gets Date object and returns parsed date or empty string if fails)
   module.settings.timezonedDate = date => {
     let timezonedDate;
@@ -213,9 +217,17 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     });
 
-    // scroll to bottom after a new image loads in the chat
+    // remember if the user is reading the newest messages, so loading images can keep them in view
+    module.settings.messagesListContainer?.addEventListener('scroll', () => {
+      const container = module.settings.messagesListContainer;
+      module.settings.atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= module.settings.atBottomThreshold;
+    }, { passive: true });
+
+    // scroll to bottom after a new image loads in the chat - only when the user is at the bottom
+    // already, images load lazily, so the ones higher up load while the user scrolls through
+    // the history and must not pull them back down
     module.settings.messagesList?.addEventListener('load', (event) => {
-      if(event.target.tagName === 'IMG'){
+      if(event.target.tagName === 'IMG' && module.settings.atBottom){
         scrollBottom('smooth');
       }
     }, true);
