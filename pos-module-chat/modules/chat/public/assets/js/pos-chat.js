@@ -128,6 +128,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.progressProperty = '--pos-chat-upload-progress';
   // class added to the files list item once its file is uploaded, fades the progress border away (string)
   module.settings.upload.listItemUploadedClass = 'pos-chat-uploader-list-item-uploaded';
+  // class added to the files list item when its file failed to upload, shows the progress border as an error (string)
+  module.settings.upload.listItemFailedClass = 'pos-chat-uploader-list-item-failed';
   // the uppy instance the upload progress is already being listened to on (object)
   module.settings.upload.watchedUppy = null;
   // errors for the files currently being picked or dropped, waiting to be shown, keyed by
@@ -1081,6 +1083,8 @@ window.pos.modules.chat = function(userSettings = {}){
 
     if(file.progress?.uploadComplete){
       li.classList.add(module.settings.upload.listItemUploadedClass);
+    } else if(file.error){
+      li.classList.add(module.settings.upload.listItemFailedClass);
     }
 
     return li;
@@ -1101,6 +1105,8 @@ window.pos.modules.chat = function(userSettings = {}){
 
     uppy.on('upload-progress', (file, progress) => {
       if(file && progress?.bytesTotal){
+        // a retried upload is no longer failed
+        module.upload.getListItem(file.id)?.classList.remove(module.settings.upload.listItemFailedClass);
         module.upload.setProgress(file.id, Math.round(progress.bytesUploaded / progress.bytesTotal * 100));
       }
     });
@@ -1108,8 +1114,24 @@ window.pos.modules.chat = function(userSettings = {}){
     uppy.on('upload-success', file => {
       if(file){
         module.upload.setProgress(file.id, 100);
-        module.settings.upload.list?.querySelector(`:scope > li[data-file-id="${CSS.escape(file.id)}"]`)?.classList.add(module.settings.upload.listItemUploadedClass);
+        module.upload.getListItem(file.id)?.classList.add(module.settings.upload.listItemUploadedClass);
       }
+    });
+
+    // the progress border goes all the way around in the error color, the content stays faded
+    uppy.on('upload-error', file => {
+      if(file){
+        module.upload.setProgress(file.id, 100);
+        module.upload.getListItem(file.id)?.classList.add(module.settings.upload.listItemFailedClass);
+      }
+    });
+
+    // files uploaded together finish at different times, so the toast waits until the whole
+    // batch is done to list all the failed ones at once
+    uppy.on('complete', result => {
+      result?.failed?.forEach(file => {
+        module.upload.showError('uploadFailed', window.pos.translations.chat.uploadFailed, file.name);
+      });
     });
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Listening to the upload progress', module.settings.upload.uploaderId);
@@ -1133,12 +1155,13 @@ window.pos.modules.chat = function(userSettings = {}){
         errors.forEach(({ message, fileNames }) => {
           const names = fileNames.map(name => `<strong title="${encodeHtml(name).replaceAll('"', '&quot;')}">${encodeHtml(module.upload.shortenFileName(name))}</strong>`).join(', ');
 
-          if(typeof message === 'string'){
-            new window.pos.modules.toast('error', `${message}<br>${names}`);
-          } else {
+          const text = (typeof message === 'string') ? message : (fileNames.length === 1) ? message.single : message.multiple;
+
+          if(text.includes('{files}')){
             // a function as the replacement, so '$' in the file names isn't treated as a special pattern
-            const text = (fileNames.length === 1) ? message.single : message.multiple;
             new window.pos.modules.toast('error', text.replace('{files}', () => names));
+          } else {
+            new window.pos.modules.toast('error', `${text}<br>${names}`);
           }
         });
 
@@ -1189,9 +1212,16 @@ window.pos.modules.chat = function(userSettings = {}){
   //				    progress in percents, 0-100 (int)
   // ------------------------------------------------------------------------
   module.upload.setProgress = (fileId, percentage) => {
-    const li = module.settings.upload.list?.querySelector(`:scope > li[data-file-id="${CSS.escape(fileId)}"]`);
+    module.upload.getListItem(fileId)?.style.setProperty(module.settings.upload.progressProperty, percentage);
+  };
 
-    li?.style.setProperty(module.settings.upload.progressProperty, percentage);
+
+  // purpose:		finds the files list item of the given file
+  // arguments:	uppy file id (string)
+  // returns:		the file's <li> element, or null when it's not on the list (dom node)
+  // ------------------------------------------------------------------------
+  module.upload.getListItem = (fileId) => {
+    return module.settings.upload.list?.querySelector(`:scope > li[data-file-id="${CSS.escape(fileId)}"]`) || null;
   };
 
 

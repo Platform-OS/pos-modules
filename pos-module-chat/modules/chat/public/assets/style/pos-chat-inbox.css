@@ -572,11 +572,17 @@
 
     fill: none;
     stroke: var(--pos-color-interactive-active);
-    stroke-width: 2px;
+    stroke-width: 3px;
     /* pathLength="100" on the rect makes the dash length a percentage of the whole border */
     stroke-dasharray: var(--pos-chat-upload-progress, 0) 100;
 
     transition: stroke-dasharray .2s linear;
+  }
+
+  /* failed upload, the border goes all the way around in the error color */
+  .pos-chat-uploader-list-item-failed .pos-chat-uploader-list-item-progress rect {
+    stroke: var(--pos-color-important);
+    stroke-dasharray: 100 100;
   }
 
 .pos-chat-uploader-list-item img {
