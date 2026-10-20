@@ -324,6 +324,21 @@ jobs:
           set -eu
           ${{ matrix.test-commands }}
 
+      # Shows what the page looked like when a Playwright test failed. Only screenshots and
+      # page snapshots (error-context.md) are uploaded: the repository is public, and trace.zip
+      # (and the HTML report, which embeds traces) records typed form values such as
+      # E2E_TEST_PASSWORD. Suites that produce no test-results upload nothing.
+      - name: Upload test failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures-${{ matrix.module }}
+          path: |
+            ${{ matrix.path }}/test-results/**/*.png
+            ${{ matrix.path }}/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Release CI instance
         if: always()
         uses: Platform-OS/ci-repository-reserve-instance-url@0.1.2
