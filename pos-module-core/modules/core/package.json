@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/Platform-OS/pos-module-core#readme",
   "peerDependencies": {
-    "yeoman-generator": "^7.0.0"
+    "yeoman-generator": "^10.2.0"
   },
   "devDependencies": {
     "auto-changelog": "^2.4.0",
