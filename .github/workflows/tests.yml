@@ -314,6 +314,16 @@ jobs:
           set -eu
           ${{ matrix.deploy-script }}
 
+      - name: Diagnose instance state
+        shell: sh
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        run: |
+          echo "time: $(date -u +%FT%TZ)  instance: $(printf %s "$MPKIT_URL" | sha256sum | cut -c1-12)"
+          pos-cli constants list || true
+          curl -sS -m 30 -o /dev/null -w 'check-email: HTTP %{http_code} -> %{redirect_url}\n' "$MPKIT_URL/users/check-email" || true
+
       - name: Run tests
         shell: sh
         env:
@@ -323,6 +333,17 @@ jobs:
         run: |
           set -eu
           ${{ matrix.test-commands }}
+
+      - name: Diagnose instance state after failure
+        if: failure()
+        shell: sh
+        env:
+          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
+          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        run: |
+          echo "time: $(date -u +%FT%TZ)  instance: $(printf %s "$MPKIT_URL" | sha256sum | cut -c1-12)"
+          pos-cli constants list || true
+          curl -sS -m 30 -o /dev/null -w 'check-email: HTTP %{http_code} -> %{redirect_url}\n' "$MPKIT_URL/users/check-email" || true
 
       # Shows what the page looked like when a Playwright test failed. Only screenshots and
       # page snapshots (error-context.md) are uploaded: the repository is public, and trace.zip
