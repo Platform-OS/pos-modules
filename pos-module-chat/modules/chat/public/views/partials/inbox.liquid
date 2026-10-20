@@ -158,12 +158,24 @@
           <span class="pos-label">{{ 'modules/chat/upload_cancel' | t }}</span>
           {% render 'modules/common-styling/icon', icon: 'x' %}
         </label>
-        {% render 'modules/common-styling/forms/upload',
-          id: 'chat-upload',
-          presigned_upload: context.presigned_upload,
-          name: 'chat-upload',
-          max_number_of_files: 5
-        %}
+        {% comment %}
+          kept in a template so common-styling doesn't load uppy on page load - pos-chat.js
+          adds it to the page and loads uppy only once the user is about to attach a file
+        {% endcomment %}
+        {% # platformos-check-disable MissingAsset %}
+        <template
+          id="pos-chat-template-uploader"
+          data-uppy-url="{{ 'modules/common-styling/js/dependency-uppy.js' | asset_url }}"
+          data-upload-url="{{ 'modules/common-styling/js/pos-upload.js' | asset_url }}"
+        >
+          {% render 'modules/common-styling/forms/upload',
+            id: 'chat-upload',
+            presigned_upload: context.presigned_upload,
+            name: 'chat-upload',
+            max_number_of_files: 5
+          %}
+        </template>
+        {% # platformos-check-enable MissingAsset %}
       </div>
       <footer class="pos-form pos-chat-conversation-new">
 

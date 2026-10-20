@@ -120,6 +120,12 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.clear = document.querySelector('#chat-uploaderToggle');
   // id of the uploader module instance (string)
   module.settings.upload.uploaderId = 'chat-upload';
+  // template holding the uploader markup and the urls to load uppy from, added to the page on demand (dom node)
+  module.settings.upload.uploaderTemplate = document.querySelector('#pos-chat-template-uploader');
+  // where the uploader markup is added to (dom node)
+  module.settings.upload.uploaderContainer = document.querySelector('#chat-uploader');
+  // loading of the uploader, so it's only done once (promise)
+  module.settings.upload.loading = null;
   // list showing the files added to the uploader (dom node)
   module.settings.upload.list = document.querySelector('#chat-uploaderList');
   // html template for a single item on the files list (dom node)
@@ -272,7 +278,9 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.search.results?.addEventListener('keydown', module.search.keyboard);
 
     // store record for uploaded file, and stage its media info to go out with the next sent message
-    document.addEventListener('pos-upload-file-uploaded', event => {
+    // the uploader's events bubble up through its container, which only holds the chat's own
+    // uploader - listening there (and not on document) ignores any other uploader on the page
+    module.settings.upload.uploaderContainer?.addEventListener('pos-upload-file-uploaded', event => {
       const fileId = event.detail.file.id;
       const metadata = {
         type: event.detail.file.type,
@@ -293,12 +301,20 @@ window.pos.modules.chat = function(userSettings = {}){
       // sending before this attachment has actually landed in `pending`.
       const savePromise = module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: metadata })
         .then(media => {
+          const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+          // without the record the file can't be sent, so it's shown as failed even though it was uploaded
           if(!media){
+            if(uppy?.getFile(fileId)){
+              uppy.setFileState(fileId, { error: 'Could not save the upload record' });
+              module.upload.markFailed(fileId);
+              module.upload.showError('uploadFailed', window.pos.translations.chat.uploadFailed, event.detail.file.name);
+            }
             return;
           }
 
           // the file could have been removed from the uploader while its record was being saved
-          if(!pos.modules.active['chat-upload']?.settings.uppy.getFile(fileId)){
+          if(!uppy?.getFile(fileId)){
             pos.modules.debug(module.settings.debug, module.settings.id, 'Skipped staging a file removed from the uploader before its record was saved', media);
             return;
           }
@@ -318,7 +334,7 @@ window.pos.modules.chat = function(userSettings = {}){
     });
 
     // unstage a file removed from the uploader so it doesn't go out with the next sent message
-    document.addEventListener('pos-upload-file-removed', event => {
+    module.settings.upload.uploaderContainer?.addEventListener('pos-upload-file-removed', event => {
       module.settings.upload.pending = module.settings.upload.pending.filter(item => item.fileId !== event.detail.file.id);
 
       pos.modules.debug(module.settings.debug, module.settings.id, 'Removed file from pending uploads', event.detail.file.id);
@@ -334,21 +350,17 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // keep the files list in sync with the files in the uploader
     ['pos-upload-file-added', 'pos-upload-file-removed', 'pos-upload-cancel-all'].forEach(eventName => {
-      document.addEventListener(eventName, event => {
-        if(event.detail.id === module.settings.upload.uploaderId){
-          // the uploader can be initialized after the chat, so start listening to the progress once a file shows up
-          module.upload.watchProgress();
-          module.upload.renderList();
-        }
+      module.settings.upload.uploaderContainer?.addEventListener(eventName, () => {
+        module.upload.renderList();
       });
     });
 
     // let the user know when a file breaks the uploader's limits, as the dashboard
     // showing uppy's own error is hidden
-    document.addEventListener('pos-upload-restriction-failed', event => {
+    module.settings.upload.uploaderContainer?.addEventListener('pos-upload-restriction-failed', event => {
       const uploader = pos.modules.active[module.settings.upload.uploaderId];
 
-      if(event.detail.id !== module.settings.upload.uploaderId || !uploader){
+      if(!uploader){
         return;
       }
 
@@ -372,6 +384,14 @@ window.pos.modules.chat = function(userSettings = {}){
     // open the system file picker instead of showing the uploader's dashboard
     module.settings.upload.button?.addEventListener('click', () => {
       module.settings.upload.input?.click();
+    });
+
+    // start loading the uploader as soon as the user is about to attach a file, so it's
+    // usually ready by the time they've picked one
+    ['pointerenter', 'focus', 'click'].forEach(eventName => {
+      module.settings.upload.button?.addEventListener(eventName, () => {
+        module.upload.load().catch(() => {});
+      });
     });
 
     // add the picked files to the uploader
@@ -1045,27 +1065,37 @@ window.pos.modules.chat = function(userSettings = {}){
   //            the next sent message - including the freshly-signed, time-limited
   //            URL the server hands back (the upload's ACL is private, so a client
   //            can't just keep using the URL it uploaded to)
-  // returns:		{ id, type, name, size, width, height, url } (object), or null on failure
+  // returns:		{ id, type, name, size, width, height, url } (object), or null on failure -
+  //				    never throws, a network error or a non-JSON response is a failure too
   // ------------------------------------------------------------------------
   module.upload.save = async ({ conversationId, uploadUrl, metadata }) => {
-    const response = await fetch(module.settings.upload.createUrl, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': window.pos.csrfToken
-      },
-      body: JSON.stringify({
-        conversation_id: conversationId,
-        upload: uploadUrl,
-        metadata: metadata
-      })
-    });
+    let response;
+    let data = null;
 
-    const data = await response.json();
+    try {
+      response = await fetch(module.settings.upload.createUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': window.pos.csrfToken
+        },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          upload: uploadUrl,
+          metadata: metadata
+        })
+      });
 
-    if(!response.ok){
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Failed to save uploaded file record in the database', data);
+      // an error page (e.g. HTML from a proxy) isn't JSON
+      data = await response.json().catch(() => null);
+    } catch(error) {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Could not reach the server to save uploaded file record in the database', error);
+      return null;
+    }
+
+    if(!response.ok || !data?.id){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Failed to save uploaded file record in the database', { status: response.status, data: data });
       return null;
     }
 
@@ -1110,10 +1140,11 @@ window.pos.modules.chat = function(userSettings = {}){
 
     li.style.setProperty(module.settings.upload.progressProperty, file.progress?.percentage || 0);
 
-    if(file.progress?.uploadComplete){
-      li.classList.add(module.settings.upload.listItemUploadedClass);
-    } else if(file.error){
+    // an uploaded file whose record couldn't be saved has both, and counts as failed
+    if(file.error){
       li.classList.add(module.settings.upload.listItemFailedClass);
+    } else if(file.progress?.uploadComplete){
+      li.classList.add(module.settings.upload.listItemUploadedClass);
     }
 
     return li;
@@ -1150,8 +1181,7 @@ window.pos.modules.chat = function(userSettings = {}){
     // the progress border goes all the way around in the error color, the content stays faded
     uppy.on('upload-error', file => {
       if(file){
-        module.upload.setProgress(file.id, 100);
-        module.upload.getListItem(file.id)?.classList.add(module.settings.upload.listItemFailedClass);
+        module.upload.markFailed(file.id);
       }
     });
 
@@ -1282,6 +1312,20 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
+  // purpose:		shows the files list item of the given file as failed - the progress
+  //				    border all the way around in the error color, the content faded
+  // arguments:	uppy file id (string)
+  // ------------------------------------------------------------------------
+  module.upload.markFailed = (fileId) => {
+    const li = module.upload.getListItem(fileId);
+
+    module.upload.setProgress(fileId, 100);
+    // the file could have been shown as uploaded already, when it's its record that failed
+    li?.classList.remove(module.settings.upload.listItemUploadedClass);
+    li?.classList.add(module.settings.upload.listItemFailedClass);
+  };
+
+
   // purpose:		finds the files list item of the given file
   // arguments:	uppy file id (string)
   // returns:		the file's <li> element, or null when it's not on the list (dom node)
@@ -1368,6 +1412,9 @@ window.pos.modules.chat = function(userSettings = {}){
 
     module.settings.upload.dragCounter++;
     module.upload.showOverlay();
+
+    // files are about to be dropped, get the uploader ready
+    module.upload.load().catch(() => {});
   };
 
 
@@ -1421,14 +1468,78 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		adds files to the uppy uploader (which uploads them right away)
+  // purpose:		loads uppy and the uploader on demand - adds the uploader markup from its
+  //				    template to the page, imports uppy and common-styling's pos-upload.js
+  //				    (unless something else on the page already did) and starts the uploader,
+  //				    the same way common-styling's init does for uploaders present on page load
+  // returns:		promise resolved with the uploader once it's ready, the same one on
+  //				    every call, a failed load can be tried again (promise)
+  // ------------------------------------------------------------------------
+  module.upload.load = () => {
+    if(pos.modules.active[module.settings.upload.uploaderId]){
+      return Promise.resolve(pos.modules.active[module.settings.upload.uploaderId]);
+    }
+
+    const template = module.settings.upload.uploaderTemplate;
+
+    if(!template || !module.settings.upload.uploaderContainer){
+      return Promise.reject(new Error('The uploader template is missing'));
+    }
+
+    module.settings.upload.loading ??= (async () => {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Loading the uploader', module.settings.upload.uploaderId);
+
+      if(!pos.modules.uppy){
+        pos.modules.uppy = await import(template.dataset.uppyUrl);
+      }
+
+      if(!pos.modules.upload){
+        await import(template.dataset.uploadUrl);
+      }
+
+      // added only once the scripts are here, so a failed load leaves the template untouched for a retry
+      let element = document.getElementById(module.settings.upload.uploaderId);
+      if(!element){
+        module.settings.upload.uploaderContainer.appendChild(template.content.cloneNode(true));
+        element = document.getElementById(module.settings.upload.uploaderId);
+      }
+
+      const uploader = new pos.modules.upload({
+        container: element,
+        imageEditorEnabled: element.dataset.imageEditorEnabled === 'true',
+        allowedFileTypes: element.dataset.allowedFileTypes,
+        aspectRatio: element.dataset.aspectRatio,
+        maxNumberOfFiles: element.dataset.maxNumberOfFiles,
+        maxFileSize: element.dataset.maxFileSize
+      });
+      pos.modules.active[module.settings.upload.uploaderId] = uploader;
+
+      module.upload.watchProgress();
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Loaded the uploader', module.settings.upload.uploaderId);
+
+      return uploader;
+    })().catch(error => {
+      module.settings.upload.loading = null;
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Could not load the uploader', error);
+      throw error;
+    });
+
+    return module.settings.upload.loading;
+  };
+
+
+  // purpose:		adds files to the uppy uploader (which uploads them right away), loading
+  //				    the uploader first when the user was quicker than it
   // arguments:	files to add (array of File)
   // ------------------------------------------------------------------------
-  module.upload.addFiles = (files) => {
-    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+  module.upload.addFiles = async (files) => {
+    let uppy;
 
-    if(!uppy){
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add files, the uploader is not initialized', module.settings.upload.uploaderId);
+    try {
+      uppy = (await module.upload.load()).settings.uppy;
+    } catch(error) {
+      files.forEach(file => module.upload.showError('uploadFailed', window.pos.translations.chat.uploadFailed, file.name));
       return;
     }
 
