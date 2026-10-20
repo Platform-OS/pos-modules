@@ -609,8 +609,11 @@
   /* image files */
   .pos-chat-uploader-list-item-image {
     padding: 0;
-    object-fit: contain;
   }
+
+    .pos-chat-uploader-list-item-image img {
+      object-fit: cover;
+    }
 
   .pos-chat-uploader-list-item-image .pos-chat-uploader-list-item-name {
     display: none;
