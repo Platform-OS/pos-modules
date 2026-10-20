@@ -271,28 +271,52 @@ window.pos.modules.upload = function(settings){
 
   // purpose:		gets image dimensions
   // arguments: file object (file data)
+  // returns:   promise resolved with { width, height }, both false when they can't be read (promise)
   // ------------------------------------------------------------------------
-  module.getImageDimenstions = file => {
+  module.getImageDimenstions = async file => {
+    const dimensions = {
+      width: false,
+      height: false
+    };
+
+    // decodes the image straight from the file, without turning it into a base64 data url first,
+    // rotated by its EXIF orientation like the browser shows it in an <img>
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      dimensions.width = bitmap.width;
+      dimensions.height = bitmap.height;
+      bitmap.close();
+    } catch(error) {
+      // createImageBitmap can't read some images, e.g. SVG, the <img> element can
+      Object.assign(dimensions, await module.getImageDimenstionsFromImg(file));
+    }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, `Read image dimenstions`, { file, dimensions });
+
+    return dimensions;
+  };
+
+
+  // purpose:		gets image dimensions by loading it into an <img> from an object url
+  // arguments: file object (file data)
+  // returns:   promise resolved with { width, height }, both false when the image can't be loaded (promise)
+  // ------------------------------------------------------------------------
+  module.getImageDimenstionsFromImg = file => {
     return new Promise((resolve) => {
-      const fr = new FileReader;
-      const dimensions = {
-        width: false,
-        height: false
+      const url = URL.createObjectURL(file);
+      const img = new Image;
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
       };
 
-      fr.onload = function() {
-        const img = new Image;
-        img.onload = function() {
-          dimensions.width = img.width;
-          dimensions.height = img.height;
-          resolve(dimensions);
-        };
-        img.src = fr.result;
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: false, height: false });
       };
 
-      fr.readAsDataURL(file);
-
-      pos.modules.debug(module.settings.debug, module.settings.id, `Read image dimenstions`, { file, dimensions });
+      img.src = url;
     });
   };
 
