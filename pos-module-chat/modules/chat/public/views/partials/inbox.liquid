@@ -166,6 +166,7 @@
             {% render 'modules/common-styling/icon', icon: 'imageFileUpload' %}
           </label>
         </div>
+
         <template id="pos-chat-template-uploader-list-item">
           <li class="pos-chat-uploader-list-item">
             <img src="" alt="" width="48" height="48">
@@ -178,6 +179,7 @@
           </li>
         </template>
         <ul class="pos-chat-uploader-list" id="chat-uploaderList"></ul>
+
         <textarea
         placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
           class="pos-chat-conversation-input"
@@ -186,6 +188,11 @@
         ></textarea>
         <button type="submit" id="chat-sendButton" class="pos-button pos-chat-conversation-new-send">{{ 'modules/chat/send' | t }}</button>
       </footer>
+
+      <div class="pos-chat-conversation-upload-overlay" hidden>
+        {{ 'modules/chat/upload_drop.title' | t }}<br>
+        {{ 'modules/chat/upload_drop.max_size' | t }}
+      </div>
     </div>
   {% else %}
     {% if conversations.total_entries > 0 %}

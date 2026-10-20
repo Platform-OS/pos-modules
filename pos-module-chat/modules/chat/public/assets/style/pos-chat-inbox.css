@@ -332,6 +332,7 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   overflow: auto;
+  position: relative;
 }
 
   /* hide current conversation on mobile */
@@ -600,6 +601,26 @@
     color: inherit;
   }
 
+/* drag & drop overlay */
+.pos-chat-conversation-upload-overlay {
+  padding: calc(var(--pos-padding-page));
+  position: absolute;
+  inset: calc(var(--pos-padding-page) / 3);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--pos-radius-panel);
+  background-color: color-mix(var(--pos-color-highlight-text), transparent 20%);
+
+  text-align: center;
+  color: var(--pos-color-highlight-background);
+}
+
+  .pos-chat-conversation-upload-overlay[hidden] {
+    display: none;
+  }
 
 
 /* send button

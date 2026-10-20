@@ -126,6 +126,10 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.listItemImageClass = 'pos-chat-uploader-list-item-image';
   // object URLs created for image previews, keyed by the uppy file id, so they can be revoked (Map)
   module.settings.upload.previews = new Map();
+  // overlay shown when dragging files over the page, files dropped on it are added to the uploader (dom node)
+  module.settings.upload.overlay = document.querySelector('.pos-chat-conversation-upload-overlay');
+  // counts nested dragenter/dragleave events so the overlay doesn't flicker when dragging over child elements (int)
+  module.settings.upload.dragCounter = 0;
 
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
@@ -326,6 +330,14 @@ window.pos.modules.chat = function(userSettings = {}){
         pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy.removeFile(button.closest('li').dataset.fileId);
       }
     });
+
+    // drag & drop files anywhere on the page to add them to the uploader
+    if(module.settings.upload.overlay){
+      document.addEventListener('dragenter', module.upload.dragEnter);
+      document.addEventListener('dragleave', module.upload.dragLeave);
+      document.addEventListener('dragover', module.upload.dragOver);
+      document.addEventListener('drop', module.upload.drop);
+    }
 
 
 
@@ -765,13 +777,6 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		adds file to uploader
-  // ------------------------------------------------------------------------
-  module.addFile = () => {
-    pos.modules.active['chat-upload'];
-  };
-
-
   // conversations
   // ------------------------------------------------------------------------
   module.conversations = {};
@@ -1067,6 +1072,125 @@ window.pos.modules.chat = function(userSettings = {}){
     });
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Synced the uploaded files list with the uploader', fileIds);
+  };
+
+
+  // purpose:		checks if the dragged content contains files (and not e.g. selected text or a link)
+  // arguments:	drag event (event)
+  // returns:		true if files are being dragged (bool)
+  // ------------------------------------------------------------------------
+  module.upload.isDraggingFiles = (event) => {
+    return Boolean(event.dataTransfer?.types?.includes('Files'));
+  };
+
+
+  // purpose:		shows the drag & drop overlay
+  // ------------------------------------------------------------------------
+  module.upload.showOverlay = () => {
+    module.settings.upload.overlay.hidden = false;
+  };
+
+
+  // purpose:		hides the drag & drop overlay
+  // ------------------------------------------------------------------------
+  module.upload.hideOverlay = () => {
+    module.settings.upload.dragCounter = 0;
+    module.settings.upload.overlay.hidden = true;
+  };
+
+
+  // purpose:		shows the overlay when files are dragged into the page
+  // arguments:	dragenter event (event)
+  // ------------------------------------------------------------------------
+  module.upload.dragEnter = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    event.preventDefault();
+
+    module.settings.upload.dragCounter++;
+    module.upload.showOverlay();
+  };
+
+
+  // purpose:		hides the overlay when files are dragged out of the page
+  //            (dragleave fires for every element left, hence the counter)
+  // arguments:	dragleave event (event)
+  // ------------------------------------------------------------------------
+  module.upload.dragLeave = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    module.settings.upload.dragCounter--;
+
+    if(module.settings.upload.dragCounter <= 0){
+      module.upload.hideOverlay();
+    }
+  };
+
+
+  // purpose:		allows dropping on the overlay and prevents the browser from opening
+  //            the file when it's dropped anywhere else on the page
+  // arguments:	dragover event (event)
+  // ------------------------------------------------------------------------
+  module.upload.dragOver = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = module.settings.upload.overlay.contains(event.target) ? 'copy' : 'none';
+  };
+
+
+  // purpose:		adds the files dropped on the overlay to the uploader
+  // arguments:	drop event (event)
+  // ------------------------------------------------------------------------
+  module.upload.drop = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    event.preventDefault();
+    module.upload.hideOverlay();
+
+    if(!module.settings.upload.overlay.contains(event.target)){
+      return;
+    }
+
+    module.upload.addFiles(Array.from(event.dataTransfer.files));
+  };
+
+
+  // purpose:		adds files to the uppy uploader (which uploads them right away)
+  // arguments:	files to add (array of File)
+  // ------------------------------------------------------------------------
+  module.upload.addFiles = (files) => {
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    if(!uppy){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add files, the uploader is not initialized', module.settings.upload.uploaderId);
+      return;
+    }
+
+    files.forEach(file => {
+      // uppy throws when a file breaks the restrictions (size, type, number of files),
+      // it also emits 'restriction-failed' and shows the error in the dashboard, so just skip the file
+      try {
+        uppy.addFile({
+          source: module.settings.id,
+          name: file.name,
+          type: file.type,
+          data: file
+        });
+
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Added dropped file to the uploader', file.name);
+      } catch(error) {
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add dropped file to the uploader', { file: file.name, error: error });
+      }
+    });
   };
 
 

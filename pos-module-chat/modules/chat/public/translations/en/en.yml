@@ -13,6 +13,9 @@ en:
   upload: Attach a file or image
   upload_cancel: Remove attachments
   remove_file: Remove file
+  upload_drop:
+    title: Drop files here to upload
+    max_size: Max 10 MB
   sent_image: Sent an image
   sent_attachment: Sent an attachment
   error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.
