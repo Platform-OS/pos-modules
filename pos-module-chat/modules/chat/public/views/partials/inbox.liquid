@@ -36,7 +36,12 @@
   window.pos.translations = {
     ...window.pos.translations,
     chat: {
-      connectionError: '{{ 'modules/chat/error_connection' | t }}'
+      connectionError: '{{ 'modules/chat/error_connection' | t }}',
+      fileTooLarge: {
+        single: '{{ 'modules/chat/error_file_too_large.single' | t }}',
+        multiple: '{{ 'modules/chat/error_file_too_large.multiple' | t }}'
+      },
+      tooManyFiles: '{{ 'modules/chat/error_too_many_files' | t }}'
     }
   }
 </script>
@@ -172,6 +177,9 @@
         <label for="chat-messageInput" class="pos-chat-conversation-new-input-container pos-form-input">
           <template id="pos-chat-template-uploader-list-item">
             <li class="pos-chat-uploader-list-item">
+              <svg class="pos-chat-uploader-list-item-progress" aria-hidden="true">
+                <rect width="100%" height="100%" rx="8" pathLength="100" />
+              </svg>
               <img src="" alt="" width="48" height="48">
               {% render 'modules/common-styling/icon', icon: 'fileEmpty', class: 'pos-chat-uploader-list-file-type' %}
               <span class="pos-chat-uploader-list-item-name"></span>

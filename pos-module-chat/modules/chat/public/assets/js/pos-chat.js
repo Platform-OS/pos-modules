@@ -124,6 +124,17 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.listItemTemplate = document.querySelector('#pos-chat-template-uploader-list-item');
   // class added to the files list items that are images (string)
   module.settings.upload.listItemImageClass = 'pos-chat-uploader-list-item-image';
+  // css custom property on the files list item holding its upload progress, 0-100 (string)
+  module.settings.upload.progressProperty = '--pos-chat-upload-progress';
+  // class added to the files list item once its file is uploaded, fades the progress border away (string)
+  module.settings.upload.listItemUploadedClass = 'pos-chat-uploader-list-item-uploaded';
+  // the uppy instance the upload progress is already being listened to on (object)
+  module.settings.upload.watchedUppy = null;
+  // errors for the files currently being picked or dropped, waiting to be shown, keyed by
+  // the kind of error (Map of kind => { message, fileNames })
+  module.settings.upload.errors = new Map();
+  // the longest file name shown in an error message, longer ones are cut with an ellipsis (int)
+  module.settings.upload.maxFileNameLength = 15;
   // object URLs created for image previews, keyed by the uppy file id, so they can be revoked (Map)
   module.settings.upload.previews = new Map();
   // button that opens the system file picker (dom node)
@@ -321,9 +332,28 @@ window.pos.modules.chat = function(userSettings = {}){
     ['pos-upload-file-added', 'pos-upload-file-removed', 'pos-upload-cancel-all'].forEach(eventName => {
       document.addEventListener(eventName, event => {
         if(event.detail.id === module.settings.upload.uploaderId){
+          // the uploader can be initialized after the chat, so start listening to the progress once a file shows up
+          module.upload.watchProgress();
           module.upload.renderList();
         }
       });
+    });
+
+    // let the user know when a file breaks the uploader's limits, as the dashboard
+    // showing uppy's own error is hidden
+    document.addEventListener('pos-upload-restriction-failed', event => {
+      const uploader = pos.modules.active[module.settings.upload.uploaderId];
+
+      if(event.detail.id !== module.settings.upload.uploaderId || !uploader){
+        return;
+      }
+
+      // uppy checks the number of files before the file size
+      if(uploader.settings.maxNumberOfFiles && uploader.settings.uppy.getFiles().length >= uploader.settings.maxNumberOfFiles){
+        module.upload.showError('tooManyFiles', window.pos.translations.chat.tooManyFiles, event.detail.file?.name);
+      } else if(event.detail.file?.size > uploader.settings.maxFileSize){
+        module.upload.showError('fileTooLarge', window.pos.translations.chat.fileTooLarge, event.detail.file?.name);
+      }
     });
 
     // remove the file from the uploader when clicking the remove button on the files list
@@ -1047,7 +1077,121 @@ window.pos.modules.chat = function(userSettings = {}){
       img.remove();
     }
 
+    li.style.setProperty(module.settings.upload.progressProperty, file.progress?.percentage || 0);
+
+    if(file.progress?.uploadComplete){
+      li.classList.add(module.settings.upload.listItemUploadedClass);
+    }
+
     return li;
+  };
+
+
+  // purpose:		listens to the uppy upload progress and shows it on the files list items,
+  //				    only once per uppy instance
+  // ------------------------------------------------------------------------
+  module.upload.watchProgress = () => {
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    if(!uppy || uppy === module.settings.upload.watchedUppy){
+      return;
+    }
+
+    module.settings.upload.watchedUppy = uppy;
+
+    uppy.on('upload-progress', (file, progress) => {
+      if(file && progress?.bytesTotal){
+        module.upload.setProgress(file.id, Math.round(progress.bytesUploaded / progress.bytesTotal * 100));
+      }
+    });
+
+    uppy.on('upload-success', file => {
+      if(file){
+        module.upload.setProgress(file.id, 100);
+        module.settings.upload.list?.querySelector(`:scope > li[data-file-id="${CSS.escape(file.id)}"]`)?.classList.add(module.settings.upload.listItemUploadedClass);
+      }
+    });
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Listening to the upload progress', module.settings.upload.uploaderId);
+  };
+
+
+  // purpose:		shows an error toast about files that couldn't be added to the uploader,
+  //				    one per kind of error for each pick or drop, listing the files' names -
+  //				    picking or dropping several files fails for each of them separately,
+  //				    but in the same tick, so they are collected and shown together after it
+  // arguments:	kind of the error (string)
+  //				    the message to show, followed by the files' names (string), or messages
+  //				    for one and for more files with the names in place of {files} (object: { single, multiple })
+  //				    name of the file that couldn't be added (string)
+  // ------------------------------------------------------------------------
+  module.upload.showError = (kind, message, fileName) => {
+    const errors = module.settings.upload.errors;
+
+    if(!errors.size){
+      queueMicrotask(() => {
+        errors.forEach(({ message, fileNames }) => {
+          const names = fileNames.map(name => `<strong title="${encodeHtml(name).replaceAll('"', '&quot;')}">${encodeHtml(module.upload.shortenFileName(name))}</strong>`).join(', ');
+
+          if(typeof message === 'string'){
+            new window.pos.modules.toast('error', `${message}<br>${names}`);
+          } else {
+            // a function as the replacement, so '$' in the file names isn't treated as a special pattern
+            const text = (fileNames.length === 1) ? message.single : message.multiple;
+            new window.pos.modules.toast('error', text.replace('{files}', () => names));
+          }
+        });
+
+        // the next pick or drop can show the same errors again
+        errors.clear();
+      });
+    }
+
+    if(!errors.has(kind)){
+      errors.set(kind, { message: message, fileNames: [] });
+    }
+
+    errors.get(kind).fileNames.push(fileName);
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add file to the uploader', { kind: kind, file: fileName });
+  };
+
+
+  // purpose:		shortens the file name to show in a message, cutting the name before the
+  //				    extension with an ellipsis, so the extension stays visible
+  // arguments:	the file name (string)
+  // returns:		the file name, at most module.settings.upload.maxFileNameLength characters long (string)
+  // ------------------------------------------------------------------------
+  module.upload.shortenFileName = (name = '') => {
+    // split into characters, not UTF-16 code units, so emoji and such aren't cut in half
+    const characters = Array.from(name);
+    const maxLength = module.settings.upload.maxFileNameLength;
+
+    if(characters.length <= maxLength){
+      return name;
+    }
+
+    // a dot at the very start marks a hidden file, not an extension
+    const dotIndex = characters.lastIndexOf('.');
+    const extension = (dotIndex > 0) ? characters.slice(dotIndex) : [];
+
+    // keep at least one character of the name before the ellipsis, otherwise cut the whole thing at the end
+    if(!extension.length || extension.length > maxLength - 2){
+      return characters.slice(0, maxLength - 1).join('') + '…';
+    }
+
+    return characters.slice(0, maxLength - 1 - extension.length).join('') + '…' + extension.join('');
+  };
+
+
+  // purpose:		sets the upload progress on the files list item of the given file
+  // arguments:	uppy file id (string)
+  //				    progress in percents, 0-100 (int)
+  // ------------------------------------------------------------------------
+  module.upload.setProgress = (fileId, percentage) => {
+    const li = module.settings.upload.list?.querySelector(`:scope > li[data-file-id="${CSS.escape(fileId)}"]`);
+
+    li?.style.setProperty(module.settings.upload.progressProperty, percentage);
   };
 
 

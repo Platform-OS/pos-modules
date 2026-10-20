@@ -513,7 +513,7 @@
 ============================================================================ */
 .pos-chat-uploader-list {
   width: 100%;
-  padding: var(--pos-padding-input) calc(var(--pos-padding-input) / 1.5) calc(var(--pos-padding-input) / 2);
+  padding: calc(var(--pos-padding-input) / 1.5) calc(var(--pos-padding-input) / 1.5) calc(var(--pos-padding-input) / 2);
   display: inline-flex;
   gap: var(--pos-gap-button-button);
   overflow: auto;
@@ -536,6 +536,48 @@
   background-color: var(--pos-color-button-secondary-background);
   border-color: var(--pos-color-button-secondary-frame);
 }
+
+  /* the content is dimmed until the file is uploaded, the progress border and the remove button are not */
+  .pos-chat-uploader-list-item > :not(.pos-chat-uploader-list-item-progress, .pos-chat-uploader-list-item-remove) {
+    opacity: .5;
+
+    transition: opacity .2s linear;
+  }
+
+  .pos-chat-uploader-list-item-uploaded > :not(.pos-chat-uploader-list-item-progress, .pos-chat-uploader-list-item-remove) {
+    opacity: 1;
+  }
+
+  /* upload progress border, drawn around the item clockwise from the top left corner */
+  .pos-chat-uploader-list-item-progress {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: visible;
+
+    pointer-events: none;
+
+    /* the delay lets the border finish filling up before it fades away */
+    transition: opacity .6s var(--pos-transition-ui-detail) .2s;
+  }
+
+  .pos-chat-uploader-list-item-uploaded .pos-chat-uploader-list-item-progress {
+    opacity: 0;
+  }
+
+  .pos-chat-uploader-list-item-progress rect {
+    rx: var(--pos-radius-panel);
+
+    fill: none;
+    stroke: var(--pos-color-interactive-active);
+    stroke-width: 2px;
+    /* pathLength="100" on the rect makes the dash length a percentage of the whole border */
+    stroke-dasharray: var(--pos-chat-upload-progress, 0) 100;
+
+    transition: stroke-dasharray .2s linear;
+  }
 
 .pos-chat-uploader-list-item img {
   width: 48px;
@@ -561,6 +603,7 @@
   /* image files */
   .pos-chat-uploader-list-item-image {
     padding: 0;
+    object-fit: contain;
   }
 
   .pos-chat-uploader-list-item-image .pos-chat-uploader-list-item-name {
@@ -571,6 +614,7 @@
   width: 1.5rem;
   height: 1.5rem;
   position: absolute;
+  z-index: 2;
   inset-block-start: -.5rem;
   inset-inline-end: -.5rem;
   display: flex;

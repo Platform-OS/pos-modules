@@ -18,6 +18,11 @@ en:
     max_size: Max 10 MB
   sent_image: Sent an image
   sent_attachment: Sent an attachment
+  # {files} is replaced in the browser with the names of the files that failed
+  error_file_too_large:
+    single: The file {files} you are trying to upload is too large, maximum is 10 MB
+    multiple: The files {files} you are trying to upload are too large, maximum is 10 MB per file
+  error_too_many_files: You are trying to upload too many files, maximum is 5
   error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.
   search:
     placeholder: Search for a person
