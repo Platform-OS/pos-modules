@@ -324,8 +324,6 @@ jobs:
           pos-cli constants list || true
           curl -sS -m 30 -o /dev/null -w 'check-email: HTTP %{http_code} -> %{redirect_url}\n' "$MPKIT_URL/users/check-email" || true
           pos-cli exec liquid ci '{% assign v = context.constants.USER_EMAIL_VERIFICATION_ENABLED %}{% function e = "modules/user/helpers/email_verification_enabled" %}constant: "{{ v | slice: 0, 2 }}..." (size {{ v | size }})  helper: {{ e }}' || true
-          d=$(mktemp -d) && (cd "$d" && pos-cli modules pull ci user >/dev/null && unzip -p modules.zip '*email_verification_enabled.liquid') || true
-
       - name: Run tests
         shell: sh
         env:
@@ -347,8 +345,6 @@ jobs:
           pos-cli constants list || true
           curl -sS -m 30 -o /dev/null -w 'check-email: HTTP %{http_code} -> %{redirect_url}\n' "$MPKIT_URL/users/check-email" || true
           pos-cli exec liquid ci '{% assign v = context.constants.USER_EMAIL_VERIFICATION_ENABLED %}{% function e = "modules/user/helpers/email_verification_enabled" %}constant: "{{ v | slice: 0, 2 }}..." (size {{ v | size }})  helper: {{ e }}' || true
-          d=$(mktemp -d) && (cd "$d" && pos-cli modules pull ci user >/dev/null && unzip -p modules.zip '*email_verification_enabled.liquid') || true
-
       # Shows what the page looked like when a Playwright test failed. Only screenshots and
       # page snapshots (error-context.md) are uploaded: the repository is public, and trace.zip
       # (and the HTML report, which embeds traces) records typed form values such as
