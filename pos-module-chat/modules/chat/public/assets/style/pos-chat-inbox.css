@@ -572,7 +572,7 @@
 
     fill: none;
     stroke: var(--pos-color-interactive-active);
-    stroke-width: 3px;
+    stroke-width: 2px;
     /* pathLength="100" on the rect makes the dash length a percentage of the whole border */
     stroke-dasharray: var(--pos-chat-upload-progress, 0) 100;
 
