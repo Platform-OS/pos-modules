@@ -31,8 +31,9 @@
       function _res = 'modules/chat/commands/conversations/mark_read', conversation: conversation, participant_id: current_profile.id
       echo "false"
     else
-      assign message_safe = context.params.message | raw_escape_string
-
+      # Stored as typed - escaping happens at render time (message.liquid prints it
+      # through auto-escaping output tags, pos-chat.js uses encodeHtml), so the stored text reads correctly in every
+      # consumer (JSON API, push notifications, sidebar preview) instead of as HTML entities.
       # The client sends its own uploaded attachments as { id, ... } (the id is a
       # modules/chat/uploads record - see pos-chat.js's pos-upload-file-uploaded
       # handler). Only the id is trusted here: each is resolved against
@@ -74,7 +75,7 @@
         endfor
       endif
 
-      assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": message_safe, "media": media_ids }
+      assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": context.params.message, "media": media_ids }
       function message = 'modules/chat/commands/messages/create', object: object
       if message.valid != true
         log message, 'ERROR receive message'
@@ -91,8 +92,8 @@
         # verbatim, letting a client show the others any attachment (any url, name,
         # size) or any author it likes. So the author and time come from the stored
         # message, and the attachments from the checked upload records above. The text
-        # is the one typed - the stored one is escaped (raw_escape_string), and the
-        # client escapes it again when rendering. Sent right away in this request (not
+        # is the one typed (the same as stored), the client escapes it when rendering.
+        # Sent right away in this request (not
         # in a background job) to keep the live view as fast as the rebroadcast was.
         assign sender_name = current_profile.name | default: current_profile.first_name
         assign payload = {

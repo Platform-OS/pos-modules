@@ -1,0 +1,16 @@
+query search_for_unescape($page: Int = 1, $limit: Int = 100) {
+  messages: records(
+    per_page: $limit
+    page: $page
+    sort: { id: { order: ASC } }
+    filter: {
+      table: { exact: "modules/chat/message" }
+    }
+  ) {
+    total_pages
+    results {
+      id
+      message: property(name: "message")
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{% comment %}
+  Messages used to be stored HTML-escaped (raw_escape_string in
+  channels/conversate/receive), so every consumer that didn't render them as HTML -
+  the JSON API, push notifications, the sidebar preview - showed &lt; &amp; etc.
+  literally. They're now stored as typed and escaped at render time; this turns the
+  existing ones back into the typed text.
+
+  Reverses exactly what raw_escape_string produces (&lt; &gt; &quot; &#39; &amp;),
+  &amp; last so an escaped "&amp;lt;" (typed "&lt;") comes back as "&lt;", not "<".
+
+  One background job per page of messages, so a big table doesn't time out the
+  deploy. Pages are taken over the whole table sorted by id - not filtered by
+  content - so updating a message doesn't shift the pages other jobs work on.
+{% endcomment %}
+{% liquid
+  assign per_page = 100
+  graphql r = 'modules/chat/messages/search_for_unescape', page: 1, limit: per_page
+  assign total_pages = r.messages.total_pages
+
+  for page in (1..total_pages)
+    background _job = 'modules/chat/migrations/unescape_messages_page', page: page, per_page: per_page
+  endfor
+
+  log total_pages, type: 'chat: unescape stored messages - pages scheduled'
+%}

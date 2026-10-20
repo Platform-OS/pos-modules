@@ -8,8 +8,17 @@
 {% enddoc %}
 
 
+{%- comment -%} a literal line break - Liquid strings have no "\n" escape {%- endcomment -%}
+{%- capture newline %}
+{% endcapture -%}
 {% liquid
-  assign msg = message.message | markdown: '{ "elements": [ "br" ] }'
+  # messages are stored as typed and shown as plain text with line breaks, the same
+  # way pos-chat.js renders them live (encodeHtml + newlines to <br>) - each line is
+  # printed with an output tag, which escapes it. Not markdown: with only <br> allowed it
+  # rendered no formatting but still ate the syntax (link URLs, list numbers,
+  # asterisks, backslashes). Not html_safe either: it unescapes, so
+  # `escape | newline_to_br | html_safe` would output the user's HTML as-is.
+  assign lines = message.message | split: newline
 
   # show_time defaults to true - callers only pass false when this message sits
   # within 7 minutes of the previous one and the timestamp would be redundant
@@ -53,7 +62,9 @@
 
   {% if message.message or as_template %}
     <div class="pos-chat-message-content pos-chat-message-text">
-      {{ msg }}
+      {%- for line in lines -%}
+        {{ line }}{% unless forloop.last %}<br>{% endunless %}
+      {%- endfor -%}
     </div>
   {% endif %}
 

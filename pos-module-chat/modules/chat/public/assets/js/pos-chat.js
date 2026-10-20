@@ -706,9 +706,8 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.sendMessage = (message, media = null) => {
     let messageData = {
-      // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement),
-      // not here, so the raw text round-trips correctly through the server (raw_escape_string)
-      // and the markdown filter used by the server-rendered message.liquid partial
+      // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement,
+      // and the same plain text + <br> in the server-rendered message.liquid partial), not here
       message: message,
       autor_id: module.settings.currentUserId,
       sender_name: module.settings.currentUserName,
