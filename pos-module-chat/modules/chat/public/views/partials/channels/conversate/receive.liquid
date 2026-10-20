@@ -47,6 +47,8 @@
       endif
 
       assign media_ids = []
+      # the same attachments, resolved from the records, for the live broadcast below
+      assign attachments = []
       if requested_ids.size > 0
         # Only the requested uploads, and only if they belong to this conversation -
         # see modules/chat/queries/uploads/search_by_ids.
@@ -56,6 +58,18 @@
           assign candidate = matches | first
           if candidate and candidate.uploader_id == current_profile.id
             assign media_ids << candidate.id
+
+            assign metadata = candidate.metadata
+            assign attachment = {
+              "id": candidate.id,
+              "type": metadata.type,
+              "name": metadata.name,
+              "size": metadata.size,
+              "width": metadata.width,
+              "height": metadata.height,
+              "url": candidate.upload.url
+            }
+            assign attachments << attachment
           endif
         endfor
       endif
@@ -72,12 +86,26 @@
         # (lib/consumers/chat_message_created/broadcast_new_message), which runs in a
         # retryable background job. messages/create publishes that event on persist.
         #
-        # The default rebroadcast-to-room (this partial doesn't echo "false") relays
-        # context.params - the client's own message/media payload - verbatim to every
-        # room subscriber for the live view. That's safe to keep as-is: the client
-        # already has a signed, time-limited URL for each attachment from POST
-        # /api/chat/uploads (modules/chat/commands/uploads/create), which is what it put
-        # in context.params.media in the first place.
+        # The live view of the room gets the server's version of the message, not the
+        # client's payload: ActionCable's default rebroadcast would relay context.params
+        # verbatim, letting a client show the others any attachment (any url, name,
+        # size) or any author it likes. So the author and time come from the stored
+        # message, and the attachments from the checked upload records above. The text
+        # is the one typed - the stored one is escaped (raw_escape_string), and the
+        # client escapes it again when rendering. Sent right away in this request (not
+        # in a background job) to keep the live view as fast as the rebroadcast was.
+        assign sender_name = current_profile.name | default: current_profile.first_name
+        assign payload = {
+          "message": context.params.message,
+          "autor_id": current_profile.id,
+          "sender_name": sender_name,
+          "created_at": message.created_at,
+          "media": attachments
+        }
+        graphql _broadcast = 'modules/chat/messages/broadcast', room_id: conversation.id, payload: payload
+
+        # suppresses the default rebroadcast of the client's payload
+        echo "false"
       endif
     endif
   else

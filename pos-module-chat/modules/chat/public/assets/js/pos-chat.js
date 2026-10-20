@@ -675,9 +675,8 @@ window.pos.modules.chat = function(userSettings = {}){
       }
 
       module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending.map(item => item.media));
-      setTimeout(() => {
-        module.settings.messageInput.value = '';
-      }, 100);
+      // cleared right away, so nothing typed after the message was sent gets wiped
+      module.settings.messageInput.value = '';
 
       module.settings.upload.clear.checked = false;
     } finally {
