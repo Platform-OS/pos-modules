@@ -33,6 +33,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.messageInput = document.querySelector('#chat-messageInput');
   // the send button for new message (dom node)
   module.settings.sendButton = document.querySelector('#chat-sendButton');
+  // if a message is being sent right now, waiting for its attachments to finish uploading (bool)
+  module.settings.sending = false;
   // the box that contains the messages list and that can scroll (dom node)
   module.settings.messagesListContainer = document.querySelector('#chat-messagesList-container');
   // the box with all the messages stored (dom node)
@@ -191,7 +193,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling what will happen on pressing enter in the input
     module.settings.messageInput?.addEventListener('keypress', (event) => {
-      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length)){
+      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length || module.upload.getUnfinished().length)){
         event.preventDefault();
 
         module.triggerSend();
@@ -200,7 +202,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling send button click
     module.settings.sendButton?.addEventListener('click', () => {
-      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length) {
+      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length || module.upload.getUnfinished().length) {
         module.triggerSend();
       }
     });
@@ -621,22 +623,49 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		waits for any attachments still being saved (see the
-  //				    pos-upload-file-uploaded listener/pendingSaves) before actually
-  //				    sending, so a Send that follows an attach too quickly doesn't go
-  //				    out with an empty/incomplete media list
+  // purpose:		waits for any attachments still uploading and then still being saved
+  //				    (see the pos-upload-file-uploaded listener/pendingSaves) before actually
+  //				    sending, so a Send that follows an attach too quickly doesn't go out
+  //				    with an empty/incomplete media list - sendMessage() cancels everything
+  //				    left in the uploader, which would drop an upload still in progress
   // ------------------------------------------------------------------------
   module.triggerSend = async () => {
-    if(module.settings.upload.pendingSaves.length){
-      await Promise.allSettled(module.settings.upload.pendingSaves);
+    // a second Send while the first one is still waiting would send the same attachments again
+    if(module.settings.sending){
+      return;
     }
 
-    module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending.map(item => item.media));
-    setTimeout(() => {
-      module.settings.messageInput.value = '';
-    }, 100);
+    module.settings.sending = true;
+    if(module.settings.sendButton){
+      module.settings.sendButton.disabled = true;
+    }
 
-    module.settings.upload.clear.checked = false;
+    try {
+      await module.upload.waitForUploads();
+
+      // the record is saved after the upload finishes (on 'upload-success', which uppy
+      // emits before 'complete'), so these are all known by now
+      if(module.settings.upload.pendingSaves.length){
+        await Promise.allSettled(module.settings.upload.pendingSaves);
+      }
+
+      // nothing left to send when the only attachments failed and there is no text
+      if(!module.settings.messageInput.value.trim() && !module.settings.upload.pending.length){
+        return;
+      }
+
+      module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending.map(item => item.media));
+      setTimeout(() => {
+        module.settings.messageInput.value = '';
+      }, 100);
+
+      module.settings.upload.clear.checked = false;
+    } finally {
+      module.settings.sending = false;
+      if(module.settings.sendButton){
+        module.settings.sendButton.disabled = false;
+      }
+    }
   };
 
 
@@ -1213,6 +1242,43 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.upload.setProgress = (fileId, percentage) => {
     module.upload.getListItem(fileId)?.style.setProperty(module.settings.upload.progressProperty, percentage);
+  };
+
+
+  // purpose:		lists the files in the uploader that are neither uploaded nor failed yet,
+  //				    including the ones added but not started (uppy starts them shortly after)
+  // returns:		the unfinished uppy files (array)
+  // ------------------------------------------------------------------------
+  module.upload.getUnfinished = () => {
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    return uppy ? uppy.getFiles().filter(file => !file.progress?.uploadComplete && !file.error) : [];
+  };
+
+
+  // purpose:		waits until every file in the uploader is either uploaded or failed
+  // returns:		promise resolved once nothing is uploading (promise)
+  // ------------------------------------------------------------------------
+  module.upload.waitForUploads = async () => {
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    // 'complete' ends an upload batch, but files added during it start a batch of their own,
+    // and a file removed or cancelled mid-upload doesn't necessarily end one - so check again
+    // after any of these until nothing unfinished is left
+    const events = ['complete', 'upload-error', 'file-removed', 'cancel-all'];
+
+    while(uppy && module.upload.getUnfinished().length){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Waiting for the uploads to finish before sending', module.upload.getUnfinished().map(file => file.name));
+
+      await new Promise(resolve => {
+        const done = () => {
+          events.forEach(eventName => uppy.off(eventName, done));
+          resolve();
+        };
+
+        events.forEach(eventName => uppy.on(eventName, done));
+      });
+    }
   };
 
 
