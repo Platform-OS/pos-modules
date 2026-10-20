@@ -126,6 +126,10 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.listItemImageClass = 'pos-chat-uploader-list-item-image';
   // object URLs created for image previews, keyed by the uppy file id, so they can be revoked (Map)
   module.settings.upload.previews = new Map();
+  // button that opens the system file picker (dom node)
+  module.settings.upload.button = document.querySelector('#chat-uploadButton');
+  // hidden file input behind the upload button, the picked files are added to the uploader (dom node)
+  module.settings.upload.input = document.querySelector('#chat-uploadInput');
   // overlay shown when dragging files over the page, files dropped on it are added to the uploader (dom node)
   module.settings.upload.overlay = document.querySelector('.pos-chat-conversation-upload-overlay');
   // counts nested dragenter/dragleave events so the overlay doesn't flicker when dragging over child elements (int)
@@ -329,6 +333,19 @@ window.pos.modules.chat = function(userSettings = {}){
       if(button){
         pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy.removeFile(button.closest('li').dataset.fileId);
       }
+    });
+
+    // open the system file picker instead of showing the uploader's dashboard
+    module.settings.upload.button?.addEventListener('click', () => {
+      module.settings.upload.input?.click();
+    });
+
+    // add the picked files to the uploader
+    module.settings.upload.input?.addEventListener('change', () => {
+      module.upload.addFiles(Array.from(module.settings.upload.input.files));
+
+      // reset so picking the same file again still fires 'change'
+      module.settings.upload.input.value = '';
     });
 
     // drag & drop files anywhere on the page to add them to the uploader
@@ -1186,9 +1203,9 @@ window.pos.modules.chat = function(userSettings = {}){
           data: file
         });
 
-        pos.modules.debug(module.settings.debug, module.settings.id, 'Added dropped file to the uploader', file.name);
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Added file to the uploader', file.name);
       } catch(error) {
-        pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add dropped file to the uploader', { file: file.name, error: error });
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add file to the uploader', { file: file.name, error: error });
       }
     });
   };

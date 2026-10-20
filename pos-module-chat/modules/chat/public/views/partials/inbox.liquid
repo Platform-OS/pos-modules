@@ -161,10 +161,11 @@
       </div>
       <footer class="pos-form pos-chat-conversation-new">
         <div class="pos-chat-conversation-new-tools">
-          <label for="chat-uploaderToggle" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
+          <button type="button" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
             <span class="pos-label">{{ 'modules/chat/upload' | t }}</span>
             {% render 'modules/common-styling/icon', icon: 'imageFileUpload' %}
-          </label>
+          </button>
+          <input type="file" id="chat-uploadInput" multiple hidden>
         </div>
 
         <template id="pos-chat-template-uploader-list-item">

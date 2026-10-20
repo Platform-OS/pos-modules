@@ -1,6 +1,7 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './page';
 import { UppyUploader } from './components/uppyUploader';
+import path from 'path';
 
 export class PeoplePage extends BasePage {
   readonly page: Page;
@@ -308,7 +309,7 @@ class Chat {
   readonly messageBox: MessageBox;
   readonly messageInputField: Locator;
   readonly messageInputFieldEnabled: Locator;
-  readonly uploadButton: Locator;
+  readonly uploadInput: Locator;
   readonly uploader: UppyUploader;
   private buttonWithText: (text: string) => Locator;
 
@@ -318,20 +319,17 @@ class Chat {
     this.messageInputField = this.chatLocator.locator('#chat-messageInput');
     this.messageInputFieldEnabled = this.chatLocator.locator('#chat-messageInput:not([disabled])');
     this.buttonWithText = (text: string) => this.page.getByRole('button', { name: text, exact: true });
-    this.uploadButton = this.chatLocator.locator('#chat-uploadButton');
+    this.uploadInput = this.chatLocator.locator('#chat-uploadInput');
     this.uploader = new UppyUploader(this.page);
   }
 
-  async showUploader() {
-    await this.messageInputFieldEnabled.waitFor();
-    await this.uploadButton.click();
-    await this.uploader.section().dashboard().waitFor({ state: 'visible' });
-    return this.uploader.isVisible();
-  }
-
+  // the upload button opens the system file picker, so files are set on its input instead
   async attachFiles(fileNames: string[]) {
+    await this.messageInputFieldEnabled.waitFor();
+
     for (const fileName of fileNames) {
-      await this.uploader.uploadFile(fileName);
+      await this.uploadInput.setInputFiles(path.join(__dirname, '..', 'data', 'files', fileName));
+      await this.uploader.waitForUploadComplete(fileName);
     }
   }
 
