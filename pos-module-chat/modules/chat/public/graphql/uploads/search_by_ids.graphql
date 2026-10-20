@@ -1,10 +1,11 @@
-query search_by_conversation($conversation_id: [String!]!, $limit: Int = 250) {
+query search_by_ids($ids: [ID!]!, $conversation_id: String!, $limit: Int!) {
   uploads: records(
     per_page: $limit,
     filter: {
       table: { exact: "modules/chat/uploads" }
+      id: { value_in: $ids }
       properties: [
-        { name: "conversation_id", value_in: $conversation_id }
+        { name: "conversation_id", value: $conversation_id }
       ]
     }
   ) {

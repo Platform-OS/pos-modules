@@ -48,9 +48,9 @@
 
       assign media_ids = []
       if requested_ids.size > 0
-        # Scoped by conversation_id (platformOS's records filter can't match id
-        # against a list) - see modules/chat/queries/uploads/search_by_conversation.
-        function candidates = 'modules/chat/queries/uploads/search_by_conversation', conversation_id: conversation.id
+        # Only the requested uploads, and only if they belong to this conversation -
+        # see modules/chat/queries/uploads/search_by_ids.
+        function candidates = 'modules/chat/queries/uploads/search_by_ids', ids: requested_ids, conversation_id: conversation.id
         for id in requested_ids
           assign matches = candidates | array_select: id: id
           assign candidate = matches | first
