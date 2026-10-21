@@ -8,6 +8,7 @@
   @param {string} [allowed_file_types] - allowed file types, e.g. ['image/*', '.jpg', '.jpeg', '.png', '.gif']
   @param {string} [aspect_ratio] - aspect ratio for the image editor cropping tool, e.g. 1 for square, 1.78 for widescreen
   @param {number} [max_number_of_files] - maximum number of files to upload
+  @param {boolean} [show_dashboard] - whether to show the dashboard UI (default: true), when false there is no UI rendered, add files with `pos.modules.active[id].settings.uppy.addFile()`, image editor requires the dashboard
 {% enddoc %}
 
 
@@ -27,6 +28,7 @@
   {% if allowed_file_types %} data-allowed-file-types="{{ allowed_file_types }}" {% endif %}
   {% if max_number_of_files %} data-max-number-of-files="{{ max_number_of_files }}" {% endif %}
   {% if aspect_ratio %} data-aspect-ratio="{{ aspect_ratio }}" {% endif %}
+  {% if show_dashboard == false %} data-show-dashboard="false" {% endif %}
 
   data-upload-url="{{ presigned_upload.upload_url }}"
   {% for field in presigned_upload.upload_url_payload %}
