@@ -11,7 +11,6 @@ en:
   send: Send
   back: Back
   upload: Attach a file or image
-  upload_cancel: Remove attachments
   remove_file: Remove file
   upload_drop:
     title: Drop files here to upload

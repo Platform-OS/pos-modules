@@ -8,15 +8,15 @@ export class UppyUploader {
   }
 
   section() {
-    const sectionLocator = this.page.locator('#chat-uploader');
+    const listLocator = this.page.locator('#chat-uploaderList');
     return {
-      completedFile: (fileName: string) => sectionLocator.locator('.uppy-Dashboard-Item.is-complete', { hasText: fileName })
+      completedFile: (fileName: string) => listLocator.locator('.pos-chat-uploader-list-item-uploaded', { hasText: fileName })
     };
   }
 
-  // the chat keeps the dashboard hidden, files are added through the upload button's file input
-  // and the dashboard items are only checked (still rendered while hidden) to know when the upload finished
+  // the chat renders the uploader without uppy's dashboard, files are added through the upload button's
+  // file input and the chat's own files list shows when the upload finished
   async waitForUploadComplete(fileName: string) {
-    await this.section().completedFile(fileName).waitFor({ state: 'attached', timeout: 15000 });
+    await this.section().completedFile(fileName).waitFor({ timeout: 15000 });
   }
 }

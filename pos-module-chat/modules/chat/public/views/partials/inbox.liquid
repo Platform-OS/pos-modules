@@ -152,12 +152,7 @@
           %}
         </ul>
       </div>
-      <div class="pos-chat-uploader" id="chat-uploader">
-        <input type="checkbox" id="chat-uploaderToggle">
-        <label for="chat-uploaderToggle" class="pos-button pos-button-small" title="{{ 'modules/chat/upload_cancel' | t }}">
-          <span class="pos-label">{{ 'modules/chat/upload_cancel' | t }}</span>
-          {% render 'modules/common-styling/icon', icon: 'x' %}
-        </label>
+      <div class="pos-chat-uploader" id="chat-uploader" hidden>
         {% comment %}
           kept in a template so common-styling doesn't load uppy on page load - pos-chat.js
           adds it to the page and loads uppy only once the user is about to attach a file
@@ -172,7 +167,8 @@
             id: 'chat-upload',
             presigned_upload: context.presigned_upload,
             name: 'chat-upload',
-            max_number_of_files: 5
+            max_number_of_files: 5,
+            show_dashboard: false
           %}
         </template>
         {% # platformos-check-enable MissingAsset %}

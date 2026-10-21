@@ -120,8 +120,6 @@ window.pos.modules.chat = function(userSettings = {}){
   // back its id + signed URL) is a round-trip, so a Send triggered before it resolves has
   // to wait for these rather than silently going out without the attachment
   module.settings.upload.pendingSaves = [];
-  // button that clears the staged uploads (dom node)
-  module.settings.upload.clear = document.querySelector('#chat-uploaderToggle');
   // id of the uploader module instance (string)
   module.settings.upload.uploaderId = 'chat-upload';
   // template holding the uploader markup and the urls to load uppy from, added to the page on demand (dom node)
@@ -352,14 +350,6 @@ window.pos.modules.chat = function(userSettings = {}){
       pos.modules.debug(module.settings.debug, module.settings.id, 'Removed file from pending uploads', event.detail.file.id);
     });
 
-    // clear all staged uploads
-    module.settings.upload.clear?.addEventListener('change', () => {
-      module.settings.upload.pending = [];
-      pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
-
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Cleared all pending uploads');
-    });
-
     // keep the files list in sync with the files in the uploader
     ['pos-upload-file-added', 'pos-upload-file-removed', 'pos-upload-cancel-all'].forEach(eventName => {
       module.settings.upload.uploaderContainer?.addEventListener(eventName, () => {
@@ -367,8 +357,8 @@ window.pos.modules.chat = function(userSettings = {}){
       });
     });
 
-    // let the user know when a file breaks the uploader's limits, as the dashboard
-    // showing uppy's own error is hidden
+    // let the user know when a file breaks the uploader's limits, as there is no dashboard
+    // to show uppy's own error
     module.settings.upload.uploaderContainer?.addEventListener('pos-upload-restriction-failed', event => {
       const uploader = pos.modules.active[module.settings.upload.uploaderId];
 
@@ -393,7 +383,7 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     });
 
-    // open the system file picker instead of showing the uploader's dashboard
+    // open the system file picker, the uploader has no dashboard of its own
     module.settings.upload.button?.addEventListener('click', () => {
       module.settings.upload.input?.click();
     });
@@ -689,8 +679,6 @@ window.pos.modules.chat = function(userSettings = {}){
       module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending.map(item => item.media));
       // cleared right away, so nothing typed after the message was sent gets wiped
       module.settings.messageInput.value = '';
-
-      module.settings.upload.clear.checked = false;
     } finally {
       module.settings.sending = false;
       if(module.settings.sendButton){
@@ -1520,7 +1508,8 @@ window.pos.modules.chat = function(userSettings = {}){
         allowedFileTypes: element.dataset.allowedFileTypes,
         aspectRatio: element.dataset.aspectRatio,
         maxNumberOfFiles: element.dataset.maxNumberOfFiles,
-        maxFileSize: element.dataset.maxFileSize
+        maxFileSize: element.dataset.maxFileSize,
+        showDashboard: element.dataset.showDashboard !== 'false'
       });
       pos.modules.active[module.settings.upload.uploaderId] = uploader;
 
@@ -1555,7 +1544,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     files.forEach(file => {
       // uppy throws when a file breaks the restrictions (size, type, number of files),
-      // it also emits 'restriction-failed' and shows the error in the dashboard, so just skip the file
+      // it also emits 'restriction-failed' which shows the error as a toast, so just skip the file
       try {
         uppy.addFile({
           source: module.settings.id,
