@@ -1,0 +1,37 @@
+---
+slug: test/mcp-invoke
+method: post
+format: json
+---
+{%- comment -%}
+  TEST FIXTURE (gated): drives the in-process tool call (commands/execute/invoke) and the
+  per-agent tool list (queries/registry/for_agent) for the identity of the request's
+  bearer token, so tests/invoke.test.mjs can compare them with tools/call and tools/list
+  for the same principal and agent. The token only identifies the caller here; invoke
+  itself does no token, scope or rate-limit work. Body: { op: 'list' } or { op: 'call',
+  name, arguments }. Served only when MCP_ENABLE_TEST_TOOLS is '1'/'true' (CI + eval
+  hosts).
+{%- endcomment -%}
+{%- liquid
+  assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+  unless test_gate == '1' or test_gate == 'true'
+    response_status 404
+    echo '{}'
+    break
+  endunless
+  function auth = 'modules/mcp/commands/identity/resolve_principal', headers: context.headers
+  unless auth.authenticated
+    response_status 401
+    echo '{"error":"unauthenticated"}'
+    break
+  endunless
+  assign op = context.params.op | append: ''
+  if op == 'list'
+    function tools = 'modules/mcp/queries/registry/for_agent', principal: auth.principal, agent: auth.agent, delegation_mode: auth.delegation_mode
+    assign out = { "tools": tools }
+  else
+    assign tool_name = context.params.name | append: ''
+    function out = 'modules/mcp/commands/execute/invoke', tool_name: tool_name, arguments: context.params.arguments, principal: auth.principal, agent: auth.agent, delegation_mode: auth.delegation_mode
+  endif
+  print out | json
+-%}
