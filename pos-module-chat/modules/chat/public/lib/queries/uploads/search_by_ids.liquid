@@ -1,0 +1,23 @@
+{% doc %}
+  Resolves the given modules/chat/uploads records - metadata plus a freshly-signed,
+  time-limited URL (the upload property's ACL is private, per
+  modules/chat/public/schema/uploads.yml). Only records belonging to the given
+  conversation are returned, so ids of uploads from other conversations are dropped.
+
+  @param {array} ids - the modules/chat/uploads record ids
+  @param {string} conversation_id - the conversation the uploads belong to
+{% enddoc %}
+{% liquid
+  if conversation_id == blank
+    return blank
+  endif
+
+  assign ids = ids | array_compact | uniq
+  if ids.size == 0
+    return blank
+  endif
+
+  graphql r = 'modules/chat/uploads/search_by_ids', ids: ids, conversation_id: conversation_id, limit: ids.size
+
+  return r.uploads.results
+%}

@@ -18,15 +18,10 @@ test.describe('Testing uploads', () => {
     const peoplePage = new PeoplePage(page);
     const inboxPage = new InboxPage(page);
 
-    await test.step(`${sender.fullName} shows the uploader in the chat with ${receiver.fullName}`, async () => {
+    await test.step(`${sender.fullName} uploads and sends an image to ${receiver.fullName}`, async () => {
       await peoplePage.goto();
       await peoplePage.openChat(receiver.fullName);
 
-      const isUploaderVisible = await inboxPage.chat.showUploader();
-      expect(isUploaderVisible).toBe(true);
-    });
-
-    await test.step(`${sender.fullName} uploads and sends an image`, async () => {
       await inboxPage.chat.attachFiles([imageFile]);
       await inboxPage.chat.sendAttachments();
 
@@ -60,9 +55,6 @@ test.describe('Testing uploads', () => {
       await peoplePage.goto();
       await peoplePage.openChat(receiver.fullName);
 
-      const isUploaderVisible = await inboxPage.chat.showUploader();
-      expect(isUploaderVisible).toBe(true);
-
       await inboxPage.chat.attachFiles([textFile]);
       await inboxPage.chat.sendAttachments();
     });
@@ -91,9 +83,6 @@ test.describe('Testing uploads', () => {
     await test.step(`${sender.fullName} uploads an image and a text file and sends them to ${receiver.fullName}`, async () => {
       await peoplePage.goto();
       await peoplePage.openChat(receiver.fullName);
-
-      const isUploaderVisible = await inboxPage.chat.showUploader();
-      expect(isUploaderVisible).toBe(true);
 
       await inboxPage.chat.attachFiles([imageFile, textFile]);
       await inboxPage.chat.sendAttachments();

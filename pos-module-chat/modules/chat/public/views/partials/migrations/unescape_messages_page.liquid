@@ -1,0 +1,31 @@
+{% doc %}
+  Background job for migrations/20261020160000_unescape_stored_messages - turns one
+  page of HTML-escaped stored messages back into the typed text.
+
+  @param {number} page - page of the messages table, sorted by id
+  @param {number} per_page - messages per page
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/chat/messages/search_for_unescape', page: page, limit: per_page
+
+  assign updated = 0
+  for message in r.messages.results
+    unless message.message contains '&'
+      continue
+    endunless
+
+    # &amp; last - see the migration
+    assign unescaped = message.message | replace: '&lt;', '<' | replace: '&gt;', '>' | replace: '&quot;', '"' | replace: '&#39;', "'" | replace: '&amp;', '&'
+
+    if unescaped != message.message
+      # one update per message is unavoidable - each gets a different value
+      # platformos-check-disable GraphqlInForLoop, NestedGraphQLQuery
+      graphql _update = 'modules/chat/messages/update_message', id: message.id, message: unescaped
+      # platformos-check-enable GraphqlInForLoop, NestedGraphQLQuery
+      assign updated = updated | plus: 1
+    endif
+  endfor
+
+  assign summary = { "page": page, "updated": updated }
+  log summary, type: 'chat: unescape stored messages'
+%}
