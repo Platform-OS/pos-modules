@@ -1333,6 +1333,24 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
+  // purpose:		scrolls the files list horizontally so the item is fully visible, without
+  //				    scrolling the page or the messages like scrollIntoView() could
+  // arguments:	the files list item (dom node)
+  // ------------------------------------------------------------------------
+  module.upload.scrollToListItem = (li) => {
+    const list = module.settings.upload.list;
+    const listRect = list.getBoundingClientRect();
+    const itemRect = li.getBoundingClientRect();
+    const listStyle = getComputedStyle(list);
+
+    if(itemRect.right > listRect.right){
+      list.scrollBy({ left: itemRect.right - listRect.right + parseFloat(listStyle.paddingRight), behavior: 'smooth' });
+    } else if(itemRect.left < listRect.left){
+      list.scrollBy({ left: itemRect.left - listRect.left - parseFloat(listStyle.paddingLeft), behavior: 'smooth' });
+    }
+  };
+
+
   // purpose:		syncs the files list with the files currently added to the uploader,
   //				    keeping the same order, reusing items that are already shown
   // ------------------------------------------------------------------------
@@ -1361,14 +1379,26 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     });
 
+    // the last of the newly added items, scrolled to so its upload progress is visible (dom node)
+    let addedItem = null;
+
     // add the missing items and keep them in the uploader's order
     files.forEach((file, index) => {
-      const li = list.querySelector(`:scope > li[data-file-id="${CSS.escape(file.id)}"]`) || module.upload.buildListItem(file);
+      let li = list.querySelector(`:scope > li[data-file-id="${CSS.escape(file.id)}"]`);
+
+      if(!li){
+        li = module.upload.buildListItem(file);
+        addedItem = li;
+      }
 
       if(list.children[index] !== li){
         list.insertBefore(li, list.children[index] || null);
       }
     });
+
+    if(addedItem){
+      module.upload.scrollToListItem(addedItem);
+    }
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Synced the uploaded files list with the uploader', fileIds);
   };

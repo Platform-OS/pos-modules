@@ -456,13 +456,17 @@
   display: grid;
   grid-template-areas:
     "tools input send";
-    grid-template-columns: min-content 1fr min-content;
+  grid-template-columns: min-content 1fr min-content;
   gap: 0 var(--pos-gap-button-button);
 }
 
 @media (max-width: 768px) {
   .pos-chat-conversation-new {
-    grid-template-columns: 1fr;
+    grid-template-areas:
+      "tools ."
+      "input send";
+    grid-template-columns: 1fr min-content;
+    row-gap: var(--pos-gap-button-button-small)
   }
 }
 
