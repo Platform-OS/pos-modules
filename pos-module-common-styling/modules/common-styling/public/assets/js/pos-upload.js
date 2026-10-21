@@ -20,7 +20,7 @@ window.pos.modules.upload = function(settings){
   // unique id for the module
   module.settings.id = module.settings.container.id || 'pos-upload'
   // if you want to show the uppy dashboard with image editor and thumbnails (bool)
-  module.settings.showDashboard = settings.showDashboard || true;
+  module.settings.showDashboard = settings.showDashboard !== false;
   // maximum file size in bytes for each individual file (int)
   module.settings.maxFileSize = settings.maxFileSize || 10485760;
   // total number of files that can be selected (int)
@@ -31,14 +31,15 @@ window.pos.modules.upload = function(settings){
   module.settings.addedFileTemplate = module.settings.container.querySelector('.pos-upload-added-file-input');
   // template to add to DOM for each removed file
   module.settings.removedFileTemplate = module.settings.container.querySelector('.pos-upload-removed-file-input');
-  // if you want the photo editor (bool)
-  module.settings.imageEditorEnabled = settings.imageEditorEnabled || false;
+  // if you want the photo editor, it is rendered inside the dashboard so it requires one (bool)
+  module.settings.imageEditorEnabled = (settings.imageEditorEnabled && module.settings.showDashboard) || false;
   // aspect ration for cropping the image (float)
   module.settings.aspectRatio = settings.aspectRatio || null;
   // width of the dashboard (string)
   module.settings.width = settings.width || '100%';
   // height of the dashboard (string)
   module.settings.height = settings.height || '400px';
+
   // debug mode enabled (bool)
   module.settings.debug = settings.debug || false;
 
