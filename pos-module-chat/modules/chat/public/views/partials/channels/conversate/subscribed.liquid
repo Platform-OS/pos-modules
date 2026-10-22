@@ -1,6 +1,14 @@
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
 
+  # the same permission the inbox page and the chat APIs require - being a participant
+  # alone isn't enough, so revoking chat.inbox also cuts off the WebSocket
+  function can = 'modules/user/helpers/can_do', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null
+  unless can
+    echo 'false'
+    break
+  endunless
+
   assign room_id = context.params.room_id
   function conversation = 'modules/chat/queries/conversations/find_by_participant', id: room_id, participant_id: current_profile.id, include_messages: null
 
