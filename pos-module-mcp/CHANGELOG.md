@@ -104,6 +104,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **In-process tool call for code inside the app.** `modules/mcp/commands/execute/invoke`
+  runs one tool call for a principal and agent the app already holds (for example an
+  in-app assistant acting as a person's agent), through the same steps as `tools/call`
+  after authentication: tool resolution with `allowed_tools`, strict argument validation,
+  the authorization policy, the handler (mutating tools in a transaction with their
+  ledger entry) and the ledger. It skips only HTTP concerns (token, OAuth scope, rate
+  limit, abuse counter, idempotency, Tasks). A `requires_approval` tool is refused and
+  never queued or run. The answer is `{ result }` or `{ error: { code, message } }`, the
+  shapes an MCP client gets, plus `outcome` and `request_id`.
+  `modules/mcp/queries/registry/for_agent` lists the tools such an agent may use (policy
+  with empty arguments, plus `allowed_tools`), in the `tools/list` shape, now produced by
+  the shared `helpers/registry/present_tool`. Suite: `tests/invoke.test.mjs`, which
+  compares every answer with `tools/call` for the same token.
 - **Built-in OAuth 2.1 authorization server.** MCP clients connect without a hand-minted
   token: RFC 9728 / RFC 8414 metadata, `/oauth/authorize` with sign-in and consent,
   `/oauth/token` (authorization code + PKCE `S256`, rotating refresh tokens with reuse

@@ -267,6 +267,34 @@ review as security-relevant.
   (`approval_duplicate` / `approval_throttled`) and counted as violations. An operator
   can drain a principal's entire queue in one action from the console.
 
+## Calling tools from inside the app
+
+Code running inside the app — for example an in-app assistant that acts as one of a
+person's agents — calls tools through the same governance as an MCP client, without HTTP
+or a token:
+
+```liquid
+{% liquid
+  assign principal = { "id": "user:42", "user_id": "42" }
+  assign agent = { "id": "Assistant", "client_id": "app-assistant" }
+  function tools = 'modules/mcp/queries/registry/for_agent', principal: principal, agent: agent
+  function out = 'modules/mcp/commands/execute/invoke', tool_name: 'search_events', arguments: args, principal: principal, agent: agent
+%}
+```
+
+- `for_agent` lists the tools the policy admits for this principal and agent (evaluated
+  with empty arguments) and that the agent's `allowed_tools` includes, in the `tools/list`
+  shape — ready to offer to a model.
+- `invoke` resolves the tool, validates the arguments strictly, evaluates the policy with
+  the real arguments, runs the handler (mutating tools in one transaction with their
+  ledger entry) and writes the ledger. It returns `{ result }` (a tool result; invalid
+  arguments and handler errors are `isError` results) or `{ error: { code, message } }`
+  (unknown tool `-32602`, denied `-32001`), plus `outcome` and `request_id`.
+- The caller is responsible for the identity it passes: `invoke` trusts it, as `tools/call`
+  trusts a verified token. Token checks, OAuth scope, rate limits, the abuse counter,
+  idempotency and Tasks belong to HTTP clients and are skipped. A `requires_approval`
+  tool is refused in-process and never queued.
+
 ---
 
 ## Prompts (Layer 2)
@@ -460,6 +488,8 @@ npx vitest run tests/coverage.test.mjs      # MULTI-principal: tools/list scopin
                                             # tamper-evidence, and the WEB console flows
 npx vitest run tests/eval.test.mjs          # tool-surface eval: description quality, no-poison,
                                             # uniqueness, golden-case tool-exists + args-valid
+npx vitest run tests/invoke.test.mjs        # in-process tool call and per-agent tool list,
+                                            # compared with tools/call for the same token
 npx vitest run tests/lint-tools.test.mjs    # static tool linter (LINT_STRICT=1 fails on warnings)
 npx vitest run tests/portable.test.mjs      # protocol checks that run on ANY instance (below)
 ```

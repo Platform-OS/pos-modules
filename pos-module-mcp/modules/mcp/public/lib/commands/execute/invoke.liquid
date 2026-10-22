@@ -1,0 +1,212 @@
+{%- comment -%}
+  In-process tools/call (spec §9.2 steps 4–9) for code running inside the app, such as an
+  in-app assistant acting as an agent of a person. It runs the same steps as
+  commands/rpc/tools_call after authentication — resolve the tool (with the agent's
+  allowed_tools narrowing), validate the arguments against the input schema, evaluate
+  the tool's authorization policy, run the handler (mutating tools in a transaction
+  with the ledger entry, as tools_call does) and write the ledger — so an in-process
+  caller can do nothing an MCP client with the same principal and agent could not.
+
+  It does no HTTP work: no token check (the caller supplies the identity it already
+  holds), no OAuth scope, rate limit, abuse counter, idempotency or Tasks handling. A
+  tool that requires operator approval is refused, never executed inline (the approval
+  queue re-checks a token, which an in-process call does not have).
+
+  The answer has the shape an MCP client gets, without the JSON-RPC envelope: either
+  { result: { content, isError, structuredContent? } } (a tool result; invalid
+  arguments and handler errors are tool results with isError, as in tools_call) or
+  { error: { code, message } } (an unknown tool -32602, a denied call -32001, a
+  missing identity -32001). It also carries outcome (the ledger's execution_outcome)
+  and request_id.
+
+  @param {string} tool_name         - the tool to call
+  @param {object} [arguments]       - the tool arguments (untrusted, e.g. from a model)
+  @param {object} principal         - { id, user_id } of the person the call is made for
+  @param {object} agent             - { id, client_id, token_id?, allowed_tools? }
+  @param {string} [delegation_mode] - direct (default) | on_behalf_of
+  @return {object} { result?, error?, outcome, request_id }
+{%- endcomment -%}
+{% liquid
+  assign start_ms = 'now' | to_time | strftime: '%s%3N' | plus: 0
+  assign request_id = '' | uuid
+  assign dm = delegation_mode | default: 'direct'
+  assign out = { "request_id": request_id }
+
+  # No accountable identity: refuse without a ledger entry, as tools_call does for a
+  # call that fails authentication.
+  if principal.id == blank or agent.client_id == blank
+    log 'In-process tool call without a principal or agent', type: 'mcp.invoke_no_identity'
+    assign err = { "code": -32001, "message": "Forbidden" }
+    assign out['error'] = err
+    assign out['outcome'] = 'denied'
+    return out
+  endif
+
+  # Hash the arguments — never store them raw (spec §6.1).
+  assign args = arguments
+  assign args_json = 'null'
+  unless args == blank
+    assign args_json = args | json
+  endunless
+  assign input_sha256 = args_json | digest: 'sha256'
+  assign input_bytes = args_json | size
+
+  assign le = {
+    "method": "tools/call",
+    "tool_name": tool_name,
+    "client_id": agent.client_id,
+    "agent_id": agent.id,
+    "principal_id": principal.id,
+    "delegation_mode": dm,
+    "input_sha256": input_sha256,
+    "input_bytes": input_bytes,
+    "request_id": request_id,
+    "_start_ms": start_ms
+  }
+
+  # Step 4 — resolve the tool (registered, valid manifest, allowed_tools narrowing).
+  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: agent.allowed_tools
+  if tool == blank
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    assign err = { "code": -32602, "message": "Unknown tool" }
+    assign out['error'] = err
+    assign out['outcome'] = 'invalid'
+    return out
+  endif
+  assign le['tool_version'] = tool.version
+  assign le['authz_policy'] = tool.authorization_policy
+
+  # Step 5 — validate the arguments (strict), after a JSON round-trip so every value
+  # has a canonical JSON type. Absent arguments validate as an empty object.
+  function cfg = 'modules/mcp/helpers/config'
+  assign val_args = {}
+  unless args == blank
+    assign val_args = args_json | parse_json: raw_text: true
+  endunless
+  function val = 'modules/mcp/helpers/validate/json_schema', value: val_args, schema: tool.input_schema, depth: 1, max_depth: cfg.defaults.max_schema_depth, path: 'arguments'
+  unless val.valid
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    function result = 'modules/mcp/helpers/rpc/invalid_arguments_result', errors: val.errors, tool: tool
+    assign out['result'] = result
+    assign out['outcome'] = 'invalid'
+    return out
+  endunless
+
+  # Step 6 — authorize against the tool's named policy (fail-closed).
+  function authz = 'modules/mcp/commands/authorize/evaluate', policy: tool.authorization_policy, principal: principal, agent: agent, arguments: val_args, tool: tool, delegation_mode: dm
+  assign le['authz_reason'] = authz.reason
+  unless authz.allow
+    assign le['authz_decision'] = 'deny'
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    assign err = { "code": -32001, "message": "Forbidden" }
+    assign out['error'] = err
+    assign out['outcome'] = 'denied'
+    return out
+  endunless
+  assign le['authz_decision'] = 'allow'
+
+  # Step 7a — a requires_approval tool never runs inline, and has no in-process queue.
+  if tool.requires_approval
+    assign le['authz_reason'] = 'approval_required_in_process'
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+    assign content = []
+    assign item = {
+      "type": "text",
+      "text": "This action requires operator approval and cannot be called in-process. It has NOT run."
+    }
+    assign content = content | array_add: item
+    assign result = { "content": content, "isError": true }
+    assign out['result'] = result
+    assign out['outcome'] = 'denied'
+    return out
+  endif
+
+  # Step 8 — execute the handler.
+  assign context_meta = {
+    "tool_name": tool_name,
+    "tool_version": tool.version,
+    "request_id": request_id
+  }
+
+  if tool.mutating
+    # Steps 8+9, MUTATING (§11.1): handler and attestation share one transaction; a
+    # handler failure or a failed ledger append rolls back both, and the rolled_back
+    # outcome is then recorded outside the transaction.
+    assign committed = false
+    transaction
+      # `rollback` is a valid platformOS transaction tag; the linter's HTML/Liquid
+      # parser mis-flags it inside this block. Correct at runtime.
+      # platformos-check-disable LiquidHTMLSyntaxError
+      function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: principal, agent: agent, context_meta: context_meta
+      if exec.outcome == 'success'
+        assign le['execution_outcome'] = 'success'
+        unless exec.subject_type == blank
+          assign le['subject_type'] = exec.subject_type
+          assign le['subject_id'] = exec.subject_id
+        endunless
+        assign append_ok = false
+        try
+          function _ = 'modules/mcp/commands/ledger/append', entry: le
+          assign append_ok = true
+        catch e
+          log e.message, type: 'mcp.ledger_append_failed_in_tx'
+        endtry
+        if append_ok
+          assign committed = true
+        else
+          rollback
+        endif
+      else
+        rollback
+      endif
+    endtransaction
+    # platformos-check-enable LiquidHTMLSyntaxError
+
+    unless committed
+      assign le['execution_outcome'] = 'rolled_back'
+      assign le['error_code'] = -32003
+      function _ = 'modules/mcp/commands/ledger/append', entry: le
+      assign out['outcome'] = 'rolled_back'
+      # Nothing was persisted. When the handler itself succeeded and only the
+      # attestation failed, exec still says success, so the answer must not come from it.
+      if exec.outcome == 'success'
+        assign rb_content = []
+        assign rb_item = {
+          "type": "text",
+          "text": "The action failed and was rolled back; no changes were saved."
+        }
+        assign rb_content = rb_content | array_add: rb_item
+        assign rb_result = { "content": rb_content, "isError": true }
+        assign out['result'] = rb_result
+        return out
+      endif
+      function result = 'modules/mcp/helpers/execute/result_of', exec: exec
+      assign out['result'] = result
+      return out
+    endunless
+  else
+    # Steps 8+9, READ: execute, then attest the outcome.
+    function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: principal, agent: agent, context_meta: context_meta
+    assign le['execution_outcome'] = exec.outcome
+    unless exec.subject_type == blank
+      assign le['subject_type'] = exec.subject_type
+      assign le['subject_id'] = exec.subject_id
+    endunless
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
+  endif
+
+  function result = 'modules/mcp/helpers/execute/result_of', exec: exec
+  assign out['result'] = result
+  assign out['outcome'] = exec.outcome
+  return out
+%}

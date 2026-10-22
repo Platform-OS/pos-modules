@@ -1,0 +1,45 @@
+{%- comment -%}
+  The tools an agent may use, for code running inside the app (for example an in-app
+  assistant that offers them to a model). A tool is listed when it is registered with a
+  valid manifest, the agent's allowed_tools (when set) includes it, and its
+  authorization policy admits the principal and agent with empty arguments — the same
+  rules tools/list uses with tools_list_scope 'principal', plus the allowed_tools
+  narrowing that commands/execute/invoke applies. A policy that needs arguments to
+  allow hides the tool here (fail-closed); invoke re-authorizes every call with the real
+  arguments regardless.
+
+  Each tool has the MCP wire shape (helpers/registry/present_tool): name, title?,
+  description, inputSchema, outputSchema?, annotations?, _meta.
+
+  @param {object} principal         - { id, user_id }
+  @param {object} agent             - { id, client_id, token_id?, allowed_tools? }
+  @param {string} [delegation_mode] - direct (default) | on_behalf_of
+  @return {array} the tools, in registry order
+{%- endcomment -%}
+{% liquid
+  assign tools = []
+  if principal.id == blank or agent.client_id == blank
+    return tools
+  endif
+  assign dm = delegation_mode | default: 'direct'
+  assign allowed_tools = agent.allowed_tools
+  assign narrowed = false
+  if allowed_tools != blank and allowed_tools != empty
+    assign narrowed = true
+  endif
+  assign empty_args = {}
+  function reg = 'modules/mcp/queries/registry/load'
+  for m in reg.tools
+    if narrowed
+      unless allowed_tools contains m.name
+        continue
+      endunless
+    endif
+    function az = 'modules/mcp/commands/authorize/evaluate', policy: m.authorization_policy, principal: principal, agent: agent, arguments: empty_args, tool: m, delegation_mode: dm
+    if az.allow == true
+      function t = 'modules/mcp/helpers/registry/present_tool', manifest: m
+      assign tools = tools | array_add: t
+    endif
+  endfor
+  return tools
+%}

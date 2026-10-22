@@ -1,0 +1,37 @@
+{%- comment -%}
+  One registered tool in the MCP wire shape (spec §13.1, §14.3), shared by tools/list
+  and queries/registry/for_agent: name, title (when declared), description, inputSchema
+  (from input_schema), outputSchema (from output_schema, when declared), annotations
+  (when declared), and _meta { version, deprecated }. A deprecated tool's description
+  ends with a sunset notice, so a model reading it sees it.
+
+  @param {object} manifest - a validated manifest from queries/registry/load
+  @return {object} the tool
+{%- endcomment -%}
+{% liquid
+  assign t = { "name": manifest.name }
+  unless manifest.title == blank
+    assign t['title'] = manifest.title
+  endunless
+  assign desc = manifest.description
+  if manifest.deprecated == true
+    assign sunset = manifest.sunset | default: 'a future release'
+    assign desc = desc | append: ' [DEPRECATED — will be removed in ' | append: sunset | append: '. Prefer the current version.]'
+  endif
+  assign t['description'] = desc
+  assign t['inputSchema'] = manifest.input_schema
+  unless manifest.output_schema == blank
+    assign t['outputSchema'] = manifest.output_schema
+  endunless
+  unless manifest.annotations == blank
+    assign t['annotations'] = manifest.annotations
+  endunless
+  assign meta = { "version": manifest.version }
+  assign is_dep = false
+  if manifest.deprecated == true
+    assign is_dep = true
+  endif
+  assign meta['deprecated'] = is_dep
+  assign t['_meta'] = meta
+  return t
+%}

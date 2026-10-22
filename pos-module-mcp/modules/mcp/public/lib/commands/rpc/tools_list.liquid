@@ -83,30 +83,7 @@
   assign emitted = 0
   for m in visible
     if idx >= offset and emitted < page_size
-      assign t = { "name": m.name }
-      unless m.title == blank
-        assign t['title'] = m.title
-      endunless
-      assign desc = m.description
-      if m.deprecated == true
-        assign sunset = m.sunset | default: 'a future release'
-        assign desc = desc | append: ' [DEPRECATED — will be removed in ' | append: sunset | append: '. Prefer the current version.]'
-      endif
-      assign t['description'] = desc
-      assign t['inputSchema'] = m.input_schema
-      unless m.output_schema == blank
-        assign t['outputSchema'] = m.output_schema
-      endunless
-      unless m.annotations == blank
-        assign t['annotations'] = m.annotations
-      endunless
-      assign meta = { "version": m.version }
-      assign is_dep = false
-      if m.deprecated == true
-        assign is_dep = true
-      endif
-      assign meta['deprecated'] = is_dep
-      assign t['_meta'] = meta
+      function t = 'modules/mcp/helpers/registry/present_tool', manifest: m
       assign tools_out = tools_out | array_add: t
       assign emitted = emitted | plus: 1
     endif
