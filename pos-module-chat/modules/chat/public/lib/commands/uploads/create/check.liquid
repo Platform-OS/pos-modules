@@ -8,29 +8,57 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'uploader_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'upload'
 
-  # Only a url of a file uploaded with a presign this server handed out to the current
-  # user is accepted (see modules/chat/commands/uploads/allow_presign) - anything else
-  # would let the client store any url it likes as the upload. Decoded, as S3 returns
-  # the key url-encoded. Dot segments are refused so the url can't step out of the
-  # allowed key prefix once normalized.
+  # Only a file uploaded to this instance's storage for modules/chat/uploads is accepted -
+  # anything else would let the client store any url it likes as the upload. A fresh
+  # presign tells where those files go: its upload url followed by its key, which is
+  # <instance key prefix>/<random uuid>/${filename}. The url has to be exactly that,
+  # with any uuid (it can't be guessed, so knowing a file's path is still required) and
+  # a single file name. Storage either takes the bucket in the path (dev/staging S3) or
+  # serves it as the host, the S3 response uses the same form, so both are accepted.
+  # Decoded, as S3 can return the key url-encoded.
   assign upload_type = object.upload | type_of
   assign upload_allowed = false
   if upload_type == 'String'
     assign upload = object.upload | url_decode
     assign well_formed = upload | matches: '\Ahttps://[^/?#]+/[^?#]+\z'
-    assign dot_segment = upload | matches: '/\.\.?(/|\z)'
-    if well_formed and dot_segment != true
-      function presigns = 'modules/core/commands/session/get', key: 'chat_upload_presigns', clear: null
-      for allowed_prefix in presigns
+    if well_formed
+      function presign = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
+
+      # the key without its <uuid>/${filename} end
+      assign key_segments = presign.upload_url_payload.key | append: '' | split: '/'
+      assign key_prefix_size = key_segments.size | minus: 2
+      assign key_prefix = ''
+      for segment in key_segments limit: key_prefix_size
+        assign key_prefix = key_prefix | append: segment | append: '/'
+      endfor
+
+      assign upload_url = presign.upload_url | append: ''
+      assign last_character = upload_url | slice: -1
+      if last_character == '/'
+        assign upload_url_size = upload_url.size | minus: 1
+        assign upload_url = upload_url | slice: 0, upload_url_size
+      endif
+      assign allowed_bases = [upload_url]
+      # path-style upload url (https://<s3 host>/<bucket>) - the bucket can also be the host
+      assign upload_url_segments = upload_url | split: '/'
+      if upload_url_segments.size == 4
+        assign bucket_base = 'https://' | append: upload_url_segments[3]
+        assign allowed_bases << bucket_base
+      endif
+
+      for base in allowed_bases
+        assign allowed_prefix = base | append: '/' | append: key_prefix
         assign upload_start = upload | slice: 0, allowed_prefix.size
-        if upload_start == allowed_prefix
-          assign upload_allowed = true
+        if key_prefix != blank and upload_start == allowed_prefix
+          assign upload_rest_size = upload.size | minus: allowed_prefix.size
+          assign upload_rest = upload | slice: allowed_prefix.size, upload_rest_size
+          assign upload_allowed = upload_rest | matches: '\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[^/]+\z'
           break
         endif
       endfor
     endif
   endif
-  if object.upload != blank and upload_allowed == false
+  if object.upload != blank and upload_allowed != true
     function c = 'modules/core/helpers/register_error', contract: c, field_name: 'upload', key: 'modules/chat/validation.upload_not_allowed'
   endif
 
