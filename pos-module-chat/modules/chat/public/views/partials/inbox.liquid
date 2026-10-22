@@ -1,18 +1,3 @@
-{% # platformos-check-disable MissingAsset %}
-<script type="importmap">
-  {
-    "imports": {
-      "/": "{{ 'modules/chat/js/' | asset_url }}",
-      "pos-chat.js": "{{ 'modules/chat/js/pos-chat.js' | asset_url }}",
-      "pos-chat-consumer.js": "{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}",
-      "pos-chat-csrfToken.js": "{{ 'modules/chat/js/pos-chat-csrfToken.js' | asset_url }}",
-      "pos-chat-notifications.js": "{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}",
-      "./": "./"
-    }
-  }
-</script>
-{% # platformos-check-enable MissingAsset %}
-
 <script>
   /* namespace */
   if(typeof window.pos !== 'object'){

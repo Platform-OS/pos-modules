@@ -10,7 +10,11 @@
 
 // imports
 // ------------------------------------------------------------------------
-import consumer from 'pos-chat-consumer.js';
+// relative to this file, with the same cache-busting query asset_url gave it - assets are
+// cached for years and the query is part of the cache key, so without it the consumer would
+// stay the version first loaded even after a deploy
+const assetVersion = new URL(import.meta.url).search;
+const { default: consumer } = await import(`./pos-chat-consumer.js${assetVersion}`);
 
 
 
@@ -1599,10 +1603,17 @@ window.pos.modules.chat = function(userSettings = {}){
 
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+// the import above is awaited, so the page may have finished parsing before this runs
+const startChat = () => {
   if(document.querySelector('#pos-chat-inbox')){
     window.pos.modules.active.chat = new window.pos.modules.chat({
       inbox: document.querySelector('#pos-chat-inbox'),
     });
   }
-});
+};
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', startChat);
+} else {
+  startChat();
+}

@@ -8,7 +8,7 @@ This is the **pos-module-chat** module. The monorepo-wide conventions (command p
 
 Real-time bi-directional chat over WebSockets (Rails Action Cable). The `@rails/actioncable` client is vendored at `assets/js/vendor/actioncable-<version>.esm.js` (its header says how to update it), not loaded from a CDN. Depends on `core`, `user`, `common-styling`, `push_notifications` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
 
-The distributed part is `modules/chat/` only. `app/` is a non-distributed example app (permissions overwrite, layout wiring, import map) and `tests/` is the E2E suite — neither ships when a consumer runs `pos-cli modules install chat`.
+The distributed part is `modules/chat/` only. `app/` is a non-distributed example app (permissions overwrite, layout wiring) and `tests/` is the E2E suite — neither ships when a consumer runs `pos-cli modules install chat`.
 
 ## Distinctive architecture (read before editing)
 
@@ -39,9 +39,9 @@ Action Cable channel actions are Liquid partials at `views/partials/channels/<ch
 
 Both handlers independently check the `chat.inbox` permission and then participation — do not assume `subscribed` authorization carries into `receive`.
 
-### Client JS and import map
+### Client JS
 
-`assets/js/pos-chat.js` is the main client (subscription, send, render, infinite-scroll pagination). It is **not** bundled — it's loaded via a native browser import map that the host app must declare in `<head>` before any other script (see README step 5 and `app/views/layouts`). Entry points: `pos-chat.js`, `pos-chat-consumer.js`, `pos-chat-csrfToken.js`, `pos-chat-notifications.js`. The client reads `window.pos.profile`, `window.pos.csrfToken`, and `window.pos.translations.chat`.
+`assets/js/pos-chat.js` is the main client (subscription, send, render, infinite-scroll pagination). It is **not** bundled and needs no import map: `partials/inbox.liquid` loads it with `asset_url`, and it imports `pos-chat-consumer.js` by relative path carrying its own `?updated=` query (`await import()` of `new URL(import.meta.url).search`). Assets are cached for years with the query as part of the cache key, so a relative import without it would keep serving the version first loaded after a deploy. Files that never change at a given path, like the vendored Action Cable client, have the version in their file name instead. The client reads `window.pos.profile`, `window.pos.csrfToken`, and `window.pos.translations.chat`.
 
 ## Data model (`public/schema/`)
 
