@@ -16,6 +16,15 @@
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
 
+  # re-checked on every message, not only on subscribe - a subscription opened before
+  # chat.inbox was revoked must not keep working
+  function can = 'modules/user/helpers/can_do', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null
+  unless can
+    log current_profile.id, type: 'channel_actions/conversate unauthorized'
+    echo "false"
+    break
+  endunless
+
   assign room_id = context.params.room_id
 
   function conversation = 'modules/chat/queries/conversations/find_by_participant', id: room_id, participant_id: current_profile.id, include_messages: null

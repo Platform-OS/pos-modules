@@ -37,7 +37,7 @@ Action Cable channel actions are Liquid partials at `views/partials/channels/<ch
 
   `receive` is the *only* action `WebNotificationsChannel` (the Ruby ActionCable channel backing this) dispatches to — `subscribed` is a lifecycle callback, not a `perform`-able action. A custom action name (e.g. a client calling `.perform('mark_read')`) is silently dropped server-side since no such method exists on the channel; that's why mark-read piggybacks on `receive` via a payload flag instead of being its own partial.
 
-Both handlers independently re-check participation — do not assume `subscribed` authorization carries into `receive`.
+Both handlers independently check the `chat.inbox` permission and then participation — do not assume `subscribed` authorization carries into `receive`.
 
 ### Client JS and import map
 
