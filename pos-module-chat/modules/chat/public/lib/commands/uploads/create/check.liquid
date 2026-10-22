@@ -1,9 +1,94 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
+  # the same limit the uploader enforces and the inbox states (modules/chat/upload_drop.max_size)
+  assign max_file_size = 10485760
+
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'conversation_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'uploader_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'upload'
+
+  # Only a file uploaded to this instance's storage for modules/chat/uploads is accepted -
+  # anything else would let the client store any url it likes as the upload. A fresh
+  # presign tells where those files go: its upload url followed by its key, which is
+  # <instance key prefix>/<random uuid>/${filename}. The url has to be exactly that,
+  # with any uuid (it can't be guessed, so knowing a file's path is still required) and
+  # a single file name, in any of the S3 addressing styles (see allowed_bases below).
+  # Decoded, as S3 can return the key url-encoded.
+  assign upload_type = object.upload | type_of
+  assign upload_allowed = false
+  if upload_type == 'String'
+    assign upload = object.upload | url_decode
+    assign well_formed = upload | matches: '\Ahttps://[^/?#]+/[^?#]+\z'
+    if well_formed
+      function presign = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
+
+      # the key without its <uuid>/${filename} end
+      assign key_segments = presign.upload_url_payload.key | append: '' | split: '/'
+      assign key_prefix_size = key_segments.size | minus: 2
+      assign key_prefix = ''
+      for segment in key_segments limit: key_prefix_size
+        assign key_prefix = key_prefix | append: segment | append: '/'
+      endfor
+
+      assign upload_url = presign.upload_url | append: ''
+      assign last_character = upload_url | slice: -1
+      if last_character == '/'
+        assign upload_url_size = upload_url.size | minus: 1
+        assign upload_url = upload_url | slice: 0, upload_url_size
+      endif
+      assign allowed_bases = [upload_url]
+
+      # S3 answers the upload with the file's url in the addressing style of its endpoint,
+      # which doesn't have to be the one of the upload url:
+      # - upload url https://<host>/<bucket> (path-style), file https://<bucket>/... - the
+      #   bucket served as the host
+      # - upload url https://<host>, file https://<bucket>.<host>/... (virtual-hosted) -
+      #   the bucket isn't named in the upload url, so one label in front of the host is
+      #   allowed. platformOS keeps only the key of the url, and the key has to be this
+      #   instance's for this table with its own uuid anyway.
+      assign upload_url_parts = upload_url | split: '/'
+      assign upload_host = upload_url_parts[2]
+      if upload_url_parts.size == 4
+        assign bucket_base = 'https://' | append: upload_url_parts[3]
+        assign allowed_bases << bucket_base
+      elsif upload_host != blank
+        assign upload_parts = upload | split: '/'
+        assign file_host = upload_parts[2]
+        assign upload_host_suffix = '.' | append: upload_host
+        assign label_size = file_host.size | minus: upload_host_suffix.size
+        if label_size > 0
+          assign file_host_suffix = file_host | slice: label_size, upload_host_suffix.size
+          assign label = file_host | slice: 0, label_size
+          assign label_is_single = label | matches: '\A[a-z0-9][a-z0-9-]*\z'
+          if file_host_suffix == upload_host_suffix and label_is_single
+            assign virtual_hosted_base = 'https://' | append: file_host
+            assign allowed_bases << virtual_hosted_base
+          endif
+        endif
+      endif
+
+      for base in allowed_bases
+        assign allowed_prefix = base | append: '/' | append: key_prefix
+        assign upload_start = upload | slice: 0, allowed_prefix.size
+        if key_prefix != blank and upload_start == allowed_prefix
+          assign upload_rest_size = upload.size | minus: allowed_prefix.size
+          assign upload_rest = upload | slice: allowed_prefix.size, upload_rest_size
+          assign upload_allowed = upload_rest | matches: '\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[^/]+\z'
+          break
+        endif
+      endfor
+    endif
+  endif
+  if object.upload != blank and upload_allowed != true
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'upload', key: 'modules/chat/validation.upload_not_allowed'
+  endif
+
+  function c = 'modules/core/validations/matches', c: c, object: object.metadata, field_name: 'type', regexp: '\A[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*\z', allow_blank: false, message: null
+  function c = 'modules/core/validations/presence', c: c, object: object.metadata, field_name: 'name'
+  if object.metadata.size > max_file_size
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'size', key: 'modules/chat/validation.file_too_large'
+  endif
 
   assign object.valid = c.valid
   assign object.errors = c.errors

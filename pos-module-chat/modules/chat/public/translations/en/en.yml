@@ -27,3 +27,6 @@ en:
   search:
     placeholder: Search for a person
     clear: Clear search
+  validation:
+    upload_not_allowed: is not a file uploaded through the chat
+    file_too_large: is larger than the maximum of 10 MB
