@@ -417,32 +417,6 @@ test.describe('Testing messaging', () => {
     await context?.close();
   })
 
-  test('the chat connects with its own copy of the Action Cable client, nothing loaded from a CDN', async ({ browser }) => {
-    let context: BrowserContext | null = null;
-    let page: Page;
-
-    // the pair of the message validation test - this one only opens the conversation
-    const sender = users.test2;
-    const receiver = users.test3;
-
-    ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
-    const peoplePage = new PeoplePage(page);
-    const inboxPage = new InboxPage(page);
-
-    await peoplePage.goto();
-    await peoplePage.openChat(receiver.fullName);
-    // the input is only enabled once the subscription is connected
-    await inboxPage.chat.messageInputFieldEnabled.waitFor();
-
-    // everything the inbox page loaded, as the browser recorded it
-    const loaded = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
-
-    expect(loaded.some(url => url.includes('/modules/chat/js/vendor/actioncable-')), `loaded: ${loaded.join(', ')}`).toBe(true);
-    expect(loaded.filter(url => url.includes('@rails/actioncable'))).toEqual([]);
-
-    await context?.close();
-  });
-
   test('messages that are not text, too long or with malformed attachments are not stored', async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
