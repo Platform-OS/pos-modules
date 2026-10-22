@@ -10,11 +10,11 @@
 
 // imports
 // ------------------------------------------------------------------------
-// relative to this file, with the same cache-busting query asset_url gave it - assets are
-// cached for years and the query is part of the cache key, so without it the consumer would
-// stay the version first loaded even after a deploy
-const assetVersion = new URL(import.meta.url).search;
-const { default: consumer } = await import(`./pos-chat-consumer.js${assetVersion}`);
+// the url comes from the page (asset_url in partials/inbox) instead of being built here - its
+// query is what makes a deploy reach browsers (assets are cached for years, keyed on the full
+// url), and what that query is depends on the platform, so it can't be copied from this file's
+const consumerUrl = document.querySelector('#pos-chat-inbox')?.dataset.consumerUrl || './pos-chat-consumer.js';
+const { default: consumer } = await import(consumerUrl);
 
 
 

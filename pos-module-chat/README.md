@@ -52,7 +52,7 @@ cp modules/user/public/lib/queries/role_permissions/permissions.liquid app/modul
 <link rel="stylesheet" href="{{ 'modules/chat/style/pos-chat-inbox.css' | asset_url }}">
 ```
 
-The chat's scripts load each other by relative paths, so no import map is needed. If your layout still has the `<script type="importmap">` block with the `pos-chat*.js` entries from an earlier version of this module, remove those entries. Its `"/"` entry could break your app's own module imports.
+The chat's scripts load each other without an import map, so none is needed. If your layout still has the `<script type="importmap">` block with the `pos-chat*.js` entries from an earlier version of this module, remove those entries. Its `"/"` entry could break your app's own module imports.
 
 ### Managing Module Files
 

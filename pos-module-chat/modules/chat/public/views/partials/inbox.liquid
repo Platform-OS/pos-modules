@@ -47,6 +47,7 @@
 <div
   id="pos-chat-inbox"
   data-conversation-id="{{ current_conversation.id }}"
+  data-consumer-url="{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}"
   class="pos-app {% if current_conversation %} pos-chat-inbox-conversation-active {% endif %}"
 >
 
