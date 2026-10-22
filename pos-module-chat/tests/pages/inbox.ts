@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './page';
 import { UppyUploader } from './components/uppyUploader';
 import path from 'path';
@@ -328,8 +328,14 @@ class Chat {
     await this.messageInputFieldEnabled.waitFor();
 
     for (const fileName of fileNames) {
+      // the file goes to S3 first, then its record is saved - a failure there only shows
+      // as a generic toast, so the response is checked here to report why
+      const recordSaved = this.page.waitForResponse(response => response.url().includes('/api/chat/uploads') && response.request().method() === 'POST');
       await this.uploadInput.setInputFiles(path.join(__dirname, '..', 'data', 'files', fileName));
       await this.uploader.waitForUploadComplete(fileName);
+
+      const response = await recordSaved;
+      expect(response.ok(), `saving the upload record for ${fileName} failed: ${response.status()} ${await response.text()} (request: ${response.request().postData()})`).toBe(true);
     }
   }
 
