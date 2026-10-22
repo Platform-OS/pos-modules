@@ -1,9 +1,44 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
+  # the same limit the uploader enforces and the inbox states (modules/chat/upload_drop.max_size)
+  assign max_file_size = 10485760
+
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'conversation_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'uploader_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'upload'
+
+  # Only a url of a file uploaded with a presign this server handed out to the current
+  # user is accepted (see modules/chat/commands/uploads/allow_presign) - anything else
+  # would let the client store any url it likes as the upload. Decoded, as S3 returns
+  # the key url-encoded. Dot segments are refused so the url can't step out of the
+  # allowed key prefix once normalized.
+  assign upload_type = object.upload | type_of
+  assign upload_allowed = false
+  if upload_type == 'String'
+    assign upload = object.upload | url_decode
+    assign well_formed = upload | matches: '\Ahttps://[^/?#]+/[^?#]+\z'
+    assign dot_segment = upload | matches: '/\.\.?(/|\z)'
+    if well_formed and dot_segment != true
+      function presigns = 'modules/core/commands/session/get', key: 'chat_upload_presigns', clear: null
+      for allowed_prefix in presigns
+        assign upload_start = upload | slice: 0, allowed_prefix.size
+        if upload_start == allowed_prefix
+          assign upload_allowed = true
+          break
+        endif
+      endfor
+    endif
+  endif
+  if object.upload != blank and upload_allowed == false
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'upload', key: 'modules/chat/validation.upload_not_allowed'
+  endif
+
+  function c = 'modules/core/validations/matches', c: c, object: object.metadata, field_name: 'type', regexp: '\A[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*\z', allow_blank: false, message: null
+  function c = 'modules/core/validations/presence', c: c, object: object.metadata, field_name: 'name'
+  if object.metadata.size > max_file_size
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'size', key: 'modules/chat/validation.file_too_large'
+  endif
 
   assign object.valid = c.valid
   assign object.errors = c.errors

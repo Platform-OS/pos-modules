@@ -17,6 +17,8 @@ slug: inbox
 
     function presigned_upload = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
     assign context.presigned_upload = presigned_upload
+    # lets modules/chat/commands/uploads/create accept files uploaded with this presign only
+    function _presigns = 'modules/chat/commands/uploads/allow_presign', presigned_upload: presigned_upload
   endif
   if current_conversation.valid == false
     assign current_conversation = null
