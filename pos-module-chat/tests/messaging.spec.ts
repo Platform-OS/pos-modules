@@ -429,20 +429,16 @@ test.describe('Testing messaging', () => {
     const peoplePage = new PeoplePage(page);
     const inboxPage = new InboxPage(page);
 
-    const scripts: string[] = [];
-    page.on('request', request => {
-      if (request.resourceType() === 'script') {
-        scripts.push(request.url());
-      }
-    });
-
     await peoplePage.goto();
     await peoplePage.openChat(receiver.fullName);
     // the input is only enabled once the subscription is connected
     await inboxPage.chat.messageInputFieldEnabled.waitFor();
 
-    expect(scripts.some(url => url.includes('/modules/chat/js/vendor/actioncable-'))).toBe(true);
-    expect(scripts.filter(url => url.includes('@rails/actioncable'))).toEqual([]);
+    // everything the inbox page loaded, as the browser recorded it
+    const loaded = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
+
+    expect(loaded.some(url => url.includes('/modules/chat/js/vendor/actioncable-')), `loaded: ${loaded.join(', ')}`).toBe(true);
+    expect(loaded.filter(url => url.includes('@rails/actioncable'))).toEqual([]);
 
     await context?.close();
   });
