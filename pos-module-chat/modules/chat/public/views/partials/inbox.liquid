@@ -31,7 +31,27 @@
     }
   }
 </script>
-<script type="module" defer src="{{ 'modules/chat/js/pos-chat.js' | asset_url }}"></script>
+<script>
+  /* loads and starts the chat the same way common-styling's init loads its modules - every url
+     comes from asset_url, so a deploy reaches browsers despite the long asset caching */
+  document.addEventListener('DOMContentLoaded', () => {
+    const inbox = document.querySelector('#pos-chat-inbox');
+
+    if(!inbox){
+      return;
+    }
+
+    Promise.all([
+      import('{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}'),
+      import('{{ 'modules/chat/js/pos-chat.js' | asset_url }}')
+    ]).then(([consumer]) => {
+      window.pos.modules.active.chat = new window.pos.modules.chat({
+        inbox: inbox,
+        consumer: consumer.default
+      });
+    });
+  });
+</script>
 
 <!-- message templates -->
 {% assign dummy_message = { "message": "", "created_at": null } %}
@@ -47,7 +67,6 @@
 <div
   id="pos-chat-inbox"
   data-conversation-id="{{ current_conversation.id }}"
-  data-consumer-url="{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}"
   class="pos-app {% if current_conversation %} pos-chat-inbox-conversation-active {% endif %}"
 >
 
