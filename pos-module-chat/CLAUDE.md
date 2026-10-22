@@ -6,7 +6,7 @@ This is the **pos-module-chat** module. The monorepo-wide conventions (command p
 
 ## What this module does
 
-Real-time bi-directional chat over WebSockets (Rails Action Cable, via the `actioncable` npm client). Depends on `core`, `user`, `common-styling`, `push_notifications` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
+Real-time bi-directional chat over WebSockets (Rails Action Cable). The `@rails/actioncable` client is vendored at `assets/js/vendor/actioncable-<version>.esm.js` (its header says how to update it), not loaded from a CDN. Depends on `core`, `user`, `common-styling`, `push_notifications` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
 
 The distributed part is `modules/chat/` only. `app/` is a non-distributed example app (permissions overwrite, layout wiring, import map) and `tests/` is the E2E suite — neither ships when a consumer runs `pos-cli modules install chat`.
 
