@@ -30,3 +30,6 @@ en:
   validation:
     upload_not_allowed: is not a file uploaded through the chat
     file_too_large: is larger than the maximum of 10 MB
+    message_not_text: has to be text
+    message_too_long: is longer than the maximum of %{count} characters
+    media_not_list: has to be a list of attachments

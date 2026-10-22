@@ -51,12 +51,23 @@
       # array of ids (media is no longer a JSON blob of attachment details/URLs -
       # those are resolved fresh, with a signed time-limited URL, on every read -
       # see modules/chat/queries/messages/with_media).
+      # media that isn't a list goes to the command as is, which rejects it
       assign requested_ids = []
-      if context.params.media
-        assign requested_ids = context.params.media | map: 'id' | array_compact
+      assign requested_media = context.params.media
+      assign requested_media_type = requested_media | type_of
+      if requested_media != blank and requested_media_type == 'Array'
+        for item in requested_media
+          assign item_type = item | type_of
+          if item_type == 'Hash' and item.id != blank
+            assign requested_ids << item.id
+          endif
+        endfor
       endif
 
       assign media_ids = []
+      if requested_media != blank and requested_media_type != 'Array'
+        assign media_ids = requested_media
+      endif
       # the same attachments, resolved from the records, for the live broadcast below
       assign attachments = []
       if requested_ids.size > 0

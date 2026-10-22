@@ -416,4 +416,52 @@ test.describe('Testing messaging', () => {
 
     await context?.close();
   })
+
+  test('messages that are not text, too long or with malformed attachments are not stored', async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // a pair no other test uses, so nothing here shows up in their conversations
+    const sender = users.test2;
+    const receiver = users.test3;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
+    const peoplePage = new PeoplePage(page);
+    const inboxPage = new InboxPage(page);
+
+    await peoplePage.goto();
+    await peoplePage.openChat(receiver.fullName);
+    await inboxPage.chat.messageInputFieldEnabled.waitFor();
+    const conversationId = await inboxPage.currentConversationId();
+
+    const marker = `message validation ${Date.now()}`;
+
+    await test.step('the message input is limited to the length the server accepts', async () => {
+      await expect(inboxPage.chat.messageInputField).toHaveAttribute('maxlength', '10000');
+    });
+
+    await test.step('malformed messages sent straight over the channel are dropped', async () => {
+      // bypasses the input, the same way a modified client could
+      await page.evaluate((marker) => {
+        const channel = (window as any).pos.modules.active.chat.channel;
+        channel.send({ message: `${marker} too long ` + 'x'.repeat(10000) });
+        channel.send({ message: { text: `${marker} not text` } });
+        channel.send({ message: `${marker} media not a list`, media: 'not-a-list' });
+      }, marker);
+
+      // sent after the malformed ones, so they've been handled by the time it shows up
+      const validMessage = `${marker} valid`;
+      expect(await inboxPage.chat.sendMessage(validMessage)).toBe(true);
+
+      const stored = await page.evaluate(async (conversationId) => {
+        const response = await fetch(`/api/chat/messages.json?conversation_id=${conversationId}&page=1&per_page=20`);
+        return (await response.json()).results.map((message: any) => String(message.message));
+      }, conversationId);
+
+      const fromThisTest = stored.filter((text: string) => text.includes(marker));
+      expect(fromThisTest).toEqual([validMessage]);
+    });
+
+    await context?.close();
+  });
 });

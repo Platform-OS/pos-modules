@@ -1,11 +1,32 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
+  # the same limit the message input has (maxlength in partials/inbox)
+  assign max_message_length = 10000
+
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'conversation_id'
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'autor_id'
 
   if object.message == blank and object.media == blank
     function c = 'modules/core/helpers/register_error', contract: c, field_name: 'message', key: 'modules/core/validation.blank'
+  endif
+
+  # the message comes straight from the WebSocket payload, which can carry any JSON value
+  if object.message != blank
+    assign message_type = object.message | type_of
+    if message_type != 'String'
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'message', key: 'modules/chat/validation.message_not_text'
+    elsif object.message.size > max_message_length
+      assign too_long = 'modules/chat/validation.message_too_long' | t: count: max_message_length
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'message', message: too_long
+    endif
+  endif
+
+  if object.media != blank
+    assign media_type = object.media | type_of
+    if media_type != 'Array'
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'media', key: 'modules/chat/validation.media_not_list'
+    endif
   endif
 
   assign object.valid = c.valid
