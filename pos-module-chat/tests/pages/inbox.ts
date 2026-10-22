@@ -335,7 +335,9 @@ class Chat {
       await this.uploader.waitForUploadComplete(fileName);
 
       const response = await recordSaved;
-      expect(response.ok(), `saving the upload record for ${fileName} failed: ${response.status()} ${await response.text()} (request: ${response.request().postData()})`).toBe(true);
+      // the presign the file was uploaded with, rendered on the uploader by common-styling
+      const presign = await this.page.locator('#chat-upload').evaluate(element => ({ url: element.getAttribute('data-upload-url'), key: element.getAttribute('data-request-key') }));
+      expect(response.ok(), `saving the upload record for ${fileName} failed: ${response.status()} ${await response.text()} (request: ${response.request().postData()}, presign: ${JSON.stringify(presign)})`).toBe(true);
     }
   }
 
