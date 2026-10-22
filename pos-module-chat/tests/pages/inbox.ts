@@ -337,7 +337,9 @@ class Chat {
       const response = await recordSaved;
       // the presign the file was uploaded with, rendered on the uploader by common-styling
       const presign = await this.page.locator('#chat-upload').evaluate(element => ({ url: element.getAttribute('data-upload-url'), key: element.getAttribute('data-request-key') }));
-      expect(response.ok(), `saving the upload record for ${fileName} failed: ${response.status()} ${await response.text()} (request: ${response.request().postData()}, presign: ${JSON.stringify(presign)})`).toBe(true);
+      // an error page's HTML says nothing useful, only its status is worth reporting
+      const body = (await response.text()).startsWith('<') ? '(error page)' : await response.text();
+      expect(response.ok(), `saving the upload record for ${fileName} failed: ${response.status()} ${body} (request: ${response.request().postData()}, presign: ${JSON.stringify(presign)})`).toBe(true);
     }
   }
 

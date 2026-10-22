@@ -40,26 +40,31 @@
       assign allowed_bases = [upload_url]
 
       # S3 answers the upload with the file's url in the addressing style of its endpoint,
-      # which doesn't have to be the one of the upload url - path-style
-      # (https://<host>/<bucket>), virtual-hosted (https://<bucket>.<host>) or the bucket
-      # itself as the host. The bucket is the one the presign's signed policy is for.
+      # which doesn't have to be the one of the upload url:
+      # - upload url https://<host>/<bucket> (path-style), file https://<bucket>/... - the
+      #   bucket served as the host
+      # - upload url https://<host>, file https://<bucket>.<host>/... (virtual-hosted) -
+      #   the bucket isn't named in the upload url, so one label in front of the host is
+      #   allowed. platformOS keeps only the key of the url, and the key has to be this
+      #   instance's for this table with its own uuid anyway.
       assign upload_url_parts = upload_url | split: '/'
       assign upload_host = upload_url_parts[2]
-      assign policy = presign.upload_url_payload.policy | base64_decode | parse_json
-      assign bucket = ''
-      for condition in policy.conditions
-        if condition.bucket
-          assign bucket = condition.bucket
-        endif
-      endfor
-      if bucket != blank and upload_host != blank
-        assign path_style_base = 'https://' | append: upload_host | append: '/' | append: bucket
-        assign virtual_hosted_base = 'https://' | append: bucket | append: '.' | append: upload_host
-        assign allowed_bases << path_style_base
-        assign allowed_bases << virtual_hosted_base
-        if bucket contains '.'
-          assign bucket_base = 'https://' | append: bucket
-          assign allowed_bases << bucket_base
+      if upload_url_parts.size == 4
+        assign bucket_base = 'https://' | append: upload_url_parts[3]
+        assign allowed_bases << bucket_base
+      elsif upload_host != blank
+        assign upload_parts = upload | split: '/'
+        assign file_host = upload_parts[2]
+        assign upload_host_suffix = '.' | append: upload_host
+        assign label_size = file_host.size | minus: upload_host_suffix.size
+        if label_size > 0
+          assign file_host_suffix = file_host | slice: label_size, upload_host_suffix.size
+          assign label = file_host | slice: 0, label_size
+          assign label_is_single = label | matches: '\A[a-z0-9][a-z0-9-]*\z'
+          if file_host_suffix == upload_host_suffix and label_is_single
+            assign virtual_hosted_base = 'https://' | append: file_host
+            assign allowed_bases << virtual_hosted_base
+          endif
         endif
       endif
 
