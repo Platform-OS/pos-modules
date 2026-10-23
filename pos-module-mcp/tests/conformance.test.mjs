@@ -111,8 +111,8 @@ describe('conformance · protocol + governance pipeline', () => {
       const r = await rpc({ jsonrpc: '2.0', id: 9, method: m, params: {} }, { token: 'wrong' });
       ok(`bad token on ${m} → 401 invalid_token`, r.status === 401 && /error="invalid_token"/.test(r.headers.get('www-authenticate') || ''), `status=${r.status}`);
     }
-    const openList = await rpc({ jsonrpc: '2.0', id: 10, method: 'tools/list' });
-    ok('no token on tools/list → still open (200)', openList.status === 200 && Array.isArray(openList.json?.result?.tools));
+    const noTokList = await rpc({ jsonrpc: '2.0', id: 10, method: 'tools/list' });
+    ok('no token on tools/list → 401 with the sign-in challenge (default)', noTokList.status === 401 && /Bearer resource_metadata=/.test(noTokList.headers.get('www-authenticate') || ''), `status=${noTokList.status}`);
     const goodList = await rpc({ jsonrpc: '2.0', id: 11, method: 'tools/list' }, { token: RAW_TOKEN });
     ok('valid token on tools/list → 200', goodList.status === 200 && Array.isArray(goodList.json?.result?.tools));
     const wk = await fetch(base + '.well-known/oauth-protected-resource').then(r => r.json());
@@ -120,7 +120,7 @@ describe('conformance · protocol + governance pipeline', () => {
   });
 
   it('Discovery / tools/list (§14)', async () => {
-    const list = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    const list = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, { token: RAW_TOKEN });
     const tools = list.json?.result?.tools || [];
     const t = tools.find(x => x.name === 'search_events');
     ok('tools/list includes search_events', !!t);
@@ -168,6 +168,8 @@ describe('conformance · protocol + governance pipeline', () => {
   });
 
   it('Resources (§3.2, config-gated)', async () => {
+    // Engine markdown pages for an anonymous caller: only while discovery is open.
+    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
     const off = await rpc({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
     ok('resources OFF by default → empty', (off.json?.result?.resources || []).length === 0);
 
@@ -186,7 +188,7 @@ describe('conformance · protocol + governance pipeline', () => {
     try { await pagesDeleteByPrefix(liquidSlug); } catch {} // fixed slug → delete any leftover first
     await pageCreate(liquidSlug, '{% comment %}' + liquidMarker + '{% endcomment %}', 'Conformance Liquid');
 
-    await setConstant('MCP_CONFIG', JSON.stringify({ resources: { expose_markdown_pages: true } }));
+    await setConstant('MCP_CONFIG', JSON.stringify({ resources: { expose_markdown_pages: true }, oauth: { challenge_initialize: false } }));
     // Allow a beat for the new page + constant to become visible (poll, don't sleep-guess).
     let onRes = [];
     for (let a = 0; a < 6; a++) {
@@ -211,6 +213,8 @@ describe('conformance · protocol + governance pipeline', () => {
   });
 
   it('Prompts (§13.1)', async () => {
+    // Compares an anonymous caller with a signed-in one: only while discovery is open.
+    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
     const list = await rpc({ jsonrpc: '2.0', id: 1, method: 'prompts/list' });
     const prompts = list.json?.result?.prompts || [];
     const p = prompts.find(x => x.name === 'draft_announcement');
@@ -317,9 +321,9 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     const modernInit = await send('initialize', { protocolVersion: '2025-06-18' }, { token: RAW_TOKEN });
     ok('initialize carrying modern _meta still gets the legacy handshake', modernInit.status === 200 && modernInit.json?.result?.protocolVersion === '2025-06-18', `status=${modernInit.status}`);
 
-    const tl = await rpc({ jsonrpc: '2.0', id: 4, method: 'tools/list', params: {} });
+    const tl = await rpc({ jsonrpc: '2.0', id: 4, method: 'tools/list', params: {} }, { token: RAW_TOKEN });
     ok('version-less tools/list → no ttlMs, cacheScope or resultType', tl.status === 200 && tl.json?.result?.ttlMs === undefined && tl.json?.result?.cacheScope === undefined && tl.json?.result?.resultType === undefined);
-    const hdr25 = await rpcH({ jsonrpc: '2.0', id: 5, method: 'tools/list', params: {} }, { 'MCP-Protocol-Version': '2025-06-18' });
+    const hdr25 = await rpcH({ jsonrpc: '2.0', id: 5, method: 'tools/list', params: {} }, { 'MCP-Protocol-Version': '2025-06-18', Authorization: 'Bearer ' + RAW_TOKEN });
     ok('MCP-Protocol-Version 2025-06-18 header → served as legacy', hdr25.status === 200 && Array.isArray(hdr25.json?.result?.tools) && hdr25.json?.result?.resultType === undefined);
     const ping = await rpc({ jsonrpc: '2.0', id: 6, method: 'ping' });
     ok('legacy ping → empty result', ping.status === 200 && ping.json?.result && Object.keys(ping.json.result).length === 0);
@@ -327,7 +331,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     ok('server/discover is not a legacy method → 200 -32601', disc.status === 200 && disc.json?.error?.code === -32601, `status=${disc.status} code=${disc.json?.error?.code}`);
     const tasks = await rpc({ jsonrpc: '2.0', id: 8, method: 'tasks/get', params: { taskId: 'x' } });
     ok('tasks/get is not a legacy method → -32601', tasks.json?.error?.code === -32601);
-    const rr = await rpc({ jsonrpc: '2.0', id: 9, method: 'resources/read', params: { uri: 'mcp+page:///no-such-page' } });
+    const rr = await rpc({ jsonrpc: '2.0', id: 9, method: 'resources/read', params: { uri: 'mcp+page:///no-such-page' } }, { token: RAW_TOKEN });
     ok('legacy unknown resource keeps -32002', rr.json?.error?.code === -32002, 'code=' + rr.json?.error?.code);
   });
 
@@ -383,6 +387,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
       const r = await send(m, {}, { token: 'wrong' });
       ok(`bad token on ${m} → 401 invalid_token`, r.status === 401 && /error="invalid_token"/.test(r.headers.get('www-authenticate') || ''), `status=${r.status}`);
     }
+    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
     const anon = await send('prompts/list');
     ok('anonymous prompts/list → cacheScope public', anon.json?.result?.cacheScope === 'public', `scope=${anon.json?.result?.cacheScope}`);
     const authed = await send('prompts/list', {}, { token: RAW_TOKEN });
@@ -390,6 +395,8 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
   });
 
   it('modern results — resultType on every result, spec cache scopes', async () => {
+    // The public cache scope is what an anonymous caller gets: only while discovery is open.
+    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
     const tl = await send('tools/list');
     ok('tools/list → resultType complete', tl.json?.result?.resultType === 'complete', tl.text.slice(0, 120));
     ok('open tools/list → ttlMs + cacheScope public', typeof tl.json?.result?.ttlMs === 'number' && tl.json?.result?.cacheScope === 'public', `scope=${tl.json?.result?.cacheScope}`);
@@ -408,7 +415,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     const legacyCall = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'search_events', arguments: { query: CONF_KEYWORD } } }, { token: RAW_TOKEN });
     ok('legacy tools/call → no resultType', legacyCall.json?.result && legacyCall.json.result.resultType === undefined);
 
-    const rr = await send('resources/read', { uri: 'mcp+page:///no-such-page' });
+    const rr = await send('resources/read', { uri: 'mcp+page:///no-such-page' }, { token: RAW_TOKEN });
     ok('modern unknown resource → -32602 (2026-07-28 retired -32002)', rr.json?.error?.code === -32602, 'code=' + rr.json?.error?.code);
   });
 
@@ -439,7 +446,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     const unpadded = await send('tools/call', args, { token: RAW_TOKEN, headers: { 'Mcp-Name': '=?base64?YQ?=' } });
     ok('unpadded Base64 in Mcp-Name → 400 -32020', unpadded.status === 400 && unpadded.json?.error?.code === -32020, `status=${unpadded.status}`);
 
-    const unicode = await send('prompts/get', { name: 'zażółć_prompt', arguments: {} });
+    const unicode = await send('prompts/get', { name: 'zażółć_prompt', arguments: {} }, { token: RAW_TOKEN });
     ok('a non-ASCII prompt name travels Base64-encoded and passes the header check', unicode.json?.error?.code !== -32020 && unicode.status !== 500, `status=${unicode.status} code=${unicode.json?.error?.code}`);
     const promptWrong = await send('prompts/get', { name: 'one', arguments: {} }, { headers: { 'Mcp-Name': 'two' } });
     ok('prompts/get Mcp-Name mismatch → 400 -32020', promptWrong.status === 400 && promptWrong.json?.error?.code === -32020);
@@ -457,20 +464,31 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     }
   });
 
-  it('connect-time OAuth challenge (on by default) covers initialize and server/discover', async () => {
+  it('OAuth sign-in challenge (on by default) covers connect and discovery methods', async () => {
     const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
     ok('default → initialize without a bearer → 401 + WWW-Authenticate', init.status === 401 && /resource_metadata=/.test(init.headers.get('www-authenticate') || ''), `status=${init.status}`);
     const disc = await send('server/discover');
     ok('default → server/discover without a bearer → 401 + WWW-Authenticate', disc.status === 401 && /resource_metadata=/.test(disc.headers.get('www-authenticate') || ''), `status=${disc.status}`);
     const discAuthed = await send('server/discover', {}, { token: RAW_TOKEN });
     ok('default → server/discover with a bearer → 200', discAuthed.status === 200 && discAuthed.json?.result?.resultType === 'complete', `status=${discAuthed.status}`);
-    const list = await send('tools/list');
-    ok('default → other discovery stays open (tools/list 200)', list.status === 200);
+    for (const m of ['tools/list', 'prompts/list', 'prompts/get', 'resources/list', 'resources/templates/list', 'resources/read']) {
+      const params = m === 'prompts/get' ? { name: 'draft_announcement', arguments: {} } : m === 'resources/read' ? { uri: 'mcp+page:///docs/mcp-conformance' } : {};
+      const legacyAnon = await rpc({ jsonrpc: '2.0', id: 3, method: m, params });
+      ok(`default → ${m} without a bearer → 401 + WWW-Authenticate (legacy)`, legacyAnon.status === 401 && /resource_metadata=/.test(legacyAnon.headers.get('www-authenticate') || ''), `status=${legacyAnon.status}`);
+      const modernAnon = await send(m, params);
+      ok(`default → ${m} without a bearer → 401 + WWW-Authenticate (modern)`, modernAnon.status === 401 && /resource_metadata=/.test(modernAnon.headers.get('www-authenticate') || ''), `status=${modernAnon.status}`);
+    }
+    const authedList = await send('tools/list', {}, { token: RAW_TOKEN });
+    ok('default → tools/list with a bearer → 200 with tools', authedList.status === 200 && (authedList.json?.result?.tools || []).length > 0, `status=${authedList.status}`);
+    const ping = await rpc({ jsonrpc: '2.0', id: 4, method: 'ping' });
+    ok('default → ping without a bearer stays open (200)', ping.status === 200);
     await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
     const openInit = await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: {} });
     ok('challenge off → initialize without a bearer → 200', openInit.status === 200 && openInit.json?.result?.protocolVersion === '2025-06-18', `status=${openInit.status}`);
     const openDisc = await send('server/discover');
     ok('challenge off → server/discover without a bearer → 200', openDisc.status === 200, `status=${openDisc.status}`);
+    const openList = await rpc({ jsonrpc: '2.0', id: 5, method: 'tools/list' });
+    ok('challenge off → tools/list without a bearer → 200 (discovery open)', openList.status === 200 && Array.isArray(openList.json?.result?.tools), `status=${openList.status}`);
     await unsetConstant('MCP_CONFIG');
   });
 

@@ -11,8 +11,9 @@
   appended to its description so a model reading the list sees it. Excluded/invalid
   manifests never appear here (§8.1).
 
-  Open method (per MCP): listing tools does not require auth; EXECUTION does
-  (tools/call). Listing is not ledgered (pre-action discovery, §9.3).
+  Listing is not ledgered (pre-action discovery, §9.3). rpc/dispatch answers 401 to a
+  caller without a bearer first while MCP_CONFIG.oauth.challenge_initialize is on (the
+  default); with it off, listing needs no token and only EXECUTION does (tools/call).
 
   VISIBILITY SCOPE (config.tools_list_scope, resolved in dispatch):
     - absent / 'open'  → advertise every registered tool (default, legacy behavior).

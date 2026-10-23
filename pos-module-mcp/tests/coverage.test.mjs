@@ -122,7 +122,8 @@ describe('coverage · multi-principal governance planes', () => {
       const memN = await listNames(mem.rawToken);
       ok('open mode: member sees test_admin (nothing filtered)', memN.includes('test_admin'));
     }
-    await setConstant('MCP_CONFIG', JSON.stringify({ tools_list_scope: 'principal' }));
+    // The anonymous view of a principal-scoped list exists only while discovery is open.
+    await setConstant('MCP_CONFIG', JSON.stringify({ tools_list_scope: 'principal', oauth: { challenge_initialize: false } }));
     {
       const tiers = ['test_public', 'test_member', 'test_admin'];
       const opN = await listNames(op.rawToken);
@@ -764,6 +765,9 @@ describe('coverage · multi-principal governance planes', () => {
     };
     const ledgerStart = Math.max(0, ...(await readLedger()).map(r => Number(r.id)));
 
+    // The provider must never serve a caller without a token. Such a caller reaches the
+    // provider only while discovery is open (by default it gets the sign-in 401).
+    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
     const anon = await list(null);
     ok('anonymous list → no provider resources', anon.status === 200 && !(anon.json?.result?.resources || []).some(r => r.uri.startsWith('test-note://')), anon.text.slice(0, 160));
     const anonTemplates = await templates(null);

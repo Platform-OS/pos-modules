@@ -109,10 +109,12 @@
   #      WWW-Authenticate challenge (RFC 6750 §3.1; MCP authorization: invalid or expired
   #      tokens MUST receive HTTP 401), so a client learns to re-authenticate instead of
   #      seeing an empty tool list. A request WITHOUT a bearer stays open, except the
-  #      connect-time challenge (MCP_CONFIG.oauth.challenge_initialize, on by default): most MCP
-  #      clients only start the authorization flow when the connection itself answers 401,
-  #      so `initialize` (legacy) or `server/discover` (modern) without a valid bearer gets
-  #      the RFC 9728 challenge. tools/call and tasks/* authenticate inside their handlers.
+  #      sign-in challenge (MCP_CONFIG.oauth.challenge_initialize, on by default): most MCP
+  #      clients only start the authorization flow when they get a 401, so the connect
+  #      methods (`initialize`, `server/discover`) and the discovery methods that return the
+  #      app's tools, prompts or resources answer the RFC 9728 challenge instead of an empty
+  #      list. `ping` and notifications stay open. tools/call and tasks/* authenticate
+  #      inside their handlers.
   #      The identity resolved here is passed to the router so it is looked up once.
   assign auth_header = headers.HTTP_AUTHORIZATION | default: '' | downcase
   assign presented = false
@@ -123,15 +125,12 @@
   if method == 'tools/call' or method == 'tasks/get' or method == 'tasks/update' or method == 'tasks/cancel'
     assign self_authenticating = true
   endif
-  assign connect_method = false
-  if method == 'initialize' or method == 'server/discover'
-    assign connect_method = true
-  endif
+  assign challenged_methods = 'initialize,server/discover,tools/list,prompts/list,prompts/get,resources/list,resources/templates/list,resources/read' | split: ','
   assign must_authenticate = false
   if presented and self_authenticating == false
     assign must_authenticate = true
   endif
-  if connect_method and cfg.oauth.challenge_initialize == true
+  if cfg.oauth.challenge_initialize == true and challenged_methods contains method
     assign must_authenticate = true
   endif
   assign identity = null

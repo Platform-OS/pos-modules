@@ -1,0 +1,72 @@
+{%- comment -%}
+  Run the app's approved hook (config.oauth_approved_partial, default
+  'mcp/oauth/approved'; docs/oauth.md) after a person approved a client and its code was
+  issued. Only the consent decision page calls it, after its CSRF, session, permission
+  and Approve checks.
+
+  The hook gets data only, and nothing it returns changes the authorization:
+  - user_id: the person who approved;
+  - client { client_id, client_name, client_kind, redirect_host }: from the request
+    parked in the session, never from the form;
+  - shown: true when the approval page showed the app's fields (recorded in the session
+    when the page was rendered), so "nothing ticked" and "no fields shown" differ;
+  - fields: for each field the page showed, the ticked values as an array of strings
+    (empty when none is ticked). Other submitted keys are dropped. The values come
+    from the person's browser: the hook must check each one.
+
+  An app without the hook: nothing happens. A hook that raises is logged
+  (mcp.oauth_approved_hook_failed) and the sign-in still completes.
+
+  @param {object} req       - the parked, validated authorization request
+  @param {string} user_id   - the person who approved
+  @param {object} submitted - context.params.consent (untrusted)
+  @return {object} { available, failed }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign partial = cfg.oauth_approved_partial | default: 'mcp/oauth/approved'
+
+  function ru = 'modules/mcp/helpers/oauth/parse_url', url: req.redirect_uri
+  assign client = { "client_id": req.client_id, "client_name": req.client_name, "client_kind": req.client_kind, "redirect_host": ru.host }
+
+  assign shown_names = req.consent_fields
+  assign shown_type = shown_names | type_of | downcase
+  if shown_type != 'array'
+    assign shown_names = []
+  endif
+  assign shown = false
+  if shown_names.size > 0
+    assign shown = true
+  endif
+
+  assign fields = {}
+  for name in shown_names
+    assign raw = submitted[name]
+    assign raw_type = raw | type_of | downcase
+    assign values = []
+    if raw_type == 'array'
+      for v in raw limit: 200
+        assign sv = v | append: '' | truncate: 200, ''
+        assign values = values | array_add: sv
+      endfor
+    elsif raw_type == 'string' and raw != blank
+      assign sv = raw | truncate: 200, ''
+      assign values = values | array_add: sv
+    endif
+    assign fields[name] = values
+  endfor
+
+  assign out = { "available": true, "failed": false }
+  assign absent_message = 'find partial "' | append: partial | append: '"'
+  try
+    function _ = partial, user_id: user_id, client: client, shown: shown, fields: fields
+  catch e
+    if e.message contains absent_message
+      assign out['available'] = false
+    else
+      assign out['failed'] = true
+      log e.message, type: 'mcp.oauth_approved_hook_failed'
+    endif
+  endtry
+  return out
+%}

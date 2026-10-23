@@ -66,8 +66,9 @@
       function result = 'modules/mcp/commands/rpc/ping'
       assign handled = true
     when 'tools/list'
-      # Discovery stays OPEN for a caller without a bearer. A presented bearer was already
-      # verified by dispatch (an invalid one answered 401 there). When tools_list_scope is
+      # A caller without a bearer reaches here only while oauth.challenge_initialize is off
+      # (dispatch challenges it otherwise). A presented bearer was already verified by
+      # dispatch (an invalid one answered 401 there). When tools_list_scope is
       # 'principal', the list is filtered to what this caller may call; a caller without a
       # bearer is 'anonymous' and is advertised nothing. 'open' lists every tool.
       assign tl_scope = cfg.tools_list_scope | default: 'open'

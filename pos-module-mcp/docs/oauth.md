@@ -14,11 +14,15 @@ off; only manual tokens then work.
 
 1. The client calls `/mcp` without a token and gets `401` with
    `WWW-Authenticate: Bearer resource_metadata="<origin>/.well-known/oauth-protected-resource"`.
-   `initialize` / `server/discover` answer this 401 by default
-   (`oauth.challenge_initialize`), because most clients (Claude, Grok) only start the flow
-   on a 401 at connect time. `tools/call` and the Tasks methods always require a token.
-   With `challenge_initialize: false` the handshake stays open, and a client that does not
-   start the flow by itself connects without tools it can call.
+   By default (`oauth.challenge_initialize`) every request without a token that would
+   return the app's content answers this 401: the connect methods `initialize` /
+   `server/discover` and the discovery methods `tools/list`, `prompts/list`,
+   `prompts/get`, `resources/list`, `resources/templates/list` and `resources/read`.
+   Most clients (Claude, Grok, ChatGPT) only start the flow on a 401, and an empty tool
+   list would look like a server without tools. `ping` and notifications stay open.
+   `tools/call` and the Tasks methods always require a token. With
+   `challenge_initialize: false` the handshake and discovery stay open, and a client that
+   does not start the flow by itself connects without tools it can call.
 2. It reads the protected-resource metadata (RFC 9728), then the authorization-server
    metadata (RFC 8414).
 3. It identifies itself with a **Client ID Metadata Document** (`client_id` is an https
@@ -105,6 +109,59 @@ loopback host, or a private-use app scheme, without a fragment. Registration is 
 limited per IP (`oauth.registration_rate_limit_per_min`, 10).
 
 The token endpoint is rate limited too (`oauth.token_rate_limit_per_min`, 60).
+
+## App fields on the approval page
+
+An app can ask the person something on the approval page, for example which of their
+projects the new client may use, and act on the answer. Two optional hooks in the app:
+
+**`app/lib/mcp/oauth/consent.liquid`** (`oauth_consent_partial`) gets `user_id` (the
+signed-in person) and `client` (`client_id`, `client_name`, `client_kind` `cimd` or
+`dcr`, `redirect_host`) and returns **data, never HTML**:
+
+```liquid
+{% liquid
+  assign option = { "value": "12", "label": "Personal", "checked": true }
+  assign options = [] | array_add: option
+  assign field = { "type": "checkboxes", "name": "vaults", "label": "Vaults" }
+  assign field['options'] = options
+  assign fields = [] | array_add: field
+  assign result = { "title": "Which vaults may this app use?" }
+  assign result['fields'] = fields
+  return result
+%}
+```
+
+The engine renders the fields inside the approval form and escapes every text. Only
+`checkboxes` is supported; a field of another type, with a name outside
+`[a-z][a-z0-9_]{0,39}`, a repeated name or no option is dropped; at most 20 fields and
+200 options per field are kept, and text is cut to 200 characters.
+
+**`app/lib/mcp/oauth/approved.liquid`** (`oauth_approved_partial`) runs after the person
+clicks Approve and the code is issued. It gets:
+
+| Param | Value |
+|---|---|
+| `user_id` | the person who approved |
+| `client` | as above, from the request held in the session, never from the form |
+| `shown` | `true` when the page showed the app's fields. `false` when the app has no consent hook, it returned no valid field, or it raised. Do not treat `false` as "nothing ticked" |
+| `fields` | for each field the page showed: the ticked values, an array of strings (empty when none is ticked). Other submitted keys are dropped |
+
+The hook never runs on Deny, on an expired or replayed request, or on a POST without a
+valid CSRF token. Its return value is ignored.
+
+**What the hooks cannot do.** They cannot change the authorization itself: the person,
+the client, the scopes, the redirect URI and the code all come from the validated
+request held in the session, and the code is issued before the approved hook runs. The
+tools a client may call are still decided on every call by the tools' policies.
+
+**What the app must do.** The ticked values come from the person's browser: check each
+one (for example that the person may grant that project). A client registered with
+Dynamic Client Registration chooses its own `client_name`: it is unverified.
+
+A hook that raises is logged (`mcp.oauth_consent_hook_failed`,
+`mcp.oauth_approved_hook_failed`); the page then shows no fields, or the sign-in
+completes without the app's step. Without the hooks the approval page is unchanged.
 
 ## Configuration
 

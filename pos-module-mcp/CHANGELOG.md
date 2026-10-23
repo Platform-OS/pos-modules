@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **App fields on the OAuth approval page** (`oauth_consent_partial`,
+  `oauth_approved_partial`; docs/oauth.md). An app can show checkbox fields on the
+  approval page (for example "Which vaults may this app use?") and act on the ticked
+  values after Approve. The hooks exchange data only: the engine renders and escapes the
+  fields, passes the approved hook only the fields it showed (with `shown`), takes the
+  person and the client from the session, and runs it only after Approve with a valid
+  CSRF token. A hook that raises is logged and never blocks the sign-in.
+
 ### Changed
 
+- **Discovery without a token is challenged too** (`oauth.challenge_initialize`, on by
+  default). `tools/list`, `prompts/list`, `prompts/get`, `resources/list`,
+  `resources/templates/list` and `resources/read` without a bearer now answer `401` with
+  the `WWW-Authenticate` pointer, like `initialize` and `server/discover`, instead of an
+  empty or anonymous list that a client reports as "no tools". `ping` and notifications
+  stay open. With `challenge_initialize: false` discovery stays open as before.
 - **`oauth.challenge_initialize` is on by default.** `initialize` and `server/discover`
   without a bearer now answer `401` with the `WWW-Authenticate` pointer to the OAuth
   metadata, so clients that start sign-in only on a 401 at connect time (Claude, Grok)

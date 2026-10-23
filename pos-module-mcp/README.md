@@ -108,6 +108,7 @@ every request — no redeploy needed.
 | `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist; matched on a `/` boundary, markdown GET pages only) |
 | `oauth.*` | see [OAuth](#oauth-authorization-server) | built-in authorization server |
 | `registry_partial` / `policy_prefix` / `instructions_partial` / `prompts_partial` / `resources_partial` | `mcp/registry`, `mcp/policies`, `mcp/instructions`, `mcp/prompts`, `mcp/resources` | Layer-2 hook paths |
+| `oauth_consent_partial` / `oauth_approved_partial` | `mcp/oauth/consent`, `mcp/oauth/approved` | app fields on the OAuth approval page, and the step run after Approve ([docs/oauth.md](docs/oauth.md#app-fields-on-the-approval-page)) |
 
 ### Setting a constant
 
