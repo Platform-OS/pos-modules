@@ -42,7 +42,7 @@ let user = null;   // { userId, principal, tokenId, rawToken }
 let tokenId = null;
 let profileId = null;
 
-const challenge = () => cfg?.oauth?.challenge_initialize === true;
+const challenge = () => cfg?.oauth?.challenge_initialize !== false;
 const principalScoped = () => cfg?.tools_list_scope === 'principal';
 const legacy = (method, params, token, id = 1) => mcp.rpc({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }, token);
 const wwwAuth = (r) => r.headers.get('www-authenticate') || '';

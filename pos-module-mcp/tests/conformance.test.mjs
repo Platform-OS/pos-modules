@@ -82,7 +82,7 @@ describe('conformance · protocol + governance pipeline', () => {
   afterEach(async () => { try { await unsetConstant('MCP_CONFIG'); } catch {} });
 
   it('Transport / envelope (§13)', async () => {
-    const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }, { token: RAW_TOKEN });
     ok('initialize → 200 + pinned protocol', init.status === 200 && init.json?.result?.protocolVersion === '2025-06-18', init.json?.result?.protocolVersion);
     ok('initialize advertises instructions', typeof init.json?.result?.instructions === 'string' && init.json.result.instructions.length > 0);
     const ping = await rpc({ jsonrpc: '2.0', id: 2, method: 'ping' });
@@ -237,14 +237,14 @@ describe('conformance · protocol + governance pipeline', () => {
 
   it('Fallback instructions (§12.3) — factual, no threats, resources only when exposed', async () => {
     await setConstant('MCP_CONFIG', JSON.stringify({ instructions_partial: 'mcp/no_such_instructions' }));
-    const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }, { token: RAW_TOKEN });
     const text = init.json?.result?.instructions || '';
     ok('fallback instructions are served', text.length > 0, text);
     ok('fallback says calls act as the connected person', /acts as the person who connected you/.test(text), text);
     ok('fallback has no threat and no authority claim', !/suspend your access|authoritative|Call tools\/list/i.test(text), text);
     ok('fallback does not mention resources when none are exposed', !/resources\/list/.test(text), text);
     await setConstant('MCP_CONFIG', JSON.stringify({ instructions_partial: 'mcp/no_such_instructions', resources: { expose_markdown_pages: true, markdown_page_prefixes: ['docs'] } }));
-    const withDocs = (await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: {} })).json?.result?.instructions || '';
+    const withDocs = (await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: {} }, { token: RAW_TOKEN })).json?.result?.instructions || '';
     ok('fallback mentions documentation when pages are exposed', /resources\/list/.test(withDocs), withDocs);
     await unsetConstant('MCP_CONFIG');
   });
@@ -304,17 +304,17 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
   afterAll(async () => { await unsetConstant('MCP_CONFIG'); await pruneRate(); });
 
   it('legacy era — initialize handshake and version-less requests are unchanged', async () => {
-    const none = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+    const none = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }, { token: RAW_TOKEN });
     ok('initialize without a version → 2025-06-18', none.json?.result?.protocolVersion === '2025-06-18', none.json?.result?.protocolVersion);
     ok('initialize lists every supported revision in _meta', JSON.stringify(none.json?.result?._meta?.supportedProtocolVersions) === JSON.stringify(['2026-07-28', '2025-06-18']));
     ok('initialize advertises no Tasks extension', none.json?.result?.capabilities?.['io.modelcontextprotocol/tasks'] === undefined && none.json?.result?.capabilities?.extensions === undefined);
     ok('legacy results carry no resultType', none.json?.result?.resultType === undefined);
 
-    const asks26 = await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2026-07-28' } });
+    const asks26 = await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2026-07-28' } }, { token: RAW_TOKEN });
     ok('initialize asking for 2026-07-28 → 2025-06-18 (a handshake only selects a legacy revision)', asks26.json?.result?.protocolVersion === '2025-06-18', asks26.json?.result?.protocolVersion);
-    const asksOld = await rpc({ jsonrpc: '2.0', id: 3, method: 'initialize', params: { protocolVersion: '1999-01-01' } });
+    const asksOld = await rpc({ jsonrpc: '2.0', id: 3, method: 'initialize', params: { protocolVersion: '1999-01-01' } }, { token: RAW_TOKEN });
     ok('initialize asking for an unknown revision → 2025-06-18', asksOld.json?.result?.protocolVersion === '2025-06-18');
-    const modernInit = await send('initialize', { protocolVersion: '2025-06-18' });
+    const modernInit = await send('initialize', { protocolVersion: '2025-06-18' }, { token: RAW_TOKEN });
     ok('initialize carrying modern _meta still gets the legacy handshake', modernInit.status === 200 && modernInit.json?.result?.protocolVersion === '2025-06-18', `status=${modernInit.status}`);
 
     const tl = await rpc({ jsonrpc: '2.0', id: 4, method: 'tools/list', params: {} });
@@ -323,7 +323,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     ok('MCP-Protocol-Version 2025-06-18 header → served as legacy', hdr25.status === 200 && Array.isArray(hdr25.json?.result?.tools) && hdr25.json?.result?.resultType === undefined);
     const ping = await rpc({ jsonrpc: '2.0', id: 6, method: 'ping' });
     ok('legacy ping → empty result', ping.status === 200 && ping.json?.result && Object.keys(ping.json.result).length === 0);
-    const disc = await rpc({ jsonrpc: '2.0', id: 7, method: 'server/discover', params: {} });
+    const disc = await rpc({ jsonrpc: '2.0', id: 7, method: 'server/discover', params: {} }, { token: RAW_TOKEN });
     ok('server/discover is not a legacy method → 200 -32601', disc.status === 200 && disc.json?.error?.code === -32601, `status=${disc.status} code=${disc.json?.error?.code}`);
     const tasks = await rpc({ jsonrpc: '2.0', id: 8, method: 'tasks/get', params: { taskId: 'x' } });
     ok('tasks/get is not a legacy method → -32601', tasks.json?.error?.code === -32601);
@@ -346,7 +346,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
       const r = await rpcH({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, { 'MCP-Protocol-Version': v, Authorization: 'Bearer ' + RAW_TOKEN });
       ok(`${v} header with a token → served as legacy`, r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length > 0 && r.json?.result?.resultType === undefined, `status=${r.status} ${r.text?.slice(0, 160) || JSON.stringify(r.json).slice(0, 160)}`);
     }
-    const asks = await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2025-03-26' } });
+    const asks = await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2025-03-26' } }, { token: RAW_TOKEN });
     ok('initialize asking for a compatible revision still gets 2025-06-18', asks.json?.result?.protocolVersion === '2025-06-18', asks.json?.result?.protocolVersion);
     ok('compatible revisions are not listed as supported', JSON.stringify(asks.json?.result?._meta?.supportedProtocolVersions) === JSON.stringify(['2026-07-28', '2025-06-18']));
   });
@@ -365,7 +365,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
   });
 
   it('server/discover — revisions, capabilities, instructions, cache hint, server identity', async () => {
-    const d = await send('server/discover');
+    const d = await send('server/discover', {}, { token: RAW_TOKEN });
     const r = d.json?.result || {};
     ok('server/discover → 200', d.status === 200, `status=${d.status} ${d.text.slice(0, 120)}`);
     ok('resultType complete', r.resultType === 'complete');
@@ -457,18 +457,20 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     }
   });
 
-  it('connect-time OAuth challenge (opt-in) covers initialize and server/discover', async () => {
-    const openDisc = await send('server/discover');
-    ok('challenge off (default) → server/discover open', openDisc.status === 200);
-    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: true } }));
+  it('connect-time OAuth challenge (on by default) covers initialize and server/discover', async () => {
     const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
-    ok('challenge on → initialize without a bearer → 401 + WWW-Authenticate', init.status === 401 && /resource_metadata=/.test(init.headers.get('www-authenticate') || ''), `status=${init.status}`);
+    ok('default → initialize without a bearer → 401 + WWW-Authenticate', init.status === 401 && /resource_metadata=/.test(init.headers.get('www-authenticate') || ''), `status=${init.status}`);
     const disc = await send('server/discover');
-    ok('challenge on → server/discover without a bearer → 401 + WWW-Authenticate', disc.status === 401 && /resource_metadata=/.test(disc.headers.get('www-authenticate') || ''), `status=${disc.status}`);
+    ok('default → server/discover without a bearer → 401 + WWW-Authenticate', disc.status === 401 && /resource_metadata=/.test(disc.headers.get('www-authenticate') || ''), `status=${disc.status}`);
     const discAuthed = await send('server/discover', {}, { token: RAW_TOKEN });
-    ok('challenge on → server/discover with a bearer → 200', discAuthed.status === 200 && discAuthed.json?.result?.resultType === 'complete', `status=${discAuthed.status}`);
+    ok('default → server/discover with a bearer → 200', discAuthed.status === 200 && discAuthed.json?.result?.resultType === 'complete', `status=${discAuthed.status}`);
     const list = await send('tools/list');
-    ok('challenge on → other discovery stays open (tools/list 200)', list.status === 200);
+    ok('default → other discovery stays open (tools/list 200)', list.status === 200);
+    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
+    const openInit = await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: {} });
+    ok('challenge off → initialize without a bearer → 200', openInit.status === 200 && openInit.json?.result?.protocolVersion === '2025-06-18', `status=${openInit.status}`);
+    const openDisc = await send('server/discover');
+    ok('challenge off → server/discover without a bearer → 200', openDisc.status === 200, `status=${openDisc.status}`);
     await unsetConstant('MCP_CONFIG');
   });
 

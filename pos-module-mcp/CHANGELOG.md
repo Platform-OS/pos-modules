@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`oauth.challenge_initialize` is on by default.** `initialize` and `server/discover`
+  without a bearer now answer `401` with the `WWW-Authenticate` pointer to the OAuth
+  metadata, so clients that start sign-in only on a 401 at connect time (Claude, Grok)
+  sign in instead of connecting anonymously with no tools they can call. Clients that send
+  a token are unaffected, and no tool ever ran without one. Set
+  `MCP_CONFIG {"oauth":{"challenge_initialize":false}}` to keep the handshake open.
 - **App-side MCP files moved from `app/views/partials/mcp/` to `app/lib/mcp/`.** Tools,
   policies, the registry, prompts and instructions are logic, not views. Logical paths
   (`mcp/registry`, `mcp/tools/<name>/call`, `mcp/policies/<name>`, …) are unchanged, so

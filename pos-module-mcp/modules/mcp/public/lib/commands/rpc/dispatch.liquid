@@ -109,7 +109,7 @@
   #      WWW-Authenticate challenge (RFC 6750 §3.1; MCP authorization: invalid or expired
   #      tokens MUST receive HTTP 401), so a client learns to re-authenticate instead of
   #      seeing an empty tool list. A request WITHOUT a bearer stays open, except the
-  #      opt-in connect-time challenge (MCP_CONFIG.oauth.challenge_initialize): most MCP
+  #      connect-time challenge (MCP_CONFIG.oauth.challenge_initialize, on by default): most MCP
   #      clients only start the authorization flow when the connection itself answers 401,
   #      so `initialize` (legacy) or `server/discover` (modern) without a valid bearer gets
   #      the RFC 9728 challenge. tools/call and tasks/* authenticate inside their handlers.

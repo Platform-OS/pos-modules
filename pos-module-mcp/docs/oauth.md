@@ -14,9 +14,11 @@ off; only manual tokens then work.
 
 1. The client calls `/mcp` without a token and gets `401` with
    `WWW-Authenticate: Bearer resource_metadata="<origin>/.well-known/oauth-protected-resource"`.
-   By default only `tools/call` and the Tasks methods require a token; set
-   `oauth.challenge_initialize` to also challenge `initialize` / `server/discover`, for
-   clients that only start the flow on a 401 at connect time.
+   `initialize` / `server/discover` answer this 401 by default
+   (`oauth.challenge_initialize`), because most clients (Claude, Grok) only start the flow
+   on a 401 at connect time. `tools/call` and the Tasks methods always require a token.
+   With `challenge_initialize: false` the handshake stays open, and a client that does not
+   start the flow by itself connects without tools it can call.
 2. It reads the protected-resource metadata (RFC 9728), then the authorization-server
    metadata (RFC 8414).
 3. It identifies itself with a **Client ID Metadata Document** (`client_id` is an https
@@ -111,7 +113,7 @@ All keys live under `oauth` in the `MCP_CONFIG` constant:
 | Key | Default |
 |---|---|
 | `authorization_server` | `true` |
-| `challenge_initialize` | `false` |
+| `challenge_initialize` | `true` |
 | `required_permission` | `mcp.tokens.manage` |
 | `default_scope` | `mcp:read mcp:write` |
 | `access_token_ttl_seconds` / `refresh_token_ttl_seconds` / `code_ttl_seconds` | `3600` / `2592000` / `60` |

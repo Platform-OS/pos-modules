@@ -158,9 +158,10 @@
   assign o['token_rate_limit_per_min'] = 60
   # When true, `initialize` (legacy) and `server/discover` (modern) WITHOUT a valid bearer
   # answer 401 + WWW-Authenticate so MCP clients start the OAuth flow on connect (most
-  # clients only begin auth on a 401 at connect time). Off by default: discovery stays
-  # open for existing clients.
-  assign o['challenge_initialize'] = false
+  # clients only begin auth on a 401 at connect time; Claude and Grok otherwise connect
+  # anonymously and find no tools). No tool runs without a token either way; false keeps
+  # the handshake open for clients that inspect the server without signing in.
+  assign o['challenge_initialize'] = true
   assign c['oauth'] = o
   # The OAuth resource identifier this instance defends (RFC 9728) = the /mcp URL. The
   # path is fixed: the endpoint page and the RFC 9728 metadata path are both `mcp`, and

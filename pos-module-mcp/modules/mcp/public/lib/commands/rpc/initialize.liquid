@@ -1,7 +1,8 @@
 {%- comment -%}
   MCP `initialize` (spec §13.1). The LEGACY (2025-06-18) handshake: capability
   negotiation + server identity. Modern (2026-07-28) clients use `server/discover`
-  instead. Open method: no auth, no ledger (pre-auth plumbing, §9.3).
+  instead. No ledger (pre-auth plumbing, §9.3). rpc/dispatch answers 401 to a caller
+  without a bearer first, unless MCP_CONFIG.oauth.challenge_initialize is false.
 
   Advertises the negotiated legacy revision and the capabilities this server actually
   implements for it.
