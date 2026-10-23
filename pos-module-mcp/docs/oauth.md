@@ -92,8 +92,10 @@ where it can be revoked like a manual token.
 
 **Client ID Metadata Documents** (`oauth.client_id_metadata_documents`, on). The
 `client_id` is an https URL; the server fetches it and requires a JSON document whose
-`client_id` equals that URL and that lists `redirect_uris`. The consent page shows the
-client's domain so the user can judge it.
+`client_id` equals that URL and that lists `redirect_uris`. The client must be public:
+`token_endpoint_auth_method` absent or `none`, or `none` listed in
+`token_endpoint_auth_methods_supported` (ChatGPT prefers `private_key_jwt` but lists
+`none`). The consent page shows the client's domain so the user can judge it.
 
 **Dynamic Client Registration** (`oauth.dynamic_client_registration`, on). Public
 clients only (`token_endpoint_auth_method: none`). Redirect URIs must be https, http on a

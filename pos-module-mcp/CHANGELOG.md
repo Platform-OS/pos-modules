@@ -180,6 +180,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **ChatGPT can sign in through a Client ID Metadata Document.** ChatGPT's document
+  (`https://chatgpt.com/oauth/client.json`) prefers `private_key_jwt` in
+  `token_endpoint_auth_method` but lists `none` in `token_endpoint_auth_methods_supported`,
+  and authenticates as a public client when the server supports only `none`. The
+  authorization endpoint read only the preferred method and refused it with "Only public
+  clients … are supported". A document is now a public client when either field allows
+  `none`; a document that does not allow `none` is still refused.
 - **Text with HTML entities no longer breaks tool calls or changes on the way.** platformOS
   `parse_json` decodes HTML entities before it parses unless `raw_text: true` is passed, so
   tool arguments containing `&quot;` failed with a Liquid error (HTTP 500) and `&amp;` or

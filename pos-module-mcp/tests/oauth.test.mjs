@@ -498,6 +498,25 @@ describe('oauth · built-in OAuth 2.1 authorization server', () => {
     ok('grant stores the client name exactly', label === CIMD_NAME, label);
   });
 
+  // ChatGPT's document (https://chatgpt.com/oauth/client.json) prefers private_key_jwt in
+  // token_endpoint_auth_method but lists "none" in token_endpoint_auth_methods_supported;
+  // it then authenticates as a public client because this server advertises only "none".
+  it('CIMD — a document that prefers private_key_jwt but supports "none" is a public client', async () => {
+    const preferred = ORIGIN + '/test/mcp-client-metadata-prefers-jwt.json';
+    const jwtOnly = ORIGIN + '/test/mcp-client-metadata-jwt-only.json';
+    createdClients.add(preferred);
+    const { verifier, challenge } = pkce();
+    const a = await authorizeGet(webMember, { client_id: preferred, redirect_uri: CIMD_REDIRECT, code_challenge: challenge });
+    ok('consent page 200', a.status === 200 && !!ridOf(a.html), `${a.status} ${a.html.match(/class="err">([^<]*)/)?.[1] || ''}`);
+    const d = await decide(webMember, a.html, 'approve');
+    const code = d.loc?.searchParams.get('code');
+    ok('approve → 302 with a code', d.status === 302 && d.location?.startsWith(CIMD_REDIRECT + '?') && !!code, d.location);
+    const t = await token({ grant_type: 'authorization_code', code: code || '', code_verifier: verifier, client_id: preferred, redirect_uri: CIMD_REDIRECT });
+    ok('token issued without client authentication', t.status === 200 && /^mcp_at_/.test(t.json?.access_token || ''), t.text.slice(0, 160));
+    const refused = await authorizeGet(webMember, { client_id: jwtOnly, redirect_uri: CIMD_REDIRECT });
+    ok('a document without "none" is refused, not redirected', refused.status === 400 && !refused.location && /Only public clients/.test(refused.html), `${refused.status} ${refused.html.match(/class="err">([^<]*)/)?.[1] || ''}`);
+  });
+
   // ==== /oauth/token — authorization_code ======================================
 
   it('Token — code exchange happy path (+ the code is single-use)', async () => {

@@ -4,7 +4,9 @@
   1. Client ID Metadata Document (CIMD; MCP 2026-07-28 preferred). The client_id IS an
      https URL; we GET it and require a JSON document whose `client_id` equals that
      URL exactly (proof the URL owner speaks for the client) with non-empty
-     redirect_uris. Only public clients (token_endpoint_auth_method absent or "none").
+     redirect_uris. Only public clients: token_endpoint_auth_method absent or "none", or
+     "none" listed in token_endpoint_auth_methods_supported (a client such as ChatGPT
+     that prefers another method but picks one this server supports, which is only "none").
   2. Dynamic Client Registration (RFC 7591) — an mcp_oauth_client row created by
      /oauth/register.
 
@@ -65,6 +67,11 @@
       return out
     endif
     assign auth_method = doc.token_endpoint_auth_method | default: 'none'
+    assign auth_methods = doc.token_endpoint_auth_methods_supported
+    assign auth_methods_type = auth_methods | type_of | downcase
+    if auth_methods_type == 'array' and auth_methods contains 'none'
+      assign auth_method = 'none'
+    endif
     if auth_method != 'none'
       assign out['error_description'] = 'Only public clients (token_endpoint_auth_method "none") are supported'
       return out
