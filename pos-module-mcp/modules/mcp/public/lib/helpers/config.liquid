@@ -44,6 +44,11 @@
   assign c['latest_protocol_version'] = '2026-07-28'
   assign c['supported_protocol_versions'] = '2026-07-28,2025-06-18' | split: ','
   assign c['modern_protocol_versions'] = '2026-07-28' | split: ','
+  # Other legacy revisions some clients keep sending in the MCP-Protocol-Version header
+  # after `initialize` agreed on `protocol_version` (OpenAI's client sends 2024-11-05).
+  # Such a request is answered as the default legacy revision instead of being refused.
+  # `initialize` never selects them and they are not listed as supported.
+  assign c['compatible_protocol_versions'] = '2025-11-25,2025-03-26,2024-11-05' | split: ','
   # Client-side cache hints (ttlMs/cacheScope) attached to cacheable results ONLY for a
   # modern request. The registry and server description are deploy-invariant → long
   # TTL; resources track page content → shorter. cacheScope is 'public' (same for every

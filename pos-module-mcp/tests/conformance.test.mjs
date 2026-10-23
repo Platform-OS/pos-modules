@@ -339,6 +339,18 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
     ok('2026-07-28 header without the _meta version → 400 -32020', noMeta.status === 400 && noMeta.json?.error?.code === -32020, `status=${noMeta.status} code=${noMeta.json?.error?.code}`);
   });
 
+  // OpenAI's MCP client keeps sending its own revision (2024-11-05) in the header after
+  // the handshake agreed on 2025-06-18; refusing it left ChatGPT with no tools.
+  it('legacy header-only versions — compatible revisions are answered as 2025-06-18', async () => {
+    for (const v of ['2025-11-25', '2025-03-26', '2024-11-05']) {
+      const r = await rpcH({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, { 'MCP-Protocol-Version': v, Authorization: 'Bearer ' + RAW_TOKEN });
+      ok(`${v} header with a token → served as legacy`, r.status === 200 && Array.isArray(r.json?.result?.tools) && r.json.result.tools.length > 0 && r.json?.result?.resultType === undefined, `status=${r.status} ${r.text?.slice(0, 160) || JSON.stringify(r.json).slice(0, 160)}`);
+    }
+    const asks = await rpc({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2025-03-26' } });
+    ok('initialize asking for a compatible revision still gets 2025-06-18', asks.json?.result?.protocolVersion === '2025-06-18', asks.json?.result?.protocolVersion);
+    ok('compatible revisions are not listed as supported', JSON.stringify(asks.json?.result?._meta?.supportedProtocolVersions) === JSON.stringify(['2026-07-28', '2025-06-18']));
+  });
+
   it('modern versions — header required and matching, unsupported → -32022', async () => {
     const noHeader = await send('tools/list', {}, { omitHeaders: ['MCP-Protocol-Version'] });
     ok('_meta version without the MCP-Protocol-Version header → 400 -32020', noHeader.status === 400 && noHeader.json?.error?.code === -32020, `status=${noHeader.status} code=${noHeader.json?.error?.code}`);

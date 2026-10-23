@@ -180,6 +180,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
+  OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
+  agreed on `2025-06-18`, and every such request was refused with 400
+  "Unsupported protocol version" before authentication, so ChatGPT signed in but found no
+  tools. The header values in the new `compatible_protocol_versions` config key
+  (`2025-11-25`, `2025-03-26`, `2024-11-05`) are now answered as `2025-06-18`. `initialize`
+  still never selects them, and they are not listed as supported.
+- **Refused requests leave a trace.** The `/mcp` page logs every answer of HTTP 400 or
+  above as `mcp.request_refused`, and a `tools/list` with no tools as
+  `mcp.empty_tools_list`, with a log-safe summary (`helpers/rpc/request_summary`: method,
+  protocol versions, `Mcp-Method` / `Mcp-Name`, whether a bearer was sent, user agent and
+  the JSON-RPC error; never the token or the arguments). A client that was refused before
+  authentication used to leave nothing on the instance.
 - **ChatGPT can sign in through a Client ID Metadata Document.** ChatGPT's document
   (`https://chatgpt.com/oauth/client.json`) prefers `private_key_jwt` in
   `token_endpoint_auth_method` but lists `none` in `token_endpoint_auth_methods_supported`,

@@ -9,12 +9,25 @@ format: json
   All logic lives in commands/rpc/dispatch; this page only marshals the outcome
   into an HTTP response (status, headers, body). `echo <hash>` emits unescaped
   JSON on a format:json page — that is the response serializer.
+
+  Every refused request (HTTP 400 or above) is logged as mcp.request_refused, and a
+  tools/list that answers no tools as mcp.empty_tools_list, each with a log-safe summary
+  (helpers/rpc/request_summary): a client that cannot use the server otherwise leaves no
+  trace on the instance.
 {%- endcomment -%}
 {%- liquid
   function out = 'modules/mcp/commands/rpc/dispatch', params: context.params, headers: context.headers
 
   assign status = out.http_status | default: 200
   response_status status
+
+  if status >= 400
+    function summary = 'modules/mcp/helpers/rpc/request_summary', params: context.params, headers: context.headers, status: status, body: out.body
+    log summary, type: 'mcp.request_refused'
+  elsif context.params.method == 'tools/list' and out.body.result.tools.size == 0
+    function summary = 'modules/mcp/helpers/rpc/request_summary', params: context.params, headers: context.headers, status: status, body: out.body
+    log summary, type: 'mcp.empty_tools_list'
+  endif
 
   unless out.headers == blank
     assign headers_json = out.headers | json

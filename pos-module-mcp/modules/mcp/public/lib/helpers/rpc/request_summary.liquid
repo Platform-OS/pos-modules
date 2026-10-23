@@ -1,0 +1,48 @@
+{% doc %}
+  A log-safe summary of one /mcp request and its answer, so an operator can see why a
+  client was refused (or got no tools) without a request trace. Pure — no side effects.
+
+  It carries the method, both places a protocol version can be declared, the routing
+  headers, whether a bearer token was presented (never the token), the client's user
+  agent and the JSON-RPC error. Tool arguments and other body values are never included.
+
+  @param {object} params  - context.params (the parsed JSON-RPC request)
+  @param {object} headers - context.headers
+  @param {number} status  - the HTTP status answered
+  @param {object} [body]  - the JSON-RPC envelope answered
+  @return {object}
+{% enddoc %}
+{% liquid
+  assign inner = params.params
+  assign body_version = ''
+  unless inner == blank
+    if params.method == 'initialize'
+      assign body_version = inner.protocolVersion | default: ''
+    else
+      assign req_meta = inner._meta
+      unless req_meta == blank
+        assign body_version = req_meta['io.modelcontextprotocol/protocolVersion'] | default: ''
+      endunless
+    endif
+  endunless
+
+  assign auth_header = headers.HTTP_AUTHORIZATION | default: '' | downcase
+  assign bearer = false
+  if auth_header contains 'bearer'
+    assign bearer = true
+  endif
+
+  assign s = { "status": status }
+  assign s['method'] = params.method | default: '' | append: '' | truncate: 64, ''
+  assign s['protocol_version'] = body_version | append: '' | truncate: 32, ''
+  assign s['protocol_version_header'] = headers.HTTP_MCP_PROTOCOL_VERSION | default: '' | truncate: 32, ''
+  assign s['mcp_method_header'] = headers.HTTP_MCP_METHOD | default: '' | truncate: 64, ''
+  assign s['mcp_name_header'] = headers.HTTP_MCP_NAME | default: '' | truncate: 128, ''
+  assign s['bearer'] = bearer
+  assign s['user_agent'] = headers.HTTP_USER_AGENT | default: '' | truncate: 160, ''
+  unless body.error == blank
+    assign s['error_code'] = body.error.code
+    assign s['error_message'] = body.error.message | append: '' | truncate: 200, ''
+  endunless
+  return s
+%}

@@ -17,8 +17,10 @@
      match the body (400, -32020 HeaderMismatch); the revision must be a modern one
      the server implements (400, -32022 UnsupportedProtocolVersion).
   3. A request with only the header is legacy when the header names a supported
-     legacy revision. A modern revision in the header without the body version is a
-     HeaderMismatch; any other value is an UnsupportedProtocolVersion.
+     legacy revision, or a compatible one (`config.compatible_protocol_versions`),
+     which is answered as the default revision. A modern revision in the header
+     without the body version is a HeaderMismatch; any other value is an
+     UnsupportedProtocolVersion.
   An UnsupportedProtocolVersion lists the revisions usable in the era the client
   speaks: modern revisions for a modern request, legacy ones otherwise.
   4. A request with neither is legacy, at the default revision, so existing clients
@@ -107,6 +109,8 @@
     assign requested = header_version
     if legacy_versions contains header_version
       assign version = header_version
+    elsif cfg.compatible_protocol_versions contains header_version
+      assign version = default_version
     elsif modern_versions contains header_version
       assign era = 'modern'
       assign error = {
