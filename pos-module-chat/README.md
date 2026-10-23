@@ -52,22 +52,7 @@ cp modules/user/public/lib/queries/role_permissions/permissions.liquid app/modul
 <link rel="stylesheet" href="{{ 'modules/chat/style/pos-chat-inbox.css' | asset_url }}">
 ```
 
-5. Add the following to the `<head>` section of your application layout **before any other `<script>` tag on the page**. Or - if you already using an import map, just extend it with the following:
-
-```
-<script type="importmap">
-  {
-    "imports": {
-      "/": "{{ 'modules/chat/js/' | asset_url }}",
-      "pos-chat.js": "{{ 'modules/chat/js/pos-chat.js' | asset_url }}",
-      "pos-chat-consumer.js": "{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}",
-      "pos-chat-csrfToken.js": "{{ 'modules/chat/js/pos-chat-csrfToken.js' | asset_url }}",
-      "pos-chat-notifications.js": "{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}",
-      "./": "./"
-    }
-  }
-</script>
-```
+The chat's scripts load each other without an import map, so none is needed. If your layout still has the `<script type="importmap">` block with the `pos-chat*.js` entries from an earlier version of this module, remove those entries. Its `"/"` entry could break your app's own module imports.
 
 ### Managing Module Files
 

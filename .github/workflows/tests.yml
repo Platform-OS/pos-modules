@@ -326,6 +326,7 @@ jobs:
           path: |
             ${{ matrix.path }}/test-results/**/*.png
             ${{ matrix.path }}/test-results/**/error-context.md
+            ${{ matrix.path }}/test-results/**/trace.zip
           if-no-files-found: ignore
           retention-days: 7
 
