@@ -5,7 +5,9 @@
   endif
 
   assign page = page | to_positive_integer: 1
-  assign per_page = limit | to_positive_integer: 20
+  # the limit comes from the request (per_page) - capped, as every conversation on the
+  # page looks up each of its participants' profiles
+  assign per_page = limit | to_positive_integer: 20 | at_most: 50
 
   # "Unread first" is per-participant state, so the database can't sort by it -
   # it has no single global order to paginate on. Instead we fetch the
