@@ -8,7 +8,9 @@
 
   Authorization for receiving these notifications is enforced by
   views/partials/channels/notifications/subscribed.liquid (a user can only
-  subscribe to their own room), so broadcasting here cannot leak to other users.
+  subscribe to their own room, and only with chat.inbox), so broadcasting here
+  cannot leak to other users. Participants who lost chat.inbox are skipped here
+  as well, as a subscription opened before that keeps working.
 
   Unlike notify_of_new_message (the debounced push-notification path), this
   delivers every message immediately, hence the un-delayed background job
@@ -30,10 +32,17 @@
 
       for participant_id in message.conversation.participant_ids
         unless participant_id == message.autor_id
-          assign notification_room = 'notifications-' | append: participant_id
-          # platformos-check-disable GraphqlInForLoop
-          graphql _notification = 'modules/chat/notifications/broadcast', room_id: notification_room, payload: notification_payload
-          # platformos-check-enable GraphqlInForLoop
+          # Only to participants who can still use the chat - the subscription is only
+          # authorized when it's opened, so one opened before chat.inbox was revoked
+          # would keep getting the messages otherwise.
+          function recipient = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+          function can_use_chat = 'modules/chat/queries/participants/can_use_chat', profile: recipient
+          if can_use_chat
+            assign notification_room = 'notifications-' | append: participant_id
+            # platformos-check-disable GraphqlInForLoop
+            graphql _notification = 'modules/chat/notifications/broadcast', room_id: notification_room, payload: notification_payload
+            # platformos-check-enable GraphqlInForLoop
+          endif
         endunless
       endfor
     endif

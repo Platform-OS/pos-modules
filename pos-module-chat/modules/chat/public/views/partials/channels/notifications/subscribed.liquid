@@ -8,6 +8,14 @@
   # back to the authenticated profile and reject anything else.
   function current_profile = 'modules/user/helpers/current_profile'
 
+  # the same permission the inbox and the conversate channel require - the notifications
+  # carry the messages' text, so revoking chat.inbox has to cut this stream off too
+  function can = 'modules/user/helpers/can_do', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null
+  unless can
+    echo 'false'
+    break
+  endunless
+
   assign room_id = context.params.room_id
   assign expected_room_id = 'notifications-' | append: current_profile.id
 

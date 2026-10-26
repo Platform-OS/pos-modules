@@ -60,7 +60,7 @@ Both handlers independently check the `chat.inbox` permission and then participa
 
 ## Authorization
 
-Access is gated by the `chat.inbox` permission via `modules/user/helpers/can_do_or_unauthorized`. Hosts grant it by overwriting `app/modules/user/public/lib/queries/role_permissions/permissions.liquid` (the example app grants it to `authenticated`). The branch name suggests room-level authorization work is in progress — channel handlers are the place participation is enforced.
+Access is gated by the `chat.inbox` permission via `modules/user/helpers/can_do_or_unauthorized`. The WebSocket handlers check it too (`conversate` on subscribe and on every `receive`, `notifications` on subscribe), and the consumers that deliver a message to the other participants (`broadcast_new_message`, `send_push_notification`) skip anyone without it via `queries/participants/can_use_chat` - a subscription is only authorized when it's opened, so this is what stops delivery after a revocation. Consumers have no signed-in user, so that query adds the `authenticated` role itself, the way `modules/user/helpers/current_profile` does - a bare `can_do` on a profile loaded by id would deny everyone. Hosts grant it by overwriting `app/modules/user/public/lib/queries/role_permissions/permissions.liquid` (the example app grants it to `authenticated`). The branch name suggests room-level authorization work is in progress — channel handlers are the place participation is enforced.
 
 ## Events
 
