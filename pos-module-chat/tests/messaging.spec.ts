@@ -502,4 +502,54 @@ test.describe('Testing messaging', () => {
 
     await context?.close();
   });
+
+  test('message history is never paged in more than 50 messages, whatever per_page asks for', async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // a pair no other test uses, so the extra messages don't show up in other tests
+    const sender = users.test3;
+    const receiver = users.test4;
+    const maxPerPage = 50;
+    const marker = `per_page cap ${Date.now()}`;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
+    const peoplePage = new PeoplePage(page);
+    const inboxPage = new InboxPage(page);
+
+    await peoplePage.goto();
+    await peoplePage.openChat(receiver.fullName);
+    const conversationId = await inboxPage.startConversation();
+
+    const fetchMessages = (perPage: number) => page.evaluate(async ({ conversationId, perPage }) => {
+      const response = await fetch(`/api/chat/messages.json?conversation_id=${conversationId}&page=1&per_page=${perPage}`);
+      return await response.json();
+    }, { conversationId, perPage });
+
+    await test.step(`the conversation gets more than ${maxPerPage} messages`, async () => {
+      const before = (await fetchMessages(1)).total_entries;
+
+      // straight over the channel - typing them in would take minutes
+      await page.evaluate(({ marker, count }) => {
+        const channel = (window as any).pos.modules.active.chat.channel;
+        for (let i = 1; i <= count; i++) {
+          channel.send({ message: `${marker} ${i}` });
+        }
+      }, { marker, count: maxPerPage + 1 });
+
+      await expect.poll(async () => (await fetchMessages(1)).total_entries, { timeout: 30_000 }).toBe(before + maxPerPage + 1);
+    });
+
+    await test.step(`a larger per_page still returns ${maxPerPage} messages, and the rest on the next page`, async () => {
+      const data = await fetchMessages(100000);
+      expect(data.results.length).toBe(maxPerPage);
+      expect(data.has_next_page).toBe(true);
+    });
+
+    await test.step('a smaller per_page is respected', async () => {
+      expect((await fetchMessages(5)).results.length).toBe(5);
+    });
+
+    await context?.close();
+  });
 });

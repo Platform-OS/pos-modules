@@ -4,6 +4,11 @@
     return null
   endif
 
+  # the limit comes from the request (api/messages per_page) - capped, as the database
+  # takes any page size and each message's media is resolved too
+  assign limit = limit | to_positive_integer: 30 | at_most: 50
+  assign page = page | to_positive_integer: 1
+
   graphql r = 'modules/chat/messages/search', limit: limit, page: page, participant_id: participant_id, conversation_id: conversation_id
 
   assign result = r.messages
