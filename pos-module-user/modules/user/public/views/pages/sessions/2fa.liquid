@@ -13,7 +13,7 @@ method: post
   include 'modules/user/helpers/can_do_or_redirect', requester: current_profile, do: 'sessions.create', return_url: '/', access_callback: null, entity: null
   # platformos-check-enable DeprecatedTag
 
-  function object = 'modules/user/commands/user/verify_otp', object: context.params.2fa, email: null
+  function object = 'modules/user/commands/user/verify_otp', object: context.params.2fa, email: null, track_login_attempts: true
   if object.valid
     function res = 'modules/user/commands/session/create', email: object.email, password: object.password, hook_params: context.params, skip_otp: true, validate_password: null, user_id: null
     if res.valid and res.email_verification_required
