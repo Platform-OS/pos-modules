@@ -4,8 +4,5 @@ mutation gateway_request($template: String!, $data: HashObject)  {
     template: { name: $template }
   ) {
     response{ status body }
-    errors {
-      message
-    }
   }
 }
