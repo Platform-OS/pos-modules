@@ -62,6 +62,12 @@ Both handlers independently check the `chat.inbox` permission and then participa
 
 Access is gated by the `chat.inbox` permission via `modules/user/helpers/can_do_or_unauthorized`. The WebSocket handlers check it too (`conversate` on subscribe and on every `receive`, `notifications` on subscribe), and the consumers that deliver a message to the other participants (`broadcast_new_message`, `send_push_notification`) skip anyone without it via `queries/participants/can_use_chat` - a subscription is only authorized when it's opened, so this is what stops delivery after a revocation. Consumers have no signed-in user, so that query adds the `authenticated` role itself, the way `modules/user/helpers/current_profile` does - a bare `can_do` on a profile loaded by id would deny everyone. Hosts grant it by overwriting `app/modules/user/public/lib/queries/role_permissions/permissions.liquid` (the example app grants it to `authenticated`). The branch name suggests room-level authorization work is in progress — channel handlers are the place participation is enforced.
 
+## Who can find and message whom
+
+- **Search** (`search.frame` and the example app's people list) goes through `queries/participants/search`: it matches the profile's `name` only, never the email (so it can't tell whether an address is registered), and only returns people who can use the chat. Those are found in the database by role: `queries/participants/chat_roles` lists the roles whose permissions include `chat.inbox` (plus `superadmin`), or returns null when `authenticated` grants it and nobody has to be filtered out.
+- **Starting a conversation** (the first message, `POST /api/chat/conversations` -> `commands/conversations/find_or_create`) runs `find_or_create/check` before creating it: by default every other participant must be able to use the chat. That file is the place for a host's own rules on who may contact whom (overwrite it); the inbox runs it too, to show "This person can't receive messages" instead of the input. An existing conversation is opened regardless.
+- There is no blocking, opt-out or rate limit (decided 2026-10-26) - left to host apps.
+
 ## Events
 
 `messages/create/execute` publishes a `chat_message_created` event (`message_id`, `app_host`), validated by `lib/events/chat_message_created.liquid`. It has two consumers:

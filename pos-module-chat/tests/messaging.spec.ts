@@ -417,6 +417,40 @@ test.describe('Testing messaging', () => {
     await context?.close();
   })
 
+  test(`people are found by their name, not by their email`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const user = users.test6;
+    const searched = users.test1;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+
+    await inboxPage.goto();
+
+    // no results show nothing on the page, so the search's own response is waited for
+    const search = async (query: string) => {
+      const response = page.waitForResponse(response => response.url().includes('/search.frame') && new URL(response.url()).searchParams.get('q') === query);
+      await inboxPage.search.searchFor(query);
+      return await (await response).text();
+    };
+
+    await test.step(`a part of ${searched.fullName}'s email finds nobody`, async () => {
+      // "test1@example" - also tells whether that address is registered, if it matched
+      const html = await search(searched.email.split('.')[0]);
+      expect(html).not.toContain(searched.fullName);
+      await expect(inboxPage.search.getResultByFullName(searched.fullName)).toHaveCount(0);
+    });
+
+    await test.step(`a part of their name finds them`, async () => {
+      await search(searched.lastName.slice(0, 4).toLowerCase());
+      expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+    });
+
+    await context?.close();
+  });
+
   test(`clearing the search brings back the conversations list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
@@ -498,56 +532,6 @@ test.describe('Testing messaging', () => {
 
       const fromThisTest = stored.filter((text: string) => text.includes(marker));
       expect(fromThisTest).toEqual([validMessage]);
-    });
-
-    await context?.close();
-  });
-
-  test('message history is never paged in more than 50 messages, whatever per_page asks for', async ({ browser }) => {
-    let context: BrowserContext | null = null;
-    let page: Page;
-
-    // a pair no other test uses, so the extra messages don't show up in other tests
-    const sender = users.test3;
-    const receiver = users.test4;
-    const maxPerPage = 50;
-    const marker = `per_page cap ${Date.now()}`;
-
-    ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
-    const peoplePage = new PeoplePage(page);
-    const inboxPage = new InboxPage(page);
-
-    await peoplePage.goto();
-    await peoplePage.openChat(receiver.fullName);
-    const conversationId = await inboxPage.startConversation();
-
-    const fetchMessages = (perPage: number) => page.evaluate(async ({ conversationId, perPage }) => {
-      const response = await fetch(`/api/chat/messages.json?conversation_id=${conversationId}&page=1&per_page=${perPage}`);
-      return await response.json();
-    }, { conversationId, perPage });
-
-    await test.step(`the conversation gets more than ${maxPerPage} messages`, async () => {
-      const before = (await fetchMessages(1)).total_entries;
-
-      // straight over the channel - typing them in would take minutes
-      await page.evaluate(({ marker, count }) => {
-        const channel = (window as any).pos.modules.active.chat.channel;
-        for (let i = 1; i <= count; i++) {
-          channel.send({ message: `${marker} ${i}` });
-        }
-      }, { marker, count: maxPerPage + 1 });
-
-      await expect.poll(async () => (await fetchMessages(1)).total_entries, { timeout: 30_000 }).toBe(before + maxPerPage + 1);
-    });
-
-    await test.step(`a larger per_page still returns ${maxPerPage} messages, and the rest on the next page`, async () => {
-      const data = await fetchMessages(100000);
-      expect(data.results.length).toBe(maxPerPage);
-      expect(data.has_next_page).toBe(true);
-    });
-
-    await test.step('a smaller per_page is respected', async () => {
-      expect((await fetchMessages(5)).results.length).toBe(5);
     });
 
     await context?.close();

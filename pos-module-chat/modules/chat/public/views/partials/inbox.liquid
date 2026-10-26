@@ -159,6 +159,15 @@
           %}
         </ul>
       </div>
+      {% if current_conversation.unavailable %}
+      {% comment %}
+        a conversation can't be started with this person (see
+        commands/conversations/find_or_create/check), so there is nothing to type into
+      {% endcomment %}
+      <footer class="pos-chat-conversation-unavailable" id="chat-unavailable">
+        {{ 'modules/chat/recipient_unavailable' | t }}
+      </footer>
+      {% else %}
       <div class="pos-chat-uploader" id="chat-uploader" hidden>
         {% comment %}
           kept in a template so common-styling doesn't load uppy on page load - pos-chat.js
@@ -224,6 +233,7 @@
         {{ 'modules/chat/upload_drop.title' | t }}<br>
         {{ 'modules/chat/upload_drop.max_size' | t }}
       </div>
+      {% endif %}
     </div>
   {% else %}
     {% if conversations.total_entries > 0 %}

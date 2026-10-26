@@ -95,6 +95,10 @@ The table below outlines the [resourceful routes](https://documentation.platform
 | GET  | /inbox | `modules/chat/public/views/pages/inbox.liquid` | Renders a chat. `?to_uuid=<profile uuid>` opens the chat with that profile - the conversation is created when its first message is sent, so linking to it is safe | 
 | POST | /api/chat/conversations | `modules/chat/public/views/pages/api/conversations/create.json.liquid` | Starts the conversation with `to_uuid`, used by the chat itself | 
 
+#### Who can be found and messaged
+
+The search in the inbox finds people by their name (not their email) and only lists people who can use the chat - those whose roles grant the `chat.inbox` permission. A conversation can only be started with someone who can use the chat. To add your own rules on who may contact whom, overwrite `modules/chat/public/lib/commands/conversations/find_or_create/check.liquid`: it gets the `participant_ids` of the conversation about to be started and the `current_profile`, and returns the object with `valid` and `errors` (see the default implementation).
+
 #### CRUD commands 
 
 ...

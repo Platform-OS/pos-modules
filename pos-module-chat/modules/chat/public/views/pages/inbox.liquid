@@ -22,11 +22,19 @@ slug: inbox
       assign participant_ids = [current_profile.id, record.id] | sort
       function current_conversation = 'modules/chat/queries/conversations/find_by_participants', participant_ids: participant_ids, include_messages: true
       unless current_conversation
-        assign current_conversation = { "participant_ids": participant_ids, "to_uuid": context.params.to_uuid, "messages": [] }
+        assign current_conversation = { "participant_ids": participant_ids, "messages": [] }
+        # the same rule that decides it when the first message is sent, so a person who
+        # can't be messaged is shown as such instead of failing on Send
+        function allowed = 'modules/chat/commands/conversations/find_or_create/check', object: current_conversation, current_profile: current_profile
+        if allowed.valid
+          assign current_conversation.to_uuid = context.params.to_uuid
+        else
+          assign current_conversation.unavailable = true
+        endif
       endunless
     endif
   endif
-  if current_conversation
+  if current_conversation and current_conversation.unavailable != true
     function presigned_upload = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
     assign context.presigned_upload = presigned_upload
   endif

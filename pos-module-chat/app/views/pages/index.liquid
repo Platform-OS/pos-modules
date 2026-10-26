@@ -1,7 +1,8 @@
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
   if current_profile.user
-   function profiles = 'modules/user/queries/profiles/search', limit: 50, page: null, not_ids: null, uuid: null, id: null, ids: null, first_name: null, last_name: null, user_id: null, query: null, emails: null, sort: null
+   # the people a chat can be started with, the same ones the inbox search finds
+   function profiles = 'modules/chat/queries/participants/search', query: null, not_id: current_profile.id, limit: 50
   endif
 
   render 'index', current_profile: current_profile, profiles: profiles

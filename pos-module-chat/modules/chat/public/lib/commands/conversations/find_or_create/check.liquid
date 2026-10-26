@@ -1,12 +1,31 @@
-{% liquid
-  comment
-    Define logic which controls what type of communication is allowed
+{% doc %}
+  Decides whether the current user may start a new conversation with the given people,
+  before it's created - a conversation that already exists is opened regardless. By
+  default every other participant has to be able to use the chat (have `chat.inbox`), as
+  they couldn't read it otherwise. Overwrite this file to add the rules of your app on
+  who may contact whom (see "Overwriting a module file" in the platformOS docs); the
+  inbox uses it too, to show that a person can't be messaged.
 
-    assign types = object.participants | map: 'type' | uniq
-    if types.size == 1 and types.first == 'profile'
-      assign object.valid = false
+  @param {object} object - { participant_ids } as built by find_or_create/build
+  @param {object} current_profile - the profile starting the conversation
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+
+  for participant_id in object.participant_ids
+    if participant_id == current_profile.id
+      continue
     endif
-  endcomment
+
+    function participant = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+    function can_use_chat = 'modules/chat/queries/participants/can_use_chat', profile: participant
+    unless can_use_chat
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'to_id', key: 'modules/chat/validation.recipient_cannot_chat'
+    endunless
+  endfor
+
+  assign object.valid = c.valid
+  assign object.errors = c.errors
 
   return object
- %}
+%}

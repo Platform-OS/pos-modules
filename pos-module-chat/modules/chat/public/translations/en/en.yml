@@ -25,6 +25,7 @@ en:
   error_upload_failed: Error during uploading of {files}. Please try again.
   error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.
   error_start_conversation: We could not start the conversation. Please try again.
+  recipient_unavailable: This person can't receive messages.
   search:
     placeholder: Search for a person
     clear: Clear search
@@ -34,3 +35,4 @@ en:
     message_not_text: has to be text
     message_too_long: is longer than the maximum of %{count} characters
     media_not_list: has to be a list of attachments
+    recipient_cannot_chat: can't receive messages
