@@ -114,6 +114,14 @@ export class InboxPage extends BasePage {
     return isAuthorHeaderVisible;
   }
 
+  // A conversation is only created with its first message or attachment (opening the inbox
+  // only reads) - this starts it the same way, without sending anything, for tests that need
+  // its id or its connected channel first. Returns the conversation id.
+  async startConversation(): Promise<string> {
+    await this.chat.messageInputFieldEnabled.waitFor();
+    return await this.page.evaluate(() => (window as any).pos.modules.active.chat.startConversation());
+  }
+
   // The id of the currently open conversation (the `conversate` channel's room id),
   // exposed by the inbox as #pos-chat-inbox[data-conversation-id].
   async currentConversationId() {

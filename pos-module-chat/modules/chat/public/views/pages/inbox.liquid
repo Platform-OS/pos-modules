@@ -8,28 +8,27 @@ slug: inbox
   include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', redirect_anonymous_to_login: true, entity: null, access_callback: null, forbidden_partial: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
-  if context.params.to_uuid != blank
+  # The page only reads - it neither creates a conversation nor marks one read. The
+  # session cookie is SameSite=Lax, so a link or redirect from another site (or a
+  # prefetch) would otherwise do both on the user's behalf. A conversation that doesn't
+  # exist yet is shown empty and created by POST api/chat/conversations once its first
+  # message or attachment is sent, and the open conversation is marked read over the
+  # WebSocket (see pos-chat.js).
+  if context.params.conversation_id != blank
+    function current_conversation = 'modules/chat/queries/conversations/find_by_participant', id: context.params.conversation_id, participant_id: current_profile.id, include_messages: true
+  elsif context.params.to_uuid != blank
     function record = 'modules/chat/queries/records/find_by_uuid', uuid: context.params['to_uuid']
-  endif
-  assign object = {"to_id": record.id, "conversation_id": context.params.conversation_id}
-  if record or context.params.conversation_id
-    function current_conversation = 'modules/chat/commands/conversations/find_or_create', object: object, current_profile: current_profile
-
-    function presigned_upload = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
-    assign context.presigned_upload = presigned_upload
-  endif
-  if current_conversation.valid == false
-    assign current_conversation = null
+    if record and record.id != current_profile.id
+      assign participant_ids = [current_profile.id, record.id] | sort
+      function current_conversation = 'modules/chat/queries/conversations/find_by_participants', participant_ids: participant_ids, include_messages: true
+      unless current_conversation
+        assign current_conversation = { "participant_ids": participant_ids, "to_uuid": context.params.to_uuid, "messages": [] }
+      endunless
+    endif
   endif
   if current_conversation
-    function _res = 'modules/chat/commands/conversations/mark_read', conversation: current_conversation, participant_id: current_profile.id
-    if current_conversation.created
-      for participant_id in current_conversation.participant_ids
-        # platformos-check-disable GraphqlInForLoop
-        function _res = 'modules/chat/commands/conversations/mark_read', conversation: current_conversation, participant_id: participant_id
-        # platformos-check-enable GraphqlInForLoop
-      endfor
-    endif
+    function presigned_upload = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
+    assign context.presigned_upload = presigned_upload
   endif
   function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 30, page: 1
 

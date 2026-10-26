@@ -24,6 +24,7 @@ en:
   error_too_many_files: You are trying to upload too many files, maximum is 5
   error_upload_failed: Error during uploading of {files}. Please try again.
   error_connection: We cannot connect to the server. Check your internet connection or try reloading the page.
+  error_start_conversation: We could not start the conversation. Please try again.
   search:
     placeholder: Search for a person
     clear: Clear search

@@ -37,8 +37,10 @@
       endif
     endif
 
+    # the open conversation is marked read over the WebSocket once the page has loaded
+    # (see pos-chat.js), so it isn't read yet while the page is rendered
     assign unread = true
-    if conversation.participant_read_ids contains current_profile.id
+    if conversation.participant_read_ids contains current_profile.id or conversation['current']
       assign unread = false
     endif
   %}

@@ -162,8 +162,21 @@ window.pos.modules.chat = function(userSettings = {}){
   module.consumer = userSettings.consumer;
   // the channel to send messages through (Action Cable channel)
   module.channel = null;
-  // the id for the conversation (string)
+  // the id for the conversation, empty until a new conversation is started (string)
   module.conversationId = module.settings.inbox.getAttribute('data-conversation-id');
+  // uuid of the profile a new conversation is opened with - the conversation is only created
+  // once its first message or attachment is sent (string)
+  module.toUuid = module.settings.inbox.getAttribute('data-to-uuid');
+  // url to start a new conversation (string)
+  module.settings.createConversationUrl = '/api/chat/conversations';
+  // starting of the new conversation, so it's only done once (promise)
+  module.settings.starting = null;
+  // subscription to the conversation's channel, resolved once connected (promise)
+  module.settings.subscribed = null;
+  // if the channel is connected right now (bool)
+  module.settings.connected = false;
+  // if a message arrived while the tab was hidden and the conversation still has to be marked read (bool)
+  module.settings.unseen = false;
   // instance of the toast notification shown when something fails
   module.errorNotification = null;
 
@@ -177,10 +190,21 @@ window.pos.modules.chat = function(userSettings = {}){
   module.init = () => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing chat', module.settings.inbox);
 
-    // create subscription for the channel
+    // create subscription for the channel, a failed one is already shown by module.blocked
     if(module.conversationId){
-      module.createSubscription();
+      module.createSubscription().catch(() => {});
+    } else if(module.toUuid && module.settings.messageInput){
+      // a conversation not started yet has no channel to connect to, it can be typed in right away
+      module.settings.messageInput.disabled = false;
+      module.settings.messageInput.focus();
     }
+
+    // mark the conversation read when the user comes back to a tab that got messages while hidden
+    document.addEventListener('visibilitychange', () => {
+      if(module.settings.unseen){
+        module.markRead();
+      }
+    });
 
     // scroll to bottom after loading the messages
     if(module.conversationId){
@@ -308,7 +332,7 @@ window.pos.modules.chat = function(userSettings = {}){
       // the id and signed URL a Send needs (see receive.liquid/with_media, the upload's
       // ACL is private). Tracked in pendingSaves so triggerSend can wait for it instead of
       // sending before this attachment has actually landed in `pending`.
-      const savePromise = module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: metadata })
+      const savePromise = module.upload.save({ uploadUrl: event.detail.url, metadata: metadata })
         .then(media => {
           const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
 
@@ -573,8 +597,16 @@ window.pos.modules.chat = function(userSettings = {}){
   // returns:		triggers a 'message' event on document when new    message
   //				    appears on the channel (send or received), passess the message details
   // ------------------------------------------------------------------------
+  // returns:		resolves once connected, rejects when the server rejects the subscription (promise)
   module.createSubscription = () => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Creating subscription');
+
+    let resolveSubscribed;
+    let rejectSubscribed;
+    module.settings.subscribed = new Promise((resolve, reject) => {
+      resolveSubscribed = resolve;
+      rejectSubscribed = reject;
+    });
 
     module.channel = module.consumer.subscriptions.create(
       {
@@ -594,12 +626,9 @@ window.pos.modules.chat = function(userSettings = {}){
 
           // We're actively rendering this message on screen right now - tell the
           // server so it doesn't count as unread and trigger a push notification.
-          // Skipped while the tab is hidden/backgrounded, since the message isn't
-          // actually being seen in that case. Uses .send (-> the `receive` action,
-          // the only one ActionCable dispatches to here), not .perform - a custom
-          // action name would be silently dropped server-side.
-          if(data.status === 'received' && document.visibilityState === 'visible'){
-            module.channel.send({ mark_read: true });
+          if(data.status === 'received'){
+            module.settings.unseen = true;
+            module.markRead();
           }
 
           if(module.settings.debug){
@@ -618,6 +647,13 @@ window.pos.modules.chat = function(userSettings = {}){
         connected: function(){
           pos.modules.debug(module.settings.debug, module.settings.id, `Connected to channel and joined the room ${module.conversationId}`);
 
+          module.settings.connected = true;
+          resolveSubscribed();
+
+          // opening the conversation (or coming back to it after losing the connection) reads it
+          module.settings.unseen = true;
+          module.markRead();
+
           module.settings.messageInput.disabled = false;
           module.settings.messageInput.focus();
           pos.modules.debug(module.settings.debug, module.settings.id, 'Unlocked message input');
@@ -629,18 +665,95 @@ window.pos.modules.chat = function(userSettings = {}){
         },
 
         rejected: function(){
+          module.settings.connected = false;
           module.blocked();
+          rejectSubscribed(Object.assign(new Error('The subscription was rejected'), { shown: true }));
 
           pos.modules.debug(module.settings.debug, module.settings.id, `The connection was rejected by the server`);
         },
 
         disconnected: function(){
+          module.settings.connected = false;
           module.blocked();
 
           pos.modules.debug(module.settings.debug, module.settings.id, `Disconnected from the server`);
         }
       }
     );
+
+    return module.settings.subscribed;
+  };
+
+
+  // purpose:		marks the conversation read for the current user, unless the tab is hidden
+  //				    (then the messages aren't actually seen, it's done once the tab is shown) -
+  //				    the inbox page itself doesn't, as a GET can be triggered from another site.
+  //				    Uses .send (-> the `receive` action, the only one ActionCable dispatches to
+  //				    here), not .perform - a custom action name would be silently dropped server-side.
+  // ------------------------------------------------------------------------
+  module.markRead = () => {
+    if(!module.settings.connected || document.visibilityState !== 'visible'){
+      return;
+    }
+
+    module.channel.send({ mark_read: true });
+    module.settings.unseen = false;
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Marked the conversation read');
+  };
+
+
+  // purpose:		starts the conversation opened with module.toUuid if it doesn't exist yet -
+  //				    on its first message or attachment, not on opening the page - and connects to its channel
+  // returns:		resolves with the conversation id once connected (promise), rejects when that fails
+  // ------------------------------------------------------------------------
+  module.startConversation = () => {
+    if(module.conversationId && !module.settings.starting){
+      return Promise.resolve(module.conversationId);
+    }
+
+    if(!module.settings.starting){
+      module.settings.starting = (async () => {
+        const response = await fetch(module.settings.createConversationUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': window.pos.csrfToken
+          },
+          body: JSON.stringify({ to_uuid: module.toUuid })
+        });
+        const data = await response.json().catch(() => null);
+
+        if(!response.ok || !data?.id){
+          throw new Error(`Could not start the conversation (${response.status})`);
+        }
+
+        module.conversationId = String(data.id);
+        module.settings.inbox.setAttribute('data-conversation-id', module.conversationId);
+
+        // so reloading the page opens the conversation by its id
+        const url = new URL(window.location.href);
+        url.searchParams.delete('to_uuid');
+        url.searchParams.set('conversation_id', module.conversationId);
+        window.history.replaceState(window.history.state, '', url);
+
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Started the conversation', module.conversationId);
+
+        await module.createSubscription();
+
+        return module.conversationId;
+      })();
+
+      // a failed start can be retried with the next Send
+      module.settings.starting.catch(() => {
+        if(!module.conversationId){
+          module.settings.starting = null;
+        }
+      });
+    }
+
+    return module.settings.starting;
   };
 
 
@@ -672,6 +785,18 @@ window.pos.modules.chat = function(userSettings = {}){
 
       // nothing left to send when the only attachments failed and there is no text
       if(!module.settings.messageInput.value.trim() && !module.settings.upload.pending.length){
+        return;
+      }
+
+      // the first message of a new conversation starts it - the message stays in the input when that fails
+      try {
+        await module.startConversation();
+      } catch(error) {
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Could not start the conversation', error);
+
+        if(!error.shown){
+          module.errorNotification = new window.pos.modules.toast('error', window.pos.translations.chat.startFailed);
+        }
         return;
       }
 
@@ -1065,11 +1190,14 @@ window.pos.modules.chat = function(userSettings = {}){
   // returns:		{ id, type, name, size, width, height, url } (object), or null on failure -
   //				    never throws, a network error or a non-JSON response is a failure too
   // ------------------------------------------------------------------------
-  module.upload.save = async ({ conversationId, uploadUrl, metadata }) => {
+  module.upload.save = async ({ uploadUrl, metadata }) => {
     let response;
     let data = null;
 
     try {
+      // an attachment belongs to a conversation, so the first one starts a new conversation
+      const conversationId = await module.startConversation();
+
       response = await fetch(module.settings.upload.createUrl, {
         method: 'POST',
         credentials: 'same-origin',

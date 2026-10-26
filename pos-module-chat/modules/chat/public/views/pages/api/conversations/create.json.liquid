@@ -1,0 +1,44 @@
+---
+slug: api/chat/conversations
+method: post
+---
+
+{% doc %}
+  Start a conversation with the given profile, or return the one that already exists.
+  Called by pos-chat.js when the first message or attachment of a new conversation is
+  sent - the inbox page only reads, see views/pages/inbox.
+
+  @param {string} to_uuid - the uuid of the profile to talk to
+{% enddoc %}
+
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+
+  assign to_uuid = context.params.to_uuid
+
+  if to_uuid != blank
+    function record = 'modules/chat/queries/records/find_by_uuid', uuid: to_uuid
+  endif
+  if record == blank or record.id == current_profile.id
+    response_status 422
+    assign res = { "errors": { "to_uuid": ["not found"] } }
+    echo res
+    break
+  endif
+
+  assign object = { "to_id": record.id }
+  function conversation = 'modules/chat/commands/conversations/find_or_create', object: object, current_profile: current_profile
+
+  if conversation.id
+    assign res = { "id": conversation.id }
+    echo res
+  else
+    response_status 422
+    assign res = { "errors": conversation.errors }
+    echo res
+  endif
+%}
