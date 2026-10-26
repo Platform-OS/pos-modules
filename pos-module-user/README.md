@@ -262,8 +262,8 @@ checked at all, so even the right one is refused.
   `failed_login_attempts`, `locked_until`), not on the profile, so applications
   that override the profile schema keep the lockout. To unlock an account by
   hand, call `modules/user/commands/login_attempts/reset` with its `user_id`.
-- `login_failed` (payload `{user_id, attempts}`) is published for every counted
-  failure, and `account_locked` (payload `{user_id, attempts, locked_until}`)
+- `login_failed` (payload `{user_id, profile_id, attempts}`) is published for every counted
+  failure, and `account_locked` (payload `{user_id, profile_id, attempts, locked_until}`)
   when an account is locked. Failures for addresses with no account are not
   published.
 

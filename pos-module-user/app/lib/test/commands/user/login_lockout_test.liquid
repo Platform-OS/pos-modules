@@ -169,8 +169,8 @@
 
   assign login_attempt.failed_login_attempts = below_max
   function failure = 'modules/user/commands/login_attempts/record_failure', login_attempt: login_attempt
-  function contract = 'modules/tests/assertions/true', contract: contract, object: failure, field_name: 'login_failed_published', value: null
-  function contract = 'modules/tests/assertions/true', contract: contract, object: failure, field_name: 'account_locked_published', value: null
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: failure, field_name: 'login_failed_event_id'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: failure, field_name: 'account_locked_event_id'
 
   function stored = 'modules/user/queries/login_attempts/find', user_id: user.id
   function contract = 'modules/tests/assertions/presence', contract: contract, object: stored, field_name: 'id'

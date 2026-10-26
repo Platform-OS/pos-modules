@@ -3,8 +3,9 @@
   reaches LOGIN_ATTEMPTS_MAX (default 5) for LOGIN_ATTEMPTS_UNLOCK_AFTER_MINS
   minutes (default 5).
 
-  Publishes login_failed for every counted failure and account_locked when the
-  failure is the one that locks the account. Attempts made while the account is
+  Publishes login_failed ({user_id, profile_id, attempts}) for every counted
+  failure and account_locked ({user_id, profile_id, attempts, locked_until})
+  when the failure is the one that locks the account. Attempts made while the account is
   already locked are not passed here, so they neither extend the lock nor flood
   the event queue.
 
@@ -17,15 +18,22 @@
   if object.valid
     function object = 'modules/user/commands/login_attempts/record_failure/execute', object: object
 
-    assign event_payload = { "user_id": object.user_id, "attempts": object.failed_login_attempts }
+    comment
+      profile_id is part of the payload because applications key their own
+      reactions on the profile - the community module, for one, has its own
+      login_failed and account_locked definitions that require it.
+    endcomment
+    function profile = 'modules/user/queries/profiles/find', user_id: object.user_id, id: null, uuid: null, first_name: null, last_name: null
+
+    assign event_payload = { "user_id": object.user_id, "profile_id": profile.id, "attempts": object.failed_login_attempts }
     function event = 'modules/core/commands/events/publish', type: 'login_failed', object: event_payload, delay: null, max_attempts: null
-    assign object.login_failed_published = event.valid
+    assign object.login_failed_event_id = event.id
 
     if object.locked
       log object.user_id, type: 'INFO: account locked after failed login attempts'
-      assign event_payload = { "user_id": object.user_id, "attempts": object.failed_login_attempts, "locked_until": object.locked_until }
+      assign event_payload = { "user_id": object.user_id, "profile_id": profile.id, "attempts": object.failed_login_attempts, "locked_until": object.locked_until }
       function event = 'modules/core/commands/events/publish', type: 'account_locked', object: event_payload, delay: null, max_attempts: null
-      assign object.account_locked_published = event.valid
+      assign object.account_locked_event_id = event.id
     endif
   endif
 
