@@ -114,6 +114,12 @@ export class InboxPage extends BasePage {
     return isAuthorHeaderVisible;
   }
 
+  // pos-chat.js is imported on DOMContentLoaded and only then listens to the search input
+  // and the like - typing before that is lost
+  async waitForChat() {
+    await this.page.waitForFunction(() => !!(window as any).pos?.modules?.active?.chat);
+  }
+
   // A conversation is only created with its first message or attachment (opening the inbox
   // only reads) - this starts it the same way, without sending anything, for tests that need
   // its id or its connected channel first. Returns the conversation id.

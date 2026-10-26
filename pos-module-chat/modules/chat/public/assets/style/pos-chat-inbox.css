@@ -460,6 +460,13 @@
   gap: 0 var(--pos-gap-button-button);
 }
 
+/* shown instead of the message input when the person can't be messaged */
+.pos-chat-conversation-unavailable {
+  padding: var(--pos-padding-cell);
+  text-align: center;
+  color: var(--pos-color-content-text-supplementary);
+}
+
 @media (max-width: 768px) {
   .pos-chat-conversation-new {
     grid-template-areas:

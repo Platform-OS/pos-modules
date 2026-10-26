@@ -1,0 +1,29 @@
+{% doc %}
+  The people a conversation can be started with, found by their name. Only those who can
+  use the chat (see queries/participants/chat_roles), and the name only - not the email,
+  so the search can't be used to find out whether an email address is registered or
+  whose it is.
+
+  @param {string} [query] - a part of the name, all the people when blank
+  @param {string} [not_id] - a profile id to leave out, usually the current user's
+  @param {number} [limit] - how many to return (default: 7, at most 50)
+{% enddoc %}
+{% liquid
+  assign limit = limit | to_positive_integer: 7 | at_most: 50
+
+  assign query = query | append: '' | strip
+  if query == blank
+    assign query = null
+  endif
+
+  assign not_ids = null
+  if not_id != blank
+    assign not_ids = [] | array_add: not_id
+  endif
+
+  function roles = 'modules/chat/queries/participants/chat_roles'
+
+  graphql r = 'modules/chat/profiles/search', query: query, not_ids: not_ids, roles: roles, limit: limit
+
+  return r.profiles
+%}

@@ -6,13 +6,16 @@
   else
     function conversation = 'modules/chat/queries/conversations/find_by_participants', participant_ids: object.participant_ids, include_messages: true
     unless conversation
+      # who may start a conversation with whom - see find_or_create/check
+      function object = 'modules/chat/commands/conversations/find_or_create/check', object: object, current_profile: current_profile
+      if object.valid != true
+        return object
+      endif
+
       function conversation = 'modules/chat/commands/conversations/create', object: object, current_profile: current_profile
       assign conversation.created = true
     endunless
   endif
 
-  function conversation = 'modules/chat/commands/conversations/find_or_create/check', object: conversation
-
   return conversation
 %}
-

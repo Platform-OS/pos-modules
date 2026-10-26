@@ -417,6 +417,41 @@ test.describe('Testing messaging', () => {
     await context?.close();
   })
 
+  test(`people are found by their name, not by their email`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const user = users.test6;
+    const searched = users.test1;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+
+    await inboxPage.goto();
+    await inboxPage.waitForChat();
+
+    // no results show nothing on the page, so the search's own response is waited for
+    const search = async (query: string) => {
+      const response = page.waitForResponse(response => response.url().includes('/search.frame') && new URL(response.url()).searchParams.get('q') === query);
+      await inboxPage.search.searchFor(query);
+      return await (await response).text();
+    };
+
+    await test.step(`a part of ${searched.fullName}'s email finds nobody`, async () => {
+      // "test1@example" - also tells whether that address is registered, if it matched
+      const html = await search(searched.email.split('.')[0]);
+      expect(html).not.toContain(searched.fullName);
+      await expect(inboxPage.search.getResultByFullName(searched.fullName)).toHaveCount(0);
+    });
+
+    await test.step(`a part of their name finds them`, async () => {
+      await search(searched.lastName.slice(0, 4).toLowerCase());
+      expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+    });
+
+    await context?.close();
+  });
+
   test(`clearing the search brings back the conversations list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
