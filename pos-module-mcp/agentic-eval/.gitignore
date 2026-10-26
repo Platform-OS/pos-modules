@@ -6,3 +6,9 @@ results/
 # agent-written artifacts (fabricated / evidence, not source)
 security-assessment-report.md
 *-assessment-report.md
+
+# opencode installs @opencode-ai/plugin into its config dir at runtime; no
+# custom plugins live here, so the generated manifest/lockfile is not source
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock

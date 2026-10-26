@@ -16,6 +16,12 @@ on:
   repository_dispatch:
     types: [ platform-build ]
 
+# Least privilege for GITHUB_TOKEN: checkout and paths-filter read the repo,
+# skip-duplicate-actions reads workflow runs. Nothing here writes to GitHub.
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   pre_job:
     runs-on: ubuntu-latest

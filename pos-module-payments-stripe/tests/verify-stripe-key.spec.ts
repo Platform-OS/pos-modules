@@ -10,7 +10,7 @@ test.skip('Verify Stripe API key is working', async ({ page }) => {
 
   const finalUrl = page.url();
 
-  if (finalUrl.includes('checkout.stripe.com')) {
+  if (new URL(finalUrl).hostname === 'checkout.stripe.com') {
     expect(true).toBeTruthy();
   } else if (finalUrl.includes('failure=true')) {
     expect(true).toBeFalsy();
