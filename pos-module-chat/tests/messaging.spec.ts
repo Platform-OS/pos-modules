@@ -120,8 +120,12 @@ test.describe('Testing messaging', () => {
 
       await inboxPage.goto();
 
-      const countCards = await inboxPage.chatList.countCards();
-      expect(countCards).toBe(0);
+      // opening the chat didn't even create the conversation, so the inbox shows its empty
+      // state - which renders a placeholder card of its own, so the cards aren't counted
+      const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(sender.fullName);
+      expect(isChatCardVisible).toBe(false);
+      // (attached, not visible - which of the desktop/mobile empty states shows depends on the viewport)
+      await expect(page.locator('.pos-chat-conversations-blank-desktop')).toBeAttached();
     });
   });
 
