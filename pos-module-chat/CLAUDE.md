@@ -8,7 +8,7 @@ This is the **pos-module-chat** module. The monorepo-wide conventions (command p
 
 Real-time bi-directional chat over WebSockets (Rails Action Cable). The `@rails/actioncable` client is vendored at `assets/js/vendor/actioncable-<version>.esm.js` (its header says how to update it), not loaded from a CDN. Depends on `core`, `user`, `common-styling`, `push_notifications` (see `pos-module.json`). Profile module is also expected at runtime (participants are profiles).
 
-The distributed part is `modules/chat/` only. `app/` is a non-distributed example app (permissions overwrite, layout wiring, import map) and `tests/` is the E2E suite — neither ships when a consumer runs `pos-cli modules install chat`.
+The distributed part is `modules/chat/` only. `app/` is a non-distributed example app (permissions overwrite, layout wiring) and `tests/` is the E2E suite — neither ships when a consumer runs `pos-cli modules install chat`.
 
 ## Distinctive architecture (read before editing)
 
@@ -39,9 +39,9 @@ Action Cable channel actions are Liquid partials at `views/partials/channels/<ch
 
 Both handlers independently check the `chat.inbox` permission and then participation — do not assume `subscribed` authorization carries into `receive`.
 
-### Client JS and import map
+### Client JS
 
-`assets/js/pos-chat.js` is the main client (subscription, send, render, infinite-scroll pagination). It is **not** bundled — it's loaded via a native browser import map that the host app must declare in `<head>` before any other script (see README step 5 and `app/views/layouts`). Entry points: `pos-chat.js`, `pos-chat-consumer.js`, `pos-chat-csrfToken.js`, `pos-chat-notifications.js`. The client reads `window.pos.profile`, `window.pos.csrfToken`, and `window.pos.translations.chat`.
+`assets/js/pos-chat.js` is the main client (subscription, send, render, infinite-scroll pagination). It is **not** bundled and needs no import map. It's loaded the way common-styling's `init` loads its modules: an inline script in `partials/inbox.liquid` does `import()` of `pos-chat-consumer.js` and `pos-chat.js` by `asset_url` on `DOMContentLoaded`, then starts the chat with `new window.pos.modules.chat({ inbox, consumer })`. `pos-chat.js` has no imports of its own and registers itself on `window.pos.modules`. Assets are cached for years keyed on the full URL, so any file whose content changes between releases has to be loaded by its `asset_url`. Files that never change at a given path, like the vendored Action Cable client, have the version in their file name and are imported relatively. The client reads `window.pos.profile`, `window.pos.csrfToken`, and `window.pos.translations.chat`.
 
 ## Data model (`public/schema/`)
 

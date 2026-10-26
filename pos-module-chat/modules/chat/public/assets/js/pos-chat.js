@@ -4,13 +4,10 @@
 
   https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API
   https://www.npmjs.com/package/actioncable
+
+  usage (loaded and started by views/partials/inbox, the same way common-styling loads its modules):
+    new window.pos.modules.chat({ inbox: domNode, consumer: actionCableConsumer });
 */
-
-
-
-// imports
-// ------------------------------------------------------------------------
-import consumer from 'pos-chat-consumer.js';
 
 
 
@@ -161,6 +158,8 @@ window.pos.modules.chat = function(userSettings = {}){
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
 
+  // the Action Cable consumer the channel is created on, from pos-chat-consumer.js (object)
+  module.consumer = userSettings.consumer;
   // the channel to send messages through (Action Cable channel)
   module.channel = null;
   // the id for the conversation (string)
@@ -577,7 +576,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.createSubscription = () => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Creating subscription');
 
-    module.channel = consumer.subscriptions.create(
+    module.channel = module.consumer.subscriptions.create(
       {
         channel: 'conversate',
         room_id: module.conversationId,
@@ -1598,11 +1597,3 @@ window.pos.modules.chat = function(userSettings = {}){
   module.init();
 
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-  if(document.querySelector('#pos-chat-inbox')){
-    window.pos.modules.active.chat = new window.pos.modules.chat({
-      inbox: document.querySelector('#pos-chat-inbox'),
-    });
-  }
-});

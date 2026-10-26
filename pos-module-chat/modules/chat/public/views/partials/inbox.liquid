@@ -1,18 +1,3 @@
-{% # platformos-check-disable MissingAsset %}
-<script type="importmap">
-  {
-    "imports": {
-      "/": "{{ 'modules/chat/js/' | asset_url }}",
-      "pos-chat.js": "{{ 'modules/chat/js/pos-chat.js' | asset_url }}",
-      "pos-chat-consumer.js": "{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}",
-      "pos-chat-csrfToken.js": "{{ 'modules/chat/js/pos-chat-csrfToken.js' | asset_url }}",
-      "pos-chat-notifications.js": "{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}",
-      "./": "./"
-    }
-  }
-</script>
-{% # platformos-check-enable MissingAsset %}
-
 <script>
   /* namespace */
   if(typeof window.pos !== 'object'){
@@ -46,7 +31,27 @@
     }
   }
 </script>
-<script type="module" defer src="{{ 'modules/chat/js/pos-chat.js' | asset_url }}"></script>
+<script>
+  /* loads and starts the chat the same way common-styling's init loads its modules - every url
+     comes from asset_url, so a deploy reaches browsers despite the long asset caching */
+  document.addEventListener('DOMContentLoaded', () => {
+    const inbox = document.querySelector('#pos-chat-inbox');
+
+    if(!inbox){
+      return;
+    }
+
+    Promise.all([
+      import('{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}'),
+      import('{{ 'modules/chat/js/pos-chat.js' | asset_url }}')
+    ]).then(([consumer]) => {
+      window.pos.modules.active.chat = new window.pos.modules.chat({
+        inbox: inbox,
+        consumer: consumer.default
+      });
+    });
+  });
+</script>
 
 <!-- message templates -->
 {% assign dummy_message = { "message": "", "created_at": null } %}
