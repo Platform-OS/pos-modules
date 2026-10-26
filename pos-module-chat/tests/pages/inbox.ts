@@ -114,12 +114,6 @@ export class InboxPage extends BasePage {
     return isAuthorHeaderVisible;
   }
 
-  // pos-chat.js is imported on DOMContentLoaded and only then listens to the search input
-  // and the like - typing before that is lost
-  async waitForChat() {
-    await this.page.waitForFunction(() => !!(window as any).pos?.modules?.active?.chat);
-  }
-
   // A conversation is only created with its first message or attachment (opening the inbox
   // only reads) - this starts it the same way, without sending anything, for tests that need
   // its id or its connected channel first. Returns the conversation id.
@@ -151,8 +145,11 @@ class Search {
     return this.results.locator('.pos-chat-conversationCard-name').getByText(fullName, { exact: true });
   }
 
-  // fill() fires a single input event, so only one search request is made
+  // fill() fires a single input event, so only one search request is made. pos-chat.js is
+  // imported on DOMContentLoaded and only then listens to the input - typing before that is
+  // lost and no search is ever made, so it's waited for first.
   async searchFor(query: string) {
+    await this.page.waitForFunction(() => !!(window as any).pos?.modules?.active?.chat);
     await this.input.fill(query);
   }
 

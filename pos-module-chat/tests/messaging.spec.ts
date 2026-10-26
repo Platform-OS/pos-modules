@@ -428,7 +428,6 @@ test.describe('Testing messaging', () => {
     const inboxPage = new InboxPage(page);
 
     await inboxPage.goto();
-    await inboxPage.waitForChat();
 
     // no results show nothing on the page, so the search's own response is waited for
     const search = async (query: string) => {
