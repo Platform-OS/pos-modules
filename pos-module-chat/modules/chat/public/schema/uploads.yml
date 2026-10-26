@@ -8,5 +8,9 @@ properties:
     type: upload
     options:
       acl: private
+      # enforced by S3 on the upload itself (the presigned policy's content-length-range), in KiB -
+      # 10 MB, the limit the uploader and the inbox state (modules/chat/upload_drop.max_size)
+      content_length:
+        lte: 10240
   - name: metadata
     type: string

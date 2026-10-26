@@ -1,7 +1,9 @@
 {% liquid
   assign c = { "errors": {}, "valid": true }
 
-  # the same limit the uploader enforces and the inbox states (modules/chat/upload_drop.max_size)
+  # the same limit the uploader enforces and the inbox states (modules/chat/upload_drop.max_size).
+  # The size checked here is the one the client reports, for an early readable error - the
+  # real limit is enforced by S3 when the file is uploaded (content_length in schema/uploads.yml).
   assign max_file_size = 10485760
 
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'conversation_id'

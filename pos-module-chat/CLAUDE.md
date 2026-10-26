@@ -46,6 +46,7 @@ Both handlers independently check the `chat.inbox` permission and then participa
 ## Data model (`public/schema/`)
 
 - `conversation`: `participant_ids` (array), `participant_read_ids` (array). Read-state is tracked by adding/removing a participant id from `participant_read_ids` (see the `mark_read` / `mark_unread` commands).
+- `uploads`: `conversation_id`, `uploader_id`, `upload` (private file), `metadata` (type, name, size and image dimensions as reported by the client). The file size limit (10 MB) is the upload property's `content_length` option, which platformOS puts into the presigned policy, so S3 refuses larger files; `uploads/create/check` only checks the reported size, for a readable error.
 - `message`: `conversation_id`, `message`, **`autor_id`** (note: the field is spelled "autor", not "author" — match it exactly in queries, commands, and JS).
 
 ## Endpoints
