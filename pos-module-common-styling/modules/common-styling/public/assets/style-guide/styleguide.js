@@ -166,7 +166,10 @@ posStyleGuide.colors = () => {
   module.showIconNames = () => {
     
     module.settings.iconNodes.forEach(item => {
-      item.insertAdjacentHTML('afterend', `<span>${item.getAttribute('data-icon')}</span>`);
+      let label = document.createElement('span');
+
+      label.textContent = item.getAttribute('data-icon');
+      item.after(label);
       item.parentElement.title = `Copy '${item.getAttribute('data-icon')}' icon code to clipboard`;
     });
 

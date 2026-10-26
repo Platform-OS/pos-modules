@@ -2,6 +2,14 @@ import { APIRequestContext } from '@playwright/test';
 import crypto from 'crypto';
 
 /**
+ * Encode a value as a GraphQL string literal. JSON string syntax is a subset
+ * of GraphQL's, so this escapes backslashes, quotes and control characters.
+ */
+function gqlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+/**
  * Get GraphQL headers with authentication
  */
 function getGraphQLHeaders(): Record<string, string> {
@@ -100,13 +108,13 @@ export async function createWebhookEndpoint(
   }
 ) {
   const properties: string[] = [
-    `{ name: "url", value: "${data.url.replace(/"/g, '\\"')}" }`,
-    `{ name: "secret", value: "${data.secret.replace(/"/g, '\\"')}" }`,
+    `{ name: "url", value: ${gqlString(data.url)} }`,
+    `{ name: "secret", value: ${gqlString(data.secret)} }`,
     `{ name: "livemode", value_boolean: ${data.livemode ?? false} }`,
   ];
 
   if (data.stripe_account_name) {
-    properties.push(`{ name: "stripe_account_name", value: "${data.stripe_account_name.replace(/"/g, '\\"')}" }`);
+    properties.push(`{ name: "stripe_account_name", value: ${gqlString(data.stripe_account_name)} }`);
   }
 
   const mutation = `
@@ -157,11 +165,11 @@ export async function createTransaction(
   ];
 
   if (data.gateway_transaction_id) {
-    properties.push(`{ name: "gateway_transaction_id", value: "${data.gateway_transaction_id.replace(/"/g, '\\"')}" }`);
+    properties.push(`{ name: "gateway_transaction_id", value: ${gqlString(data.gateway_transaction_id)} }`);
   }
 
   if (data.stripe_account_name) {
-    properties.push(`{ name: "stripe_account_name", value: "${data.stripe_account_name.replace(/"/g, '\\"')}" }`);
+    properties.push(`{ name: "stripe_account_name", value: ${gqlString(data.stripe_account_name)} }`);
   }
 
   const mutation = `
@@ -242,7 +250,7 @@ export async function updateTransaction(
   }
 
   if (updates.gateway_transaction_id) {
-    properties.push(`{ name: "gateway_transaction_id", value: "${updates.gateway_transaction_id.replace(/"/g, '\\"')}" }`);
+    properties.push(`{ name: "gateway_transaction_id", value: ${gqlString(updates.gateway_transaction_id)} }`);
   }
 
   const mutation = `
@@ -289,8 +297,8 @@ export async function createSetupIntent(
         record: {
           table: "modules/payments_stripe/setup_intent"
           properties: [
-            { name: "gateway_id", value: "${data.gateway_id.replace(/"/g, '\\"')}" }
-            { name: "reference_id", value: "${data.reference_id.replace(/"/g, '\\"')}" }
+            { name: "gateway_id", value: ${gqlString(data.gateway_id)} }
+            { name: "reference_id", value: ${gqlString(data.reference_id)} }
             { name: "c__status", value: "${data.status || 'pending'}" }
           ]
         }
@@ -323,12 +331,12 @@ export async function createConnectedAccount(
   }
 ) {
   const properties: string[] = [
-    `{ name: "account_id", value: "${data.account_id.replace(/"/g, '\\"')}" }`,
-    `{ name: "reference_id", value: "${data.reference_id.replace(/"/g, '\\"')}" }`,
+    `{ name: "account_id", value: ${gqlString(data.account_id)} }`,
+    `{ name: "reference_id", value: ${gqlString(data.reference_id)} }`,
   ];
 
   if (data.stripe_account_name) {
-    properties.push(`{ name: "stripe_account_name", value: "${data.stripe_account_name.replace(/"/g, '\\"')}" }`);
+    properties.push(`{ name: "stripe_account_name", value: ${gqlString(data.stripe_account_name)} }`);
   }
 
   const mutation = `
