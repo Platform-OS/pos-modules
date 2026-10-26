@@ -504,6 +504,9 @@ test.describe('Testing messaging', () => {
   });
 
   test('message history is never paged in more than 50 messages, whatever per_page asks for', async ({ browser }) => {
+    // the server stores the burst of messages one by one, which can take longer than 30s
+    test.setTimeout(120_000);
+
     let context: BrowserContext | null = null;
     let page: Page;
 
@@ -537,7 +540,8 @@ test.describe('Testing messaging', () => {
         }
       }, { marker, count: maxPerPage + 1 });
 
-      await expect.poll(async () => (await fetchMessages(1)).total_entries, { timeout: 30_000 }).toBe(before + maxPerPage + 1);
+      // at least - on an instance the tests ran on before, messages of an earlier run can still be coming in
+      await expect.poll(async () => (await fetchMessages(1)).total_entries, { timeout: 90_000 }).toBeGreaterThanOrEqual(before + maxPerPage + 1);
     });
 
     await test.step(`a larger per_page still returns ${maxPerPage} messages, and the rest on the next page`, async () => {
