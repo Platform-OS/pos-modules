@@ -113,7 +113,7 @@ test.describe('Testing uploads', () => {
 
     await peoplePage.goto();
     await peoplePage.openChat(receiver.fullName);
-    const conversationId = await inboxPage.currentConversationId();
+    const conversationId = await inboxPage.startConversation();
 
     // posts to the upload record endpoint the same way pos-chat.js does
     const createUpload = (upload: string, metadata: object) => page.evaluate(async ({ conversationId, upload, metadata }) => {

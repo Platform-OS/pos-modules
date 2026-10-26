@@ -33,7 +33,7 @@ function conversations = 'modules/chat/queries/conversations/search_by_participa
 Action Cable channel actions are Liquid partials at `views/partials/channels/<channel>/<action>.liquid`. The channel is `conversate`:
 
 - `channels/conversate/subscribed.liquid` — authorization gate: echoes `'true'`/`'false'` depending on whether `current_profile` is a participant of `room_id` (the conversation id). Returning `false` makes Action Cable reject the subscription.
-- `channels/conversate/receive.liquid` — handles an incoming message: re-verifies participation, creates the message via the command (the body is stored as typed — escaping happens at render time, as plain text with newlines turned into `<br>`: each line printed via auto-escaping `{{ }}` in `message.liquid`, `encodeHtml` in `pos-chat.js` — keep the two identical; never store it pre-escaped, don't use `markdown`, and never `html_safe` user text — on platformOS it *unescapes*), and marks the conversation unread for the recipient. **Sender-side persistence**: if the receiver is not a participant the message is skipped here and persisted on the sender's side instead (see the skip log). It also doubles as the mark-read ping: when the payload carries `mark_read: true` (sent by `pos-chat.js` whenever it renders a live message while the tab is visible), it marks the current participant read instead of creating a message, and echoes `"false"` to suppress the default rebroadcast-to-room. This is what the debounced push notification (see Events below) checks against.
+- `channels/conversate/receive.liquid` — handles an incoming message: re-verifies participation, creates the message via the command (the body is stored as typed — escaping happens at render time, as plain text with newlines turned into `<br>`: each line printed via auto-escaping `{{ }}` in `message.liquid`, `encodeHtml` in `pos-chat.js` — keep the two identical; never store it pre-escaped, don't use `markdown`, and never `html_safe` user text — on platformOS it *unescapes*), and marks the conversation unread for the recipient. **Sender-side persistence**: if the receiver is not a participant the message is skipped here and persisted on the sender's side instead (see the skip log). It also doubles as the mark-read ping: when the payload carries `mark_read: true` (sent by `pos-chat.js` when the channel connects and whenever it renders a live message, only while the tab is visible — the inbox page itself never marks read, see below), it marks the current participant read instead of creating a message, and echoes `"false"` to suppress the default rebroadcast-to-room. This is what the debounced push notification (see Events below) checks against.
 
   `receive` is the *only* action `WebNotificationsChannel` (the Ruby ActionCable channel backing this) dispatches to — `subscribed` is a lifecycle callback, not a `perform`-able action. A custom action name (e.g. a client calling `.perform('mark_read')`) is silently dropped server-side since no such method exists on the channel; that's why mark-read piggybacks on `receive` via a payload flag instead of being its own partial.
 
@@ -52,8 +52,11 @@ Both handlers independently check the `chat.inbox` permission and then participa
 
 | Method | Slug | Page file | Purpose |
 |---|---|---|---|
-| GET | `/inbox` | `views/pages/inbox.html.liquid` | Renders inbox; accepts `to_uuid` (start chat with a user) or `conversation_id` |
+| GET | `/inbox` | `views/pages/inbox.liquid` | Renders inbox; accepts `conversation_id`, or `to_uuid` (opens the chat with that profile, empty if it doesn't exist yet) |
+| POST | `/api/chat/conversations` | `views/pages/api/conversations/create.json.liquid` | Starts the conversation with `to_uuid` (or returns the existing one); called by `pos-chat.js` on the first message or attachment |
 | GET | `/api/chat/messages.json` | `views/pages/api/messages/show.json.liquid` | Paginated message history (`conversation_id`, `page`, `per_page`) |
+
+**GET never writes.** `/inbox` neither creates a conversation nor marks one read: the session cookie is SameSite=Lax, so a cross-site link or redirect (or a prefetch) would otherwise do it on the user's behalf. Creation is a CSRF-checked POST, marking read goes over the WebSocket.
 
 ## Authorization
 

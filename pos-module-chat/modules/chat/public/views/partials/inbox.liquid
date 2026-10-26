@@ -22,6 +22,7 @@
     ...window.pos.translations,
     chat: {
       connectionError: '{{ 'modules/chat/error_connection' | t }}',
+      startFailed: '{{ 'modules/chat/error_start_conversation' | t }}',
       fileTooLarge: {
         single: '{{ 'modules/chat/error_file_too_large.single' | t }}',
         multiple: '{{ 'modules/chat/error_file_too_large.multiple' | t }}'
@@ -67,6 +68,7 @@
 <div
   id="pos-chat-inbox"
   data-conversation-id="{{ current_conversation.id }}"
+  data-to-uuid="{{ current_conversation.to_uuid }}"
   class="pos-app {% if current_conversation %} pos-chat-inbox-conversation-active {% endif %}"
 >
 

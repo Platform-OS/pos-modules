@@ -151,6 +151,40 @@ test.describe('Testing messaging', () => {
     await expect(page.locator('header').getByText(users.test7.fullName)).not.toBeVisible();
   });
 
+  test(`opening a chat changes nothing and a conversation can't be started without the CSRF token`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // no test sends anything to test7, so its conversations only change if this test changes them
+    const user = users.test7;
+    const other = users.test1;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+
+    // total_entries counts empty conversations too, which the inbox doesn't list
+    const countConversations = async () => (await (await page.request.get('/api/chat/conversations?per_page=1')).json()).total_entries;
+
+    await new PeoplePage(page).goto();
+    const chatUrl = await page.getByRole('link', { name: other.fullName, exact: true }).getAttribute('href');
+    const toUuid = new URL(chatUrl ?? '', page.url()).searchParams.get('to_uuid');
+    expect(toUuid, 'the people list links to the chat by to_uuid').toBeTruthy();
+    const before = await countConversations();
+
+    await test.step('a plain GET of the chat link, as a link or redirect from another site or a prefetch makes it, creates nothing', async () => {
+      const response = await page.request.get(`/inbox?to_uuid=${toUuid}`);
+      expect(response.ok()).toBe(true);
+      expect(await countConversations()).toBe(before);
+    });
+
+    await test.step('starting the conversation without the CSRF token is refused', async () => {
+      const response = await page.request.post('/api/chat/conversations', { form: { to_uuid: toUuid! } });
+      expect(response.status()).toBe(403);
+      expect(await countConversations()).toBe(before);
+    });
+
+    await context?.close();
+  });
+
   test(`regression: old conversation opens correct chat from people list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
@@ -431,8 +465,8 @@ test.describe('Testing messaging', () => {
 
     await peoplePage.goto();
     await peoplePage.openChat(receiver.fullName);
-    await inboxPage.chat.messageInputFieldEnabled.waitFor();
-    const conversationId = await inboxPage.currentConversationId();
+    // the messages below go straight over the channel, which a new conversation only has once started
+    const conversationId = await inboxPage.startConversation();
 
     const marker = `message validation ${Date.now()}`;
 

@@ -92,7 +92,8 @@ The table below outlines the [resourceful routes](https://documentation.platform
 
 | HTTP method   | slug  | page file path |  description |
 |---|---|---|---|
-| GET  | /inbox | `modules/chat/public/views/pages/inbox.liquid` | Renders a chat | 
+| GET  | /inbox | `modules/chat/public/views/pages/inbox.liquid` | Renders a chat. `?to_uuid=<profile uuid>` opens the chat with that profile - the conversation is created when its first message is sent, so linking to it is safe | 
+| POST | /api/chat/conversations | `modules/chat/public/views/pages/api/conversations/create.json.liquid` | Starts the conversation with `to_uuid`, used by the chat itself | 
 
 #### CRUD commands 
 
