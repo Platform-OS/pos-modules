@@ -74,8 +74,6 @@ window.pos.modules.chat = function(userSettings = {}){
   };
   // the id of the currently logged user (string)
   module.settings.currentUserId = window.pos.profile.id;
-  // current user name
-  module.settings.currentUserName = window.pos.profile.name;
   // the loading indicator when loading messages (dom node)
   module.settings.loadingIndicator = document.querySelector('#pos-chat-loadingIndicator');
   // current page of messages (int)
@@ -612,8 +610,6 @@ window.pos.modules.chat = function(userSettings = {}){
       {
         channel: 'conversate',
         room_id: module.conversationId,
-        sender_name: module.settings.messageInput.getAttribute('data-from-name'),
-        autor_id: module.settings.messageInput.getAttribute('data-current-profile-id'),
         authenticity_token: window.pos.csrfToken
       },
       {
@@ -821,8 +817,6 @@ window.pos.modules.chat = function(userSettings = {}){
       // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement,
       // and the same plain text + <br> in the server-rendered message.liquid partial), not here
       message: message,
-      autor_id: module.settings.currentUserId,
-      sender_name: module.settings.currentUserName,
       created_at: new Date()
     };
 

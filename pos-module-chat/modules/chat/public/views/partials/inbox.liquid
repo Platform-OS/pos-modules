@@ -12,10 +12,8 @@
 
   /* profile namespace */
   if(typeof window.pos.profile !== 'object'){
-    window.pos.profile = {{ current_profile }};
+    window.pos.profile = { id: {% print current_profile.id | json %} };
   }
-
-  window.pos.profile.timezone = {% if current_profile.properties.timezone %} '{{ current_profile.properties.timezone }}' {% else %} null {% endif %};
 
   /* translations used in module */
   window.pos.translations = {
