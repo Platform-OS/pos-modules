@@ -246,6 +246,21 @@ jobs:
             echo "Changed modules matrix: $modules"
           fi
 
+          # Attach the Playwright container image to each entry, matching the browsers to the
+          # @playwright/test version in the module's own lockfile. Modules without one (Liquid
+          # suites, mcp) only need Node for pos-cli/npm, so they get a plain Node image.
+          modules=$(echo "$modules" | jq -c '.[]' | while read -r m; do
+            path=$(echo "$m" | jq -r .path)
+            v=$(jq -r '.packages["node_modules/@playwright/test"].version // empty' "$path/package-lock.json" 2>/dev/null || true)
+            if [ -n "$v" ]; then
+              image="mcr.microsoft.com/playwright:v$v-noble"
+            else
+              image="node:20-bookworm"
+            fi
+            echo "$m" | jq -c --arg image "$image" '. + {image: $image}'
+          done | jq -sc .)
+          echo "Matrix with images: $modules"
+
           echo "matrix=$modules" >> $GITHUB_OUTPUT
 
   run-tests:
@@ -254,7 +269,7 @@ jobs:
       needs.detect-changes.result == 'success' &&
       needs.detect-changes.outputs.changed-modules != '[]'
     runs-on: ubuntu-latest
-    container: ${{ vars.PW_CONTAINER }}
+    container: ${{ matrix.image }}
     strategy:
       matrix:
         include: ${{ fromJSON(needs.detect-changes.outputs.changed-modules) }}
@@ -294,6 +309,12 @@ jobs:
           TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
         run: printf 'MPKIT_URL=%s\nMPKIT_TOKEN=%s\n' "$URL" "$TOKEN" >> "$GITHUB_ENV"
 
+      # Fail fast on a bad instance/token
+      - name: Check instance auth
+        shell: sh
+        run: |
+          curl -fsS -m 30 -w '\nHTTP %{http_code}\n' -H "Authorization: Token $MPKIT_TOKEN" "$MPKIT_URL/api/app_builder/data_clean/diagnostic"
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref_name }}
@@ -302,6 +323,13 @@ jobs:
         with:
           node-version: 20.x
 
+      - name: Install pos-cli
+        run: npm -g install @platformos/pos-cli
+
+      - name: Install module dependencies
+        working-directory: ${{ matrix.path }}
+        run: if [ -f package-lock.json ]; then npm ci; fi
+
       - name: Deploy module
         timeout-minutes: 10
         shell: sh
@@ -309,13 +337,6 @@ jobs:
         run: |
           set -eu
           ${{ matrix.deploy-script }}
-
-      - name: Diagnose instance auth
-        if: failure()
-        shell: sh
-        run: |
-          pos-cli --version || true
-          curl -sS -m 30 -w '\nHTTP %{http_code}\n' -H "Authorization: Token $MPKIT_TOKEN" "$MPKIT_URL/api/app_builder/data_clean/diagnostic" || true
 
       - name: Run tests
         shell: sh
