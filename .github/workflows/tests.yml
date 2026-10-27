@@ -313,7 +313,7 @@ jobs:
       - name: Check instance auth
         shell: sh
         run: |
-          curl -fsS -m 30 -w '\nHTTP %{http_code}\n' -H "Authorization: Token $MPKIT_TOKEN" "$MPKIT_URL/api/app_builder/data_clean/diagnostic"
+          curl -fsS -m 30 -o /dev/null -w 'HTTP %{http_code}\n' -H "Authorization: Token $MPKIT_TOKEN" "${MPKIT_URL%/}/api/app_builder/instance"
 
       - uses: actions/checkout@v4
         with:
