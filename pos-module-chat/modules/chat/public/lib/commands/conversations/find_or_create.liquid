@@ -13,6 +13,19 @@
       endif
 
       function conversation = 'modules/chat/commands/conversations/create', object: object, current_profile: current_profile
+
+      # platformOS has no unique index, so two requests at once (two tabs, a double click) can both
+      # get here and create the same conversation. Each one looks again after creating: the oldest
+      # one is kept and a newer one deletes itself - it was just created, nothing refers to it yet
+      if conversation.id
+        graphql r = 'modules/chat/conversations/oldest_by_participants', participant_ids: object.participant_ids
+        assign oldest = r.conversations.results.first
+        if oldest and oldest.id != conversation.id
+          log conversation.id, type: 'modules/chat/commands/conversations/find_or_create: deleting a duplicate conversation'
+          graphql _ = 'modules/chat/conversations/delete', id: conversation.id
+          assign conversation = oldest
+        endif
+      endif
       assign conversation.created = true
     endunless
   endif
