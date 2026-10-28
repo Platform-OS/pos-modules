@@ -1,0 +1,68 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% capture nl %}
+{% endcapture %}
+{% liquid
+  assign suffix = 8 | random_string | downcase
+
+  # add: validation, free-mail confirmation, kinds
+  function bad = 'modules/support/commands/blocklist/add', pattern: 'not a pattern', reason: null, source: 'manual', ticket_id: null, actor_id: null, confirm_free_mail: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bad.error, expected: 'modules/support/blocklist.errors.pattern', field_name: 'invalid pattern refused'
+  function free = 'modules/support/commands/blocklist/add', pattern: 'Gmail.com', reason: null, source: 'manual', ticket_id: null, actor_id: null, confirm_free_mail: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: free.error, expected: 'modules/support/blocklist.errors.free_mail', field_name: 'free-mail domain needs confirmation'
+  assign domain = suffix | append: '-bl.example'
+  function d = 'modules/support/commands/blocklist/add', pattern: domain, reason: 'abuse', source: 'manual', ticket_id: null, actor_id: null, confirm_free_mail: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: d.record.kind, expected: 'domain', field_name: 'domain row'
+  assign address = 'Loop-' | append: suffix | append: '@Other.example'
+  function a = 'modules/support/commands/blocklist/add', pattern: address, reason: null, source: 'manual', ticket_id: null, actor_id: null, confirm_free_mail: false
+  assign lower = address | downcase
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a.record.pattern, expected: lower, field_name: 'address lower-cased'
+  function again = 'modules/support/commands/blocklist/add', pattern: address, reason: null, source: 'manual', ticket_id: null, actor_id: null, confirm_free_mail: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: again.record.id, expected: a.record.id, field_name: 'no duplicate row'
+
+  # match: subdomain of a blocked domain, exact address only
+  assign list = []
+  assign sub = 'x@mail.' | append: domain
+  assign list << sub
+  function m = 'modules/support/queries/blocklist/match', addresses: list
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.id, expected: d.record.id, field_name: 'subdomain matches domain'
+  assign list = ["someone-else@other.example"]
+  function m = 'modules/support/queries/blocklist/match', addresses: list
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.id, expected: null, field_name: 'other address at an address-blocked domain passes'
+
+  # unblock lets the next email in
+  assign raw = 'From: ' | append: lower | append: nl | append: 'Subject: x' | append: nl | append: nl | append: 'x'
+  assign envelope = '{"to":["testfixtures@support-dev.platformos.com"],"from":"' | append: lower | append: '"}'
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: null, dkim: null, spam_score: null, charsets: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.blocked, expected: true, field_name: 'blocked address refused'
+  function removed = 'modules/support/commands/blocklist/remove', id: a.record.id
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: null, dkim: null, spam_score: null, charsets: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.blocked, expected: false, field_name: 'unblocked address accepted'
+  function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'id', object: stored
+  function _ = 'modules/support/commands/blocklist/remove', id: d.record.id
+
+  # Mark as spam: Spam status, address row only, contact blocked; Undo restores
+  function f = 'support_test_helpers/ticket_fixture', label: 'spam'
+  function marked = 'modules/support/commands/tickets/mark_spam', ticket: f.ticket, actor: f.manager_actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: marked.ticket.category, expected: 'closed', field_name: 'spam is a closed status'
+  graphql rows = 'modules/support/blocked_senders/search', ticket_id: f.ticket.id, source: 'spam_mark', limit: 10
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: rows.records.total_entries, expected: 1, field_name: 'one row for the mark'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: rows.records.results.first.kind, expected: 'address', field_name: 'mark blocks the address, never the domain'
+  assign domain_patterns = []
+  assign spam_domain = f.contact.emails.first | split: '@' | last
+  assign domain_patterns << spam_domain
+  graphql domain_rows = 'modules/support/blocked_senders/search', patterns: domain_patterns, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: domain_rows.records.total_entries, expected: 0, field_name: 'no domain row'
+  assign ids = []
+  assign ids << f.contact.id
+  graphql c = 'modules/support/contacts/search', ids: ids, limit: 1
+  function contract = 'modules/tests/assertions/true', contract: contract, value: c.records.results.first.blocked, field_name: 'contact blocked', object: null
+
+  function back = 'modules/support/commands/tickets/unmark_spam', ticket: marked.ticket, actor: f.manager_actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: back.ticket.category, expected: 'open', field_name: 'undo moves New back to an open status'
+  graphql rows = 'modules/support/blocked_senders/search', ticket_id: f.ticket.id, source: 'spam_mark', limit: 10
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: rows.records.total_entries, expected: 0, field_name: 'undo removes the row'
+  graphql c = 'modules/support/contacts/search', ids: ids, limit: 1
+  function contract = 'modules/tests/assertions/not_true', contract: contract, value: c.records.results.first.blocked, field_name: 'undo unblocks the contact', object: null
+%}

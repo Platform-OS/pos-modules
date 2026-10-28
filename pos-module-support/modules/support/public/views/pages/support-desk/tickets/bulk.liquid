@@ -17,7 +17,11 @@ metadata:
   endunless
 
   assign member = context.exports.support.support_member
-  function result = 'modules/support/commands/tickets/bulk_update', ids: context.params.ids, assignee: context.params.bulk_assignee, status_key: context.params.bulk_status, priority: context.params.bulk_priority, member: member
+  if context.params.bulk_spam == '1'
+    function result = 'modules/support/commands/tickets/bulk_update', ids: context.params.ids, assignee: null, status_key: null, priority: null, member: member, spam: true
+  else
+    function result = 'modules/support/commands/tickets/bulk_update', ids: context.params.ids, assignee: context.params.bulk_assignee, status_key: context.params.bulk_status, priority: context.params.bulk_priority, member: member, spam: false
+  endif
 
   assign key = 'modules/support/queue.bulk_done'
   if result.failed > 0

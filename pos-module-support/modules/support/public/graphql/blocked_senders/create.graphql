@@ -1,0 +1,20 @@
+mutation ($pattern: String!, $kind: String!, $reason: String, $source: String!, $ticket_id: String, $created_by_id: String) {
+  record: record_create(
+    record: {
+      table: "modules/support/blocked_sender"
+      properties: [
+        { name: "pattern", value: $pattern }
+        { name: "kind", value: $kind }
+        { name: "reason", value: $reason }
+        { name: "source", value: $source }
+        { name: "ticket_id", value: $ticket_id }
+        { name: "created_by_id", value: $created_by_id }
+        { name: "hits", value_int: 0 }
+      ]
+    }
+  ) {
+    id
+    pattern: property(name: "pattern")
+    kind: property(name: "kind")
+  }
+}

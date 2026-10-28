@@ -1,0 +1,45 @@
+---
+slug: support-desk/settings/blocklist
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.settings.manage
+---
+{% liquid
+  # Block or unblock a sender (D-27). Only support admins reach this page.
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign target = '/support-desk/settings/blocklist'
+  if context.params.remove_id != blank
+    function result = 'modules/support/commands/blocklist/remove', id: context.params.remove_id
+    assign notice = 'modules/support/blocklist.removed'
+  else
+    assign confirm = false
+    if context.params.confirm_free_mail == '1'
+      assign confirm = true
+    endif
+    function result = 'modules/support/commands/blocklist/add', pattern: context.params.pattern, reason: context.params.reason, source: 'manual', ticket_id: null, actor_id: context.exports.support.support_member.profile_id, confirm_free_mail: confirm
+    assign notice = 'modules/support/blocklist.added'
+    if result.error == 'modules/support/blocklist.errors.free_mail'
+      assign query = { "confirm": null, "reason": null }
+      assign query.confirm = context.params.pattern | downcase | strip
+      assign query.reason = context.params.reason
+      assign query_string = query | www_form_encode
+      assign target = target | append: '?' | append: query_string
+    endif
+  endif
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: notice, error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to target
+%}

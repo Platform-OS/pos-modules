@@ -8,6 +8,7 @@
   @param {string} [status_key] - Target status
   @param {string} [priority] - Target priority
   @param {object} member - The acting team_member
+  @param {boolean} [spam] - Mark the tickets as spam instead (D-27)
 {% enddoc %}
 {% liquid
   assign result = { "changed": 0, "failed": 0 }
@@ -30,6 +31,15 @@
       continue
     endif
     assign ok = true
+    if spam
+      function r = 'modules/support/commands/tickets/mark_spam', ticket: ticket, actor: actor
+      if r.valid
+        assign result.changed = result.changed | plus: 1
+      else
+        assign result.failed = result.failed | plus: 1
+      endif
+      continue
+    endif
     if assignee != blank
       function r = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: assignee_id, reason: 'manual', actor: actor
       if r.valid

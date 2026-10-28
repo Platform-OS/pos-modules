@@ -1,0 +1,42 @@
+{% doc %}
+  Mark as spam (D-27): moves the ticket to Spam, blocks the requester's
+  address (never the domain) and sets contact.blocked. The previous status
+  is kept in the audit row so unmark_spam can restore it.
+  Returns { valid, errors, ticket }.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  function statuses = 'modules/support/queries/statuses/all'
+  assign previous = statuses.by_id[ticket.status_id]
+  if previous.key == 'spam'
+    assign result.valid = true
+    assign result.ticket = ticket
+    return result
+  endif
+
+  assign address = null
+  if ticket.requester_id != blank
+    assign ids = []
+    assign ids << ticket.requester_id
+    graphql c = 'modules/support/contacts/search', ids: ids, limit: 1
+    assign contact = c.records.results.first
+    assign address = contact.emails.first
+  endif
+  if address == blank
+    assign result.errors.status = 'modules/support/blocklist.errors.no_address'
+    return result
+  endif
+
+  function moved = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: 'spam', actor: actor
+  unless moved.valid
+    return moved
+  endunless
+  function _ = 'modules/support/commands/blocklist/add', pattern: address, reason: null, source: 'spam_mark', ticket_id: ticket.id, actor_id: actor.id, confirm_free_mail: false
+  assign values = { "blocked": true }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: contact.id, properties: props
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'marked_spam', from_value: previous.key, to_value: address, reason: null
+  return moved
+%}

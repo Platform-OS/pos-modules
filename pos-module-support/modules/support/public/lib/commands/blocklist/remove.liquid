@@ -1,0 +1,32 @@
+{% doc %}
+  Unblocks one blocklist row (D-27). When the row came from Mark as spam,
+  the contact with that address is unblocked too, so the next email gets in.
+  Returns { valid, error }.
+  @param {string} id - blocked_sender id
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": "modules/support/blocklist.errors.not_found" }
+  if id == blank
+    return result
+  endif
+  graphql r = 'modules/support/blocked_senders/search', id: id, limit: 1
+  assign row = r.records.results.first
+  if row == blank
+    return result
+  endif
+  if row.kind == 'address'
+    assign emails = []
+    assign emails << row.pattern
+    graphql c = 'modules/support/contacts/search', emails: emails, limit: 1
+    assign contact = c.records.results.first
+    if contact.blocked
+      assign values = { "blocked": false }
+      function props = 'modules/support/helpers/props', values: values
+      graphql _ = 'modules/support/records/update', id: contact.id, properties: props
+    endif
+  endif
+  graphql _ = 'modules/support/blocked_senders/delete', id: row.id
+  assign result.valid = true
+  assign result.error = null
+  return result
+%}

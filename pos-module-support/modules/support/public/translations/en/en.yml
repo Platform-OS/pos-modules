@@ -379,6 +379,38 @@ en:
     escalated: "escalated (%{to})"
     no_agent_available: found no available agent
     delivery_failed: "email to %{from} was %{to}"
+    marked_spam: "marked as spam and blocked %{to}"
+    unmarked_spam: undid Mark as spam
+  blocklist:
+    intro: Email from a blocked address or domain (including its subdomains) is refused before anything is stored.
+    add: Block a sender
+    pattern: Address or domain
+    pattern_help: An address blocks that one sender; a domain blocks every address at it and its subdomains.
+    reason: Reason
+    block: Block
+    hits: Refused emails
+    last_hit: Last refused
+    unblock: Unblock
+    empty: Nobody is blocked.
+    from_spam: Marked as spam
+    added: Sender blocked.
+    removed: Sender unblocked.
+    confirm_title: "Block everyone at %{domain}?"
+    confirm_body: "%{domain} is a free email provider. Blocking it refuses email from all of its users, not just one sender."
+    confirm: "Block %{domain}"
+    cancel: Cancel
+    mark_spam: Mark as spam
+    mark_spam_help: Moves the ticket to Spam and blocks the requester's address. You can undo it.
+    undo_spam: Undo Mark as spam
+    kinds:
+      address: address
+      domain: domain
+    errors:
+      pattern: Enter an email address or a domain such as example.com.
+      free_mail: This is a free email domain. Confirm to block it.
+      not_found: That blocklist entry no longer exists.
+      no_address: The requester has no email address to block.
+      not_spam: The ticket is not in Spam.
   assignment:
     least_loaded: "least-loaded in %{department}: %{count} open"
     on_duty: "escalated: on-duty manager"

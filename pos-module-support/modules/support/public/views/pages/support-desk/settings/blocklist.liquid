@@ -1,0 +1,20 @@
+---
+slug: support-desk/settings/blocklist
+layout: modules/support/support
+metadata:
+  permission: support.settings.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  graphql r = 'modules/support/blocked_senders/search', limit: 200
+  function settings = 'modules/support/helpers/settings'
+  assign confirm_pattern = null
+  assign typed = context.params.confirm | downcase | strip
+  if settings.free_mail_domains contains typed
+    assign confirm_pattern = typed
+  endif
+  render 'modules/support/settings/blocklist', rows: r.records.results, total: r.records.total_entries, confirm_pattern: confirm_pattern, reason: context.params.reason
+%}

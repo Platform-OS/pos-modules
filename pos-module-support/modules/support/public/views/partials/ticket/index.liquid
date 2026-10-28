@@ -120,6 +120,17 @@
           </fieldset>
           <button type="submit" class="pos-button">{{ 'modules/support/ticket.save' | t }}</button>
         </form>
+        <form action="{{ update_action }}" method="post" class="pos-support-spam-form">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          {% if status.key == 'spam' %}
+            <input type="hidden" name="change" value="unspam">
+            <button type="submit" class="pos-button">{{ 'modules/support/blocklist.undo_spam' | t }}</button>
+          {% else %}
+            <input type="hidden" name="change" value="spam">
+            <button type="submit" class="pos-button" aria-describedby="pos-support-spam-help">{{ 'modules/support/blocklist.mark_spam' | t }}</button>
+            <p id="pos-support-spam-help" class="pos-supplementary">{{ 'modules/support/blocklist.mark_spam_help' | t }}</p>
+          {% endif %}
+        </form>
       </section>
 
       <section class="pos-card">

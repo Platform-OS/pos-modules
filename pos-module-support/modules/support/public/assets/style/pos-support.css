@@ -643,6 +643,16 @@
     gap: 0.25rem;
   }
 
+  .pos-support-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .pos-support-spam-form {
+    margin-block-start: 1rem;
+  }
+
   .pos-support-move select {
     flex: 1 1 auto;
     min-width: 0;

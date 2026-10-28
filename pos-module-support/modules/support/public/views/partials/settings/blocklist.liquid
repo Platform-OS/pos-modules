@@ -1,0 +1,83 @@
+{% doc %}
+  Settings → Blocklist (D-27): blocked addresses and domains with hits and
+  unblock; adding a free-mail domain asks for confirmation first.
+  @param {object[]} rows - blocked_sender records
+  @param {number} total - Number of rows
+  @param {string} [confirm_pattern] - Free-mail domain waiting for confirmation
+  @param {string} [reason] - Reason typed before the confirmation
+{% enddoc %}
+{% render 'modules/support/settings/nav', current: 'blocklist' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.blocklist' | t }} <span class="pos-supplementary">{{ total }}</span></h1>
+  <p class="pos-supplementary">{{ 'modules/support/blocklist.intro' | t }}</p>
+
+  {% if confirm_pattern %}
+    <section class="pos-card pos-support-step" role="alert">
+      <h2 class="pos-heading-3">{{ 'modules/support/blocklist.confirm_title' | t: domain: confirm_pattern }}</h2>
+      <p>{{ 'modules/support/blocklist.confirm_body' | t: domain: confirm_pattern }}</p>
+      <form action="/support-desk/settings/blocklist" method="post" class="pos-support-actions">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="pattern" value="{{ confirm_pattern }}">
+        <input type="hidden" name="reason" value="{{ reason }}">
+        <input type="hidden" name="confirm_free_mail" value="1">
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/blocklist.confirm' | t: domain: confirm_pattern }}</button>
+        <a class="pos-button" href="/support-desk/settings/blocklist">{{ 'modules/support/blocklist.cancel' | t }}</a>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{{ 'modules/support/blocklist.add' | t }}</h2>
+    <form action="/support-desk/settings/blocklist" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <fieldset>
+        <label for="bl-pattern">{{ 'modules/support/blocklist.pattern' | t }}</label>
+        <input id="bl-pattern" name="pattern" required placeholder="spammer@example.com / example.com" aria-describedby="bl-pattern-help">
+        <p id="bl-pattern-help" class="pos-supplementary">{{ 'modules/support/blocklist.pattern_help' | t }}</p>
+      </fieldset>
+      <fieldset><label for="bl-reason">{{ 'modules/support/blocklist.reason' | t }}</label><input id="bl-reason" name="reason" maxlength="200"></fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/blocklist.block' | t }}</button>
+    </form>
+  </section>
+
+  {% if rows.size > 0 %}
+    <div class="pos-support-table-wrap">
+      <table class="pos-table pos-support-table">
+        <thead>
+          <tr>
+            <th scope="col">{{ 'modules/support/blocklist.pattern' | t }}</th>
+            <th scope="col">{{ 'modules/support/blocklist.reason' | t }}</th>
+            <th scope="col">{{ 'modules/support/blocklist.hits' | t }}</th>
+            <th scope="col">{{ 'modules/support/blocklist.last_hit' | t }}</th>
+            <th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/blocklist.unblock' | t }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.pattern }} <span class="pos-tag">{{ 'modules/support/blocklist.kinds.' | append: row.kind | t }}</span></td>
+              <td>
+                {% if row.source == 'spam_mark' and row.ticket_id != blank %}
+                  <a href="/support-desk/tickets/{{ row.ticket_id }}">{{ 'modules/support/blocklist.from_spam' | t }}</a>
+                {% else %}
+                  {{ row.reason | default: '—' }}
+                {% endif %}
+              </td>
+              <td>{{ row.hits | default: 0 }}</td>
+              <td>{% if row.last_hit_at != blank %}{{ row.last_hit_at | l: 'long' }}{% else %}—{% endif %}</td>
+              <td>
+                <form action="/support-desk/settings/blocklist" method="post">
+                  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                  <input type="hidden" name="remove_id" value="{{ row.id }}">
+                  <button type="submit" class="pos-button pos-button-small" aria-label="{{ 'modules/support/blocklist.unblock' | t }} {{ row.pattern }}">{{ 'modules/support/blocklist.unblock' | t }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="pos-card pos-support-empty"><p>{{ 'modules/support/blocklist.empty' | t }}</p></div>
+  {% endif %}
+</div>

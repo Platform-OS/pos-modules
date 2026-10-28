@@ -1,8 +1,16 @@
-query ($patterns: [String!], $limit: Int = 100, $page: Int = 1) {
+query ($id: ID, $patterns: [String!], $ticket_id: String, $source: String, $limit: Int = 100, $page: Int = 1) {
   records(
     page: $page
     per_page: $limit
-    filter: { table: { value: "modules/support/blocked_sender" }, properties: [{ name: "pattern", value_in: $patterns }] }
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/blocked_sender" }
+      properties: [
+        { name: "pattern", value_in: $patterns }
+        { name: "ticket_id", value: $ticket_id }
+        { name: "source", value: $source }
+      ]
+    }
     sort: [{ created_at: { order: DESC } }]
   ) {
     total_entries

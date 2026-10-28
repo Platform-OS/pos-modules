@@ -1,0 +1,38 @@
+{% doc %}
+  Undo of Mark as spam (D-27): removes the blocklist row the mark created,
+  unblocks the contact and moves the ticket back to its previous status
+  (an open status when it was New, since nothing moves back to New).
+  Returns { valid, errors, ticket }.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  function statuses = 'modules/support/queries/statuses/all'
+  assign current = statuses.by_id[ticket.status_id]
+  if current.key != 'spam'
+    assign result.errors.status = 'modules/support/blocklist.errors.not_spam'
+    return result
+  endif
+
+  graphql rows = 'modules/support/blocked_senders/search', ticket_id: ticket.id, source: 'spam_mark', limit: 20
+  for row in rows.records.results
+    function _ = 'modules/support/commands/blocklist/remove', id: row.id
+  endfor
+
+  graphql ev = 'modules/support/ticket_events/search', ticket_id: ticket.id, event_type: 'marked_spam', limit: 1
+  assign target = statuses.by_key[ev.records.results.first.from_value]
+  if target == blank or target.category == 'new' or target.active == false
+    assign target = null
+    for s in statuses.list
+      if s.category == 'open' and s.active and target == null
+        assign target = s
+      endif
+    endfor
+  endif
+  function moved = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: target.key, actor: actor
+  if moved.valid
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'unmarked_spam', from_value: null, to_value: target.key, reason: null
+  endif
+  return moved
+%}

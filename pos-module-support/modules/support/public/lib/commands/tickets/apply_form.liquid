@@ -65,6 +65,20 @@
       assign result.error = r.errors.until
     endunless
 
+  when 'spam'
+    function r = 'modules/support/commands/tickets/mark_spam', ticket: ticket, actor: actor
+    unless r.valid
+      assign result.valid = false
+      assign result.error = r.errors.status
+    endunless
+
+  when 'unspam'
+    function r = 'modules/support/commands/tickets/unmark_spam', ticket: ticket, actor: actor
+    unless r.valid
+      assign result.valid = false
+      assign result.error = r.errors.status
+    endunless
+
   when 'link'
     function r = 'modules/support/commands/escalation_links/create', ticket: ticket, url: params.issue_url, actor: actor
     unless r.valid

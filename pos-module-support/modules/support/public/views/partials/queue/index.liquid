@@ -86,6 +86,7 @@
           {% for p in priorities %}<option value="{{ p }}">{{ p | upcase }}</option>{% endfor %}
         </select>
         <button type="submit" class="pos-button">{{ 'modules/support/queue.bulk_apply' | t }}</button>
+        <button type="submit" class="pos-button" name="bulk_spam" value="1">{{ 'modules/support/blocklist.mark_spam' | t }}</button>
       </div>
 
       <div class="pos-support-table-wrap">
