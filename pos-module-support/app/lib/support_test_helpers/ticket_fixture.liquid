@@ -1,0 +1,61 @@
+{% doc %}
+  Creates an agent membership in a department, a requester and a ticket for
+  command tests. Returns { ticket, actor, manager_actor, other_agent_id, department_id }.
+  @param {string} label - Distinguishes fixtures in one test
+{% enddoc %}
+{% liquid
+  graphql d = 'modules/support/departments/search', inbound_local_part: 'testfixtures', limit: 1
+  assign department_id = d.records.results.first.id
+  if department_id == blank
+    assign rows = []
+    assign row = { "table": "modules/support/department", "properties": { "name": "Test fixtures", "short_code": "TST", "inbound_local_part": "testfixtures", "is_default": false, "active": false } }
+    assign rows << row
+    graphql created = 'modules/support/records/create_many', records: rows
+    assign department_id = created.records.first.id
+  endif
+  assign departments = []
+  assign departments << department_id
+
+  assign suffix = 8 | random_string | downcase
+  assign agent_profile = 'test-agent-' | append: label | append: '-' | append: suffix
+  assign object = { "role": "agent", "state": "active", "source": "invite" }
+  assign object.profile_id = agent_profile
+  assign object.department_ids = departments
+  function agent = 'modules/support/commands/team_members/create', object: object
+
+  assign other_profile = 'test-other-' | append: label | append: '-' | append: suffix
+  assign object = { "role": "agent", "state": "active", "source": "invite" }
+  assign object.profile_id = other_profile
+  assign object.department_ids = departments
+  function other = 'modules/support/commands/team_members/create', object: object
+
+  assign manager_profile = 'test-manager-' | append: label | append: '-' | append: suffix
+  assign object = { "role": "manager", "state": "active", "source": "invite" }
+  assign object.profile_id = manager_profile
+  function manager = 'modules/support/commands/team_members/create', object: object
+
+  assign email = 'requester-' | append: label | append: '-' | append: suffix | append: '@example.com'
+  function contact = 'modules/support/commands/contacts/find_or_create', email: email, name: 'Test Requester'
+
+  assign actor = { "type": "user" }
+  assign actor.id = agent_profile
+  assign actor.member = agent
+  assign manager_actor = { "type": "user" }
+  assign manager_actor.id = manager_profile
+  assign manager_actor.member = manager
+
+  assign object = { "subject": "Fixture ticket", "channel": "email", "actor_type": "customer" }
+  assign object.department_id = department_id
+  assign object.requester_id = contact.id
+  assign object.actor_id = contact.id
+  function ticket = 'modules/support/commands/tickets/create', object: object
+
+  assign result = { "ticket": null }
+  assign result.ticket = ticket
+  assign result.actor = actor
+  assign result.manager_actor = manager_actor
+  assign result.other_agent_id = other_profile
+  assign result.department_id = department_id
+  assign result.contact = contact
+  return result
+%}

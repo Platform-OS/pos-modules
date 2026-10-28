@@ -1,0 +1,70 @@
+{% doc %}
+  Public agent reply (05 §1): stores the message as queued, updates the
+  ticket (first_replied_at once, needs_reply off, last_agent_reply_at),
+  optionally changes status, then delivers the email in the background.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} body_html - Reply HTML from the composer
+  @param {string[]} [cc_emails] - Extra recipients
+  @param {string} [then_status_key] - Status after sending
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "message": null, "ticket": null }
+  function body_html = 'modules/support/helpers/email/sanitize', html: body_html
+  assign body_text = body_html | replace_regex: '<(br|/p|/div|/li)[^>]*>', ' ', 'i' | strip_html | strip
+  if body_text == blank
+    assign result.errors.body = 'modules/support/tickets.errors.blank_body'
+    return result
+  endif
+
+  assign cc = []
+  for address in cc_emails
+    assign clean = address | downcase | strip
+    assign is_email = clean | is_email_valid
+    if is_email
+      assign cc << clean
+    endif
+  endfor
+
+  assign values = { "author_type": "agent", "visibility": "public", "channel": "email", "kind": "message", "delivery_state": "queued" }
+  assign values.ticket_id = ticket.id
+  assign values.author_id = actor.id
+  assign values.body_html = body_html
+  assign values.body_text = body_text
+  assign values.body_stripped = body_text
+  assign values.cc_emails = cc | uniq
+  assign values.subject = ticket.subject
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props
+  assign message = values
+  assign message.id = r.record.id
+
+  assign now = 'now' | to_time
+  assign ticket_values = { "needs_reply": false }
+  assign ticket_values.last_agent_reply_at = now
+  if ticket.first_replied_at == blank
+    assign ticket_values.first_replied_at = now
+  endif
+  function ticket = 'modules/support/commands/tickets/save', ticket: ticket, values: ticket_values
+
+  if then_status_key != blank
+    function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: then_status_key, actor: actor
+    if changed.valid
+      assign ticket = changed.ticket
+    endif
+  endif
+
+  background _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, source_name: 'support_deliver', priority: 'high'
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'replied', from_value: null, to_value: message.id, reason: null
+  assign payload = { "ticket_id": null, "message_id": null, "actor_id": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.message_id = message.id
+  assign payload.actor_id = actor.id
+  function _ = 'modules/core/commands/events/publish', type: 'support_reply_created', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.message = message
+  assign result.ticket = ticket
+  return result
+%}

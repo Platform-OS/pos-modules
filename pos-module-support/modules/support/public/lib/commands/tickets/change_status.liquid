@@ -1,0 +1,60 @@
+{% doc %}
+  Moves a ticket to another status (05 §1). Refuses an unknown status,
+  moving to New, and an agent closing someone else's ticket. Copies the
+  category, stamps solved_at/closed_at, clears needs_reply when solved.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} status_key - Target status key
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  function statuses = 'modules/support/queries/statuses/all'
+  assign status = statuses.by_key[status_key]
+  if status == blank or status.active == false
+    assign result.errors.status = 'modules/support/tickets.errors.unknown_status'
+    return result
+  endif
+  if status.category == 'new'
+    assign result.errors.status = 'modules/support/tickets.errors.to_new'
+    return result
+  endif
+  if status.category == 'closed' and actor.member.role == 'agent' and ticket.assignee_id != blank and ticket.assignee_id != actor.id
+    assign result.errors.status = 'modules/support/tickets.errors.close_others'
+    return result
+  endif
+  if status.id == ticket.status_id
+    assign result.valid = true
+    assign result.ticket = ticket
+    return result
+  endif
+
+  assign previous = statuses.by_id[ticket.status_id]
+  assign now = 'now' | to_time
+  assign values = { "status_id": null }
+  assign values.status_id = status.id
+  assign values.category = status.category
+  if status.category == 'solved'
+    assign values.solved_at = now
+    assign values.needs_reply = false
+  endif
+  if status.category == 'closed'
+    assign values.closed_at = now
+    assign values.needs_reply = false
+  endif
+  if previous.category == 'closed' and status.category != 'closed'
+    assign values.closed_at = null
+  endif
+  function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'status_changed', from_value: previous.key, to_value: status.key, reason: null
+  assign payload = { "ticket_id": null, "actor_id": null, "from_value": null, "to_value": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.actor_id = actor.id
+  assign payload.from_value = previous.key
+  assign payload.to_value = status.key
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_status_changed', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.ticket = saved
+  return result
+%}

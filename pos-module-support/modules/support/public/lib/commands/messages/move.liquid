@@ -1,0 +1,36 @@
+{% doc %}
+  Moves one message to another ticket (WS-14), remembering where it came
+  from. Refuses a closed target.
+  @param {object} message - The message record
+  @param {object} source - Its ticket, loaded through queries/tickets/find
+  @param {object} target - Target ticket, loaded through queries/tickets/find
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {} }
+  if message.ticket_id != source.id or source.id == target.id
+    assign result.errors.message = 'modules/support/tickets.errors.move'
+    return result
+  endif
+  if target.category == 'closed'
+    assign result.errors.target = 'modules/support/tickets.errors.move_closed'
+    return result
+  endif
+
+  assign values = { "ticket_id": null, "moved_from_ticket_id": null, "match_reason": "moved" }
+  assign values.ticket_id = target.id
+  assign values.moved_from_ticket_id = source.id
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/update', id: message.id, properties: props
+
+  assign touch = {}
+  function _ = 'modules/support/commands/tickets/save', ticket: target, values: touch
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: target.id, actor_type: actor.type, actor_id: actor.id, event_type: 'message_moved', from_value: source.number, to_value: target.number, reason: message.id
+  assign payload = { "ticket_id": null, "message_id": null, "from_ticket_id": null }
+  assign payload.ticket_id = target.id
+  assign payload.message_id = message.id
+  assign payload.from_ticket_id = source.id
+  function _ = 'modules/core/commands/events/publish', type: 'support_message_moved', object: payload, delay: null, max_attempts: null
+  assign result.valid = true
+  return result
+%}

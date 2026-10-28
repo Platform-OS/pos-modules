@@ -1,0 +1,65 @@
+{% doc %}
+  Updates subject, department and tags (05 §1). Moving to a department the
+  actor cannot see is refused for agents.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {object} fields - { subject?, department_id?, tags? }
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  assign values = {}
+  assign changes = []
+
+  if fields.subject != blank and fields.subject != ticket.subject
+    assign values.subject = fields.subject | strip | truncate: 250, ''
+    assign search_text = ticket.search_text | replace: ticket.subject, values.subject
+    assign values.search_text = search_text
+    assign changes << 'subject'
+  endif
+
+  if fields.department_id != blank and fields.department_id != ticket.department_id
+    graphql d = 'modules/support/departments/search', id: fields.department_id, limit: 1
+    if d.records.total_entries == 0
+      assign result.errors.department_id = 'modules/support/tickets.errors.department'
+      return result
+    endif
+    if actor.member.role == 'agent'
+      unless actor.member.department_ids contains fields.department_id
+        assign result.errors.department_id = 'modules/support/tickets.errors.department'
+        return result
+      endunless
+    endif
+    assign values.department_id = fields.department_id
+    assign changes << 'department'
+  endif
+
+  if fields.tags != null
+    assign tags = []
+    for tag in fields.tags
+      assign clean = tag | downcase | strip | truncate: 40, ''
+      if clean != blank
+        assign tags << clean
+      endif
+    endfor
+    assign values.tags = tags | uniq
+    assign changes << 'tags'
+  endif
+
+  if changes.size == 0
+    assign result.valid = true
+    assign result.ticket = ticket
+    return result
+  endif
+
+  function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+  assign change_list = changes | join: ','
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'updated', from_value: null, to_value: change_list, reason: null
+  assign payload = { "ticket_id": null, "actor_id": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.actor_id = actor.id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_updated', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.ticket = saved
+  return result
+%}

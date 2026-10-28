@@ -1,0 +1,63 @@
+{% doc %}
+  Creates a ticket (05 §1): next number, status New, default priority p2,
+  search_text, audit row and support_ticket_created.
+  @param {object} object - { subject, department_id, requester_id, organization_id?, channel, priority?, follow_up_of_id?, actor_type, actor_id }
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'department_id', key: null
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'requester_id', key: null
+  assign priorities = ["p0", "p1", "p2", "p3"]
+  assign priority = object.priority | default: 'p2'
+  unless priorities contains priority
+    assign priority = 'p2'
+  endunless
+  unless c.valid
+    assign object.valid = false
+    assign object.errors = c.errors
+    return object
+  endunless
+
+  function statuses = 'modules/support/queries/statuses/all'
+  assign status = statuses.by_key.new
+  function number = 'modules/support/commands/counters/next', key: 'ticket_number'
+  assign subject = object.subject | strip | default: '(no subject)' | truncate: 250, ''
+
+  graphql req = 'modules/support/contacts/search', id: object.requester_id, limit: 1
+  assign requester = req.records.results.first
+  assign search_parts = []
+  assign search_parts << number
+  assign search_parts << subject
+  assign search_parts << requester.name
+  assign search_parts = search_parts | concat: requester.emails
+  assign search_text = search_parts | join: ' '
+
+  assign values = { "tags": [], "needs_reply": true, "sla_paused_seconds": 0, "sla_version": 1, "sla_state": "none", "ai_state": "none" }
+  assign values.number = number
+  assign values.subject = subject
+  assign values.status_id = status.id
+  assign values.category = 'new'
+  assign values.priority = priority
+  assign values.department_id = object.department_id
+  assign values.organization_id = object.organization_id | default: requester.organization_id
+  assign values.requester_id = object.requester_id
+  assign values.channel = object.channel | default: 'email'
+  assign values.follow_up_of_id = object.follow_up_of_id
+  assign values.search_text = search_text
+  assign values.last_activity_at = 'now' | to_time
+  if object.channel == 'agent'
+    assign values.needs_reply = false
+  endif
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/ticket', properties: props
+  assign ticket = values
+  assign ticket.id = r.record.id
+  assign ticket.valid = true
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: object.actor_type, actor_id: object.actor_id, event_type: 'created', from_value: null, to_value: number, reason: object.channel
+  assign payload = { "ticket_id": null, "actor_id": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.actor_id = object.actor_id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_created', object: payload, delay: null, max_attempts: null
+  return ticket
+%}

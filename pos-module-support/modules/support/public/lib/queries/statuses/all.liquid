@@ -1,0 +1,19 @@
+{% doc %}
+  All statuses ordered by position, read once per request.
+  Returns { list, by_id, by_key }.
+{% enddoc %}
+{% liquid
+  assign cached = context.exports.support_statuses.statuses
+  if cached != blank
+    return cached
+  endif
+  graphql r = 'modules/support/statuses/all'
+  assign statuses = { "list": [], "by_id": {}, "by_key": {} }
+  assign statuses.list = r.records.results
+  for status in r.records.results
+    assign statuses.by_id[status.id] = status
+    assign statuses.by_key[status.key] = status
+  endfor
+  export statuses, namespace: 'support_statuses'
+  return statuses
+%}

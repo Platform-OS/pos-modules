@@ -1,0 +1,39 @@
+{% doc %}
+  Reverses a merge within 30 days: moves the source's messages back and
+  reopens the source in In progress.
+  @param {object} source - The merged ticket, loaded through queries/tickets/find
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  if source.merged_into_id == blank
+    assign result.errors.source = 'modules/support/tickets.errors.not_merged'
+    return result
+  endif
+  assign limit = source.closed_at | add_to_time: 30, 'd'
+  assign now = 'now' | to_time
+  if limit < now
+    assign result.errors.source = 'modules/support/tickets.errors.unmerge_expired'
+    return result
+  endif
+
+  graphql moved = 'modules/support/messages/move_all', from_ticket_id: source.merged_into_id, to_ticket_id: source.id, moved_from_ticket_id: null, only_moved_from: source.id
+
+  function statuses = 'modules/support/queries/statuses/all'
+  assign progress = statuses.by_key.progress
+  assign values = { "merged_into_id": null, "closed_at": null }
+  assign values.status_id = progress.id
+  assign values.category = progress.category
+  function saved = 'modules/support/commands/tickets/save', ticket: source, values: values
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: source.id, actor_type: actor.type, actor_id: actor.id, event_type: 'unmerged', from_value: source.merged_into_id, to_value: source.id, reason: null
+  assign payload = { "ticket_id": null, "actor_id": null, "target_id": null }
+  assign payload.ticket_id = source.id
+  assign payload.actor_id = actor.id
+  assign payload.target_id = source.merged_into_id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_unmerged', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.ticket = saved
+  return result
+%}

@@ -1,0 +1,13 @@
+{% doc %}
+  Writes changed ticket properties, stamping last_activity_at. Returns the
+  ticket with the values merged in.
+  @param {object} ticket - The loaded ticket
+  @param {object} values - Properties to write
+{% enddoc %}
+{% liquid
+  assign values.last_activity_at = 'now' | to_time
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/update', id: ticket.id, properties: props
+  assign saved = ticket | hash_merge: values
+  return saved
+%}

@@ -1,0 +1,40 @@
+{% doc %}
+  Internal note (05 §1): never emailed to the customer.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} body_html - Note HTML from the composer
+  @param {string[]} [mentioned_ids] - Profile ids mentioned with @
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "message": null }
+  function body_html = 'modules/support/helpers/email/sanitize', html: body_html
+  assign body_text = body_html | replace_regex: '<(br|/p|/div|/li)[^>]*>', ' ', 'i' | strip_html | strip
+  if body_text == blank
+    assign result.errors.body = 'modules/support/tickets.errors.blank_body'
+    return result
+  endif
+
+  assign values = { "author_type": "agent", "visibility": "internal", "channel": "system", "kind": "note" }
+  assign values.ticket_id = ticket.id
+  assign values.author_id = actor.id
+  assign values.body_html = body_html
+  assign values.body_text = body_text
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props
+  assign message = values
+  assign message.id = r.record.id
+
+  assign touch = {}
+  function _ = 'modules/support/commands/tickets/save', ticket: ticket, values: touch
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'note_added', from_value: null, to_value: message.id, reason: null
+  assign payload = { "ticket_id": null, "message_id": null, "actor_id": null, "mentioned_ids": [] }
+  assign payload.ticket_id = ticket.id
+  assign payload.message_id = message.id
+  assign payload.actor_id = actor.id
+  assign payload.mentioned_ids = mentioned_ids | default: [] | uniq
+  function _ = 'modules/core/commands/events/publish', type: 'support_note_created', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.message = message
+  return result
+%}

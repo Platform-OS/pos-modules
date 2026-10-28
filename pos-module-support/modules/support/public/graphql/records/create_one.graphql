@@ -1,0 +1,7 @@
+mutation ($table: String!, $properties: [PropertyInputType]) {
+  record: record_create(record: { table: $table, properties: $properties }) {
+    id
+    created_at
+    properties
+  }
+}

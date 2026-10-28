@@ -106,3 +106,22 @@ en:
       test: The test email was not sent.
       enable: Send a test email and pass the inbound check first.
       step: Unknown step.
+  tickets:
+    errors:
+      unknown_status: That status doesn't exist.
+      to_new: A ticket can't be moved back to New.
+      close_others: Only a manager can close a ticket assigned to someone else.
+      not_member: That person isn't an active support team member.
+      not_in_department: That agent doesn't work in this ticket's department.
+      assign_others: Only a manager can assign tickets to other people.
+      priority: Choose a priority from P0 to P3.
+      department: You can't move the ticket to that department.
+      snooze_past: Choose a time in the future.
+      merge_self: A ticket can't be merged into itself.
+      merge_closed: Merge into an open ticket that hasn't been merged itself.
+      merge_org: Only a manager can merge tickets from different organizations.
+      not_merged: This ticket isn't merged.
+      unmerge_expired: Merges can only be undone within 30 days.
+      blank_body: Write a message first.
+      move: That message can't be moved there.
+      move_closed: Messages can't be moved into a closed ticket.

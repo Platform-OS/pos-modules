@@ -1,0 +1,31 @@
+{% doc %}
+  Applies the category rule for a new customer message (03 §4): sets
+  needs_reply and last_customer_message_at, and moves pending or solved
+  tickets back to In progress. A closed ticket never reaches here: inbound
+  threading opens a follow-up instead. Auto-replies change nothing.
+  @param {object} ticket - The ticket the message was added to
+  @param {boolean} [auto_reply] - The message was an auto-reply
+{% enddoc %}
+{% liquid
+  if auto_reply
+    return ticket
+  endif
+  function categories = 'modules/support/helpers/categories'
+  assign rule = categories[ticket.category].customer_reply
+
+  assign values = { "needs_reply": true }
+  assign values.last_customer_message_at = 'now' | to_time
+  function ticket = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+
+  assign prefix = rule | slice: 0, 10
+  if prefix == 'to_status:'
+    assign status_key = rule | remove_first: 'to_status:'
+    assign actor = { "type": "customer", "id": null, "member": null }
+    assign actor.id = ticket.requester_id
+    function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: status_key, actor: actor
+    if changed.valid
+      assign ticket = changed.ticket
+    endif
+  endif
+  return ticket
+%}

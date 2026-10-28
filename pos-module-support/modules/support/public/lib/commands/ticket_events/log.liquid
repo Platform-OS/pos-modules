@@ -1,0 +1,27 @@
+{% doc %}
+  Writes one audit row (ticket_event). ticket_id is blank for team changes.
+  @param {string} [ticket_id] - The ticket
+  @param {string} actor_type - user | system | customer | ai
+  @param {string} [actor_id] - Profile or contact id
+  @param {string} event_type - created | status_changed | assigned | …
+  @param [from_value] - Previous value
+  @param [to_value] - New value
+  @param {string} [reason] - Why
+{% enddoc %}
+{% liquid
+  assign values = { "ticket_id": null, "actor_id": null, "from_value": null, "to_value": null, "reason": null }
+  assign values.ticket_id = ticket_id
+  assign values.actor_type = actor_type
+  assign values.actor_id = actor_id
+  assign values.event_type = event_type
+  if from_value != null
+    assign values.from_value = from_value | append: ''
+  endif
+  if to_value != null
+    assign values.to_value = to_value | append: ''
+  endif
+  assign values.reason = reason
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/ticket_event', properties: props
+  return r.record
+%}

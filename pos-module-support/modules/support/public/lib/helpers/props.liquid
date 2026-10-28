@@ -1,0 +1,28 @@
+{% doc %}
+  Turns a hash into the [PropertyInputType] list of record_create and
+  record_update: integers as value_int, booleans as value_boolean, arrays as
+  value_array, everything else (strings, times, null) as value.
+  @param {object} values - Property name to value
+{% enddoc %}
+{% liquid
+  assign list = []
+  for pair in values
+    assign kind = pair[1] | type_of
+    assign prop = { "name": null }
+    assign prop.name = pair[0]
+    case kind
+      when 'Integer'
+        assign prop.value_int = pair[1]
+      when 'TrueClass', 'FalseClass', 'Boolean'
+        assign prop.value_boolean = pair[1]
+      when 'Array'
+        assign prop.value_array = pair[1]
+      when 'Time', 'DateTime', 'Date'
+        assign prop.value = pair[1] | strftime: '%Y-%m-%dT%H:%M:%S.%LZ'
+      else
+        assign prop.value = pair[1]
+    endcase
+    assign list << prop
+  endfor
+  return list
+%}

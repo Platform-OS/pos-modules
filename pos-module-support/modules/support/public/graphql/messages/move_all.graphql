@@ -1,0 +1,12 @@
+mutation ($from_ticket_id: String!, $to_ticket_id: String!, $moved_from_ticket_id: String, $only_moved_from: String) {
+  result: records_update_all(
+    table: "modules/support/message"
+    sync: true
+    filter: {
+      properties: [{ name: "ticket_id", value: $from_ticket_id }, { name: "moved_from_ticket_id", value: $only_moved_from }]
+    }
+    record: { properties: [{ name: "ticket_id", value: $to_ticket_id }, { name: "moved_from_ticket_id", value: $moved_from_ticket_id }] }
+  ) {
+    count
+  }
+}

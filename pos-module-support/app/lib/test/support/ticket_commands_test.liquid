@@ -1,0 +1,83 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function f = 'support_test_helpers/ticket_fixture', label: 'cmd'
+  assign actor = f.actor
+  assign ticket = f.ticket
+
+  # create: number, New, p2, audit row
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.category, expected: 'new', field_name: 'created as new'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.priority, expected: 'p2', field_name: 'default priority p2'
+  graphql ev = 'modules/support/ticket_events/search', ticket_id: ticket.id, event_type: 'created'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ev.records.total_entries, expected: 1, field_name: 'created audit row'
+
+  # moving to New is refused
+  function moved = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: 'new', actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved.valid, expected: false, field_name: 'to New refused'
+
+  # pending + customer reply -> In progress
+  function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: 'customer', actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: changed.ticket.category, expected: 'pending', field_name: 'set pending'
+  function after = 'modules/support/commands/tickets/apply_customer_reply', ticket: changed.ticket, auto_reply: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.category, expected: 'open', field_name: 'pending reply moves to progress'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.needs_reply, expected: true, field_name: 'customer reply sets needs_reply'
+
+  # solved + customer reply -> In progress
+  function changed = 'modules/support/commands/tickets/change_status', ticket: after, status_key: 'confirm', actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: changed.ticket.needs_reply, expected: false, field_name: 'solved clears needs_reply'
+  function after = 'modules/support/commands/tickets/apply_customer_reply', ticket: changed.ticket, auto_reply: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.category, expected: 'open', field_name: 'solved reply moves to progress'
+
+  # auto-reply changes nothing
+  function changed = 'modules/support/commands/tickets/change_status', ticket: after, status_key: 'customer', actor: actor
+  function after = 'modules/support/commands/tickets/apply_customer_reply', ticket: changed.ticket, auto_reply: true
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.category, expected: 'pending', field_name: 'auto-reply keeps pending'
+
+  # every change wrote an audit row
+  graphql ev = 'modules/support/ticket_events/search', ticket_id: ticket.id, event_type: 'status_changed'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ev.records.total_entries, expected: 5, field_name: 'status changes audited'
+
+  # priority
+  function p = 'modules/support/commands/tickets/set_priority', ticket: after, priority: 'p9', actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.valid, expected: false, field_name: 'bad priority refused'
+  function p = 'modules/support/commands/tickets/set_priority', ticket: after, priority: 'p0', actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.ticket.priority, expected: 'p0', field_name: 'priority set'
+
+  # assign to self works; an agent assigning someone else is refused
+  function a = 'modules/support/commands/tickets/assign', ticket: p.ticket, assignee_id: actor.id, reason: null, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a.ticket.assignee_id, expected: actor.id, field_name: 'self assign'
+  function a2 = 'modules/support/commands/tickets/assign', ticket: a.ticket, assignee_id: f.other_agent_id, reason: null, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: a2.valid, expected: false, field_name: 'agent cannot assign others'
+
+  # tags and subject
+  assign tags = "Billing, billing ,Portal" | split: ','
+  assign fields = { "subject": "Renamed subject" }
+  assign fields.tags = tags
+  function u = 'modules/support/commands/tickets/update_fields', ticket: a.ticket, fields: fields, actor: actor
+  assign tag_list = u.ticket.tags | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: tag_list, expected: 'billing,portal', field_name: 'tags normalised'
+
+  # merge moves messages and can be undone
+  function f2 = 'support_test_helpers/ticket_fixture', label: 'merge'
+  function note = 'modules/support/commands/messages/create_note', ticket: f2.ticket, body_html: '<p>source note</p>', mentioned_ids: null, actor: actor
+  function m = 'modules/support/commands/tickets/merge', source: f2.ticket, target: u.ticket, actor: f2.manager_actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.valid, expected: true, field_name: 'merge ok'
+  graphql moved_msgs = 'modules/support/messages/search', ticket_id: u.ticket.id, limit: 10
+  assign moved_from = moved_msgs.records.results | map: 'moved_from_ticket_id'
+  assign moved_ok = false
+  if moved_from contains f2.ticket.id
+    assign moved_ok = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: moved_ok, field_name: 'merge moved messages', object: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.ticket.merged_into_id, expected: u.ticket.id, field_name: 'source points at target'
+  function um = 'modules/support/commands/tickets/unmerge', source: m.ticket, actor: f2.manager_actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: um.valid, expected: true, field_name: 'unmerge ok'
+  graphql back = 'modules/support/messages/search', ticket_id: f2.ticket.id, limit: 10
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: back.records.total_entries, expected: 1, field_name: 'unmerge moved message back'
+
+  # note is internal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: note.message.visibility, expected: 'internal', field_name: 'note internal'
+  function blank_note = 'modules/support/commands/messages/create_note', ticket: f2.ticket, body_html: '<p> </p>', mentioned_ids: null, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: blank_note.valid, expected: false, field_name: 'blank note refused'
+%}

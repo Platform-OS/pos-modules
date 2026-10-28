@@ -1,0 +1,62 @@
+{% doc %}
+  Assigns a ticket (05 §1). Refuses an assignee who is not an active member
+  serving the ticket's department; an agent may assign only to themselves
+  unless they hold support.tickets.manage.all. A blank assignee unassigns.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} [assignee_id] - Profile id, blank to unassign
+  @param {string} [reason] - Shown in the activity log, default "manual"
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null, "warning": null }
+  assign reason = reason | default: 'manual'
+
+  if assignee_id != blank
+    function assignee = 'modules/support/queries/team_members/find', profile_id: assignee_id
+    if assignee == blank or assignee.state != 'active'
+      assign result.errors.assignee_id = 'modules/support/tickets.errors.not_member'
+      return result
+    endif
+    if assignee.role == 'agent'
+      unless assignee.department_ids contains ticket.department_id
+        assign result.errors.assignee_id = 'modules/support/tickets.errors.not_in_department'
+        return result
+      endunless
+    endif
+  endif
+
+  if actor.type == 'user' and assignee_id != actor.id
+    function permissions = 'modules/support/queries/team/role_permissions'
+    unless permissions[actor.member.role] contains 'support.tickets.manage.all'
+      assign result.errors.assignee_id = 'modules/support/tickets.errors.assign_others'
+      return result
+    endunless
+  endif
+
+  assign values = { "assignee_id": null, "assigned_at": null }
+  assign values.assignee_id = assignee_id
+  if assignee_id != blank
+    assign values.assigned_at = 'now' | to_time
+  endif
+  assign values.assignment_reason = reason
+  function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+
+  if assignee_id != blank
+    assign now = 'now' | to_time
+    assign member_values = { "last_assigned_at": null }
+    assign member_values.last_assigned_at = now
+    function props = 'modules/support/helpers/props', values: member_values
+    graphql m = 'modules/support/records/update', id: assignee.id, properties: props
+  endif
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'assigned', from_value: ticket.assignee_id, to_value: assignee_id, reason: reason
+  assign payload = { "ticket_id": null, "actor_id": null, "assignee_id": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.actor_id = actor.id
+  assign payload.assignee_id = assignee_id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_assigned', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.ticket = saved
+  return result
+%}

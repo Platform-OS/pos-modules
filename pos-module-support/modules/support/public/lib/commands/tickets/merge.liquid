@@ -1,0 +1,55 @@
+{% doc %}
+  Merges source into target (05 §1): moves every message (remembering where
+  it came from), closes the source with merged_into_id. Undoable for 30
+  days with tickets/unmerge. Refuses merging a ticket into itself, into a
+  closed or merged ticket, and across organizations without manage.all.
+  @param {object} source - Ticket loaded through queries/tickets/find
+  @param {object} target - Ticket loaded through queries/tickets/find
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  if source.id == target.id
+    assign result.errors.target = 'modules/support/tickets.errors.merge_self'
+    return result
+  endif
+  if target.category == 'closed' or target.merged_into_id != blank or source.merged_into_id != blank
+    assign result.errors.target = 'modules/support/tickets.errors.merge_closed'
+    return result
+  endif
+  if source.organization_id != target.organization_id
+    function permissions = 'modules/support/queries/team/role_permissions'
+    unless permissions[actor.member.role] contains 'support.tickets.manage.all'
+      assign result.errors.target = 'modules/support/tickets.errors.merge_org'
+      return result
+    endunless
+  endif
+
+  graphql moved = 'modules/support/messages/move_all', from_ticket_id: source.id, to_ticket_id: target.id, moved_from_ticket_id: source.id, only_moved_from: null
+
+  function statuses = 'modules/support/queries/statuses/all'
+  assign closed = statuses.by_key.closed
+  assign values = { "needs_reply": false }
+  assign values.status_id = closed.id
+  assign values.category = 'closed'
+  assign values.closed_at = 'now' | to_time
+  assign values.merged_into_id = target.id
+  function saved = 'modules/support/commands/tickets/save', ticket: source, values: values
+  if source.needs_reply
+    assign target_values = { "needs_reply": true }
+    function target = 'modules/support/commands/tickets/save', ticket: target, values: target_values
+  endif
+
+  assign count = moved.result.count | append: ''
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: source.id, actor_type: actor.type, actor_id: actor.id, event_type: 'merged', from_value: source.number, to_value: target.number, reason: count
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: target.id, actor_type: actor.type, actor_id: actor.id, event_type: 'merged_in', from_value: source.number, to_value: target.number, reason: count
+  assign payload = { "ticket_id": null, "actor_id": null, "target_id": null }
+  assign payload.ticket_id = source.id
+  assign payload.actor_id = actor.id
+  assign payload.target_id = target.id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_merged', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.ticket = saved
+  return result
+%}

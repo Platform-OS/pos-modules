@@ -1,0 +1,32 @@
+{% doc %}
+  Loads one ticket by id or number, scoped to what the member may read:
+  agents see their departments only; managers and admins see all. Pass no
+  member only from system code (consumers, inbound), never from a page.
+  @param {string} [id] - Ticket id
+  @param {number} [number] - Ticket number
+  @param {object} [member] - The acting team_member
+{% enddoc %}
+{% liquid
+  if id == blank and number == blank
+    return null
+  endif
+  if number != blank
+    assign number = number | plus: 0
+  endif
+  graphql r = 'modules/support/tickets/search', id: id, number: number, limit: 1
+  assign ticket = r.records.results.first
+  if ticket == blank
+    return null
+  endif
+  if member
+    if member.state != 'active'
+      return null
+    endif
+    if member.role == 'agent'
+      unless member.department_ids contains ticket.department_id
+        return null
+      endunless
+    endif
+  endif
+  return ticket
+%}

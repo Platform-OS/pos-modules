@@ -1,0 +1,24 @@
+{% doc %}
+  Hides a ticket from queue views until a time; blank until clears it.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} [until] - ISO time in the future
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  assign values = { "snooze_until": null }
+  if until != blank
+    assign until_time = until | to_time
+    assign now = 'now' | to_time
+    if until_time <= now
+      assign result.errors.until = 'modules/support/tickets.errors.snooze_past'
+      return result
+    endif
+    assign values.snooze_until = until_time
+  endif
+  function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'snoozed', from_value: ticket.snooze_until, to_value: values.snooze_until, reason: null
+  assign result.valid = true
+  assign result.ticket = saved
+  return result
+%}

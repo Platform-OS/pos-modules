@@ -1,0 +1,15 @@
+query {
+  records(per_page: 100, filter: { table: { value: "modules/support/status" } }, sort: [{ properties: { name: "position", order: ASC } }]) {
+    results {
+      id
+      key: property(name: "key")
+      label: property(name: "label")
+      customer_label: property(name: "customer_label")
+      category: property(name: "category")
+      color: property(name: "color")
+      position: property_int(name: "position")
+      system: property_boolean(name: "system")
+      active: property_boolean(name: "active")
+    }
+  }
+}

@@ -1,0 +1,24 @@
+query ($ticket_id: String, $event_type: String, $limit: Int = 100, $page: Int = 1) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      table: { value: "modules/support/ticket_event" }
+      properties: [{ name: "ticket_id", value: $ticket_id }, { name: "event_type", value: $event_type }]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      ticket_id: property(name: "ticket_id")
+      actor_type: property(name: "actor_type")
+      actor_id: property(name: "actor_id")
+      event_type: property(name: "event_type")
+      from_value: property(name: "from_value")
+      to_value: property(name: "to_value")
+      reason: property(name: "reason")
+    }
+  }
+}
