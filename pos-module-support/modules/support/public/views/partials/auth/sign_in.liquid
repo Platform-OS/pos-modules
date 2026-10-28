@@ -1,0 +1,25 @@
+{% doc %}
+  @param {boolean} [failed] - Whether the last attempt failed
+  @param {string} [email] - The email to prefill
+{% enddoc %}
+<section class="pos-card pos-support-gate" aria-labelledby="pos-support-sign-in-title">
+  <h1 id="pos-support-sign-in-title" class="pos-heading-2">{{ 'modules/support/sign_in.title' | t }}</h1>
+  {% if failed %}
+    <p class="pos-support-error" role="alert">{{ 'modules/support/sign_in.invalid' | t }}</p>
+  {% endif %}
+  <form action="/support-desk/sign-in" method="post" class="pos-form">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <fieldset>
+      <label for="pos-support-email">{{ 'modules/support/sign_in.email' | t }}</label>
+      <input type="email" name="email" id="pos-support-email" value="{{ email }}" autocomplete="username" required>
+    </fieldset>
+    <fieldset>
+      <label for="pos-support-password">{{ 'modules/support/sign_in.password' | t }}</label>
+      <input type="password" name="password" id="pos-support-password" autocomplete="current-password" required>
+    </fieldset>
+    <fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/sign_in.submit' | t }}</button>
+    </fieldset>
+  </form>
+  <p><a href="/passwords/reset">{{ 'modules/support/sign_in.forgot' | t }}</a></p>
+</section>

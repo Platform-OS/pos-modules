@@ -1,0 +1,45 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign profile = { "id": "p-1", "roles": ["authenticated"] }
+  assign ticket = { "department_id": "d-2" }
+
+  # no membership
+  assign entity = { "member": null }
+  function can = 'modules/support/can/desk', requester: profile, entity: entity, do: 'support.tickets.read'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: false, field_name: 'no member'
+
+  # active agent reads
+  assign agent = { "profile_id": "p-1", "role": "agent", "state": "active", "department_ids": ["d-1"] }
+  assign entity = { "member": agent }
+  function can = 'modules/support/can/desk', requester: profile, entity: entity, do: 'support.tickets.read'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: true, field_name: 'agent read'
+
+  # agent cannot manage settings
+  function can = 'modules/support/can/desk', requester: profile, entity: entity, do: 'support.settings.manage'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: false, field_name: 'agent settings'
+
+  # agent outside the ticket's department
+  assign entity = { "member": agent, "ticket": ticket }
+  function can = 'modules/support/can/desk', requester: profile, entity: entity, do: 'support.tickets.read'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: false, field_name: 'agent other department'
+
+  # manager sees every department
+  assign manager = { "profile_id": "p-1", "role": "manager", "state": "active", "department_ids": [] }
+  assign entity = { "member": manager, "ticket": ticket }
+  function can = 'modules/support/can/desk', requester: profile, entity: entity, do: 'support.tickets.manage.all'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: true, field_name: 'manager any department'
+
+  # disabled admin is refused
+  assign admin = { "profile_id": "p-1", "role": "admin", "state": "disabled" }
+  assign entity = { "member": admin }
+  function can = 'modules/support/can/desk', requester: profile, entity: entity, do: 'support.tickets.read'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: false, field_name: 'disabled admin'
+
+  # someone else's membership is refused
+  assign other = { "profile_id": "p-2", "role": "admin", "state": "active" }
+  assign entity = { "member": other }
+  function can = 'modules/support/can/desk', requester: profile, entity: entity, do: 'support.tickets.read'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: false, field_name: 'other profile member'
+%}

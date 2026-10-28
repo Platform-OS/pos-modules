@@ -1,0 +1,27 @@
+{% doc %}
+  Builds the brand used by the layout, emails, manifest and push (08 §3):
+  host hook support_branding over module defaults. Branding settings
+  override both once the settings table exists (TASK-4).
+{% enddoc %}
+{% liquid
+  assign app_name = 'modules/support/app_name' | t
+  assign brand = { "app_name": app_name, "short_name": app_name, "logo_url": null, "logo_dark_url": null, "icon_url": null, "favicon_url": null, "theme_color": null, "background_color": null, "theme_mode": "auto", "support_email_name": app_name }
+
+  function host_brand = 'modules/core/commands/hook/fire', hook: 'support_branding', params: null, merge_to_object: true
+  for pair in host_brand
+    if pair[1] != blank
+      assign brand[pair[0]] = pair[1]
+    endif
+  endfor
+
+  assign brand.initial = brand.short_name | default: brand.app_name | slice: 0 | upcase
+  case brand.theme_mode
+    when 'dark'
+      assign brand.theme_class = 'pos-theme-dark'
+    when 'light'
+      assign brand.theme_class = ''
+    else
+      assign brand.theme_class = 'pos-theme-darkEnabled'
+  endcase
+  return brand
+%}

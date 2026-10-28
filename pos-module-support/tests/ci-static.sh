@@ -13,7 +13,7 @@ FAIL=0
 if [ -d "$ROOT/views/pages/support-desk" ]; then
   for f in $(find "$ROOT/views/pages/support-desk" -name '*.liquid'); do
     case "$f" in
-      */sign-in.liquid|*/invites/*|*/manifest.liquid|*/sw.liquid) continue ;;
+      */sign-in*.liquid|*/invites/*|*/manifest.liquid|*/sw.liquid) continue ;;
     esac
     if ! grep -q 'permission:' "$f"; then
       echo "ci-static: $f has no metadata.permission"; FAIL=1

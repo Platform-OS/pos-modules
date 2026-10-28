@@ -1,0 +1,13 @@
+---
+slug: support-desk/sign-in
+layout: modules/support/support
+---
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+  if current_profile.user
+    redirect_to '/support-desk'
+    break
+  endif
+
+  render 'modules/support/auth/sign_in', failed: false, email: null
+%}

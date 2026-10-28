@@ -1,0 +1,27 @@
+{% doc %}
+  The desk gate (09 §1.2). Include it, do not call it as a function: it stops
+  the page with a redirect or a 403. Sets current_profile and support_member.
+  @param {string} permission - The page's metadata.permission
+  @param {object} [ticket] - Ticket being accessed, for department scope
+{% enddoc %}
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+  if current_profile.user == null
+    session return_to = context.location.pathname
+    redirect_to '/support-desk/sign-in'
+    break
+  endif
+
+  function support_member = 'modules/support/helpers/resolve_member', profile: current_profile
+  export support_member, namespace: 'support'
+  if support_member == null or support_member.state != 'active'
+    response_status 403
+    render 'modules/support/no_access', member: support_member, current_profile: current_profile
+    break
+  endif
+
+  assign support_entity = { "member": support_member, "ticket": ticket }
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: permission, access_callback: 'modules/support/can/desk', entity: support_entity, forbidden_partial: 'modules/support/forbidden', redirect_anonymous_to_login: false, anonymous_return_to: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+%}

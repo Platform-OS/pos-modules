@@ -1,0 +1,43 @@
+{% doc %}
+  Loads the profile's team_member, creating it once for a host superadmin or an
+  ADMIN_EMAILS address (D-24). An existing record is returned as it is, so a
+  disabled membership is never recreated.
+  @param {object} profile - The signed-in profile
+{% enddoc %}
+{% liquid
+  if profile.id == blank
+    return null
+  endif
+
+  function member = 'modules/support/queries/team_members/find', profile_id: profile.id
+  if member
+    return member
+  endif
+
+  assign source = null
+  if profile.roles contains 'superadmin'
+    assign source = 'superadmin'
+  else
+    assign email = profile.email | default: profile.user.email | downcase | strip
+    assign admin_emails = context.constants['modules/support/ADMIN_EMAILS'] | default: '' | downcase | split: ','
+    for admin_email in admin_emails
+      assign admin_email = admin_email | strip
+      if admin_email != blank and admin_email == email
+        assign source = 'recovery'
+        break
+      endif
+    endfor
+  endif
+
+  if source == null
+    return null
+  endif
+
+  assign object = { "profile_id": profile.id, "role": "admin", "state": "active", "source": source }
+  function member = 'modules/support/commands/team_members/create', object: object
+  unless member.valid
+    log member.errors, type: 'modules/support/helpers/resolve_member'
+    return null
+  endunless
+  return member
+%}

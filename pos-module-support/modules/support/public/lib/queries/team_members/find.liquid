@@ -1,0 +1,10 @@
+{% doc %}
+  @param {string} profile_id - The profile whose membership to load
+{% enddoc %}
+{% liquid
+  if profile_id == blank
+    return null
+  endif
+  graphql r = 'modules/support/team_members/search', profile_id: profile_id, limit: 1
+  return r.records.results.first
+%}

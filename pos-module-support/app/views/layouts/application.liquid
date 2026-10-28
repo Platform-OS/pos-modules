@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html class="pos-app" lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Harbor City Permits</title>
+    {% render 'modules/common-styling/init', reset: true %}
+    <link rel="stylesheet" href="{{ 'style/host-theme.css' | asset_url }}">
+  </head>
+  <body>
+    {{ content_for_layout }}
+  </body>
+</html>

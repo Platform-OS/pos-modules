@@ -1,0 +1,34 @@
+name: team_member
+properties:
+  - name: profile_id
+    type: string
+  - name: role
+    type: string
+  - name: state
+    type: string
+  - name: source
+    type: string
+  - name: created_by_id
+    type: string
+  - name: disabled_at
+    type: datetime
+  - name: disabled_by_id
+    type: string
+  - name: job_title
+    type: string
+  - name: availability
+    type: string
+  - name: department_ids
+    type: array
+  - name: max_open
+    type: integer
+  - name: working_hours
+    type: text
+  - name: last_assigned_at
+    type: datetime
+  - name: notification_prefs
+    type: text
+  - name: paused_until
+    type: datetime
+  - name: on_duty_manager
+    type: boolean

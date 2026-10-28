@@ -1,0 +1,25 @@
+{% doc %}
+  @param {object} requester - The signed-in profile
+  @param {object} [entity] - { member, ticket }; member is the requester's team_member
+  @param {string} do - The support permission to check
+{% enddoc %}
+{% liquid
+  assign member = entity.member
+  if member == blank or member.state != 'active' or member.profile_id != requester.id
+    return false
+  endif
+
+  function permissions = 'modules/support/queries/team/role_permissions'
+  unless permissions[member.role] contains do
+    return false
+  endunless
+
+  assign ticket = entity.ticket
+  if ticket and member.role == 'agent'
+    unless member.department_ids contains ticket.department_id
+      return false
+    endunless
+  endif
+
+  return true
+%}

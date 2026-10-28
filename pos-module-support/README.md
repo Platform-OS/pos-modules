@@ -23,8 +23,28 @@ pos-cli generate run modules/support/generators/install
 
 The generator names the first support admin, connects your email provider and wires the branding hooks. Full setup steps will be documented here before the first release.
 
+## Access
+
+The desk is a standalone section at `/support-desk` with its own sign-in at `/support-desk/sign-in`. Access comes only from the module's team membership records, never from the host's roles or permissions file:
+
+- A host user with the `superadmin` role gets an admin membership on their first visit.
+- An email listed in the constant `modules/support/ADMIN_EMAILS` (comma-separated) gets an admin membership on first visit; use it to recover access.
+- Everyone else signed in sees "You don't have access to Support" with a Request access button.
+- A disabled membership is never recreated.
+
+The optional page `admin/support` (permission `admin_pages.view`, `metadata.menu.title: Support`) adds Support to host admin menus built from page metadata and only redirects to `/support-desk`.
+
+## Hooks
+
+| Hook | Return | Used for |
+|---|---|---|
+| `support_branding` | object: `app_name`, `short_name`, `logo_url`, `logo_dark_url`, `icon_url`, `favicon_url`, `theme_color`, `background_color`, `theme_mode` (`auto`/`light`/`dark`), `support_email_name` | brand in the desk, emails, manifest and push |
+| `headscripts` (core) | HTML string | host stylesheet, loaded after the module CSS so host tokens win |
+
+CSS tokens a host can override: `--pos-support-rail-width`, `--pos-support-rail-background`, `--pos-support-rail-text`, `--pos-support-rail-active-background`, `--pos-support-rail-active-text`, `--pos-support-rail-frame`, `--pos-support-monogram-background`, `--pos-support-monogram-text`, plus every common-styling `--pos-*` token.
+
 ## Development
 
-- Example host apps live in `app/` and are not distributed.
+- The example host app in `app/` (not distributed) is a marketing site at `/` and a community-style admin area at `/admin` (host roles `superadmin` and `editor`, both with `admin_pages.view`), with a demo theme and branding hooks.
 - Tasks and decisions: `backlog/`; progress board: https://github.com/orgs/Platform-OS/projects/28.
 - Static checks: `npm run test:static`. Seed an environment: `./tests/data/seed/seed.sh <env> [--keep-data]`.

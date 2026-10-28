@@ -1,0 +1,8 @@
+query {
+  admin_pages(per_page: 50, filter: { slug: { starts_with: "admin/" } }) {
+    results {
+      slug
+      metadata
+    }
+  }
+}

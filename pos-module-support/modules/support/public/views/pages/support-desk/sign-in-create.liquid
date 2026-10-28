@@ -1,0 +1,37 @@
+---
+slug: support-desk/sign-in
+method: post
+layout: modules/support/support
+---
+{% liquid
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/auth/sign_in', failed: true, email: null
+    break
+  endunless
+
+  if context.session.return_to == blank
+    session return_to = '/support-desk'
+  endif
+
+  function res = 'modules/user/commands/session/create', email: context.params.email, password: context.params.password, hook_params: context.params, validate_password: true, skip_otp: null, user_id: null
+  if res.valid and res.otp_required
+    render 'modules/user/2fa/verify', object: context.params
+  elsif res.valid and res.email_verification_required
+    function _ = 'modules/user/commands/email_verifications/create', email: res.email, host: context.location.host, hcaptcha_params: null, verify_hcaptcha: false
+    assign encoded_email = res.email | url_encode
+    assign target = '/users/check-email?email=' | append: encoded_email
+    redirect_to target
+  elsif res.valid
+    assign target = context.session.return_to | default: '/support-desk'
+    assign internal = target | matches: '^/(?!/)'
+    unless internal
+      assign target = '/support-desk'
+    endunless
+    session return_to = null
+    redirect_to target
+  else
+    response_status 422
+    render 'modules/support/auth/sign_in', failed: true, email: context.params.email
+  endif
+%}

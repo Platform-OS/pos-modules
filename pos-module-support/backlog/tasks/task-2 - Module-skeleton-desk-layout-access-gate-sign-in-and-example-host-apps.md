@@ -1,8 +1,9 @@
 ---
 id: TASK-2
 title: 'Module skeleton, desk layout, access gate, sign-in and example host apps'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - "@arturpawlak"
 created_date: '2026-10-27'
 labels:
   - mvp
@@ -26,22 +27,25 @@ Tests: unit for can/desk and require_member branches; E2E scenarios 12-13 (parti
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Anonymous GET /support-desk redirects to /support-desk/sign-in (never /sessions/new)
-- [ ] #2 A host admin without membership gets 403 with Request access; a member gets the shell
-- [ ] #3 superadmin first visit creates exactly one membership with source superadmin; a disabled member is refused and not recreated
-- [ ] #4 In the community-style example, Support appears in the host admin menu and redirects to /support-desk
-- [ ] #5 ci-static.sh fails when a desk page lacks metadata.permission or require_member, or references a module outside the allowed set
-- [ ] #6 Host stylesheet from the example app hook loads after module CSS (computed style of .pos-button changes with the demo theme)
-- [ ] #7 Rail shows the brand name and logo from the example branding hook
+- [x] #1 Anonymous GET /support-desk redirects to /support-desk/sign-in (never /sessions/new)
+- [x] #2 A host admin without membership gets 403 with Request access; a member gets the shell
+- [x] #3 superadmin first visit creates exactly one membership with source superadmin; a disabled member is refused and not recreated
+- [x] #4 In the community-style example, Support appears in the host admin menu and redirects to /support-desk
+- [x] #5 ci-static.sh fails when a desk page lacks metadata.permission or require_member, or references a module outside the allowed set
+- [x] #6 Host stylesheet from the example app hook loads after module CSS (computed style of .pos-button changes with the demo theme)
+- [x] #7 Rail shows the brand name and logo from the example branding hook
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Definition of Done in backlog/config.yml met
+- [x] #1 Definition of Done in backlog/config.yml met
 <!-- DOD:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-<!-- Done / Outcome / Next -->
+Done: Added the team_member table, the role map, can/desk, resolve_member (superadmin and ADMIN_EMAILS auto-membership), the require_member gate (include; redirect to /support-desk/sign-in, 403 no-access page with Request access), the support layout and shell with host branding and headscripts last, desk sign-in on the user module's session command (2FA verify partial, email-verification redirect, internal-only return_to), the queue stub, the admin/support redirect, the example host app and unit tests.
+Outcome: On support-dev, anonymous /support-desk redirects to the desk sign-in; the superadmin test user signs in and gets the shell branded "Harbor City Permits"; a host editor with admin_pages.view gets 403 with Request access; Support appears in the example admin menu and redirects to the desk. can_desk_test and resolve_member_test pass (pos-cli test run). ci-static fails on a page without permission/require_member and on a chat reference. Host stylesheet loads after pos-support.css.
+Deviations: one example app covers both hosts (marketing site at /, community-style admin at /admin) instead of two switchable apps. The team_member_created audit row waits for ticket_event (TASK-9); role_map auto-membership waits for the settings table (TASK-4); manifest and push init in the layout come with TASK-15; the Request access POST page comes with TASK-29.
+Next: None.
 <!-- SECTION:FINAL_SUMMARY:END -->

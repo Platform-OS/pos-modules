@@ -1,0 +1,11 @@
+{% liquid
+  # The example host's own roles, community-style: admins are `superadmin`.
+  # The support module never reads or edits this file for desk access.
+  assign data = {
+    "anonymous": ["sessions.create", "users.register"],
+    "authenticated": ["sessions.destroy"],
+    "editor": ["admin_pages.view"],
+    "superadmin": ["admin_pages.view", "users.impersonate_superadmin"]
+  }
+  return data
+%}

@@ -1,0 +1,42 @@
+/* Demo host theme: overrides common-styling and support tokens. */
+:root {
+  --pos-color-button-primary-background: #1d4f91;
+  --pos-color-button-primary-frame: #1d4f91;
+  --pos-color-button-primary-text: #ffffff;
+  --pos-color-button-primary-hover-background: #163d70;
+  --pos-color-button-primary-hover-frame: #163d70;
+  --pos-color-button-primary-hover-text: #ffffff;
+  --pos-support-rail-background: #0f2747;
+  --pos-support-rail-text: #ffffff;
+  --pos-support-rail-active-background: #1d4f91;
+  --pos-support-rail-active-text: #ffffff;
+}
+
+.host-page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.host-admin {
+  display: grid;
+  grid-template-columns: 12rem 1fr;
+  min-height: 100vh;
+}
+
+.host-admin-menu {
+  background: #0f2747;
+  padding: 1rem;
+}
+
+.host-admin-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.host-admin-menu a {
+  display: block;
+  padding: 0.5rem;
+  color: #ffffff;
+}

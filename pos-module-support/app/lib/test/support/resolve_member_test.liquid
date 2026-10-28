@@ -1,0 +1,40 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # superadmin: first visit creates one admin membership, second visit reuses it
+  assign pid = 12 | random_string | prepend: 'sa-'
+  assign profile = { "roles": ["superadmin", "authenticated"], "email": "sa@example.com" }
+  assign profile.id = pid
+  function member = 'modules/support/helpers/resolve_member', profile: profile
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.source, expected: 'superadmin', field_name: 'superadmin source'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.role, expected: 'admin', field_name: 'superadmin role'
+  function again = 'modules/support/helpers/resolve_member', profile: profile
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: again.id, expected: member.id, field_name: 'superadmin reuses membership'
+  graphql r = 'modules/support/team_members/search', profile_id: pid, limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.records.total_entries, expected: 1, field_name: 'superadmin exactly one membership'
+
+  # host admin without membership gets nothing
+  assign pid = 12 | random_string | prepend: 'ha-'
+  assign profile = { "roles": ["admin", "authenticated"], "email": "host-admin@example.com" }
+  assign profile.id = pid
+  function member = 'modules/support/helpers/resolve_member', profile: profile
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member, expected: null, field_name: 'host admin not a member'
+
+  # a disabled superadmin membership is returned as it is, never recreated
+  assign pid = 12 | random_string | prepend: 'ds-'
+  assign object = { "role": "admin", "state": "disabled", "source": "superadmin" }
+  assign object.profile_id = pid
+  function created = 'modules/support/commands/team_members/create', object: object
+  assign profile = { "roles": ["superadmin", "authenticated"] }
+  assign profile.id = pid
+  function member = 'modules/support/helpers/resolve_member', profile: profile
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.state, expected: 'disabled', field_name: 'disabled stays disabled'
+  graphql r = 'modules/support/team_members/search', profile_id: pid, limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.records.total_entries, expected: 1, field_name: 'disabled not recreated'
+
+  # anonymous profile resolves to nothing
+  assign profile = { "roles": ["anonymous"] }
+  function member = 'modules/support/helpers/resolve_member', profile: profile
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member, expected: null, field_name: 'anonymous'
+%}

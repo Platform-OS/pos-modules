@@ -1,0 +1,45 @@
+query (
+  $page: Int = 1
+  $limit: Int = 20
+  $id: ID
+  $profile_id: String
+  $profile_ids: [String!]
+  $state: String
+  $role: String
+) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/team_member" }
+      properties: [
+        { name: "profile_id", value: $profile_id, value_in: $profile_ids }
+        { name: "state", value: $state }
+        { name: "role", value: $role }
+      ]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      profile_id: property(name: "profile_id")
+      role: property(name: "role")
+      state: property(name: "state")
+      source: property(name: "source")
+      created_by_id: property(name: "created_by_id")
+      disabled_at: property(name: "disabled_at")
+      job_title: property(name: "job_title")
+      availability: property(name: "availability")
+      department_ids: property_array(name: "department_ids")
+      max_open: property_int(name: "max_open")
+      working_hours: property(name: "working_hours")
+      last_assigned_at: property(name: "last_assigned_at")
+      notification_prefs: property(name: "notification_prefs")
+      paused_until: property(name: "paused_until")
+      on_duty_manager: property_boolean(name: "on_duty_manager")
+    }
+  }
+}

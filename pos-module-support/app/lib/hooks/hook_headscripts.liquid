@@ -1,0 +1,6 @@
+{% liquid
+  # Demo host theme, loaded by the support layout after the module CSS.
+  assign href = 'style/host-theme.css' | asset_url
+  assign tag = '<link rel="stylesheet" href="' | append: href | append: '">'
+  return tag
+%}

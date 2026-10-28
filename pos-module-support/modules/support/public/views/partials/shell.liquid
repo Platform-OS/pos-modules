@@ -1,0 +1,49 @@
+{% doc %}
+  @param {object} brand - From helpers/branding
+  @param {object} [member] - The signed-in team_member; blank on sign-in and no-access pages
+  @param {string} content - The page body
+  @param {string} pathname - The current path, for the active rail item
+{% enddoc %}
+{% if member and member.state == 'active' %}
+  <div class="pos-support-shell">
+    <nav class="pos-support-rail" aria-label="{{ 'modules/support/shell.navigation' | t }}">
+      <a class="pos-support-brand" href="/support-desk">
+        {% if brand.logo_url %}
+          <img class="pos-support-brand-logo" src="{{ brand.logo_url }}" alt="" width="128" height="32">
+        {% else %}
+          <span class="pos-support-brand-monogram" aria-hidden="true">{{ brand.initial }}</span>
+        {% endif %}
+        <span class="pos-support-brand-name">{{ brand.app_name }}</span>
+      </a>
+      <ul class="pos-support-rail-items">
+        <li>
+          <a href="/support-desk" {% if pathname == '/support-desk' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.queue' | t }}</a>
+        </li>
+      </ul>
+    </nav>
+    <div class="pos-support-main">
+      <header class="pos-support-topbar">
+        <form action="/sessions" method="post" class="pos-support-signout">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="_method" value="delete">
+          <button type="submit" class="pos-button pos-button-small">{{ 'modules/support/shell.sign_out' | t }}</button>
+        </form>
+      </header>
+      <main id="pos-support-content" class="pos-support-content">
+        {{ content }}
+      </main>
+    </div>
+  </div>
+{% else %}
+  <main class="pos-support-centered">
+    <p class="pos-support-brand">
+      {% if brand.logo_url %}
+        <img class="pos-support-brand-logo" src="{{ brand.logo_url }}" alt="" width="128" height="32">
+      {% else %}
+        <span class="pos-support-brand-monogram" aria-hidden="true">{{ brand.initial }}</span>
+      {% endif %}
+      <span class="pos-support-brand-name">{{ brand.app_name }}</span>
+    </p>
+    {{ content }}
+  </main>
+{% endif %}

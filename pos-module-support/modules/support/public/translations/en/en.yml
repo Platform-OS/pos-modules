@@ -1,2 +1,29 @@
 en:
   app_name: Support
+  shell:
+    navigation: Support desk
+    queue: Queue
+    sign_out: Sign out
+  queue:
+    title: Queue
+    empty: No tickets yet.
+  sign_in:
+    title: Sign in to Support
+    email: Email
+    password: Password
+    submit: Sign in
+    forgot: Forgot your password?
+    invalid: The email or password is not correct.
+  no_access:
+    title: You don't have access to Support
+    body: "You're signed in as %{email}, but you're not on the support team. Ask a support admin to add you, or request access."
+    request_access: Request access
+    disabled: Your access to Support has been turned off. Ask a support admin if you need it back.
+    invited: You've been invited. Use the link in your invitation email to join.
+  forbidden:
+    title: You can't open this page
+    body: Your support role doesn't include this page.
+    back: Back to the queue
+  team:
+    errors:
+      already_member: is already on the support team

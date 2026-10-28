@@ -1,0 +1,34 @@
+{% liquid
+  # Community-style admin layout: bounces everyone who is not a host admin.
+  function current_profile = 'modules/user/helpers/current_profile'
+  function can = 'modules/user/helpers/can_do', requester: current_profile, do: 'admin_pages.view', entity: null, access_callback: null
+  unless can
+    redirect_to '/'
+  endunless
+  graphql menu = 'admin_menu'
+%}
+<!DOCTYPE html>
+<html class="pos-app" lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Admin · Harbor City Permits</title>
+    {% render 'modules/common-styling/init', reset: true %}
+    <link rel="stylesheet" href="{{ 'style/host-theme.css' | asset_url }}">
+  </head>
+  <body>
+    <div class="host-admin">
+      <nav class="host-admin-menu" aria-label="Admin">
+        <ul>
+          <li><a href="/admin">Dashboard</a></li>
+          {% for page in menu.admin_pages.results %}
+            {% if page.metadata.menu.title %}
+              <li><a href="{{ page.metadata.relative_path | default: page.slug | prepend: '/' | replace: '//', '/' }}">{{ page.metadata.menu.title }}</a></li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </nav>
+      <main class="host-page">{{ content_for_layout }}</main>
+    </div>
+  </body>
+</html>

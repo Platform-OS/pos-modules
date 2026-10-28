@@ -1,0 +1,145 @@
+@layer pos-support {
+  :root {
+    --pos-support-rail-width: 15rem;
+    --pos-support-rail-background: var(--pos-color-content-background);
+    --pos-support-rail-text: var(--pos-color-content-text);
+    --pos-support-rail-active-background: var(--pos-color-highlight-background);
+    --pos-support-rail-active-text: var(--pos-color-highlight-text);
+    --pos-support-rail-frame: var(--pos-color-frame);
+    --pos-support-monogram-background: var(--pos-color-button-primary-background);
+    --pos-support-monogram-text: var(--pos-color-button-primary-text);
+  }
+
+  .pos-support {
+    background: var(--pos-color-page-background);
+    color: var(--pos-color-content-text);
+    font-family: var(--pos-font-default);
+  }
+
+  .pos-support-shell {
+    display: grid;
+    grid-template-columns: var(--pos-support-rail-width) 1fr;
+    min-height: 100vh;
+  }
+
+  .pos-support-rail {
+    background: var(--pos-support-rail-background);
+    color: var(--pos-support-rail-text);
+    border-inline-end: 1px solid var(--pos-support-rail-frame);
+    padding: var(--pos-padding-card);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pos-gap-section-elements);
+  }
+
+  .pos-support-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--pos-gap-text-text);
+    color: inherit;
+    text-decoration: none;
+    font-family: var(--pos-font-heading);
+    font-weight: 600;
+  }
+
+  .pos-support-brand-logo {
+    max-height: 2rem;
+    max-width: 8rem;
+  }
+
+  .pos-support-brand-monogram {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border-radius: var(--pos-radius-button);
+    background: var(--pos-support-monogram-background);
+    color: var(--pos-support-monogram-text);
+  }
+
+  .pos-support-rail-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .pos-support-rail-items a {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--pos-radius-button);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .pos-support-rail-items a:hover,
+  .pos-support-rail-items a[aria-current="page"] {
+    background: var(--pos-support-rail-active-background);
+    color: var(--pos-support-rail-active-text);
+  }
+
+  .pos-support-rail-items a:focus-visible,
+  .pos-support-brand:focus-visible {
+    outline: 2px solid var(--pos-color-focused);
+    outline-offset: 2px;
+  }
+
+  .pos-support-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .pos-support-topbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--pos-gap-button-button);
+    padding: 0.75rem var(--pos-padding-page);
+    border-block-end: 1px solid var(--pos-color-frame);
+    background: var(--pos-color-content-background);
+  }
+
+  .pos-support-content {
+    padding: var(--pos-padding-page);
+  }
+
+  .pos-support-centered {
+    max-width: 28rem;
+    margin: 10vh auto 0;
+    padding: var(--pos-padding-page);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pos-gap-section-elements);
+  }
+
+  .pos-support-gate {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pos-gap-card-elements);
+  }
+
+  .pos-support-error {
+    color: var(--pos-color-important);
+  }
+
+  @media (max-width: 48rem) {
+    .pos-support-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .pos-support-rail {
+      border-inline-end: 0;
+      border-block-end: 1px solid var(--pos-support-rail-frame);
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pos-support-rail-items {
+      flex-direction: row;
+    }
+  }
+}

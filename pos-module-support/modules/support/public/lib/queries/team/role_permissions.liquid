@@ -1,0 +1,8 @@
+{% liquid
+  assign permissions = {
+    "agent": ["support.tickets.read", "support.tickets.reply"],
+    "manager": ["support.tickets.read", "support.tickets.reply", "support.tickets.manage.all", "support.reports.view"],
+    "admin": ["support.tickets.read", "support.tickets.reply", "support.tickets.manage.all", "support.reports.view", "support.team.manage", "support.settings.manage"]
+  }
+  return permissions
+%}

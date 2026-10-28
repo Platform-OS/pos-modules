@@ -1,0 +1,36 @@
+mutation (
+  $profile_id: String!
+  $role: String!
+  $state: String!
+  $source: String!
+  $created_by_id: String
+  $availability: String
+  $department_ids: [String]
+  $max_open: Int
+) {
+  record: record_create(
+    record: {
+      table: "modules/support/team_member"
+      properties: [
+        { name: "profile_id", value: $profile_id }
+        { name: "role", value: $role }
+        { name: "state", value: $state }
+        { name: "source", value: $source }
+        { name: "created_by_id", value: $created_by_id }
+        { name: "availability", value: $availability }
+        { name: "department_ids", value_array: $department_ids }
+        { name: "max_open", value_int: $max_open }
+      ]
+    }
+  ) {
+    id
+    created_at
+    profile_id: property(name: "profile_id")
+    role: property(name: "role")
+    state: property(name: "state")
+    source: property(name: "source")
+    availability: property(name: "availability")
+    department_ids: property_array(name: "department_ids")
+    max_open: property_int(name: "max_open")
+  }
+}

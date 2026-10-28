@@ -1,0 +1,27 @@
+{% doc %}
+  @param {object} object - { profile_id, role, state, source, created_by_id, department_ids }
+{% enddoc %}
+{% liquid
+  assign object = object | hash_merge: availability: 'available', max_open: 15
+  assign object.department_ids = object.department_ids | default: []
+  assign roles = ["agent", "manager", "admin"]
+  assign states = ["invited", "active", "disabled"]
+  assign sources = ["install", "invite", "request", "role_map", "superadmin", "recovery"]
+
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'profile_id', key: null
+  function c = 'modules/core/validations/included', c: c, object: object, field_name: 'role', array: roles, key: null, value: null
+  function c = 'modules/core/validations/included', c: c, object: object, field_name: 'state', array: states, key: null, value: null
+  function c = 'modules/core/validations/included', c: c, object: object, field_name: 'source', array: sources, key: null, value: null
+  function existing = 'modules/support/queries/team_members/find', profile_id: object.profile_id
+  if existing
+    function c = 'modules/core/helpers/register_error', contract: c, field_name: 'profile_id', key: 'modules/support/team.errors.already_member', message: null
+  endif
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+
+  if object.valid
+    function object = 'modules/core/commands/execute', mutation_name: 'modules/support/team_members/create', object: object, selection: null
+  endif
+  return object
+%}
