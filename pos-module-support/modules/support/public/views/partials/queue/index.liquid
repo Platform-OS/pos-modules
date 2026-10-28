@@ -9,12 +9,13 @@
   @param {object} member - The signed-in team_member
   @param {boolean} can_manage - Member holds support.tickets.manage.all
   @param {string} return_to - Current URL, for the bulk form redirect
+  @param {string} live_departments - Comma-separated department ids for live updates
 {% enddoc %}
 {% liquid
   assign view = data.view
   assign view_label = 'modules/support/views.' | append: view | t
 %}
-<div class="pos-support-queue">
+<div class="pos-support-queue" data-support-live data-support-departments="{{ live_departments }}" data-support-me="{{ member.profile_id }}" data-support-first-page="{% if data.page == 1 %}true{% else %}false{% endif %}" data-support-assigned-to-you="{{ 'modules/support/live.assigned_to_you' | t }}">
   <div class="pos-support-queue-head">
     <h1 class="pos-heading-2">{{ view_label }} <span class="pos-supplementary">{{ data.total_entries }}</span></h1>
   </div>
@@ -115,3 +116,4 @@
   {% endif %}
 </div>
 <script defer src="{{ 'modules/support/js/pos-support-queue.js' | asset_url }}"></script>
+<script type="module" src="{{ 'modules/support/js/pos-support-live.js' | asset_url }}"></script>

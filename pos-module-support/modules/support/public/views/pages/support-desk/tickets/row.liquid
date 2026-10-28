@@ -1,0 +1,22 @@
+---
+slug: support-desk/tickets/:id/row
+layout: ''
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # One queue row, for live refresh (05 §4).
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  function ticket = 'modules/support/queries/tickets/find', id: context.params.id, number: null, member: context.exports.support.support_member
+  if ticket == blank
+    response_status 404
+    break
+  endif
+  assign tickets = []
+  assign tickets << ticket
+  function lookup = 'modules/support/queries/tickets/lookup', tickets: tickets
+  render 'modules/support/queue/row', ticket: ticket, lookup: lookup
+%}

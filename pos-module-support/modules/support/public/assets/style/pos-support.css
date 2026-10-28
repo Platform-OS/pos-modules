@@ -502,6 +502,26 @@
     outline-offset: 2px;
   }
 
+  .pos-support-new-message {
+    padding: 0.75rem;
+    border: 1px solid var(--pos-support-status-pending-fg);
+    border-radius: var(--pos-radius-card);
+    background: var(--pos-support-status-pending-bg);
+  }
+
+  .pos-support-row-fresh {
+    animation: pos-support-fresh 2s ease-out;
+  }
+
+  @keyframes pos-support-fresh {
+    from { background: var(--pos-color-highlight-background); }
+    to { background: transparent; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pos-support-row-fresh { animation: none; }
+  }
+
   @media (max-width: 48rem) {
     .pos-support-shell {
       grid-template-columns: minmax(0, 1fr);

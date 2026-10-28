@@ -9,7 +9,7 @@
   assign update_action = action | append: '/update'
   assign message_action = action | append: '/messages'
 %}
-<div class="pos-support-ticket">
+<div class="pos-support-ticket" data-support-live data-support-ticket="{{ ticket.id }}" data-support-me="{{ data.me }}" data-support-viewing="{{ 'modules/support/live.viewing' | t }}" data-support-replying="{{ 'modules/support/live.replying' | t }}" data-support-assigned-to-you="{{ 'modules/support/live.assigned_to_you' | t }}">
   <header class="pos-support-ticket-head">
     <p class="pos-supplementary"><a href="/support-desk">{{ 'modules/support/ticket.back' | t }}</a> · #{{ ticket.number }}</p>
     <h1 class="pos-heading-2">{{ ticket.subject }}</h1>
@@ -20,6 +20,7 @@
       {% if ticket.merged_into_id %}<span class="pos-supplementary">{{ 'modules/support/ticket.merged' | t }}</span>{% endif %}
       {% if ticket.follow_up_of_id %}<a class="pos-supplementary" href="/support-desk/tickets/{{ ticket.follow_up_of_id }}">{{ 'modules/support/ticket.follow_up_of' | t }}</a>{% endif %}
     </p>
+    <p class="pos-supplementary pos-support-presence" data-support-presence aria-live="polite" hidden></p>
   </header>
 
   <div class="pos-support-ticket-layout">
@@ -35,6 +36,10 @@
           <h2 id="pos-support-composer-title" class="pos-heading-3">{{ 'modules/support/ticket.respond' | t }}</h2>
           <form action="{{ message_action }}" method="post" class="pos-form" data-support-composer>
             <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+            <div class="pos-support-new-message" data-support-new-message role="alert" hidden>
+              <p>{{ 'modules/support/live.new_message' | t }} <a href="{{ action }}">{{ 'modules/support/live.refresh' | t }}</a></p>
+              <label><input type="checkbox" name="acknowledged" value="1"> {{ 'modules/support/live.acknowledge' | t }}</label>
+            </div>
             <fieldset class="pos-support-composer-modes">
               <legend class="pos-support-sr-only">{{ 'modules/support/ticket.mode' | t }}</legend>
               <label><input type="radio" name="mode" value="reply" checked> {{ 'modules/support/ticket.reply' | t }}</label>
@@ -195,3 +200,4 @@
   </div>
 </div>
 <script defer src="{{ 'modules/support/js/pos-support-ticket.js' | asset_url }}"></script>
+<script type="module" src="{{ 'modules/support/js/pos-support-live.js' | asset_url }}"></script>

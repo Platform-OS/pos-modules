@@ -1,0 +1,32 @@
+{% liquid
+  # The only client message is a presence ping in a ticket room. Access is
+  # re-checked on every message (a subscription is authorized only when it
+  # opens); the sender comes from the session, never from the payload; the
+  # default rebroadcast of the client's payload is suppressed with "false".
+  function current_profile = 'modules/user/helpers/current_profile'
+  assign room_id = context.params.room_id
+  assign prefix = room_id | slice: 0, 7
+  if prefix != 'ticket-'
+    echo 'false'
+    break
+  endif
+  function member = 'modules/support/queries/channels/can_join', profile: current_profile, room_id: room_id
+  unless member
+    echo 'false'
+    break
+  endunless
+
+  assign states = ["viewing", "replying", "left"]
+  assign state = context.params.state
+  unless states contains state
+    echo 'false'
+    break
+  endunless
+  assign name = current_profile.name | default: current_profile.first_name | default: current_profile.email
+  assign payload = { "kind": "presence" }
+  assign payload.state = state
+  assign payload.profile_id = current_profile.id
+  assign payload.name = name
+  graphql _ = 'modules/support/channels/broadcast', room_id: room_id, payload: payload
+  echo 'false'
+%}

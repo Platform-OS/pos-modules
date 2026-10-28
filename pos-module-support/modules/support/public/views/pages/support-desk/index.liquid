@@ -47,6 +47,7 @@ metadata:
     endif
   endfor
   assign return_to = context.location.href
+  assign live_departments = departments | map: 'id' | join: ','
 
-  render 'modules/support/queue/index', data: data, counts: counts, filters: filters, statuses: statuses.list, departments: departments, members: members, member: member, can_manage: can_manage, return_to: return_to
+  render 'modules/support/queue/index', data: data, counts: counts, filters: filters, statuses: statuses.list, departments: departments, members: members, member: member, can_manage: can_manage, return_to: return_to, live_departments: live_departments
 %}

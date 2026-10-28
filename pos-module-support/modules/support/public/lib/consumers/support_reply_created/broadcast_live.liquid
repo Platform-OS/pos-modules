@@ -1,0 +1,11 @@
+---
+metadata:
+  priority: high
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_reply_created
+{% enddoc %}
+{% liquid
+  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: event.ticket_id, kind: 'reply', message_id: event.message_id, profile_id: null
+%}

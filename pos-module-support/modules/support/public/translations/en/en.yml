@@ -313,3 +313,10 @@ en:
     errors:
       not_allowed: Only the person themselves can change these alerts. Admins can reset them to defaults.
       value: That change isn't valid.
+  live:
+    viewing: is viewing
+    replying: is replying
+    new_message: The customer sent a new message while you were writing.
+    refresh: Show it
+    acknowledge: I've seen the new message, send anyway
+    assigned_to_you: Assigned to you

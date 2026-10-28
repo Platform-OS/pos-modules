@@ -7,6 +7,7 @@
 {% liquid
   assign data = { "ticket": null, "attachments_by_message": {}, "profiles": {} }
   assign data.ticket = ticket
+  assign data.me = member.profile_id
 
   graphql m = 'modules/support/messages/search', ticket_id: ticket.id, limit: 200
   assign data.messages = m.records.results

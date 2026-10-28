@@ -1,0 +1,10 @@
+{% liquid
+  # Authorizes a subscription to a support room (05 §4).
+  function current_profile = 'modules/user/helpers/current_profile'
+  function member = 'modules/support/queries/channels/can_join', profile: current_profile, room_id: context.params.room_id
+  if member
+    echo 'true'
+  else
+    echo 'false'
+  endif
+%}

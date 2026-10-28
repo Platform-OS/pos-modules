@@ -1,0 +1,37 @@
+{% doc %}
+  Whether the signed-in profile may use a support channel room (05 §4):
+  queue-<department_id> for members serving it (managers and admins: all),
+  ticket-<ticket_id> when the ticket is in their scope, profile-<profile_id>
+  only for themselves. Returns the active member, or null.
+  @param {object} profile - The signed-in profile
+  @param {string} room_id - The room
+{% enddoc %}
+{% liquid
+  if profile.id == blank or room_id == blank
+    return null
+  endif
+  function member = 'modules/support/queries/team_members/find', profile_id: profile.id
+  if member == blank or member.state != 'active'
+    return null
+  endif
+
+  assign parts = room_id | split: '-'
+  assign kind = parts.first
+  assign target = room_id | remove_first: kind | remove_first: '-'
+  case kind
+    when 'queue'
+      if member.role != 'agent' or member.department_ids contains target
+        return member
+      endif
+    when 'ticket'
+      function ticket = 'modules/support/queries/tickets/find', id: target, number: null, member: member
+      if ticket
+        return member
+      endif
+    when 'profile'
+      if target == member.profile_id
+        return member
+      endif
+  endcase
+  return null
+%}

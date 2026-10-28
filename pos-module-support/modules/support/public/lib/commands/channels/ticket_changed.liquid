@@ -1,0 +1,34 @@
+{% doc %}
+  Broadcasts a ticket change (05 §4): ids only, to the department's queue
+  room and the ticket room; an assignment also goes to the assignee's
+  profile room.
+  @param {string} ticket_id - The ticket
+  @param {string} kind - created | updated | message | reply | note | assigned
+  @param {string} [message_id] - For message events
+  @param {string} [profile_id] - Profile room to notify as well
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank
+    return null
+  endif
+  assign payload = { "ticket_id": null, "kind": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.kind = kind
+  assign payload.number = ticket.number
+  if message_id != blank
+    assign payload.message_id = message_id
+  endif
+  assign queue_room = 'queue-' | append: ticket.department_id
+  graphql _ = 'modules/support/channels/broadcast', room_id: queue_room, payload: payload
+  assign ticket_room = 'ticket-' | append: ticket.id
+  graphql _ = 'modules/support/channels/broadcast', room_id: ticket_room, payload: payload
+  if profile_id != blank
+    function member = 'modules/support/queries/team_members/find', profile_id: profile_id
+    if member.state == 'active'
+      assign profile_room = 'profile-' | append: profile_id
+      graphql _ = 'modules/support/channels/broadcast', room_id: profile_room, payload: payload
+    endif
+  endif
+  return payload
+%}
