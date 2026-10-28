@@ -1,87 +1,93 @@
+{% doc %}
+  The participant's conversations for the inbox list: unread ones first, then the read
+  ones, each newest first (by last_message_at). Conversations without a message aren't
+  listed. Both groups are sorted in the database, so a page fills up with unread ones
+  and carries on with the read ones.
+
+  Paged by cursor, not by page number - opening a conversation moves it from the unread
+  group to the read one, which would shift numbered pages. The cursor is the group and
+  the last_message_at of the last conversation shown, returned as `next_read` and
+  `next_before`.
+
+  @param {string} participant_id - the profile whose conversations are listed
+  @param {number} [limit] - conversations per page (default: 20, at most 50)
+  @param {boolean} [read] - the cursor's group: true when the last conversation shown was a read one
+  @param {string} [before] - the cursor: last_message_at of the last conversation shown
+{% enddoc %}
 {% liquid
   if participant_id == blank
     log 'Something went wrong. participant_id cannot be blank.', type: 'ERROR'
     return null
   endif
 
-  assign page = page | to_positive_integer: 1
   # the limit comes from the request (per_page) - capped, as every conversation on the
   # page looks up each of its participants' profiles
-  assign per_page = limit | to_positive_integer: 20 | at_most: 50
+  assign limit = limit | to_positive_integer: 20 | at_most: 50
+  if before == blank
+    assign before = null
+  else
+    # the database ignores a `before` that isn't a time and would list from the top again
+    assign valid_before = before | matches: '\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})\z'
+    unless valid_before
+      return { "results": [], "has_next_page": false }
+    endunless
+  endif
+  assign in_read = false
+  if read == true or read == 'true'
+    assign in_read = true
+  endif
 
-  # "Unread first" is per-participant state, so the database can't sort by it -
-  # it has no single global order to paginate on. Instead we fetch the
-  # participant's whole conversation list once (up to max_conversations),
-  # sort/paginate that in Liquid, and only then resolve participant profiles
-  # for the conversations that actually land on the requested page. Otherwise
-  # sorting/partitioning a single GraphQL page in isolation (as before) could
-  # put an unread conversation on page 2 behind read ones already shown on
-  # page 1.
-  assign max_conversations = 300
-  graphql r = 'modules/chat/conversations/search', limit: max_conversations, page: 1, participant_id: participant_id
+  assign conversations = []
+  assign has_next_page = false
 
-  assign result = r.conversations
-  assign unread_conversations = []
-  assign read_conversations = []
+  # unread ones, unless the cursor has moved on to the read ones already
+  unless in_read
+    graphql u = 'modules/chat/conversations/search_by_participant', participant_id: participant_id, unread_by: participant_id, before: before, limit: limit
+    assign conversations = u.conversations.results
+    assign has_next_page = u.conversations.has_next_page
+  endunless
 
-  for conversation in result.results
-    # last_message comes back as a 1-item list (related_record's own sort isn't
-    # honored by the engine - related_records + limit: 1 is, so that's what the
-    # graphql query uses); flatten it back to a single record here so every
-    # downstream consumer (conversation.last_message.message / .created_at)
-    # keeps working unchanged.
+  # then the read ones, from the newest unless the cursor is among them already
+  unless has_next_page
+    assign remaining = limit | minus: conversations.size
+    assign read_before = null
+    if in_read
+      assign read_before = before
+    endif
+    # with the page full already, one is enough to tell if there's a next page
+    assign read_limit = remaining | at_least: 1
+    graphql r = 'modules/chat/conversations/search_by_participant', participant_id: participant_id, read_by: participant_id, before: read_before, limit: read_limit
+
+    if remaining > 0
+      assign conversations = conversations | concat: r.conversations.results
+      assign has_next_page = r.conversations.has_next_page
+    elsif r.conversations.total_entries > 0
+      assign has_next_page = true
+    endif
+  endunless
+
+  for conversation in conversations
+    # last_message comes back as a 1-item list (related_record's own sort isn't honored by
+    # the engine - related_records + limit: 1 is), flattened for the templates
     assign conversation.last_message = conversation.last_message | first
 
-    # last_message is sorted DESC, so this is the most recent message; fall back
-    # to the conversation's own created_at when it has no messages yet.
-    assign conversation.last_message_at = conversation.last_message.created_at | default: conversation.created_at
-
-    if conversation.participant_read_ids contains participant_id
-      assign read_conversations << conversation
-    else
-      assign unread_conversations << conversation
-    endif
+    assign participants = []
+    for pid in conversation.participant_ids
+      function profile = 'modules/user/queries/profiles/find', id: pid, user_id: null, uuid: null, first_name: null, last_name: null
+      assign participants << profile
+    endfor
+    assign conversation.participants = participants
   endfor
 
-  # Unread conversations first, each group ordered by most recent message.
-  assign unread_conversations = unread_conversations | sort: 'last_message_at' | reverse
-  assign read_conversations = read_conversations | sort: 'last_message_at' | reverse
-  assign sorted_conversations = unread_conversations | concat: read_conversations
-
-  assign page_offset = page | minus: 1 | times: per_page
-  assign page_end = page_offset | plus: per_page
-  assign conversations = []
-
-  for conversation in sorted_conversations
-    if forloop.index0 >= page_end
-      break
+  assign result = { "results": conversations, "has_next_page": has_next_page }
+  if has_next_page
+    assign last_shown = conversations | last
+    assign result.next_read = false
+    if last_shown.participant_read_ids contains participant_id
+      assign result.next_read = true
     endif
-
-    if forloop.index0 >= page_offset
-      assign participants = []
-
-      for pid in conversation.participant_ids
-        function profile = 'modules/user/queries/profiles/find', id: pid, user_id: null, uuid: null, first_name: null, last_name: null
-        assign participants << profile
-      endfor
-
-      assign conversation.participants = participants
-      assign conversations << conversation
-    endif
-  endfor
-
-  assign result.results = conversations
-  assign result.current_page = page
-
-  # Bound against the size of sorted_conversations (capped at max_conversations),
-  # not the raw total_entries GraphQL reports - total_entries can exceed what we
-  # actually fetched/sorted, and we can't paginate past that.
-  assign available = sorted_conversations | size
-  if page_end < available
-    assign result.has_next_page = true
-  else
-    assign result.has_next_page = false
+    assign result.next_before = last_shown.last_message_at
   endif
 
   return result
- %}
+%}

@@ -282,10 +282,9 @@
     content: '';
   }
 
-/* load more button */
+/* load more button - shown, as a list that fits on the screen can't be scrolled to load more */
 .pos-chat-conversations-more {
   padding-block-start: var(--pos-padding-card);
-  display: none;
 
   text-align: center;
 }

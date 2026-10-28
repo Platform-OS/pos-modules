@@ -74,7 +74,7 @@
     {% render 'modules/chat/search' %}
 
     <ul class="pos-chat-conversations" id="pos-chat-conversations">
-      {% if conversations.total_entries > 0 %}
+      {% if conversations.results.size > 0 %}
         {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
       {% else %}
         <div class="pos-chat-conversations-blank-desktop">
@@ -85,7 +85,7 @@
         </div>
       {% endif %}
     </ul>
-    {% if conversations.total_entries == 0 %}
+    {% if conversations.results.size == 0 %}
       <div class="pos-chat-conversations-blank-mobile">
         {% render 'modules/common-styling/icon', icon: 'messageBubblesDouble', class: null %}
         <h2 class="pos-heading-2">{{ 'modules/chat/blank.title' | t }}</h2>
@@ -234,17 +234,17 @@
       {% endif %}
     </div>
   {% else %}
-    {% if conversations.total_entries > 0 %}
+    {% if conversations.results.size > 0 %}
       <div class="pos-chat-conversation-messages-blank">
         {{ 'modules/chat/blank.pick_conversation' | t }}
       </div>
     {% endif %}
 
-    {% if conversations.total_entries == 0 %}
+    {% if conversations.results.size == 0 %}
       <div class="pos-chat-conversation" id="pos-chat-conversation">
         <div class="pos-chat-conversation-messagesContainer" id="chat-messagesList-container">
           <ul class="pos-chat-messages" id="chat-messagesList">
-            {% if conversations.total_entries == 0 %}
+            {% if conversations.results.size == 0 %}
               {% liquid
                 assign title = 'modules/chat/blank.title' | t
                 assign description = 'modules/chat/blank.description.desktop' | t

@@ -35,7 +35,10 @@
 
     function message = 'modules/core/commands/execute', mutation_name: 'modules/chat/messages/create' object: object, selection: 'record_create'
 
-    assign event_object = {"message_id": object.id, "app_host": context.location.host}
+    # what a message sent in the chat sets too - the inbox lists conversations by it
+    graphql _ = 'modules/chat/conversations/set_last_message_at', id: conversation.id, last_message_at: message.created_at
+
+    assign event_object = {"message_id": message.id, "app_host": context.location.host}
     function _ = 'modules/core/commands/events/publish', type: 'chat_message_created', object: event_object, delay: null, max_attempts: null
   endfor
 %}

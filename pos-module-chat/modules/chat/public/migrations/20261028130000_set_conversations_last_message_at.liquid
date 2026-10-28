@@ -1,0 +1,21 @@
+{% comment %}
+  The inbox lists conversations sorted by last_message_at in the database (see
+  queries/conversations/search_by_participant), and a conversation without it isn't
+  listed. New messages set it (commands/conversations/mark_unread); this sets it on the
+  existing conversations, from their last message. Ones without a message keep it blank.
+
+  One background job per page of conversations, so a big table doesn't time out the
+  deploy. Pages are taken over the whole table sorted by id - not filtered by the
+  property - so updating a conversation doesn't shift the pages other jobs work on.
+{% endcomment %}
+{% liquid
+  assign per_page = 100
+  graphql r = 'modules/chat/conversations/search_for_last_message_at', page: 1, limit: per_page
+  assign total_pages = r.conversations.total_pages
+
+  for page in (1..total_pages)
+    background _job = 'modules/chat/migrations/set_last_message_at_page', page: page, per_page: per_page
+  endfor
+
+  log total_pages, type: 'chat: set conversations last_message_at - pages scheduled'
+%}

@@ -1,0 +1,40 @@
+query search_by_participant(
+  $participant_id: [String!]!
+  # pass the participant's id in one of the two: unread_by lists the conversations they
+  # haven't read, read_by the ones they have
+  $unread_by: [String!]
+  $read_by: [String!]
+  # the last_message_at of the last conversation shown - only older ones are returned
+  $before: String
+  $limit: Int = 20
+) {
+  conversations: records(
+    per_page: $limit
+    filter: {
+      table: { exact: "modules/chat/conversation" }
+      properties: [
+        { name: "participant_ids", array_contains: $participant_id }
+        { name: "participant_read_ids", not_array_contains: $unread_by }
+        { name: "participant_read_ids", array_contains: $read_by }
+        { name: "last_message_at", exists: true }
+        { name: "last_message_at", range: { lt: $before } }
+      ]
+    }
+    sort: { properties: { name: "last_message_at", order: DESC } }
+  ) {
+    total_entries
+    has_next_page
+    results {
+      id
+      created_at
+      participant_ids: property_array(name: "participant_ids")
+      participant_read_ids: property_array(name: "participant_read_ids")
+      last_message_at: property(name: "last_message_at")
+      last_message: related_records(table: "modules/chat/message" join_on_property: "id" foreign_property: "conversation_id" sort: { id: { order: DESC } } limit: 1) {
+        created_at
+        message: property(name: "message")
+        media: property_array(name: "media")
+      }
+    }
+  }
+}
