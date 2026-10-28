@@ -1,0 +1,33 @@
+{% doc %}
+  What the install generator needs to know about an instance (09 §3), so a
+  second run changes nothing. Returns { user_id, profile_id, member_role,
+  email_provider, inbound_domain, role_map, roles, statuses }.
+  @param {string} [email] - The first support admin's email
+{% enddoc %}
+{% liquid
+  assign state = { "user_id": null, "profile_id": null, "member_role": null }
+  if email != blank
+    function user = 'modules/user/queries/user/find', email: email, id: null, with_token: false, expires_in: null
+    if user
+      assign state.user_id = user.id
+      function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+      assign state.profile_id = profile.id
+      if profile
+        function member = 'modules/support/queries/team_members/find', profile_id: profile.id
+        assign state.member_role = member.role
+      endif
+    endif
+  endif
+  function settings = 'modules/support/helpers/settings'
+  assign state.email_provider = settings.email_provider
+  assign state.inbound_domain = settings.inbound_domain
+  assign state.role_map = settings.role_map
+  function statuses = 'modules/support/queries/statuses/all'
+  assign state.statuses = statuses.list.size
+  function permissions = 'modules/user/queries/role_permissions/permissions'
+  assign state.roles = {}
+  for pair in permissions
+    assign state.roles[pair[0]] = pair[1]
+  endfor
+  return state
+%}

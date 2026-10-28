@@ -1,0 +1,57 @@
+{% doc %}
+  Install generator's instance step (09 §3). Each part runs only when it is
+  missing, so running the generator twice is a no-op: the first support
+  admin's membership, the email provider, the inbound domain and the role map.
+  Returns { admin, email_provider, inbound_domain, role_map } with
+  "created", "set", "kept" or "skipped" for each.
+  @param {string} [email] - The first support admin's email (the user must exist)
+  @param {string} [provider] - Email provider, e.g. sendgrid
+  @param {string} [inbound_domain] - Inbound hostname or address
+  @param {object} [role_map] - Host role → support role
+{% enddoc %}
+{% liquid
+  assign done = { "admin": "skipped", "email_provider": "skipped", "inbound_domain": "skipped", "role_map": "skipped" }
+  function state = 'modules/support/queries/install/state', email: email
+  if email != blank and state.profile_id != blank
+    if state.member_role == blank
+      assign object = { "role": "admin", "state": "active", "source": "install" }
+      assign object.profile_id = state.profile_id
+      function member = 'modules/support/commands/team_members/create', object: object
+      if member.valid
+        assign done.admin = 'created'
+      else
+        assign done.admin = 'failed'
+      endif
+    else
+      assign done.admin = 'kept'
+    endif
+  endif
+
+  assign providers = ["sendgrid"]
+  if providers contains provider
+    if state.email_provider == blank
+      function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: provider
+      assign done.email_provider = 'set'
+    else
+      assign done.email_provider = 'kept'
+    endif
+  endif
+  assign inbound_domain = inbound_domain | downcase | strip
+  if inbound_domain != blank
+    if state.inbound_domain == blank
+      function _ = 'modules/support/commands/settings/set', key: 'inbound_domain', value: inbound_domain
+      assign done.inbound_domain = 'set'
+    else
+      assign done.inbound_domain = 'kept'
+    endif
+  endif
+  if role_map != blank and role_map.size > 0
+    if state.role_map == blank or state.role_map.size == 0
+      function _ = 'modules/support/commands/settings/set', key: 'role_map', value: role_map
+      assign done.role_map = 'set'
+    else
+      assign done.role_map = 'kept'
+    endif
+  endif
+  return done
+%}
