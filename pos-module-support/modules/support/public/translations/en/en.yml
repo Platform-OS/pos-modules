@@ -4,6 +4,7 @@ en:
     navigation: Support desk
     queue: Queue
     settings: Settings
+    profile: My profile
     sign_out: Sign out
   views:
     mine: My tickets
@@ -270,3 +271,45 @@ en:
     suffix: Support
     install: Install Support app
     ios_hint: "On iPhone or iPad, tap Share, then Add to Home Screen, and open Support from there to get alerts."
+  availability:
+    available: Available
+    away: Away
+    "off": "Off"
+  profile:
+    title: My profile
+    availability: Availability
+    effective: "Right now you are:"
+    pause: Pause all alerts
+    pause_help: Silence push and email alerts for a while. You still get tickets assigned.
+    pause_hour: For 1 hour
+    pause_tomorrow: Until tomorrow 9:00
+    pause_forever: Until I turn them on
+    paused_until: "Alerts paused until %{until}."
+    resume: Turn alerts back on
+    device: This device
+    device_help: Get push alerts on this phone or computer.
+    test_push: Send test notification
+    test_push_title: Test notification
+    test_push_body: Push alerts work on this device.
+    notifications: Notifications
+    event: Event
+    push: Push
+    email: Email
+    "on": "On"
+    "off": "Off"
+    reset: Turn everything on
+    reset_admin: Reset to defaults
+    saved: Saved.
+    events:
+      new: New ticket in my departments
+      assigned: Ticket assigned to me
+      reply: Customer replied
+      mention: Mentioned in a note
+      sla_due: SLA due soon
+      sla_breach: SLA breached
+      unassigned: Ticket waiting for an agent
+      confirm_wait: Confirmation period ended
+      p0: P0 ticket
+    errors:
+      not_allowed: Only the person themselves can change these alerts. Admins can reset them to defaults.
+      value: That change isn't valid.

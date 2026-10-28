@@ -1,0 +1,21 @@
+---
+slug: support-desk/settings/agents/:profile_id
+layout: modules/support/support
+metadata:
+  permission: support.team.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  function member = 'modules/support/queries/team_members/find', profile_id: context.params.profile_id
+  if member == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+  function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
+  assign action = '/support-desk/settings/agents/' | append: member.profile_id
+  render 'modules/support/profile/index', member: member, subscriptions: null, effective: availability, editable: false, action: action
+%}

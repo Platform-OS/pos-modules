@@ -1,0 +1,133 @@
+{% doc %}
+  Profile: availability, pause, this device and the notification matrix (07 §3).
+  In the admin view (editable false) the matrix is read-only and only
+  "Reset to defaults" is offered.
+  @param {object} member - team_member shown
+  @param {object[]} [subscriptions] - Push subscriptions of the signed-in user
+  @param {string} effective - Effective availability now
+  @param {boolean} editable - The member is looking at their own profile
+  @param {string} action - Form action URL
+{% enddoc %}
+{% liquid
+  assign prefs = member.notification_prefs | default: '{}' | parse_json
+  assign events = "new,assigned,reply,mention,sla_due,sla_breach,unassigned,confirm_wait,p0" | split: ','
+  assign channels = "push,email" | split: ','
+  assign paused = false
+  if member.paused_until != blank
+    assign paused_until = member.paused_until | to_time
+    assign now = 'now' | to_time
+    if paused_until > now
+      assign paused = true
+    endif
+  endif
+%}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/profile.title' | t }}</h1>
+
+  {% if editable %}
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-availability">
+      <h2 id="pos-support-availability" class="pos-heading-3">{{ 'modules/support/profile.availability' | t }}</h2>
+      <p>{{ 'modules/support/profile.effective' | t }} <strong>{{ 'modules/support/availability.' | append: effective | t }}</strong></p>
+      <div class="pos-support-segmented" role="group" aria-label="{{ 'modules/support/profile.availability' | t }}">
+        {% assign states = "available,away,off" | split: ',' %}
+        {% for state in states %}
+          <form action="{{ action }}" method="post">
+            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+            <input type="hidden" name="change" value="availability">
+            <input type="hidden" name="value" value="{{ state }}">
+            <button type="submit" class="pos-button{% if member.availability == state %} pos-button-primary{% endif %}" aria-pressed="{% if member.availability == state %}true{% else %}false{% endif %}">{{ 'modules/support/availability.' | append: state | t }}</button>
+          </form>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-pause">
+      <h2 id="pos-support-pause" class="pos-heading-3">{{ 'modules/support/profile.pause' | t }}</h2>
+      {% if paused %}
+        <p>{{ 'modules/support/profile.paused_until' | t: until: paused_until }}</p>
+        <form action="{{ action }}" method="post">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="change" value="resume">
+          <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/profile.resume' | t }}</button>
+        </form>
+      {% else %}
+        <p class="pos-supplementary">{{ 'modules/support/profile.pause_help' | t }}</p>
+        <div class="pos-support-segmented">
+          {% assign options = "hour,tomorrow,forever" | split: ',' %}
+          {% for option in options %}
+            <form action="{{ action }}" method="post">
+              <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+              <input type="hidden" name="change" value="pause">
+              <input type="hidden" name="option" value="{{ option }}">
+              <button type="submit" class="pos-button">{{ 'modules/support/profile.pause_' | append: option | t }}</button>
+            </form>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="pos-card pos-support-step" id="device" aria-labelledby="pos-support-device">
+      <h2 id="pos-support-device" class="pos-heading-3">{{ 'modules/support/profile.device' | t }}</h2>
+      <p class="pos-supplementary">{{ 'modules/support/profile.device_help' | t }}</p>
+      <p data-support-ios-hint hidden>{{ 'modules/support/pwa.ios_hint' | t }}</p>
+      {% render 'modules/push_notifications/toggle' %}
+      <button type="button" class="pos-button" data-support-install hidden>{{ 'modules/support/pwa.install' | t }}</button>
+      <form action="{{ action }}" method="post">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="change" value="test_push">
+        <button type="submit" class="pos-button">{{ 'modules/support/profile.test_push' | t }}</button>
+      </form>
+      {% render 'modules/push_notifications/subscriptions/index', subscriptions: subscriptions %}
+    </section>
+  {% endif %}
+
+  <section class="pos-card pos-support-step" aria-labelledby="pos-support-matrix">
+    <h2 id="pos-support-matrix" class="pos-heading-3">{{ 'modules/support/profile.notifications' | t }}</h2>
+    <div class="pos-support-table-wrap">
+      <table class="pos-support-table pos-support-matrix">
+        <thead><tr><th scope="col">{{ 'modules/support/profile.event' | t }}</th><th scope="col">{{ 'modules/support/profile.push' | t }}</th><th scope="col">{{ 'modules/support/profile.email' | t }}</th></tr></thead>
+        <tbody>
+          {% for event_key in events %}
+            {% assign label = 'modules/support/profile.events.' | append: event_key | t %}
+            <tr>
+              <th scope="row">{{ label }}</th>
+              {% for channel in channels %}
+                {% liquid
+                  assign entry = prefs[event_key] | default: {}
+                  assign on = true
+                  if entry[channel] == false
+                    assign on = false
+                  endif
+                  assign next_value = true
+                  if on
+                    assign next_value = false
+                  endif
+                %}
+                <td>
+                  {% if editable %}
+                    <form action="{{ action }}" method="post" data-support-switch-form>
+                      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+                      <input type="hidden" name="change" value="pref">
+                      <input type="hidden" name="event_key" value="{{ event_key }}">
+                      <input type="hidden" name="channel" value="{{ channel }}">
+                      <input type="hidden" name="value" value="{{ next_value }}">
+                      <button type="submit" class="pos-support-switch" role="switch" aria-checked="{{ on }}" aria-label="{{ label }} – {{ channel }}"><span aria-hidden="true"></span></button>
+                    </form>
+                  {% else %}
+                    <span class="pos-support-switch" role="img" aria-label="{% if on %}{{ 'modules/support/profile.on' | t }}{% else %}{{ 'modules/support/profile.off' | t }}{% endif %}" aria-checked="{{ on }}"><span aria-hidden="true"></span></span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <form action="{{ action }}" method="post">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="change" value="reset">
+      <button type="submit" class="pos-button">{% if editable %}{{ 'modules/support/profile.reset' | t }}{% else %}{{ 'modules/support/profile.reset_admin' | t }}{% endif %}</button>
+    </form>
+  </section>
+</div>
+<script defer src="{{ 'modules/support/js/pos-support-profile.js' | asset_url }}"></script>

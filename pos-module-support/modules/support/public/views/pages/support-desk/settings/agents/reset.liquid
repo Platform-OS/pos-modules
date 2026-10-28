@@ -1,0 +1,38 @@
+---
+slug: support-desk/settings/agents/:profile_id
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.team.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  function member = 'modules/support/queries/team_members/find', profile_id: context.params.profile_id
+  if member == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+  assign admin = context.exports.support.support_member
+  assign actor = { "id": null, "member": null }
+  assign actor.id = admin.profile_id
+  assign actor.member = admin
+  assign params = { "value": null }
+  function result = 'modules/support/commands/team_members/update_own', member: member, actor: actor, change: context.params.change, params: params
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/profile.saved', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  assign target = '/support-desk/settings/agents/' | append: member.profile_id
+  redirect_to target
+%}

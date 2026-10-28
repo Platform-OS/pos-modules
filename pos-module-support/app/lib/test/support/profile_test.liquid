@@ -1,0 +1,47 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # pause until tomorrow 09:00 in the member's working-hours zone
+  assign member = { "working_hours": "{\"tz\":\"America/Chicago\",\"days\":{}}" }
+  assign now = '2026-11-02 22:30' | to_time: 'America/Chicago' | strftime: '%s' | plus: 0
+  function until = 'modules/support/commands/team_members/pause_until', member: member, option: 'tomorrow', now: now, fallback_tz: 'UTC'
+  assign local = until | to_time: 'America/Chicago' | strftime: '%Y-%m-%d %H:%M'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: local, expected: '2026-11-03 09:00', field_name: 'tomorrow 09:00 in member zone'
+  assign member = { "working_hours": null }
+  function until = 'modules/support/commands/team_members/pause_until', member: member, option: 'tomorrow', now: now, fallback_tz: 'Europe/Warsaw'
+  assign local = until | to_time: 'Europe/Warsaw' | strftime: '%H:%M'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: local, expected: '09:00', field_name: 'fallback zone used'
+  function until = 'modules/support/commands/team_members/pause_until', member: member, option: 'hour', now: now, fallback_tz: null
+  assign diff = until | minus: now
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: diff, expected: 3600, field_name: 'one hour'
+
+  # switch saves for self; admin can only reset someone else's
+  function f = 'support_test_helpers/ticket_fixture', label: 'profile'
+  assign agent = f.actor.member
+  assign self_actor = { "id": null, "member": null }
+  assign self_actor.id = agent.profile_id
+  assign self_actor.member = agent
+  assign params = { "event_key": "assigned", "channel": "push", "value": "false" }
+  function r = 'modules/support/commands/team_members/update_own', member: agent, actor: self_actor, change: 'pref', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.valid, expected: true, field_name: 'self switch saved'
+  function stored = 'modules/support/queries/team_members/find', profile_id: agent.profile_id
+  assign prefs = stored.notification_prefs | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: prefs.assigned.push, expected: false, field_name: 'push off stored'
+
+  assign admin = { "role": "admin", "profile_id": "admin-x" }
+  assign admin_actor = { "id": "admin-x", "member": null }
+  assign admin_actor.member = admin
+  function r = 'modules/support/commands/team_members/update_own', member: stored, actor: admin_actor, change: 'pref', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.valid, expected: false, field_name: 'admin cannot switch off others'
+  function r = 'modules/support/commands/team_members/update_own', member: stored, actor: admin_actor, change: 'reset', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.valid, expected: true, field_name: 'admin can reset'
+  function stored = 'modules/support/queries/team_members/find', profile_id: agent.profile_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.notification_prefs, expected: '{}', field_name: 'reset to defaults'
+
+  # availability change is logged for re-assignment
+  assign params = { "value": "off" }
+  function r = 'modules/support/commands/team_members/update_own', member: stored, actor: self_actor, change: 'availability', params: params
+  graphql log = 'modules/support/ticket_events/search', event_type: 'availability_changed', actor_id: agent.profile_id, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: log.records.results.first.to_value, expected: 'off', field_name: 'availability change logged'
+%}

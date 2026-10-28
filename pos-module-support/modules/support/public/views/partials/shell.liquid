@@ -26,6 +26,9 @@
             </a>
           </li>
         {% endfor %}
+        <li>
+          <a href="/support-desk/profile" {% if pathname == '/support-desk/profile' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.profile' | t }}</a>
+        </li>
         {% if member.role == 'admin' %}
           <li>
             <a href="/support-desk/settings/email" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.settings' | t }}</a>

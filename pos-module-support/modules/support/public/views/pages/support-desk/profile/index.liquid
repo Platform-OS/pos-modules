@@ -1,0 +1,17 @@
+---
+slug: support-desk/profile
+layout: modules/support/support
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  assign member = context.exports.support.support_member
+  assign profile = context.exports.support.current_profile
+  function subscriptions = 'modules/push_notifications/queries/subscriptions/search', user_id: profile.user.id, user_ids: null, active: true, limit: 20, page: 1
+  function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
+  render 'modules/support/profile/index', member: member, subscriptions: subscriptions.results, effective: availability, editable: true, action: '/support-desk/profile'
+%}

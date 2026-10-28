@@ -1,0 +1,66 @@
+---
+slug: support-desk/profile
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  assign wants_json = false
+  if context.headers.HTTP_ACCEPT contains 'application/json'
+    assign wants_json = true
+  endif
+  unless context.csrf_request_valid
+    response_status 422
+    if wants_json
+      echo '{"ok":false}'
+    else
+      render 'modules/support/forbidden'
+    endif
+    break
+  endunless
+
+  assign member = context.exports.support.support_member
+  assign actor = { "id": null, "member": null }
+  assign actor.id = member.profile_id
+  assign actor.member = member
+
+  if context.params.change == 'test_push'
+    function brand = 'modules/support/helpers/branding'
+    assign payload = { "title": null, "body": null, "url": "/support-desk/profile" }
+    assign payload.title = 'modules/support/profile.test_push_title' | t
+    assign payload.body = 'modules/support/profile.test_push_body' | t
+    assign payload.icon = brand.icon_url
+    assign user_ids = []
+    assign user_ids << context.exports.support.current_profile.user.id
+    function _ = 'modules/push_notifications/commands/notifications/broadcast', user_ids: user_ids, payload: payload, ttl: 600, urgency: 'high'
+    assign result = { "valid": true }
+  else
+    assign params = { "value": null, "event_key": null, "channel": null, "option": null }
+    assign params.value = context.params.value
+    assign params.event_key = context.params.event_key
+    assign params.channel = context.params.channel
+    assign params.option = context.params.option
+    function result = 'modules/support/commands/team_members/update_own', member: member, actor: actor, change: context.params.change, params: params
+  endif
+
+  if wants_json
+    if result.valid
+      echo '{"ok":true}'
+    else
+      response_status 422
+      echo '{"ok":false}'
+    endif
+    break
+  endif
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/profile.saved', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/profile'
+%}

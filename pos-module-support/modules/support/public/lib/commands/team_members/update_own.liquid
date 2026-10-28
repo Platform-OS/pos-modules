@@ -1,0 +1,71 @@
+{% doc %}
+  Changes a member's availability or notification settings (07 §3). Only the
+  member may change their own settings; an admin may reset someone else's
+  to defaults but never switch their alerts off. Writes availability_changed
+  rows used by re-assignment (06 §2). Returns { valid, error, member }.
+  @param {object} member - team_member being changed
+  @param {object} actor - { id, member } of who is changing it
+  @param {string} change - availability | pref | pause | resume | reset
+  @param {object} params - { value, event_key, channel, option }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "member": null }
+  assign is_self = false
+  if member.profile_id == actor.id
+    assign is_self = true
+  endif
+  unless is_self
+    if change != 'reset' or actor.member.role != 'admin'
+      assign result.error = 'modules/support/profile.errors.not_allowed'
+      return result
+    endif
+  endunless
+
+  assign values = {}
+  assign events = ["new", "assigned", "reply", "mention", "sla_due", "sla_breach", "unassigned", "confirm_wait", "p0", "access_requested"]
+  case change
+  when 'availability'
+    assign states = ["available", "away", "off"]
+    unless states contains params.value
+      assign result.error = 'modules/support/profile.errors.value'
+      return result
+    endunless
+    assign values.availability = params.value
+  when 'pref'
+    assign channels = ["push", "email"]
+    unless events contains params.event_key and channels contains params.channel
+      assign result.error = 'modules/support/profile.errors.value'
+      return result
+    endunless
+    assign prefs = member.notification_prefs | default: '{}' | parse_json
+    assign entry = prefs[params.event_key] | default: {}
+    assign on = false
+    if params.value == true or params.value == 'true'
+      assign on = true
+    endif
+    assign entry[params.channel] = on
+    assign prefs[params.event_key] = entry
+    assign values.notification_prefs = prefs | json
+  when 'pause'
+    function policy = 'modules/support/queries/sla/policy_for', ticket: null
+    function until = 'modules/support/commands/team_members/pause_until', member: member, option: params.option, now: null, fallback_tz: policy.business_hours.tz
+    assign values.paused_until = until | to_time
+  when 'resume'
+    assign values.paused_until = null
+  when 'reset'
+    assign values.notification_prefs = '{}'
+    assign values.paused_until = null
+  else
+    assign result.error = 'modules/support/profile.errors.value'
+    return result
+  endcase
+
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/update', id: member.id, properties: props
+  if change == 'availability' and params.value != member.availability
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: member.profile_id, event_type: 'availability_changed', from_value: member.availability, to_value: params.value, reason: null
+  endif
+  assign result.valid = true
+  assign result.member = member | hash_merge: values
+  return result
+%}

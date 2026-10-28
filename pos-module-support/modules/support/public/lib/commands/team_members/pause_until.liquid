@@ -1,0 +1,29 @@
+{% doc %}
+  When a "Pause all" choice ends (07 §3), as epoch seconds.
+  hour: one hour from now; tomorrow: 09:00 tomorrow in the member's
+  working-hours time zone (else the default SLA policy's); forever: far
+  future, until turned on.
+  @param {object} member - team_member
+  @param {string} option - hour | tomorrow | forever
+  @param {number} [now] - Epoch seconds, default now
+  @param {string} [fallback_tz] - Time zone when the member has no working hours
+{% enddoc %}
+{% liquid
+  assign now = now | default: 'now' | to_time | strftime: '%s' | plus: 0
+  case option
+    when 'hour'
+      assign until = now | plus: 3600
+    when 'tomorrow'
+      assign hours = member.working_hours
+      assign kind = hours | type_of
+      if kind == 'String'
+        assign hours = hours | parse_json
+      endif
+      assign tz = hours.tz | default: fallback_tz | default: 'UTC'
+      assign tomorrow = now | to_time: tz | add_to_time: 1, 'd' | strftime: '%Y-%m-%d'
+      assign until = tomorrow | append: ' 09:00' | to_time: tz | strftime: '%s' | plus: 0
+    else
+      assign until = now | plus: 3153600000
+  endcase
+  return until
+%}
