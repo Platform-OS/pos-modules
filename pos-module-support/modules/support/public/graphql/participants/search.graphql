@@ -1,0 +1,20 @@
+query ($ticket_id: String!, $email: String, $role: String, $limit: Int = 100) {
+  records(
+    per_page: $limit
+    filter: {
+      table: { value: "modules/support/participant" }
+      properties: [{ name: "ticket_id", value: $ticket_id }, { name: "email", value: $email }, { name: "role", value: $role }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    total_entries
+    results {
+      id
+      ticket_id: property(name: "ticket_id")
+      contact_id: property(name: "contact_id")
+      profile_id: property(name: "profile_id")
+      email: property(name: "email")
+      role: property(name: "role")
+    }
+  }
+}

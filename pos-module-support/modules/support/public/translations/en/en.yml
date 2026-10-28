@@ -26,3 +26,6 @@ en:
   team:
     errors:
       already_member: is already on the support team
+  contacts:
+    errors:
+      email_taken: already belongs to a contact

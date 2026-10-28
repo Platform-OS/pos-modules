@@ -1,0 +1,18 @@
+mutation ($ticket_id: String!, $email: String, $role: String!, $contact_id: String, $profile_id: String) {
+  record: record_create(
+    record: {
+      table: "modules/support/participant"
+      properties: [
+        { name: "ticket_id", value: $ticket_id }
+        { name: "email", value: $email }
+        { name: "role", value: $role }
+        { name: "contact_id", value: $contact_id }
+        { name: "profile_id", value: $profile_id }
+      ]
+    }
+  ) {
+    id
+    email: property(name: "email")
+    role: property(name: "role")
+  }
+}

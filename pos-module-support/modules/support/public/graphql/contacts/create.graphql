@@ -1,0 +1,19 @@
+mutation ($name: String, $emails: [String], $organization_id: String) {
+  record: record_create(
+    record: {
+      table: "modules/support/contact"
+      properties: [
+        { name: "name", value: $name }
+        { name: "emails", value_array: $emails }
+        { name: "organization_id", value: $organization_id }
+        { name: "bounced", value_boolean: false }
+        { name: "blocked", value_boolean: false }
+      ]
+    }
+  ) {
+    id
+    name: property(name: "name")
+    emails: property_array(name: "emails")
+    organization_id: property(name: "organization_id")
+  }
+}

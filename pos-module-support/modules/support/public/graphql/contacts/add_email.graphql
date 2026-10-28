@@ -1,0 +1,6 @@
+mutation ($id: ID!, $email: String!) {
+  record: record_update(id: $id, record: { properties: [{ name: "emails", array_append: $email }] }) {
+    id
+    emails: property_array(name: "emails")
+  }
+}

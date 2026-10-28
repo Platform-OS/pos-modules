@@ -1,0 +1,34 @@
+{% doc %}
+  Finds the contact owning an email address (any of its addresses,
+  case-insensitive) or creates one, linked to the organization of the
+  email's domain unless it is a free-mail domain.
+  @param {string} email - The address
+  @param {string} [name] - Display name for a new contact
+{% enddoc %}
+{% liquid
+  assign object = { "email": null, "valid": false, "errors": {} }
+  assign object.email = email | downcase | strip
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/email', c: c, object: object, field_name: 'email', key: null
+  unless c.valid
+    assign object.errors = c.errors
+    return object
+  endunless
+
+  assign emails = []
+  assign emails << object.email
+  graphql r = 'modules/support/contacts/search', emails: emails, limit: 1
+  assign contact = r.records.results.first
+  if contact
+    assign contact.valid = true
+    return contact
+  endif
+
+  assign domain = object.email | split: '@' | last
+  function organization = 'modules/support/commands/organizations/find_or_create', domain: domain
+  assign display_name = name | strip | default: object.email
+  graphql created = 'modules/support/contacts/create', name: display_name, emails: emails, organization_id: organization.id
+  assign contact = created.record
+  assign contact.valid = true
+  return contact
+%}

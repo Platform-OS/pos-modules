@@ -1,0 +1,21 @@
+query ($id: ID, $domains: [String!], $limit: Int = 20, $page: Int = 1) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/organization" }
+      properties: [{ name: "domains", array_overlaps: $domains }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    total_entries
+    results {
+      id
+      name: property(name: "name")
+      domains: property_array(name: "domains")
+      tier: property(name: "tier")
+      sla_policy_id: property(name: "sla_policy_id")
+    }
+  }
+}

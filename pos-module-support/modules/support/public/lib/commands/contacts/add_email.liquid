@@ -1,0 +1,30 @@
+{% doc %}
+  Adds another address to a contact. Refuses an invalid address or one that
+  already belongs to a contact.
+  @param {object} contact - The contact record
+  @param {string} email - The address to add
+{% enddoc %}
+{% liquid
+  assign object = { "email": null }
+  assign object.email = email | downcase | strip
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/email', c: c, object: object, field_name: 'email', key: null
+  if c.valid
+    assign emails = []
+    assign emails << object.email
+    graphql r = 'modules/support/contacts/search', emails: emails, limit: 1
+    if r.records.total_entries > 0
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'email', key: 'modules/support/contacts.errors.email_taken', message: null
+    endif
+  endif
+  if c.valid == false or contact.id == blank
+    assign object.valid = false
+    assign object.errors = c.errors
+    return object
+  endif
+
+  graphql u = 'modules/support/contacts/add_email', id: contact.id, email: object.email
+  assign result = u.record
+  assign result.valid = true
+  return result
+%}

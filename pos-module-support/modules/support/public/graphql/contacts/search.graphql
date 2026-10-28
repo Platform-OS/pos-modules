@@ -1,0 +1,26 @@
+query ($id: ID, $emails: [String!], $organization_id: String, $limit: Int = 20, $page: Int = 1) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/contact" }
+      properties: [{ name: "emails", array_overlaps: $emails }, { name: "organization_id", value: $organization_id }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    total_entries
+    total_pages
+    results {
+      id
+      created_at
+      name: property(name: "name")
+      emails: property_array(name: "emails")
+      organization_id: property(name: "organization_id")
+      phone: property(name: "phone")
+      profile_id: property(name: "profile_id")
+      bounced: property_boolean(name: "bounced")
+      blocked: property_boolean(name: "blocked")
+    }
+  }
+}

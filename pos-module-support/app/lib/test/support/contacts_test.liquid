@@ -1,0 +1,48 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign local = 10 | random_string | downcase
+  assign domain = local | append: '-corp.example.com'
+  assign email = local | append: '@' | append: domain
+
+  # same email, different case, finds the same contact
+  function first = 'modules/support/commands/contacts/find_or_create', email: email, name: 'Ann Example'
+  assign upper = email | upcase
+  function again = 'modules/support/commands/contacts/find_or_create', email: upper, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: again.id, expected: first.id, field_name: 'case-insensitive match'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: first, field_name: 'organization_id'
+
+  # a second address added to the contact is matched later
+  assign second_email = 'other-' | append: email
+  function added = 'modules/support/commands/contacts/add_email', contact: first, email: second_email
+  function by_second = 'modules/support/commands/contacts/find_or_create', email: second_email, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: by_second.id, expected: first.id, field_name: 'second email matched'
+  function taken = 'modules/support/commands/contacts/add_email', contact: first, email: second_email
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: taken.valid, expected: false, field_name: 'duplicate email refused'
+
+  # same domain, same organization
+  assign colleague = 'colleague-' | append: email
+  function colleague_contact = 'modules/support/commands/contacts/find_or_create', email: colleague, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: colleague_contact.organization_id, expected: first.organization_id, field_name: 'same domain same organization'
+
+  # a free-mail domain creates no organization
+  assign gmail = local | append: '@gmail.com'
+  function free = 'modules/support/commands/contacts/find_or_create', email: gmail, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: free.organization_id, expected: null, field_name: 'free mail has no organization'
+  function organization = 'modules/support/commands/organizations/find_or_create', domain: 'gmail.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: organization, expected: null, field_name: 'free mail domain refused'
+
+  # invalid address refused
+  function invalid = 'modules/support/commands/contacts/find_or_create', email: 'not-an-email', name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: invalid.valid, expected: false, field_name: 'invalid email refused'
+
+  # participants: add is idempotent, remove deletes
+  assign ticket_id = 8 | random_string | prepend: 'test-ticket-'
+  function p1 = 'modules/support/commands/participants/add', ticket_id: ticket_id, email: email, role: 'cc', contact_id: first.id, profile_id: null
+  function p2 = 'modules/support/commands/participants/add', ticket_id: ticket_id, email: upper, role: 'cc', contact_id: first.id, profile_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p2.id, expected: p1.id, field_name: 'participant add idempotent'
+  function removed = 'modules/support/commands/participants/remove', ticket_id: ticket_id, email: email, role: 'cc'
+  graphql r = 'modules/support/participants/search', ticket_id: ticket_id, email: null, role: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.records.total_entries, expected: 0, field_name: 'participant removed'
+%}

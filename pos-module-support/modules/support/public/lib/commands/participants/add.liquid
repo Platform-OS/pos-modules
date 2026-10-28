@@ -1,0 +1,27 @@
+{% doc %}
+  Adds a CC or follower to a ticket; adding the same email and role again
+  returns the existing row.
+  @param {string} ticket_id - The ticket
+  @param {string} role - cc or follower
+  @param {string} [email] - Address of a CC
+  @param {string} [contact_id] - The contact, when known
+  @param {string} [profile_id] - A follower's profile
+{% enddoc %}
+{% liquid
+  assign roles = ["cc", "follower"]
+  unless roles contains role
+    return null
+  endunless
+  assign email = email | downcase | strip
+  if ticket_id == blank or email == blank and profile_id == blank
+    return null
+  endif
+
+  graphql r = 'modules/support/participants/search', ticket_id: ticket_id, email: email, role: role, limit: 1
+  if r.records.results.first and email != blank
+    return r.records.results.first
+  endif
+
+  graphql c = 'modules/support/participants/create', ticket_id: ticket_id, email: email, role: role, contact_id: contact_id, profile_id: profile_id
+  return c.record
+%}

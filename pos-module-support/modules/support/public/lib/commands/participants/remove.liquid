@@ -1,0 +1,19 @@
+{% doc %}
+  Removes a CC or follower from a ticket.
+  @param {string} ticket_id - The ticket
+  @param {string} email - The participant's address
+  @param {string} role - cc or follower
+{% enddoc %}
+{% liquid
+  assign email = email | downcase | strip
+  if ticket_id == blank or email == blank
+    return false
+  endif
+  graphql r = 'modules/support/participants/search', ticket_id: ticket_id, email: email, role: role, limit: 1
+  assign participant = r.records.results.first
+  if participant == blank
+    return false
+  endif
+  graphql d = 'modules/support/participants/delete', id: participant.id
+  return true
+%}

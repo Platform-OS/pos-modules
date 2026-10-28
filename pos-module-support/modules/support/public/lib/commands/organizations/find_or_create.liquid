@@ -1,0 +1,27 @@
+{% doc %}
+  Finds the organization owning a domain or creates one. Returns null for a
+  free-mail domain (setting free_mail_domains) or a blank domain.
+  @param {string} domain - The email domain, e.g. accela.com
+{% enddoc %}
+{% liquid
+  assign domain = domain | downcase | strip
+  if domain == blank
+    return null
+  endif
+
+  function settings = 'modules/support/helpers/settings'
+  if settings.free_mail_domains contains domain
+    return null
+  endif
+
+  assign domains = []
+  assign domains << domain
+  graphql r = 'modules/support/organizations/search', domains: domains, limit: 1
+  assign organization = r.records.results.first
+  if organization
+    return organization
+  endif
+
+  graphql c = 'modules/support/organizations/create', name: domain, domains: domains
+  return c.record
+%}

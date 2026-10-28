@@ -1,0 +1,9 @@
+mutation ($name: String!, $domains: [String]) {
+  record: record_create(
+    record: { table: "modules/support/organization", properties: [{ name: "name", value: $name }, { name: "domains", value_array: $domains }] }
+  ) {
+    id
+    name: property(name: "name")
+    domains: property_array(name: "domains")
+  }
+}
