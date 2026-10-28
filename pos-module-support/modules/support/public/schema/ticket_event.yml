@@ -1,0 +1,16 @@
+name: ticket_event
+properties:
+  - name: ticket_id
+    type: string
+  - name: actor_type
+    type: string
+  - name: actor_id
+    type: string
+  - name: event_type
+    type: string
+  - name: from_value
+    type: string
+  - name: to_value
+    type: string
+  - name: reason
+    type: string

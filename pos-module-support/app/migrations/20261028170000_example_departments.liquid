@@ -1,0 +1,28 @@
+{% liquid
+  # Example app data (not distributed): our three departments and US Central
+  # business hours, as used on support-dev.
+  graphql state = 'dev_seed/state'
+  assign names = state.departments.results | map: 'name'
+  assign policy = state.policies.results.first
+
+  assign wanted = [{ "name": "DOB", "short_code": "DOB", "inbound_local_part": "dob" }, { "name": "Accela", "short_code": "ACC", "inbound_local_part": "accela" }, { "name": "DesksNearMe", "short_code": "DNM", "inbound_local_part": "desksnearme" }]
+  assign batch = []
+  for department in wanted
+    unless names contains department.name
+      assign row = { "table": "modules/support/department", "properties": { "is_default": false, "active": true } }
+      assign row.properties = row.properties | hash_merge: department
+      assign row.properties.sla_policy_id = policy.id
+      assign batch << row
+    endunless
+  endfor
+  if batch.size > 0
+    graphql created = 'modules/support/records/create_many', records: batch
+  endif
+
+  if policy and policy.business_hours.tz != 'America/Chicago'
+    assign hours = policy.business_hours
+    assign hours.tz = 'America/Chicago'
+    assign hours_json = hours | json
+    graphql updated = 'dev_seed/update_hours', id: policy.id, business_hours: hours_json
+  endif
+%}

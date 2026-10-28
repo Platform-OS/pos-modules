@@ -1,0 +1,22 @@
+name: attachment
+properties:
+  - name: message_id
+    type: string
+  - name: ticket_id
+    type: string
+  - name: file
+    type: upload
+    options:
+      acl: private
+      content_length:
+        lte: 35840
+  - name: filename
+    type: string
+  - name: content_type
+    type: string
+  - name: size
+    type: integer
+  - name: content_id
+    type: string
+  - name: inline
+    type: boolean

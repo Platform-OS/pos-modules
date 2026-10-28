@@ -1,0 +1,6 @@
+name: setting
+properties:
+  - name: key
+    type: string
+  - name: value
+    type: text

@@ -1,0 +1,18 @@
+name: escalation_link
+properties:
+  - name: ticket_id
+    type: string
+  - name: provider
+    type: string
+  - name: issue_url
+    type: string
+  - name: issue_ref
+    type: string
+  - name: issue_node_id
+    type: string
+  - name: project_item_id
+    type: string
+  - name: last_status
+    type: string
+  - name: linked_by_id
+    type: string

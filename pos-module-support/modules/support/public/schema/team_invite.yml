@@ -1,0 +1,20 @@
+name: team_invite
+properties:
+  - name: email
+    type: string
+  - name: profile_id
+    type: string
+  - name: role
+    type: string
+  - name: department_ids
+    type: array
+  - name: token_digest
+    type: string
+  - name: expires_at
+    type: datetime
+  - name: accepted_at
+    type: datetime
+  - name: revoked_at
+    type: datetime
+  - name: invited_by_id
+    type: string

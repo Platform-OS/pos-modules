@@ -1,0 +1,22 @@
+name: department
+properties:
+  - name: name
+    type: string
+  - name: short_code
+    type: string
+  - name: inbound_local_part
+    type: string
+  - name: public_address
+    type: string
+  - name: from_name
+    type: string
+  - name: from_address
+    type: string
+  - name: signature_html
+    type: text
+  - name: sla_policy_id
+    type: string
+  - name: is_default
+    type: boolean
+  - name: active
+    type: boolean

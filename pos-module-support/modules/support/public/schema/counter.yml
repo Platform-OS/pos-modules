@@ -1,0 +1,6 @@
+name: counter
+properties:
+  - name: key
+    type: string
+  - name: current
+    type: integer

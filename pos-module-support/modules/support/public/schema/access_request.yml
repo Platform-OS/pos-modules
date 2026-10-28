@@ -1,0 +1,12 @@
+name: access_request
+properties:
+  - name: profile_id
+    type: string
+  - name: note
+    type: text
+  - name: state
+    type: string
+  - name: decided_by_id
+    type: string
+  - name: decided_at
+    type: datetime

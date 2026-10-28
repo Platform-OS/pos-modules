@@ -1,0 +1,31 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # seed: a second run creates nothing and leaves exactly nine statuses
+  function _ = 'modules/support/commands/seed/defaults', time_zone: null
+  function created = 'modules/support/commands/seed/defaults', time_zone: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: created, expected: 0, field_name: 'second seed run creates nothing'
+  graphql existing = 'modules/support/seed/existing'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: existing.statuses.results.size, expected: 9, field_name: 'nine statuses'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: existing.departments.total_entries, expected: 1, field_name: 'one default department'
+
+  # counter: two sequential calls give consecutive numbers
+  function first = 'modules/support/commands/counters/next', key: 'ticket_number'
+  function second = 'modules/support/commands/counters/next', key: 'ticket_number'
+  assign expected = first | plus: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: second, expected: expected, field_name: 'consecutive ticket numbers'
+  assign above = false
+  if first > 1000
+    assign above = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: above, field_name: 'counter starts above 1000', object: null
+
+  # categories: exactly the six of 03 §4
+  function categories = 'modules/support/helpers/categories'
+  assign keys = categories | hash_keys | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: keys, expected: 'new,open,pending,on_hold,solved,closed', field_name: 'six categories'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: categories.pending.sla, expected: 'paused', field_name: 'pending pauses SLA'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: categories.on_hold.customer_visible, expected: false, field_name: 'on hold hidden from customer'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: categories.closed.customer_reply, expected: 'follow_up', field_name: 'closed reply opens follow-up'
+%}

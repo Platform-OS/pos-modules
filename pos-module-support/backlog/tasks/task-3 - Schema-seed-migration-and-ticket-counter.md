@@ -1,8 +1,9 @@
 ---
 id: TASK-3
 title: 'Schema, seed migration and ticket counter'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - "@arturpawlak"
 created_date: '2026-10-27'
 labels:
   - mvp
@@ -24,19 +25,22 @@ Tests: unit: counter, categories, seed idempotency
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 All schema files pass validate_code and deploy
-- [ ] #2 Migration is idempotent (run twice: no duplicates)
-- [ ] #3 Counter increment returns consecutive numbers under two sequential creates
-- [ ] #4 categories helper returns the six categories exactly as 03 §4
+- [x] #1 All schema files pass validate_code and deploy
+- [x] #2 Migration is idempotent (run twice: no duplicates)
+- [x] #3 Counter increment returns consecutive numbers under two sequential creates
+- [x] #4 categories helper returns the six categories exactly as 03 §4
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Definition of Done in backlog/config.yml met
+- [x] #1 Definition of Done in backlog/config.yml met
 <!-- DOD:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-<!-- Done / Outcome / Next -->
+Done: Added the remaining 18 schema files (19 with team_member), commands/seed/defaults with its migration (9 statuses with customer labels, default Support department, default SLA policy with business hours in UTC unless a time zone is given, settings, ticket counter at 1000), commands/counters/next, helpers/categories, and an example-app migration that adds the DOB, Accela and DesksNearMe departments and sets business hours to America/Chicago.
+Outcome: Deployed to support-dev; the migration ran once and seeded the data; seed_and_counter_test passes (second seed run creates nothing, nine statuses, one default department, consecutive counter values, six categories). Inserts are batched with records_create, so the seed runs three queries whatever the row count.
+Deviations: property names must have one type across all tables (lint ConflictingSchemaPropertyType), so counter.value is `current`, blocked_sender.value is `pattern` and inbound_email.payload is `params_json`; spec 03 updated.
+Next: None.
 <!-- SECTION:FINAL_SUMMARY:END -->

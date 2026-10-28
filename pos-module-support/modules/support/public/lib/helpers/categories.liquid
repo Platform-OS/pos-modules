@@ -1,0 +1,12 @@
+{% liquid
+  # Status behaviour comes from the category, never from a status key (03 §4, D-5).
+  assign categories = {
+    "new": { "sla": "running", "customer_reply": "needs_reply", "customer_visible": true },
+    "open": { "sla": "running", "customer_reply": "needs_reply", "customer_visible": true },
+    "pending": { "sla": "paused", "customer_reply": "to_status:progress", "customer_visible": true },
+    "on_hold": { "sla": "paused", "customer_reply": "needs_reply", "customer_visible": false },
+    "solved": { "sla": "stopped", "customer_reply": "to_status:progress", "customer_visible": true },
+    "closed": { "sla": "stopped", "customer_reply": "follow_up", "customer_visible": true }
+  }
+  return categories
+%}

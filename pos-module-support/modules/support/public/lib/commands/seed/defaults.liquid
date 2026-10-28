@@ -1,0 +1,77 @@
+{% doc %}
+  Creates the default statuses, department, SLA policy, settings and the
+  ticket counter (09 §3). Idempotent: rows that already exist are left as
+  they are, so the migration can run again safely.
+  @param {string} [time_zone] - Business hours time zone, default UTC
+{% enddoc %}
+{% liquid
+  assign time_zone = time_zone | default: 'UTC'
+  graphql existing = 'modules/support/seed/existing'
+
+  assign policy_id = existing.policies.results.first.id
+  if policy_id == blank
+    assign hours = { "tz": "UTC", "days": { "mon": ["09:00", "17:00"], "tue": ["09:00", "17:00"], "wed": ["09:00", "17:00"], "thu": ["09:00", "17:00"], "fri": ["09:00", "17:00"] }, "holidays": [] }
+    assign hours.tz = time_zone
+    assign targets = { "p0": { "first": 30, "next": 60, "resolution": 1440, "hours": "calendar" }, "p1": { "first": 120, "next": 240, "resolution": 4320, "hours": "business" }, "p2": { "first": 480, "next": 1440, "resolution": 14400, "hours": "business" }, "p3": { "first": 1440, "next": 2880, "resolution": null, "hours": "business" } }
+    assign policy = { "table": "modules/support/sla_policy", "properties": { "name": "Default", "is_default": true } }
+    assign policy.properties.targets = targets | json
+    assign policy.properties.business_hours = hours | json
+    assign batch = []
+    assign batch << policy
+    graphql created = 'modules/support/records/create_many', records: batch
+    assign policy_id = created.records.first.id
+  endif
+
+  assign batch = []
+
+  if existing.departments.total_entries == 0
+    assign department = { "table": "modules/support/department", "properties": { "name": "Support", "short_code": "SUP", "inbound_local_part": "support", "is_default": true, "active": true } }
+    assign department.properties.sla_policy_id = policy_id
+    assign batch << department
+  endif
+
+%}
+{% assign statuses = [
+    { "key": "new", "label": "New", "customer_label": "Received", "category": "new", "color": "new", "position": 1, "system": true, "active": true },
+    { "key": "review", "label": "Under review", "customer_label": "In progress", "category": "open", "color": "open", "position": 2, "system": false, "active": true },
+    { "key": "progress", "label": "In progress", "customer_label": "In progress", "category": "open", "color": "open", "position": 3, "system": false, "active": true },
+    { "key": "customer", "label": "Waiting on customer", "customer_label": "Awaiting your reply", "category": "pending", "color": "pending", "position": 4, "system": false, "active": true },
+    { "key": "deploy", "label": "Waiting on deploy", "customer_label": "In progress", "category": "on_hold", "color": "onhold-eng", "position": 5, "system": false, "active": true },
+    { "key": "hold", "label": "On hold", "customer_label": "In progress", "category": "on_hold", "color": "onhold", "position": 6, "system": false, "active": true },
+    { "key": "confirm", "label": "Confirmation", "customer_label": "Resolved, please confirm", "category": "solved", "color": "solved", "position": 7, "system": false, "active": true },
+    { "key": "closed", "label": "Closed", "customer_label": "Closed", "category": "closed", "color": "closed", "position": 8, "system": true, "active": true },
+    { "key": "spam", "label": "Spam", "customer_label": "", "category": "closed", "color": "closed", "position": 9, "system": true, "active": true }
+  ] %}
+{% liquid
+  assign status_keys = existing.statuses.results | map: 'key'
+  for status in statuses
+    unless status_keys contains status.key
+      assign row = { "table": "modules/support/status" }
+      assign row.properties = status
+      assign batch << row
+    endunless
+  endfor
+
+  assign settings = { "confirmation_mode": "auto_close", "confirmation_wait_days": 7, "unassigned_alert_minutes": 15, "unassigned_alert_minutes_p0": 5, "escalate_after_minutes": 30, "spam_threshold": 5.0, "role_map": {}, "free_mail_domains": ["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com", "gmx.com", "yandex.com"] }
+  assign setting_keys = existing.settings.results | map: 'key'
+  for setting in settings
+    unless setting_keys contains setting[0]
+      assign row = { "table": "modules/support/setting", "properties": {} }
+      assign row.properties.key = setting[0]
+      assign row.properties.value = setting[1] | json
+      assign batch << row
+    endunless
+  endfor
+
+  assign counter_keys = existing.counters.results | map: 'key'
+  unless counter_keys contains 'ticket_number'
+    assign row = { "table": "modules/support/counter", "properties": { "key": "ticket_number", "current": 1000 } }
+    assign batch << row
+  endunless
+
+  if batch.size > 0
+    graphql created = 'modules/support/records/create_many', records: batch
+  endif
+
+  return batch.size
+%}

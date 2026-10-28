@@ -1,0 +1,14 @@
+{% doc %}
+  Atomically increments a counter row and returns the new value (03 §3).
+  @param {string} key - The counter key, e.g. ticket_number
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/records/find_by', table: 'modules/support/counter', name: 'key', value: key
+  assign counter = r.records.results.first
+  if counter == blank
+    log key, type: 'ERROR modules/support/commands/counters/next: counter missing'
+    return null
+  endif
+  graphql u = 'modules/support/counters/increment', id: counter.id
+  return u.record.value
+%}

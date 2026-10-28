@@ -1,0 +1,12 @@
+name: participant
+properties:
+  - name: ticket_id
+    type: string
+  - name: contact_id
+    type: string
+  - name: profile_id
+    type: string
+  - name: email
+    type: string
+  - name: role
+    type: string

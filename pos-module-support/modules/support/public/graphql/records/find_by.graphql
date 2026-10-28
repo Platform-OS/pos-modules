@@ -1,0 +1,17 @@
+query ($table: String!, $name: String!, $value: String!, $limit: Int = 1) {
+  records(
+    per_page: $limit
+    filter: {
+      table: { value: $table }
+      properties: [{ name: $name, value: $value }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      properties
+    }
+  }
+}

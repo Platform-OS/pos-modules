@@ -1,0 +1,14 @@
+name: organization
+properties:
+  - name: name
+    type: string
+  - name: domains
+    type: array
+  - name: tier
+    type: string
+  - name: sla_policy_id
+    type: string
+  - name: share_tickets
+    type: boolean
+  - name: account_owner_id
+    type: string

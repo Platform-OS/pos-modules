@@ -1,0 +1,16 @@
+query {
+  departments: records(per_page: 50, filter: { table: { value: "modules/support/department" } }) {
+    results {
+      name: property(name: "name")
+    }
+  }
+  policies: records(
+    per_page: 1
+    filter: { table: { value: "modules/support/sla_policy" }, properties: [{ name: "is_default", value_boolean: true }] }
+  ) {
+    results {
+      id
+      business_hours: property_object(name: "business_hours")
+    }
+  }
+}

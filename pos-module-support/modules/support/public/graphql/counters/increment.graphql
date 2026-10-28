@@ -1,0 +1,6 @@
+mutation ($id: ID!) {
+  record: record_update(id: $id, record: { properties: [{ name: "current", increment: 1 }] }) {
+    id
+    value: property_int(name: "current")
+  }
+}

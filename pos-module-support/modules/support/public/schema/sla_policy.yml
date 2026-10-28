@@ -1,0 +1,10 @@
+name: sla_policy
+properties:
+  - name: name
+    type: string
+  - name: targets
+    type: text
+  - name: business_hours
+    type: text
+  - name: is_default
+    type: boolean

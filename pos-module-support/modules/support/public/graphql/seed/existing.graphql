@@ -1,0 +1,31 @@
+query {
+  statuses: records(per_page: 100, filter: { table: { value: "modules/support/status" } }) {
+    results {
+      key: property(name: "key")
+    }
+  }
+  settings: records(per_page: 100, filter: { table: { value: "modules/support/setting" } }) {
+    results {
+      key: property(name: "key")
+    }
+  }
+  counters: records(per_page: 100, filter: { table: { value: "modules/support/counter" } }) {
+    results {
+      key: property(name: "key")
+    }
+  }
+  departments: records(
+    per_page: 1
+    filter: { table: { value: "modules/support/department" }, properties: [{ name: "is_default", value_boolean: true }] }
+  ) {
+    total_entries
+  }
+  policies: records(
+    per_page: 1
+    filter: { table: { value: "modules/support/sla_policy" }, properties: [{ name: "is_default", value_boolean: true }] }
+  ) {
+    results {
+      id
+    }
+  }
+}

@@ -1,0 +1,16 @@
+name: contact
+properties:
+  - name: name
+    type: string
+  - name: emails
+    type: array
+  - name: organization_id
+    type: string
+  - name: phone
+    type: string
+  - name: profile_id
+    type: string
+  - name: bounced
+    type: boolean
+  - name: blocked
+    type: boolean

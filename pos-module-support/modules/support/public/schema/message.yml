@@ -1,0 +1,48 @@
+name: message
+properties:
+  - name: ticket_id
+    type: string
+  - name: author_type
+    type: string
+  - name: author_id
+    type: string
+  - name: visibility
+    type: string
+  - name: channel
+    type: string
+  - name: kind
+    type: string
+  - name: body_html
+    type: text
+  - name: body_text
+    type: text
+  - name: body_stripped
+    type: text
+  - name: from_email
+    type: string
+  - name: to_emails
+    type: array
+  - name: cc_emails
+    type: array
+  - name: subject
+    type: string
+  - name: email_message_id
+    type: string
+  - name: in_reply_to
+    type: string
+  - name: reference_ids
+    type: array
+  - name: inbound_email_id
+    type: string
+  - name: match_reason
+    type: string
+  - name: delivery_state
+    type: string
+  - name: delivery_error
+    type: string
+  - name: auth_results
+    type: text
+  - name: moved_from_ticket_id
+    type: string
+  - name: event_payload
+    type: text

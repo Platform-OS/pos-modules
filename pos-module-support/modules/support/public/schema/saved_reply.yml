@@ -1,0 +1,10 @@
+name: saved_reply
+properties:
+  - name: title
+    type: string
+  - name: body_html
+    type: text
+  - name: actions
+    type: text
+  - name: department_id
+    type: string

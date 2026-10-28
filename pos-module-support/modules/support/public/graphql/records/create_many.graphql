@@ -1,0 +1,6 @@
+mutation ($records: [RecordsCreateInputType!]!) {
+  records: records_create(records: $records) {
+    id
+    table
+  }
+}

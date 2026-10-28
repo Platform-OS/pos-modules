@@ -1,0 +1,18 @@
+name: blocked_sender
+properties:
+  - name: pattern
+    type: string
+  - name: kind
+    type: string
+  - name: reason
+    type: string
+  - name: source
+    type: string
+  - name: ticket_id
+    type: string
+  - name: created_by_id
+    type: string
+  - name: hits
+    type: integer
+  - name: last_hit_at
+    type: datetime

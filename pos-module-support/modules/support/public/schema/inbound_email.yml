@@ -1,0 +1,18 @@
+name: inbound_email
+properties:
+  - name: params_json
+    type: text
+  - name: raw_mime
+    type: text
+  - name: message_id_header
+    type: string
+  - name: state
+    type: string
+  - name: ignored_reason
+    type: string
+  - name: error
+    type: text
+  - name: ticket_id
+    type: string
+  - name: message_id
+    type: string
