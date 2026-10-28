@@ -255,7 +255,7 @@ jobs:
             if [ -n "$v" ]; then
               image="mcr.microsoft.com/playwright:v$v-noble"
             else
-              image="node:20-bookworm"
+              image="node:22-bookworm"
             fi
             echo "$m" | jq -c --arg image "$image" '. + {image: $image}'
           done | jq -sc .)
@@ -321,10 +321,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22.x
 
       - name: Install pos-cli
-        run: npm -g install @platformos/pos-cli
+        run: |
+          npm -g install @platformos/pos-cli@6.6.0
+          pos-cli --version
 
       - name: Install module dependencies
         working-directory: ${{ matrix.path }}
