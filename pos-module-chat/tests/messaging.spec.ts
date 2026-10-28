@@ -451,6 +451,37 @@ test.describe('Testing messaging', () => {
     await context?.close();
   });
 
+  test(`a search typed before the chat started is run once it starts`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const user = users.test6;
+    const searched = users.test1;
+    const query = searched.lastName.slice(0, 4).toLowerCase();
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+
+    // pos-chat.js is held back until the query is typed, so its input listener isn't there yet
+    let release = () => {};
+    const released = new Promise<void>(resolve => release = resolve);
+    await page.route(/\/pos-chat\.js(\?|$)/, async route => {
+      await released;
+      await route.continue();
+    });
+
+    // the load event would wait for the held back script
+    await page.goto(inboxPage.path, { waitUntil: 'domcontentloaded' });
+    await inboxPage.search.searchFor(query);
+    expect(await page.evaluate(() => !!(window as any).pos?.modules?.active?.chat)).toBe(false);
+
+    release();
+
+    expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+
+    await context?.close();
+  });
+
   test(`clearing the search brings back the conversations list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;

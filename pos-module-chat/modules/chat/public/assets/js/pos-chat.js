@@ -298,6 +298,13 @@ window.pos.modules.chat = function(userSettings = {}){
       }, 300);
     });
 
+    // pos-chat.js is imported on DOMContentLoaded, so the input can already hold a query typed
+    // before the listener above was attached (or one the browser restored on back/forward),
+    // its input events were missed - search for it now
+    if(module.settings.search.input?.value.trim()){
+      module.search.run(module.settings.search.input.value.trim());
+    }
+
     // clear search results
     module.settings.search.clear?.addEventListener('click', () => {
       module.search.clear();
