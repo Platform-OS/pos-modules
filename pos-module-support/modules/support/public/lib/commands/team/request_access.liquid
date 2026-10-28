@@ -1,0 +1,57 @@
+{% doc %}
+  "Request access" from a signed-in non-member (D-24): one pending request
+  per profile; refused within 24 h of a decline and for disabled members.
+  Notifies support admins by email. Returns { valid, error }.
+  @param {object} profile - The signed-in profile
+  @param {string} [note] - Optional note, max 500 characters
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null }
+  function member = 'modules/support/queries/team_members/find', profile_id: profile.id
+  if member
+    assign result.error = 'modules/support/team.errors.request_member'
+    return result
+  endif
+  graphql r = 'modules/support/access_requests/search', profile_id: profile.id, limit: 1
+  assign last = r.records.results.first
+  if last.state == 'pending'
+    assign result.error = 'modules/support/team.errors.request_pending'
+    return result
+  endif
+  if last.state == 'declined'
+    assign decided = last.decided_at | to_time
+    assign day_ago = 'now' | add_to_time: -24, 'h' | to_time
+    if decided > day_ago
+      assign result.error = 'modules/support/team.errors.request_recent'
+      return result
+    endif
+  endif
+
+  assign values = { "state": "pending" }
+  assign values.profile_id = profile.id
+  assign values.note = note | strip | truncate: 500, ''
+  function props = 'modules/support/helpers/props', values: values
+  graphql c = 'modules/support/records/create_one', table: 'modules/support/access_request', properties: props
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: profile.id, event_type: 'team_request_created', from_value: null, to_value: null, reason: null
+
+  graphql admins = 'modules/support/team_members/search', role: 'admin', state: 'active', limit: 50
+  assign admin_ids = admins.records.results | map: 'profile_id'
+  if admin_ids.size > 0
+    graphql people = 'modules/user/profiles/search', ids: admin_ids, limit: 50
+    function brand = 'modules/support/helpers/branding'
+    function settings = 'modules/support/helpers/settings'
+    assign who = profile.name | default: profile.email
+    assign heading = 'modules/support/team.emails.request_heading' | t: name: who
+    assign body = 'modules/support/team.emails.request_body' | t: email: profile.email
+    assign label = 'modules/support/team.emails.review' | t
+    assign link = settings.base_url | append: '/support-desk/settings/team'
+    capture html
+      render 'modules/support/emails/team', brand: brand, heading: heading, body: body, link: link, link_label: label
+    endcapture
+    for admin in people.records.results
+      function _ = 'modules/support/commands/email/send_simple', to_email: admin.email, to_name: admin.name, subject: heading, html: html, text: heading
+    endfor
+  endif
+  assign result.valid = true
+  return result
+%}

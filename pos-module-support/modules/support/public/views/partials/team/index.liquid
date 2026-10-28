@@ -1,0 +1,115 @@
+{% doc %}
+  Settings → Team (09 §1.3-1.5): members, add member (pick staff / invite
+  by email), open invites, access requests, and the member edit form.
+  @param {object} data - From queries/team/page_data
+{% enddoc %}
+{% liquid
+  assign edit = data.edit
+  assign roles = "agent,manager,admin" | split: ','
+%}
+{% render 'modules/support/settings/nav', current: 'team' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.team' | t }}</h1>
+
+  {% if data.requests.size > 0 %}
+    <section class="pos-card pos-support-step" aria-labelledby="tm-requests">
+      <h2 id="tm-requests" class="pos-heading-3">{{ 'modules/support/team.requests' | t }}</h2>
+      {% for request in data.requests %}
+        {% assign person = data.profiles[request.profile_id] %}
+        <form action="/support-desk/settings/team" method="post" class="pos-form pos-support-inline-form">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="request_id" value="{{ request.id }}">
+          <p><strong>{{ person.name | default: person.email }}</strong> {{ person.email }}{% if request.note != blank %} – “{{ request.note }}”{% endif %}</p>
+          <label for="rq-role-{{ request.id }}">{{ 'modules/support/team.role' | t }}</label>
+          <select id="rq-role-{{ request.id }}" name="role">{% for r in roles %}<option value="{{ r }}">{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select>
+          <fieldset><legend>{{ 'modules/support/team.departments' | t }}</legend>{% for d in data.departments %}{% if d.active %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}"> {{ d.name }}</label>{% endif %}{% endfor %}</fieldset>
+          <button type="submit" name="op" value="approve" class="pos-button pos-button-primary">{{ 'modules/support/team.approve' | t }}</button>
+          <button type="submit" name="op" value="decline" class="pos-button">{{ 'modules/support/team.decline' | t }}</button>
+        </form>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <div class="pos-support-table-wrap">
+    <table class="pos-support-table">
+      <thead><tr><th scope="col">{{ 'modules/support/settings.name' | t }}</th><th scope="col">{{ 'modules/support/team.role' | t }}</th><th scope="col">{{ 'modules/support/team.departments' | t }}</th><th scope="col">{{ 'modules/support/settings.state' | t }}</th><th scope="col">{{ 'modules/support/team.source' | t }}</th><th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/settings.edit' | t }}</span></th></tr></thead>
+      <tbody>
+        {% for member in data.members %}
+          {% assign person = data.profiles[member.profile_id] %}
+          {% if person %}
+            <tr>
+              <td>{{ person.name | default: person.email }}<br><span class="pos-supplementary">{{ person.email }}{% if member.job_title != blank %} · {{ member.job_title }}{% endif %}</span></td>
+              <td>{{ 'modules/support/team.roles.' | append: member.role | t }}{% if member.on_duty_manager %} · {{ 'modules/support/team.on_duty' | t }}{% endif %}</td>
+              <td>{% if member.role == 'admin' %}{{ 'modules/support/settings.all_departments' | t }}{% else %}{% for d in data.departments %}{% if member.department_ids contains d.id %}<span class="pos-tag">{{ d.short_code | default: d.name }}</span> {% endif %}{% endfor %}{% endif %}</td>
+              <td>{{ 'modules/support/team.states.' | append: member.state | t }}</td>
+              <td>{{ 'modules/support/team.sources.' | append: member.source | t }}</td>
+              <td><a href="/support-desk/settings/team?edit={{ member.id }}">{{ 'modules/support/settings.edit' | t }}</a> · <a href="/support-desk/settings/agents/{{ member.profile_id }}">{{ 'modules/support/team.alerts' | t }}</a></td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if edit %}
+    {% assign person = data.profiles[edit.profile_id] %}
+    <section class="pos-card pos-support-step" aria-labelledby="tm-edit">
+      <h2 id="tm-edit" class="pos-heading-3">{{ 'modules/support/settings.edit' | t }}: {{ person.name | default: person.email }}</h2>
+      <form action="/support-desk/settings/team" method="post" class="pos-form pos-support-settings-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="op" value="update">
+        <input type="hidden" name="member_id" value="{{ edit.id }}">
+        <fieldset><label for="tm-role">{{ 'modules/support/team.role' | t }}</label><select id="tm-role" name="role">{% for r in roles %}<option value="{{ r }}" {% if edit.role == r %}selected{% endif %}>{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select></fieldset>
+        <fieldset><legend>{{ 'modules/support/team.departments' | t }}</legend>{% for d in data.departments %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}" {% if edit.department_ids contains d.id %}checked{% endif %}> {{ d.name }}</label>{% endfor %}</fieldset>
+        <fieldset><label for="tm-title">{{ 'modules/support/team.job_title' | t }}</label><input id="tm-title" name="job_title" value="{{ edit.job_title }}"></fieldset>
+        <fieldset><label><input type="checkbox" name="on_duty_manager" value="true" {% if edit.on_duty_manager %}checked{% endif %}> {{ 'modules/support/team.on_duty_help' | t }}</label></fieldset>
+        <fieldset><label for="tm-state">{{ 'modules/support/settings.state' | t }}</label><select id="tm-state" name="state"><option value="active" {% if edit.state != 'disabled' %}selected{% endif %}>{{ 'modules/support/team.states.active' | t }}</option><option value="disabled" {% if edit.state == 'disabled' %}selected{% endif %}>{{ 'modules/support/team.states.disabled' | t }}</option></select></fieldset>
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="pos-card pos-support-step" aria-labelledby="tm-add">
+    <h2 id="tm-add" class="pos-heading-3">{{ 'modules/support/team.add_member' | t }}</h2>
+    <form action="/support-desk/settings/team" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="op" value="invite">
+      {% if data.candidates.size > 0 %}
+        <fieldset>
+          <label for="tm-pick">{{ 'modules/support/team.pick_staff' | t }}</label>
+          <select id="tm-pick" data-support-pick>
+            <option value="">{{ 'modules/support/team.pick_placeholder' | t }}</option>
+            {% for c in data.candidates %}<option value="{{ c.email }}">{{ c.name }} ({{ c.email }})</option>{% endfor %}
+          </select>
+        </fieldset>
+      {% endif %}
+      <fieldset><label for="tm-email">{{ 'modules/support/team.email' | t }}</label><input id="tm-email" type="email" name="email" required data-support-pick-target></fieldset>
+      <fieldset><label for="tm-new-role">{{ 'modules/support/team.role' | t }}</label><select id="tm-new-role" name="role">{% for r in roles %}<option value="{{ r }}">{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select></fieldset>
+      <fieldset><legend>{{ 'modules/support/team.departments' | t }}</legend>{% for d in data.departments %}{% if d.active %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}"> {{ d.name }}</label>{% endif %}{% endfor %}</fieldset>
+      <p class="pos-supplementary">{{ 'modules/support/team.invite_help' | t }}</p>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/team.add' | t }}</button>
+    </form>
+    <script>
+      document.querySelector('[data-support-pick]')?.addEventListener('change', (e) => { const t = document.querySelector('[data-support-pick-target]'); if (t && e.target.value) t.value = e.target.value; });
+    </script>
+  </section>
+
+  {% if data.invites.size > 0 %}
+    <section class="pos-card pos-support-step" aria-labelledby="tm-invites">
+      <h2 id="tm-invites" class="pos-heading-3">{{ 'modules/support/team.open_invites' | t }}</h2>
+      <ul class="pos-support-plain-list">
+        {% for invite in data.invites %}
+          <li>
+            {{ invite.email }} · {{ 'modules/support/team.roles.' | append: invite.role | t }} · {{ 'modules/support/team.expires' | t }} {{ invite.expires_at | l: 'long' }}
+            <form action="/support-desk/settings/team" method="post" class="pos-support-inline-form">
+              <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+              <input type="hidden" name="invite_id" value="{{ invite.id }}">
+              <button type="submit" name="op" value="resend" class="pos-button pos-button-small">{{ 'modules/support/team.resend' | t }}</button>
+              <button type="submit" name="op" value="revoke" class="pos-button pos-button-small">{{ 'modules/support/team.revoke' | t }}</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+</div>

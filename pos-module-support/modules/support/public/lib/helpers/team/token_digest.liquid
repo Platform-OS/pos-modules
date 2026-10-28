@@ -1,0 +1,9 @@
+{% doc %}
+  Keyed sha256 digest of an invite token; only the digest is stored.
+  @param {string} token - The raw token
+{% enddoc %}
+{% liquid
+  assign key = context.constants['modules/support/REPLY_TOKEN_SECRET'] | default: 'support-invite'
+  assign digest = token | compute_hmac: key
+  return digest
+%}

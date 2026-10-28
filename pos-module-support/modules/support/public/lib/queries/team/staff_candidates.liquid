@@ -1,0 +1,36 @@
+{% doc %}
+  Host staff who could be added without an invite (09 §1.3): profiles
+  whose roles are in the staff_roles setting, by default every host role
+  granting admin_pages.view plus superadmin, minus current members.
+  Returns [{ id, name, email }].
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  assign staff_roles = settings.staff_roles
+  if staff_roles == blank
+    function host_permissions = 'modules/user/queries/role_permissions/permissions'
+    assign staff_roles = []
+    for pair in host_permissions
+      if pair[1] contains 'admin_pages.view'
+        assign staff_roles << pair[0]
+      endif
+    endfor
+    assign staff_roles << 'superadmin'
+    assign staff_roles = staff_roles | uniq
+  endif
+
+  graphql people = 'modules/support/team/profiles_by_roles', roles: staff_roles, limit: 200
+  graphql members = 'modules/support/team_members/search', limit: 200
+  assign member_ids = members.records.results | map: 'profile_id'
+  assign candidates = []
+  for profile in people.records.results
+    unless member_ids contains profile.id
+      assign item = { "id": null, "name": null, "email": null }
+      assign item.id = profile.id
+      assign item.name = profile.name | default: profile.first_name | default: profile.email
+      assign item.email = profile.email
+      assign candidates << item
+    endunless
+  endfor
+  return candidates
+%}

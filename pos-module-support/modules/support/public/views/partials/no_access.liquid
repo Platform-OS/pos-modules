@@ -10,5 +10,10 @@
     <p>{{ 'modules/support/no_access.invited' | t }}</p>
   {% else %}
     <p>{{ 'modules/support/no_access.body' | t: email: current_profile.email }}</p>
+    <form action="/support-desk/request-access" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <fieldset><label for="ra-note">{{ 'modules/support/no_access.note' | t }}</label><textarea id="ra-note" name="note" rows="2" maxlength="500"></textarea></fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/no_access.request_access' | t }}</button>
+    </form>
   {% endif %}
 </section>

@@ -1,0 +1,36 @@
+{% doc %}
+  Sends a non-ticket email (team invites, access decisions, agent alerts)
+  from the default department's address, or support@<sending domain>.
+  Returns the provider result.
+  @param {string} to_email - Recipient
+  @param {string} [to_name] - Recipient name
+  @param {string} subject - Subject
+  @param {string} html - HTML body
+  @param {string} text - Plain-text body
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  function brand = 'modules/support/helpers/branding'
+  graphql d = 'modules/support/records/find_by', table: 'modules/support/department', name: 'is_default', value: 'true'
+  assign department = d.records.results.first.properties
+  assign from = { "email": null, "name": null }
+  if department.from_address != blank
+    assign from.email = department.from_address
+  else
+    assign from.email = 'support@' | append: settings.sending_domain
+  endif
+  assign from.name = brand.support_email_name
+  assign to = []
+  assign recipient = { "email": null, "name": null }
+  assign recipient.email = to_email
+  assign recipient.name = to_name
+  assign to << recipient
+  assign email = { "headers": { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "All" } }
+  assign email.from = from
+  assign email.to = to
+  assign email.subject = subject | truncate: 180
+  assign email.text = text
+  assign email.html = html
+  function sent = 'modules/support/commands/email/send', message: email
+  return sent
+%}

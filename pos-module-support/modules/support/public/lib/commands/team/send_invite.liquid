@@ -1,0 +1,45 @@
+{% doc %}
+  Creates or renews an invite token (D-25): a random token whose keyed
+  sha256 digest is the only thing stored, valid 7 days, emailed as
+  /support-desk/invites/<id>?token=<token>. Returns the invite record.
+  @param {string} email - Invitee address
+  @param {string} profile_id - The invitee's profile
+  @param {string} role - agent | manager | admin
+  @param {string[]} [department_ids] - Departments
+  @param {string} actor_id - Profile id of the inviting admin
+  @param {string} [invite_id] - Existing invite to renew (resend)
+{% enddoc %}
+{% liquid
+  assign token = 40 | random_string
+  function digest = 'modules/support/helpers/team/token_digest', token: token
+  assign values = { "accepted_at": null, "revoked_at": null }
+  assign values.email = email
+  assign values.profile_id = profile_id
+  assign values.role = role
+  assign values.department_ids = department_ids | default: []
+  assign values.token_digest = digest
+  assign values.expires_at = 'now' | add_to_time: 7, 'd'
+  assign values.invited_by_id = actor_id
+  function props = 'modules/support/helpers/props', values: values
+  if invite_id != blank
+    graphql r = 'modules/support/records/update', id: invite_id, properties: props
+    assign id = invite_id
+  else
+    graphql r = 'modules/support/records/create_one', table: 'modules/support/team_invite', properties: props
+    assign id = r.record.id
+  endif
+
+  function settings = 'modules/support/helpers/settings'
+  function brand = 'modules/support/helpers/branding'
+  assign link = settings.base_url | append: '/support-desk/invites/' | append: id | append: '?token=' | append: token
+  assign heading = 'modules/support/team.emails.invite_heading' | t: brand: brand.app_name
+  assign body = 'modules/support/team.emails.invite_body' | t
+  assign label = 'modules/support/team.emails.invite_button' | t
+  capture html
+    render 'modules/support/emails/team', brand: brand, heading: heading, body: body, link: link, link_label: label
+  endcapture
+  assign text = heading | append: ' ' | append: body | append: ' ' | append: link
+  function _ = 'modules/support/commands/email/send_simple', to_email: email, to_name: null, subject: heading, html: html, text: text
+  assign values.id = id
+  return values
+%}

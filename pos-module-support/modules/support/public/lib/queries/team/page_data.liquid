@@ -1,0 +1,36 @@
+{% doc %}
+  Settings → Team data: members with names, open invites, pending access
+  requests, staff candidates and departments.
+  @param {string} [edit_id] - Member record being edited
+{% enddoc %}
+{% liquid
+  assign data = { "edit": null }
+  graphql m = 'modules/support/team_members/search', limit: 200
+  assign data.members = m.records.results
+  assign closed = false
+  graphql i = 'modules/support/team_invites/search', closed: closed, limit: 100
+  assign data.invites = i.records.results
+  graphql r = 'modules/support/access_requests/search', state: 'pending', limit: 100
+  assign data.requests = r.records.results
+
+  assign ids = data.members | map: 'profile_id'
+  assign request_ids = data.requests | map: 'profile_id'
+  assign ids = ids | concat: request_ids | uniq | array_compact
+  assign data.profiles = {}
+  if ids.size > 0
+    graphql p = 'modules/user/profiles/search', ids: ids, limit: 250
+    for profile in p.records.results
+      assign data.profiles[profile.id] = profile
+    endfor
+  endif
+  for member in data.members
+    if member.id == edit_id
+      assign data.edit = member
+    endif
+  endfor
+  function candidates = 'modules/support/queries/team/staff_candidates'
+  assign data.candidates = candidates
+  graphql d = 'modules/support/departments/search', limit: 100
+  assign data.departments = d.records.results
+  return data
+%}

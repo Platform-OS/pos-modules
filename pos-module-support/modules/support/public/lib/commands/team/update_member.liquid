@@ -1,0 +1,85 @@
+{% doc %}
+  Changes a team member (09 §1.5): role, departments, job title, on-duty
+  flag, disable or re-enable. The last active admin can be neither disabled
+  nor demoted. Disabling takes effect on the next request (the gate reads
+  the record), re-assigns their open tickets and removes their push
+  subscriptions. Every change writes an audit row. Returns { valid, error }.
+  @param {object} member - team_member being changed
+  @param {object} params - role, department_ids[], job_title, on_duty_manager, state
+  @param {object} actor - { id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null }
+  function permissions = 'modules/support/queries/team/role_permissions'
+  unless permissions[actor.member.role] contains 'support.team.manage'
+    assign result.error = 'modules/support/team.errors.not_allowed'
+    return result
+  endunless
+
+  assign values = {}
+  assign roles = ["agent", "manager", "admin"]
+  if params.role != blank
+    unless roles contains params.role
+      assign result.error = 'modules/support/team.errors.role'
+      return result
+    endunless
+    assign values.role = params.role
+  endif
+  if params.state != blank
+    assign states = ["active", "disabled"]
+    unless states contains params.state
+      assign result.error = 'modules/support/team.errors.state'
+      return result
+    endunless
+    assign values.state = params.state
+  endif
+
+  assign losing_admin = false
+  if member.role == 'admin' and member.state == 'active'
+    if values.role != blank and values.role != 'admin'
+      assign losing_admin = true
+    endif
+    if values.state == 'disabled'
+      assign losing_admin = true
+    endif
+  endif
+  if losing_admin
+    graphql admins = 'modules/support/team_members/search', role: 'admin', state: 'active', limit: 2
+    if admins.records.total_entries <= 1
+      assign result.error = 'modules/support/team.errors.last_admin'
+      return result
+    endif
+  endif
+
+  if params.department_ids != null
+    assign values.department_ids = params.department_ids | uniq | array_compact
+  endif
+  if params.job_title != null
+    assign values.job_title = params.job_title | strip | truncate: 60, ''
+  endif
+  if params.on_duty_manager != null
+    assign values.on_duty_manager = false
+    if params.on_duty_manager == 'true' or params.on_duty_manager == true
+      assign values.on_duty_manager = true
+    endif
+  endif
+  if values.state == 'disabled'
+    assign values.disabled_at = 'now' | to_time
+    assign values.disabled_by_id = actor.id
+  elsif values.state == 'active'
+    assign values.disabled_at = null
+  endif
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: member.id, properties: props
+
+  if values.state == 'disabled' and member.state != 'disabled'
+    function _ = 'modules/support/commands/team/offboard', member: member
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: 'team_disabled', from_value: null, to_value: member.profile_id, reason: null
+  elsif values.role != blank and values.role != member.role
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: 'team_role_changed', from_value: member.role, to_value: values.role, reason: member.profile_id
+  else
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: 'team_updated', from_value: null, to_value: member.profile_id, reason: null
+  endif
+  assign result.valid = true
+  return result
+%}

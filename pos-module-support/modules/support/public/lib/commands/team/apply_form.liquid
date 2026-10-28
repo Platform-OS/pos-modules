@@ -1,0 +1,80 @@
+{% doc %}
+  Routes a Settings → Team form to its command. Returns { valid, error, notice }.
+  @param {object} params - The posted form: op = invite | resend | revoke | update | approve | decline
+  @param {object} actor - { id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  case params.op
+  when 'invite'
+    function r = 'modules/support/commands/team/invite', email: params.email, role: params.role, department_ids: params.department_ids, actor: actor
+    assign result.valid = r.valid
+    assign result.error = r.error
+    assign result.notice = 'modules/support/team.notices.invited'
+  when 'resend', 'revoke'
+    if params.invite_id == blank
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    graphql found = 'modules/support/team_invites/search', id: params.invite_id, limit: 1
+    assign invite = found.records.results.first
+    if invite == blank
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    if params.op == 'resend'
+      function _ = 'modules/support/commands/team/send_invite', email: invite.email, profile_id: invite.profile_id, role: invite.role, department_ids: invite.department_ids, actor_id: actor.id, invite_id: invite.id
+      assign result.notice = 'modules/support/team.notices.resent'
+    else
+      assign values = { "revoked_at": null }
+      assign values.revoked_at = 'now' | to_time
+      function props = 'modules/support/helpers/props', values: values
+      graphql u = 'modules/support/records/update', id: invite.id, properties: props
+      function member = 'modules/support/queries/team_members/find', profile_id: invite.profile_id
+      if member.state == 'invited'
+        assign member_values = { "state": "disabled" }
+        function props = 'modules/support/helpers/props', values: member_values
+        graphql m = 'modules/support/records/update', id: member.id, properties: props
+      endif
+      assign result.notice = 'modules/support/team.notices.revoked'
+    endif
+    assign result.valid = true
+  when 'update'
+    if params.member_id == blank
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    graphql found = 'modules/support/team_members/search', id: params.member_id, limit: 1
+    assign member = found.records.results.first
+    if member == blank
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    assign changes = { "role": null, "state": null, "job_title": null, "department_ids": null, "on_duty_manager": null }
+    assign changes.role = params.role
+    assign changes.state = params.state
+    assign changes.job_title = params.job_title
+    assign changes.department_ids = params.department_ids | default: []
+    assign changes.on_duty_manager = params.on_duty_manager | default: 'false'
+    function r = 'modules/support/commands/team/update_member', member: member, params: changes, actor: actor
+    assign result.valid = r.valid
+    assign result.error = r.error
+  when 'approve', 'decline'
+    if params.request_id == blank
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    graphql found = 'modules/support/access_requests/search', id: params.request_id, limit: 1
+    assign request = found.records.results.first
+    if request == blank
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    function r = 'modules/support/commands/team/decide_request', request: request, decision: params.op, role: params.role, department_ids: params.department_ids, actor: actor
+    assign result.valid = r.valid
+    assign result.error = r.error
+  else
+    assign result.error = 'modules/support/settings.errors.section'
+  endcase
+  return result
+%}

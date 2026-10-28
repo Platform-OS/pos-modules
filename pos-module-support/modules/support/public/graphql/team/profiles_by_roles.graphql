@@ -1,0 +1,19 @@
+query ($roles: [String!], $email: String, $limit: Int = 200) {
+  records(
+    per_page: $limit
+    filter: {
+      table: { value: "modules/user/profile" }
+      properties: [{ name: "roles", array_overlaps: $roles }, { name: "email", value: $email }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    results {
+      id
+      email: property(name: "email")
+      name: property(name: "name")
+      first_name: property(name: "first_name")
+      user_id: property(name: "user_id")
+      roles: property_array(name: "roles")
+    }
+  }
+}

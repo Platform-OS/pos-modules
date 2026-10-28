@@ -1,0 +1,115 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign stub = 'https://' | append: context.location.host | append: '/test/sendgrid-stub'
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: stub
+  assign suffix = 8 | random_string | downcase
+
+  # an admin actor
+  assign admin_profile = 'test-admin-' | append: suffix
+  assign object = { "role": "admin", "state": "active", "source": "invite", "availability": "away" }
+  assign object.profile_id = admin_profile
+  function admin = 'modules/support/commands/team_members/create', object: object
+  assign actor = { "id": null, "member": null }
+  assign actor.id = admin_profile
+  assign actor.member = admin
+
+  # invite external: user with no host roles, invited membership, invite record
+  assign email = 'invitee-' | append: suffix | append: '@example.com'
+  assign departments = []
+  function invited = 'modules/support/commands/team/invite', email: email, role: 'agent', department_ids: departments, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: invited.valid, expected: true, field_name: 'invite ok'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: invited.member.state, expected: 'invited', field_name: 'membership invited'
+  graphql p = 'modules/support/team/profiles_by_roles', email: email, limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.records.results.first.roles.size, expected: 0, field_name: 'no host roles'
+
+  # inviting the same address again adds no second user
+  function again = 'modules/support/commands/team/invite', email: email, role: 'agent', department_ids: departments, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: again.error, expected: 'modules/support/team.errors.already_member', field_name: 'already member refused'
+  graphql p = 'modules/support/team/profiles_by_roles', email: email, limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.records.results.size, expected: 1, field_name: 'one user only'
+
+  # wrong token, expired token and reused token all give the generic refusal
+  graphql inv = 'modules/support/team_invites/search', email: email, limit: 1
+  assign invite = inv.records.results.first
+  function wrong = 'modules/support/commands/team/accept_invite', invite_id: invite.id, token: 'not-the-token', password: null, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: wrong.error, expected: 'modules/support/team.invite_invalid', field_name: 'wrong token generic'
+  function renewed = 'modules/support/commands/team/send_invite', email: email, profile_id: invite.profile_id, role: 'agent', department_ids: departments, actor_id: actor.id, invite_id: invite.id
+  assign token = 'known-token-' | append: suffix
+  function digest = 'modules/support/helpers/team/token_digest', token: token
+  assign values = { "token_digest": null }
+  assign values.token_digest = digest
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: invite.id, properties: props
+  function ok = 'modules/support/commands/team/accept_invite', invite_id: invite.id, token: token, password: null, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok.valid, expected: true, field_name: 'right token accepted'
+  assign values = { "expires_at": null }
+  assign values.expires_at = 'now' | add_to_time: -1, 'h'
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: invite.id, properties: props
+  function expired = 'modules/support/commands/team/accept_invite', invite_id: invite.id, token: token, password: null, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: expired.error, expected: 'modules/support/team.invite_invalid', field_name: 'expired token generic'
+  assign values = { "expires_at": null, "accepted_at": null }
+  assign values.expires_at = 'now' | add_to_time: 1, 'd'
+  assign values.accepted_at = 'now' | to_time
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: invite.id, properties: props
+  function reused = 'modules/support/commands/team/accept_invite', invite_id: invite.id, token: token, password: null, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: reused.error, expected: 'modules/support/team.invite_invalid', field_name: 'reused token generic'
+
+  # staff candidates come from host roles granting admin_pages.view (example host: superadmin, editor)
+  function candidates = 'modules/support/queries/team/staff_candidates'
+  assign candidate_emails = candidates | map: 'email'
+  assign has_editor = false
+  if candidate_emails contains 'artur+sd-hostadmin@near-me.com'
+    assign has_editor = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: has_editor, field_name: 'editor role holder is a candidate', object: null
+
+  # access request: approve gives the chosen role and departments
+  assign requester = { "email": "requester@example.com" }
+  assign requester.id = 'test-req-' | append: suffix
+  function req = 'modules/support/commands/team/request_access', profile: requester, note: 'please'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: req.valid, expected: true, field_name: 'request created'
+  function dup = 'modules/support/commands/team/request_access', profile: requester, note: 'again'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: dup.error, expected: 'modules/support/team.errors.request_pending', field_name: 'one pending request'
+  graphql rq = 'modules/support/access_requests/search', profile_id: requester.id, limit: 1
+  graphql d = 'modules/support/departments/search', inbound_local_part: 'testfixtures', limit: 1
+  assign chosen = []
+  assign chosen << d.records.results.first.id
+  function decided = 'modules/support/commands/team/decide_request', request: rq.records.results.first, decision: 'approve', role: 'manager', department_ids: chosen, actor: actor
+  function member = 'modules/support/queries/team_members/find', profile_id: requester.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.role, expected: 'manager', field_name: 'approved role'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.source, expected: 'request', field_name: 'approved source'
+
+  # the last active admin cannot be disabled or demoted
+  graphql admins = 'modules/support/team_members/search', role: 'admin', state: 'active', limit: 2
+  if admins.records.total_entries == 1
+    assign params = { "state": "disabled" }
+    function last = 'modules/support/commands/team/update_member', member: admin, params: params, actor: actor
+    function contract = 'modules/tests/assertions/equal', contract: contract, given: last.error, expected: 'modules/support/team.errors.last_admin', field_name: 'last admin kept'
+  endif
+
+  # disabling re-assigns open tickets and takes effect at once
+  function f = 'support_test_helpers/ticket_fixture', label: 'disable'
+  function assigned = 'modules/support/commands/tickets/assign', ticket: f.ticket, assignee_id: f.actor.id, reason: 'manual', actor: f.actor
+  assign params = { "state": "disabled" }
+  function disabled = 'modules/support/commands/team/update_member', member: f.actor.member, params: params, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: disabled.valid, expected: true, field_name: 'disable ok'
+  function ticket = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  assign still_theirs = false
+  if ticket.assignee_id == f.actor.id
+    assign still_theirs = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: still_theirs, expected: false, field_name: 'open ticket re-assigned'
+  function gone = 'modules/support/queries/team_members/find', profile_id: f.actor.id
+  assign entity = { "member": null }
+  assign entity.member = gone
+  assign requester_profile = { "id": null, "roles": [] }
+  assign requester_profile.id = f.actor.id
+  function can = 'modules/support/can/desk', requester: requester_profile, entity: entity, do: 'support.tickets.read'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: can, expected: false, field_name: 'disabled member refused'
+
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: null
+%}

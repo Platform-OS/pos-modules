@@ -1,0 +1,24 @@
+{% doc %}
+  Invite landing page (D-25): set a password and join, or the generic
+  "no longer valid" message for any problem.
+  @param {boolean} valid - The link is usable
+  @param {string} [invite_id] - The invite
+  @param {string} [token] - Token from the link
+  @param {string} [error] - Translation key of a form error
+{% enddoc %}
+<section class="pos-card pos-support-gate" aria-labelledby="inv-title">
+  {% if valid %}
+    <h1 id="inv-title" class="pos-heading-2">{{ 'modules/support/team.invite_title' | t }}</h1>
+    {% if error %}<p class="pos-support-error" role="alert">{{ error | t }}</p>{% endif %}
+    <form action="/support-desk/invites/{{ invite_id }}" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="token" value="{{ token }}">
+      <fieldset><label for="inv-name">{{ 'modules/support/team.your_name' | t }}</label><input id="inv-name" name="name" autocomplete="name" required></fieldset>
+      <fieldset><label for="inv-password">{{ 'modules/support/team.choose_password' | t }}</label><input id="inv-password" type="password" name="password" minlength="12" autocomplete="new-password" required aria-describedby="inv-help"><p id="inv-help" class="pos-supplementary">{{ 'modules/support/team.password_help' | t }}</p></fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/team.join' | t }}</button>
+    </form>
+  {% else %}
+    <h1 id="inv-title" class="pos-heading-2">{{ 'modules/support/team.invite_invalid' | t }}</h1>
+    <p>{{ 'modules/support/team.invite_invalid_help' | t }}</p>
+  {% endif %}
+</section>

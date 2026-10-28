@@ -1,0 +1,28 @@
+---
+slug: support-desk/settings/team
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.team.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+  assign actor = { "id": null, "member": null }
+  assign actor.id = context.exports.support.support_member.profile_id
+  assign actor.member = context.exports.support.support_member
+  function result = 'modules/support/commands/team/apply_form', params: context.params, actor: actor
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: result.notice, error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/settings/team'
+%}

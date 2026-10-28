@@ -1,0 +1,22 @@
+query ($id: ID, $profile_id: String, $state: String, $limit: Int = 50) {
+  records(
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/access_request" }
+      properties: [{ name: "profile_id", value: $profile_id }, { name: "state", value: $state }]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      profile_id: property(name: "profile_id")
+      note: property(name: "note")
+      state: property(name: "state")
+      decided_by_id: property(name: "decided_by_id")
+      decided_at: property(name: "decided_at")
+    }
+  }
+}

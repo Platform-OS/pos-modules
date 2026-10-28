@@ -595,6 +595,21 @@
     padding: var(--pos-padding-card);
   }
 
+  .pos-support-inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pos-gap-input-input);
+    align-items: center;
+  }
+
+  .pos-support-inline-form fieldset {
+    border: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
   @media (max-width: 48rem) {
     .pos-support-shell {
       grid-template-columns: minmax(0, 1fr);

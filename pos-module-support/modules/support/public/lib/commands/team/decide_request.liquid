@@ -1,0 +1,74 @@
+{% doc %}
+  Approves or declines an access request (D-24). Approve creates the
+  membership with the chosen role and departments (source request);
+  either way the requester is emailed. Returns { valid, error }.
+  @param {object} request - The access_request
+  @param {string} decision - approve | decline
+  @param {string} [role] - Role when approving
+  @param {string[]} [department_ids] - Departments when approving
+  @param {object} actor - { id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null }
+  function permissions = 'modules/support/queries/team/role_permissions'
+  unless permissions[actor.member.role] contains 'support.team.manage'
+    assign result.error = 'modules/support/team.errors.not_allowed'
+    return result
+  endunless
+  if request.state != 'pending'
+    assign result.error = 'modules/support/team.errors.request_decided'
+    return result
+  endif
+
+  if decision == 'approve'
+    assign roles = ["agent", "manager", "admin"]
+    unless roles contains role
+      assign result.error = 'modules/support/team.errors.role'
+      return result
+    endunless
+    assign object = { "state": "active", "source": "request" }
+    assign object.profile_id = request.profile_id
+    assign object.role = role
+    assign object.department_ids = department_ids | default: []
+    assign object.created_by_id = actor.id
+    function member = 'modules/support/commands/team_members/create', object: object
+    unless member.valid
+      assign result.error = 'modules/support/team.errors.already_member'
+      return result
+    endunless
+    assign state = 'approved'
+  else
+    assign state = 'declined'
+  endif
+
+  assign values = { "state": null }
+  assign values.state = state
+  assign values.decided_by_id = actor.id
+  assign values.decided_at = 'now' | to_time
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: request.id, properties: props
+  assign event_type = 'team_request_' | append: state
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: event_type, from_value: null, to_value: request.profile_id, reason: role
+
+  function profile = 'modules/user/queries/profiles/find', id: request.profile_id, user_id: null, uuid: null, first_name: null, last_name: null
+  if profile.email != blank
+    function brand = 'modules/support/helpers/branding'
+    function settings = 'modules/support/helpers/settings'
+    assign heading_key = 'modules/support/team.emails.' | append: state | append: '_heading'
+    assign heading = heading_key | t: brand: brand.app_name
+    assign body_key = 'modules/support/team.emails.' | append: state | append: '_body'
+    assign body = body_key | t
+    assign link = null
+    assign label = null
+    if state == 'approved'
+      assign link = settings.base_url | append: '/support-desk'
+      assign label = 'modules/support/team.emails.open_desk' | t
+    endif
+    capture html
+      render 'modules/support/emails/team', brand: brand, heading: heading, body: body, link: link, link_label: label
+    endcapture
+    function _ = 'modules/support/commands/email/send_simple', to_email: profile.email, to_name: profile.name, subject: heading, html: html, text: heading
+  endif
+  assign result.valid = true
+  return result
+%}

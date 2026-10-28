@@ -1,0 +1,10 @@
+---
+slug: support-desk/invites/:id
+layout: modules/support/support
+---
+{% liquid
+  # Invite link (D-25). Public: the token is the credential. Any problem
+  # shows the same generic page.
+  function check = 'modules/support/commands/team/accept_invite', invite_id: context.params.id, token: context.params.token, password: null, name: null
+  render 'modules/support/team/invite_accept', valid: check.valid, invite_id: context.params.id, token: context.params.token, error: null
+%}

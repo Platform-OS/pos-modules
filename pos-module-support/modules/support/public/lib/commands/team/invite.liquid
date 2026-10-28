@@ -1,0 +1,85 @@
+{% doc %}
+  Adds someone to the support team (D-25, 09 §1.4). An existing user gets an
+  active membership at once and a "you've been added" email; a new address
+  gets a user with no host roles (roles: [] so USER_DEFAULT_ROLE is never
+  applied), an invited membership and an invite email. Refused: invalid
+  email, already a member, actor without support.team.manage, more than 50
+  invites an hour. Returns { valid, error, member }.
+  @param {string} email - The address
+  @param {string} role - agent | manager | admin
+  @param {string[]} [department_ids] - Departments (ignored for admins)
+  @param {object} actor - { id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "member": null }
+  function permissions = 'modules/support/queries/team/role_permissions'
+  unless permissions[actor.member.role] contains 'support.team.manage'
+    assign result.error = 'modules/support/team.errors.not_allowed'
+    return result
+  endunless
+  assign roles = ["agent", "manager", "admin"]
+  unless roles contains role
+    assign result.error = 'modules/support/team.errors.role'
+    return result
+  endunless
+  assign email = email | downcase | strip
+  assign valid_email = email | is_email_valid
+  unless valid_email
+    assign result.error = 'modules/support/team.errors.email'
+    return result
+  endunless
+  assign hour_ago = 'now' | add_to_time: -1, 'h' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  graphql recent = 'modules/support/team_invites/search', invited_by_id: actor.id, since: hour_ago, limit: 1
+  if recent.records.total_entries >= 50
+    assign result.error = 'modules/support/team.errors.rate'
+    return result
+  endif
+
+  graphql existing = 'modules/support/team/profiles_by_roles', email: email, limit: 1
+  assign profile = existing.records.results.first
+  assign object = { "role": null, "source": "invite" }
+  assign object.role = role
+  assign object.created_by_id = actor.id
+  assign object.department_ids = department_ids | default: []
+
+  if profile
+    function member = 'modules/support/queries/team_members/find', profile_id: profile.id
+    if member
+      assign result.error = 'modules/support/team.errors.already_member'
+      return result
+    endif
+    assign object.profile_id = profile.id
+    assign object.state = 'active'
+    function member = 'modules/support/commands/team_members/create', object: object
+    function brand = 'modules/support/helpers/branding'
+    function settings = 'modules/support/helpers/settings'
+    assign heading = 'modules/support/team.emails.added_heading' | t: brand: brand.app_name
+    assign body = 'modules/support/team.emails.added_body' | t
+    assign label = 'modules/support/team.emails.open_desk' | t
+    assign link = settings.base_url | append: '/support-desk'
+    capture html
+      render 'modules/support/emails/team', brand: brand, heading: heading, body: body, link: link, link_label: label
+    endcapture
+    function _ = 'modules/support/commands/email/send_simple', to_email: email, to_name: profile.name, subject: heading, html: html, text: heading
+  else
+    assign password = 32 | random_string
+    assign no_roles = []
+    assign first_name = email | split: '@' | first | truncate: 40, ''
+    assign last_name = 'modules/support/team.invited_last_name' | t
+    function user = 'modules/user/commands/user/create', first_name: first_name, last_name: last_name, email: email, password: password, roles: no_roles, hook_params: null
+    if user.id == blank
+      assign result.error = 'modules/support/team.errors.email'
+      return result
+    endif
+    function created_profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+    assign object.profile_id = created_profile.id
+    assign object.state = 'invited'
+    function member = 'modules/support/commands/team_members/create', object: object
+    function _ = 'modules/support/commands/team/send_invite', email: email, profile_id: created_profile.id, role: role, department_ids: object.department_ids, actor_id: actor.id, invite_id: null
+  endif
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: 'team_invited', from_value: null, to_value: email, reason: role
+  assign result.valid = true
+  assign result.member = member
+  return result
+%}

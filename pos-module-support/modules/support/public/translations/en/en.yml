@@ -71,7 +71,9 @@ en:
     invalid: The email or password is not correct.
   no_access:
     title: You don't have access to Support
-    body: "You're signed in as %{email}, but you're not on the support team. Ask a support admin to add you."
+    body: "You're signed in as %{email}, but you're not on the support team. Request access below or ask a support admin to add you."
+    note: Note for the admins (optional)
+    request_access: Request access
     disabled: Your access to Support has been turned off. Ask a support admin if you need it back.
     invited: You've been invited. Use the link in your invitation email to join.
   forbidden:
@@ -79,8 +81,83 @@ en:
     body: Your support role doesn't include this page.
     back: Back to the queue
   team:
+    requests: Access requests
+    approve: Approve
+    decline: Decline
+    role: Role
+    departments: Departments
+    source: Added by
+    alerts: Alerts
+    on_duty: on duty
+    on_duty_help: On-duty manager (gets tickets nobody else could take)
+    job_title: Job title
+    add_member: Add a team member
+    pick_staff: Pick from your staff
+    pick_placeholder: Choose a person…
+    email: Email
+    add: Add or invite
+    invite_help: People who already have an account are added at once; others get an invitation email valid for 7 days.
+    open_invites: Open invitations
+    expires: expires
+    resend: Resend
+    revoke: Revoke
+    invite_title: Join the support team
+    your_name: Your name
+    choose_password: Choose a password
+    password_help: At least 12 characters.
+    join: Join
+    invite_invalid: This invitation link is no longer valid
+    invite_invalid_help: Ask a support admin to send you a new invitation.
+    request_sent: Request sent
+    request_sent_help: The support admins have been told. You'll get an email when they decide.
+    reassigned_disabled: "re-assigned: previous assignee disabled"
+    invited_last_name: (invited)
+    roles:
+      agent: Agent
+      manager: Manager
+      admin: Admin
+    states:
+      invited: Invited
+      active: Active
+      disabled: Disabled
+    sources:
+      install: Install
+      invite: Invite
+      request: Request
+      role_map: Host role
+      superadmin: Host superadmin
+      recovery: Recovery email
+    notices:
+      invited: Added. People without an account get an invitation email.
+      resent: Invitation sent again.
+      revoked: Invitation revoked.
+    emails:
+      invite_heading: "You're invited to %{brand} Support"
+      invite_body: Set your password to start answering tickets. The link works for 7 days.
+      invite_button: Accept invitation
+      added_heading: "You've been added to %{brand} Support"
+      added_body: You can now open the support desk with your usual sign-in.
+      open_desk: Open the support desk
+      request_heading: "%{name} asks for access to Support"
+      request_body: "%{email} would like to join the support team."
+      review: Review the request
+      approved_heading: "Your access to %{brand} Support is approved"
+      approved_body: Sign in to start working on tickets.
+      declined_heading: "Your request for %{brand} Support was declined"
+      declined_body: Ask a support admin if you think this is a mistake.
     errors:
       already_member: is already on the support team
+      not_allowed: Only a support admin can change the team.
+      role: Choose agent, manager or admin.
+      state: Choose active or disabled.
+      email: Enter a valid email address.
+      rate: Too many invitations in the last hour. Try again later.
+      last_admin: The last active admin can't be disabled or demoted.
+      password: Use at least 12 characters.
+      request_member: You already have a support account.
+      request_pending: Your request is waiting for an admin.
+      request_recent: Your last request was declined less than a day ago.
+      request_decided: That request was already decided.
   contacts:
     tickets: Tickets
     no_tickets: No tickets you can see.

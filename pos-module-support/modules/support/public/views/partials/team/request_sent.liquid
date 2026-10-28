@@ -1,0 +1,13 @@
+{% doc %}
+  Result of "Request access".
+  @param {object} result - { valid, error }
+{% enddoc %}
+<section class="pos-card pos-support-gate">
+  {% if result.valid %}
+    <h1 class="pos-heading-2">{{ 'modules/support/team.request_sent' | t }}</h1>
+    <p>{{ 'modules/support/team.request_sent_help' | t }}</p>
+  {% else %}
+    <h1 class="pos-heading-2">{{ 'modules/support/no_access.title' | t }}</h1>
+    <p>{{ result.error | t }}</p>
+  {% endif %}
+</section>

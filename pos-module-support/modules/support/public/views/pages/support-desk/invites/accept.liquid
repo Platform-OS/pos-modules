@@ -1,0 +1,23 @@
+---
+slug: support-desk/invites/:id
+method: post
+layout: modules/support/support
+---
+{% liquid
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/team/invite_accept', valid: false, invite_id: null, token: null, error: null
+    break
+  endunless
+  function result = 'modules/support/commands/team/accept_invite', invite_id: context.params.id, token: context.params.token, password: context.params.password, name: context.params.name
+  if result.valid
+    redirect_to '/support-desk'
+    break
+  endif
+  response_status 422
+  assign still_valid = false
+  if result.invite
+    assign still_valid = true
+  endif
+  render 'modules/support/team/invite_accept', valid: still_valid, invite_id: context.params.id, token: context.params.token, error: result.error
+%}

@@ -1,0 +1,32 @@
+query ($id: ID, $email: String, $invited_by_id: String, $since: String, $closed: Boolean, $limit: Int = 50) {
+  records(
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/team_invite" }
+      created_at: { gte: $since }
+      properties: [
+        { name: "email", value: $email }
+        { name: "invited_by_id", value: $invited_by_id }
+        { name: "accepted_at", exists: $closed }
+        { name: "revoked_at", exists: $closed }
+      ]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      email: property(name: "email")
+      profile_id: property(name: "profile_id")
+      role: property(name: "role")
+      department_ids: property_array(name: "department_ids")
+      token_digest: property(name: "token_digest")
+      expires_at: property(name: "expires_at")
+      accepted_at: property(name: "accepted_at")
+      revoked_at: property(name: "revoked_at")
+      invited_by_id: property(name: "invited_by_id")
+    }
+  }
+}

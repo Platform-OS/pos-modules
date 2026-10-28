@@ -1,0 +1,65 @@
+{% doc %}
+  Checks an invite link (D-25) and, with a password, completes it: sets the
+  password and name, marks the invite accepted, activates the membership
+  and signs the user in. Any problem returns the same generic refusal.
+  Returns { valid, invite }.
+  @param {string} invite_id - The invite
+  @param {string} token - Token from the link
+  @param {string} [password] - New password (12+ characters); blank = only check
+  @param {string} [name] - Display name
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "invite": null, "error": "modules/support/team.invite_invalid" }
+  graphql r = 'modules/support/team_invites/search', id: invite_id, limit: 1
+  assign invite = r.records.results.first
+  if invite == blank or token == blank or invite.accepted_at != blank or invite.revoked_at != blank
+    return result
+  endif
+  assign expires = invite.expires_at | to_time
+  assign now = 'now' | to_time
+  if expires <= now
+    return result
+  endif
+  function digest = 'modules/support/helpers/team/token_digest', token: token
+  assign key = 'compare'
+  assign a = digest | compute_hmac: key
+  assign b = invite.token_digest | compute_hmac: key
+  if a != b
+    return result
+  endif
+  assign result.invite = invite
+  if password == blank
+    assign result.valid = true
+    assign result.error = null
+    return result
+  endif
+
+  if password.size < 12
+    assign result.error = 'modules/support/team.errors.password'
+    return result
+  endif
+  function profile = 'modules/user/queries/profiles/find', id: invite.profile_id, user_id: null, uuid: null, first_name: null, last_name: null
+  function updated = 'modules/user/commands/user/update', id: profile.user_id, email: invite.email, password: password, hook_params: null
+  if name != blank
+    assign parts = name | strip | split: ' '
+    assign first = parts.first
+    assign last = parts | slice: 1, parts.size | join: ' '
+    graphql p = 'modules/support/team/update_profile_name', id: profile.id, first_name: first, last_name: last, name: name
+  endif
+
+  assign invite_values = { "accepted_at": null }
+  assign invite_values.accepted_at = now
+  function props = 'modules/support/helpers/props', values: invite_values
+  graphql u = 'modules/support/records/update', id: invite.id, properties: props
+  function member = 'modules/support/queries/team_members/find', profile_id: invite.profile_id
+  if member
+    assign member_values = { "state": "active" }
+    function props = 'modules/support/helpers/props', values: member_values
+    graphql m = 'modules/support/records/update', id: member.id, properties: props
+  endif
+  function session = 'modules/user/commands/session/create', email: null, password: null, hook_params: null, validate_password: false, skip_otp: true, user_id: profile.user_id
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: invite.profile_id, event_type: 'team_joined', from_value: null, to_value: invite.email, reason: null
+  assign result.valid = true
+  assign result.error = null
+  return result
+%}
