@@ -92,6 +92,8 @@ jobs:
               - 'pos-module-payments-example-gateway/**'
             reports:
               - 'pos-module-reports/**'
+            support:
+              - 'pos-module-support/**'
             user:
               - 'pos-module-user/**'
 
@@ -208,6 +210,12 @@ jobs:
               "path": "pos-module-reports",
               "deploy-script": "./tests/data/seed/seed.sh",
               "test-commands": "npm run pw-tests"
+            },
+            "support": {
+              "module": "support",
+              "path": "pos-module-support",
+              "deploy-script": "./tests/data/seed/seed.sh",
+              "test-commands": "npm ci\nnpm run test:static"
             },
             "user": {
               "module": "user",

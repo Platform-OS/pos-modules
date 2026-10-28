@@ -1,0 +1,8 @@
+# Lint this module only.
+#
+# Everything under modules/ other than modules/support is a dependency installed by
+# `pos-cli modules install`. Its offenses belong to that module's own repository.
+# Ignored files stay visible to cross-file checks (MissingPartial, MissingTable, ...).
+# app/ is first-party code (the example host apps) and stays linted.
+ignore:
+  - "modules/!(support)/**"

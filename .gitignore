@@ -79,6 +79,9 @@ pos-module-reports/modules/*
 pos-module-tests/modules/*
 !pos-module-tests/modules/tests/
 
+pos-module-support/modules/*
+!pos-module-support/modules/support/
+
 pos-module-user/modules/*
 !pos-module-user/modules/user/
 

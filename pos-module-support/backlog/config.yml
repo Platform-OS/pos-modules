@@ -1,0 +1,16 @@
+project_name: "pos-module-support"
+default_status: "To Do"
+statuses: ["Draft", "To Do", "In Progress", "Done"]
+labels: ["mvp", "spike", "email", "ui", "pwa", "security", "docs", "iteration-2", "ops", "migration"]
+definition_of_done: ["Acceptance criteria met and checked", "Every changed Liquid/GraphQL/YAML file passed validate_code before it was written; check-run reports zero errors", "Tests written and passing; each fails when its behaviour is removed", "Deployed to staging with deploy-start (never pos-cli deploy) and smoke-checked via URL + logs-fetch", "Security invariants hold: permission check, department scope, CSRF on POST, ownership load before by-id writes, no secrets or bodies in logs", "All user-visible strings in translations/en.yml; no translation missing", "Accessible: keyboard, focus, 4.5:1 contrast on default and example host theme, status not by colour alone", "README / CLAUDE.md / SKILL.md updated when behaviour, hooks, settings or constants change", "Final summary written as Done / Outcome / Next"]
+date_format: yyyy-mm-dd
+max_column_width: 20
+auto_open_browser: false
+default_port: 6422
+remote_operations: false
+auto_commit: false
+filesystem_only: true
+bypass_git_hooks: false
+check_active_branches: false
+active_branch_days: 30
+task_prefix: "task"

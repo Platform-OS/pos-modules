@@ -52,6 +52,8 @@ jobs:
               - 'pos-module-payments/**'
             user:
               - 'pos-module-user/**'
+            support:
+              - 'pos-module-support/**'
             chat:
               - 'pos-module-chat/**'
             common-styling:
