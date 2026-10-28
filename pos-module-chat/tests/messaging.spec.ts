@@ -230,6 +230,60 @@ test.describe('Testing messaging', () => {
     await context?.close();
   });
 
+  test(`loading older messages doesn't repeat the ones already shown after new ones arrived`, async ({ browser }) => {
+    test.setTimeout(120_000);
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // no other test talks to Dummy39; texts are unique per run, as the instance may not be reseeded
+    const user = users.test5;
+    const otherName = 'Dummy39 User';
+    const run = Date.now();
+    const history = Array.from({ length: 33 }, (_, i) => `history ${run} ${i}`);
+    const live = Array.from({ length: 3 }, (_, i) => `live ${run} ${i}`);
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    const sendQuickly = async (text: string) => {
+      await inboxPage.chat.messageInputField.fill(text);
+      await inboxPage.chat.buttonWithText('Send').click();
+      await inboxPage.chat.messageBox.getMessageByText(text, 'sent').waitFor();
+    };
+    const countOnPage = (text: string) => page.locator('#chat-messagesList .pos-chat-message-text').getByText(text, { exact: true }).count();
+
+    await test.step(`${history.length} messages are sent to ${otherName}`, async () => {
+      await inboxPage.goto();
+      await inboxPage.isChatOpenedFromSearch('dummy39', otherName);
+      await inboxPage.chat.messageInputFieldEnabled.waitFor();
+      for (const text of history) {
+        await sendQuickly(text);
+      }
+    });
+
+    await test.step(`after a reload, ${live.length} more are sent - the page shows the newest 30 and those`, async () => {
+      await page.reload();
+      await inboxPage.chat.messageInputFieldEnabled.waitFor();
+      expect(await countOnPage(history[history.length - 30])).toBe(1);
+      expect(await countOnPage(history[history.length - 31])).toBe(0);
+      for (const text of live) {
+        await sendQuickly(text);
+      }
+    });
+
+    await test.step(`scrolling to the top loads the older ones, each shown once`, async () => {
+      const response = page.waitForResponse(response => response.url().includes('/api/chat/messages.json'));
+      await page.locator('#chat-messagesList-container').evaluate(container => container.scrollTop = 0);
+      await response;
+
+      await expect(page.locator('#chat-messagesList .pos-chat-message-text').getByText(history[0], { exact: true })).toHaveCount(1);
+      for (const text of [...history, ...live]) {
+        expect(await countOnPage(text), text).toBe(1);
+      }
+    });
+
+    await context?.close();
+  });
+
   test(`regression: old conversation opens correct chat from people list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
