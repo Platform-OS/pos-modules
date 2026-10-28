@@ -4,9 +4,9 @@ This file guides Claude Code in **pos-module-support**. The monorepo-wide conven
 
 ## What this module does
 
-A white-label support desk for platformOS apps: email tickets through the email provider each installation configures at deploy (provider adapters; SendGrid in the MVP), threading, agent queue and ticket pages under `/support-desk`, least-loaded auto-assignment, SLA timers, push and email alerts, and an installable PWA scoped to `/support-desk/`. The full specification is in the Support Desk technical spec (Google Drive `platformOS/Support Desk/tech-spec/`); the task list is in `backlog/` and on the GitHub Project https://github.com/orgs/Platform-OS/projects/28.
+A white-label support desk for platformOS apps: email tickets through the email provider each installation configures at deploy (provider adapters; SendGrid in the MVP), threading, agent queue and ticket pages under `/support-desk`, least-loaded auto-assignment, SLA timers, push and email alerts, and an installable PWA scoped to `/support-desk/`. The full specification is in `docs/spec/` (00–13; gotchas in `12-gotchas.md`); the task list is in `backlog/` and on the GitHub Project https://github.com/orgs/Platform-OS/projects/28. `README.md` is the installer's guide (constants, settings, hooks, events, troubleshooting) and `SKILL.md` the short version for agents; keep both in step with the code when hooks, events, constants or settings change.
 
-`modules/support/` is the distributed module. `app/` is an example host app (permissions override, host theme hook, branding hook) and `tests/` is the E2E suite; neither ships.
+`modules/support/` is the distributed module, including the install generator in `modules/support/generators/install/` (idempotent; its instance side is `queries/install/state` and `commands/install/apply`). `app/` is an example host app (permissions override, host theme hook, branding hook, test helpers in `app/lib/support_test_helpers/`, unit tests in `app/lib/test/support/`) and `tests/` holds the static checks, fixtures and the E2E suite; neither ships.
 
 ## The loop (required)
 
@@ -25,7 +25,9 @@ validate (`validate_code`, platformos-supervisor) → write (Write/Edit only) �
 - `constant_set` hides other constants for the rest of the request in some contexts: write constants last. Settings are read once per request through `helpers/settings` (memo in `context.exports`, cleared by `commands/settings/set`).
 - A GraphQL filter given a null or empty value is ignored, so `search, id: blank` returns the first record of the table. Every by-id lookup from a form value checks for blank first.
 - Timers are delayed `background` jobs keyed by `sla_version`; the sweep job re-enqueues itself every 5 minutes.
-- Notifications go through `commands/notifications/dispatch`; preferences default to on when a key is missing.
+- Notifications go through `commands/notifications/dispatch`; preferences default to on when a key is missing. Tickets in an inactive department notify nobody and send no customer email (the test fixtures use the inactive department `testfixtures`).
+- A page that answers JSON to `fetch` must use `layout: ''`, or the layout wraps the body; `context.headers.HTTP_ACCEPT` is not reliable, so the board posts `respond=json`. Output JSON with `| json | html_safe`.
+- Blocklist (D-27): inbound rule 0 in `commands/inbound/store` refuses blocked senders before anything is stored; Mark as spam (`commands/tickets/mark_spam`) blocks the address only, never the domain.
 
 ## Work tracking
 
