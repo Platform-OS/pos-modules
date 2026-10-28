@@ -1,8 +1,9 @@
 ---
 id: TASK-0
 title: 'Feature branch, module scaffold to pos-modules standards, CI wiring, our instance, tooling'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - "@arturpawlak"
 created_date: '2026-10-27'
 labels:
   - mvp
@@ -24,11 +25,11 @@ Tests: CI run on the pushed scaffold; deploy-start of the scaffold to support-de
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Branch pushed; pos-module-support/ contains every file listed in 02 §2 (empty module code allowed)
-- [ ] #2 Pushing the branch runs pos-modules lint and tests for pos-module-support and both pass on the scaffold
-- [ ] #3 .claude/, .pos and .mcp.json are not tracked by git
+- [x] #1 Branch pushed; pos-module-support/ contains every file listed in 02 §2 (empty module code allowed)
+- [x] #2 Pushing the branch runs pos-modules lint and tests for pos-module-support and both pass on the scaffold
+- [x] #3 .claude/, .pos and .mcp.json are not tracked by git
 - [ ] #4 support-dev env works (`envs-list`); API calls enabled for staging on that instance
-- [ ] #5 Private Project has Status/Priority/Iteration and one draft item per task linked to its task file; no issues or PRs created in pos-modules
+- [x] #5 Private Project has Status/Priority/Iteration and one draft item per task linked to its task file; no issues or PRs created in pos-modules
 <!-- AC:END -->
 
 ## Definition of Done
@@ -39,5 +40,7 @@ Tests: CI run on the pushed scaffold; deploy-start of the scaffold to support-de
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-<!-- Done / Outcome / Next -->
+Done: Branch feature/pos-module-support from master; pos-module-support scaffold (manifest, lock, platformos-check scope, Playwright config, changelog/PR templates, MIGRATIONS.md, seed.sh with --keep-data, ci-static.sh gate); registered in root .gitignore, lint.yml and tests.yml; backlog copied; Agent Playbook installed locally (pos-cli 6.6.0 is the latest release and has ai init); support-dev connected (empty staging instance) and the scaffold deployed; GitHub Project 28 with 32 draft items.
+Outcome: pos-modules CI ran Lint and Tests for pos-module-support on the first push and both passed. pos-module-websocket is not on the marketplace, so live updates use platformOS channels (decision-11).
+Next: Artur confirms "API call notifications for staging" is on for support-dev (AC #4, not verifiable from here); TASK-1 spike; then TASK-2.
 <!-- SECTION:FINAL_SUMMARY:END -->
