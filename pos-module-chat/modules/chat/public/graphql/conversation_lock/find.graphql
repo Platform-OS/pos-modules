@@ -1,0 +1,12 @@
+query find_conversation_lock {
+  # the lowest id - should two rows ever be created, everyone still locks the same one
+  locks: records(
+    per_page: 1
+    filter: { table: { exact: "modules/chat/conversation_lock" } }
+    sort: { id: { order: ASC } }
+  ) {
+    results {
+      id
+    }
+  }
+}

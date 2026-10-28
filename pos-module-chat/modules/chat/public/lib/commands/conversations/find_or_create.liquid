@@ -12,21 +12,26 @@
         return object
       endif
 
-      function conversation = 'modules/chat/commands/conversations/create', object: object, current_profile: current_profile
-
-      # platformOS has no unique index, so two requests at once (two tabs, a double click) can both
-      # get here and create the same conversation. Each one looks again after creating: the oldest
-      # one is kept and a newer one deletes itself - it was just created, nothing refers to it yet
-      if conversation.id
-        graphql r = 'modules/chat/conversations/oldest_by_participants', participant_ids: object.participant_ids
-        assign oldest = r.conversations.results.first
-        if oldest and oldest.id != conversation.id
-          log conversation.id, type: 'modules/chat/commands/conversations/find_or_create: deleting a duplicate conversation'
-          graphql _ = 'modules/chat/conversations/delete', id: conversation.id
-          assign conversation = oldest
-        endif
+      # platformOS has no unique index, so two requests at once (two tabs, a double click)
+      # would both get here and both create it. Under the lock (see conversations/lock) the
+      # second one waits for the first, then finds its conversation. The lock's row is made
+      # by a migration; when it's gone (e.g. after a data import) it's created here, outside
+      # the transaction - created inside, it wouldn't be seen by the others until committed,
+      # and each would lock a row of its own
+      graphql locks = 'modules/chat/conversation_lock/find'
+      if locks.locks.results.size == 0
+        graphql _ = 'modules/chat/conversation_lock/create'
       endif
-      assign conversation.created = true
+
+      transaction timeout: 10
+        function _ = 'modules/chat/commands/conversations/lock'
+        graphql r = 'modules/chat/conversations/oldest_by_participants', participant_ids: object.participant_ids
+        assign conversation = r.conversations.results.first
+        unless conversation
+          function conversation = 'modules/chat/commands/conversations/create', object: object, current_profile: current_profile
+          assign conversation.created = true
+        endunless
+      endtransaction
     endunless
   endif
 
