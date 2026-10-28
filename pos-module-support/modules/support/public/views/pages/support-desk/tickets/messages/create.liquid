@@ -1,0 +1,54 @@
+---
+slug: support-desk/tickets/:id/messages
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.tickets.reply
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign member = context.exports.support.support_member
+  function ticket = 'modules/support/queries/tickets/find', id: context.params.id, number: null, member: member
+  if ticket == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+
+  assign actor = { "type": "user" }
+  assign actor.id = member.profile_id
+  assign actor.member = member
+  function body_html = 'modules/support/helpers/text_to_html', text: context.params.body
+  if context.params.mode == 'note'
+    function result = 'modules/support/commands/messages/create_note', ticket: ticket, body_html: body_html, mentioned_ids: null, actor: actor
+  else
+    assign cc_emails = context.params.cc | split: ','
+    assign attachments = []
+    for item in context.params.attachments
+      assign file = { "filename": null, "content_type": null, "content_base64": null }
+      assign file.filename = item.filename
+      assign file.content_type = item.content_type
+      assign file.content_base64 = item.content_base64
+      assign attachments << file
+    endfor
+    function result = 'modules/support/commands/messages/create_reply', ticket: ticket, body_html: body_html, cc_emails: cc_emails, then_status_key: context.params.then_status, attachments: attachments, actor: actor
+  endif
+
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/ticket.sent', error: null, info: null, force_clear: null
+  else
+    assign error = result.errors.body | default: result.errors.attachments | default: 'modules/support/ticket.not_sent'
+    function _ = 'modules/user/helpers/flash', error: error, notice: null, info: null, force_clear: null
+  endif
+  assign target = '/support-desk/tickets/' | append: ticket.id
+  redirect_to target
+%}

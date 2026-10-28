@@ -178,3 +178,74 @@ en:
       blank_body: Write a message first.
       move: That message can't be moved there.
       move_closed: Messages can't be moved into a closed ticket.
+      github_url: "Paste a GitHub issue link, like https://github.com/owner/repo/issues/123."
+      attachments_size: Attachments are limited to 10 MB in total.
+      merge_permission: Only a manager can merge tickets.
+      merge_target: No open ticket with that number.
+  ticket:
+    back: Queue
+    merged: Merged into another ticket
+    follow_up_of: Follow-up of a closed ticket
+    conversation: Conversation
+    respond: Respond
+    mode: Reply or note
+    reply: Reply to customer
+    note: Internal note
+    saved_replies: Saved reply
+    choose_saved: Insert a saved reply…
+    message: Message
+    cc: CC
+    cc_placeholder: Comma-separated email addresses
+    attach: Attachments
+    attach_help: Up to 10 MB in total.
+    then: Then set status
+    then_keep: Keep current status
+    send: Send
+    sent: Sent.
+    not_sent: Not sent.
+    updated: Ticket updated.
+    unknown_change: Unknown change.
+    details: Details
+    unassigned: Unassigned
+    tags: Tags (comma-separated)
+    save: Save
+    sla: SLA
+    first_reply_due: "First reply due"
+    resolution_due: "Resolution due"
+    requester: Requester
+    other_tickets: Other tickets
+    engineering: Engineering
+    issue_url: GitHub issue link
+    link: Link issue
+    merge: Merge
+    merge_into: "Merge this ticket into ticket number"
+    unmerge: Undo merge
+    activity: Activity
+    system: System
+    agent: Agent
+    internal_note: Internal note
+    show_original: Show original email
+    original_title: Original email
+    attachments: Attachments
+    not_delivered: "Not delivered:"
+    delivery_queued: Sending…
+    delivery_sent: Sent
+    delivery_delivered: Delivered
+    delivery_bounced: Bounced
+    delivery_dropped: Dropped
+    delivery_failed: Not sent
+  activity:
+    created: "created the ticket (#%{to})"
+    status_changed: "changed status from %{from} to %{to}"
+    assigned: assigned the ticket
+    priority_changed: "changed priority from %{from} to %{to}"
+    updated: "updated %{to}"
+    snoozed: snoozed the ticket
+    merged: "merged #%{from} into #%{to}"
+    merged_in: "merged #%{from} into this ticket"
+    unmerged: undid a merge
+    replied: replied
+    note_added: added a note
+    message_moved: moved a message
+    linked: "linked %{to}"
+    participant_added: "added %{to} as CC"

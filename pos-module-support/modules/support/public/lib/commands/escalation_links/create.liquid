@@ -1,0 +1,37 @@
+{% doc %}
+  Links a GitHub issue to a ticket and moves the ticket to Waiting on deploy
+  (05 §1). Refuses anything that is not a GitHub issue URL.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} url - https://github.com/<owner>/<repo>/issues/<n>
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {}, "ticket": null }
+  assign url = url | strip
+  assign parts = url | regex_matches: '^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)/?$'
+  if parts.size == 0
+    assign result.errors.url = 'modules/support/tickets.errors.github_url'
+    return result
+  endif
+  assign ref = parts[0][0] | append: '/' | append: parts[0][1] | append: '#' | append: parts[0][2]
+
+  assign values = { "provider": "github", "last_status": "open" }
+  assign values.ticket_id = ticket.id
+  assign values.issue_url = url
+  assign values.issue_ref = ref
+  assign values.linked_by_id = actor.id
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/escalation_link', properties: props
+
+  function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: 'deploy', actor: actor
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'linked', from_value: null, to_value: ref, reason: url
+  assign payload = { "ticket_id": null, "actor_id": null, "link_id": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.actor_id = actor.id
+  assign payload.link_id = r.record.id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_linked', object: payload, delay: null, max_attempts: null
+
+  assign result.valid = true
+  assign result.ticket = changed.ticket | default: ticket
+  return result
+%}

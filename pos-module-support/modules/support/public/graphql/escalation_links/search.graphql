@@ -1,0 +1,17 @@
+query ($ticket_id: String!, $limit: Int = 20) {
+  records(
+    per_page: $limit
+    filter: { table: { value: "modules/support/escalation_link" }, properties: [{ name: "ticket_id", value: $ticket_id }] }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    results {
+      id
+      created_at
+      provider: property(name: "provider")
+      issue_url: property(name: "issue_url")
+      issue_ref: property(name: "issue_ref")
+      last_status: property(name: "last_status")
+      linked_by_id: property(name: "linked_by_id")
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{% doc %}
+  Applies one ticket-page form (05 §3). The form names its change in
+  "change": properties (status, priority, assignee, department, tags),
+  snooze, link, merge or unmerge. Each goes through its command, so the
+  same rules, audit rows and events apply as everywhere else.
+  Returns { valid, error, ticket_id }.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {object} params - The posted form, read by name
+  @param {object} member - The acting team_member
+{% enddoc %}
+{% liquid
+  assign result = { "valid": true, "error": null, "ticket_id": null }
+  assign result.ticket_id = ticket.id
+  assign actor = { "type": "user" }
+  assign actor.id = member.profile_id
+  assign actor.member = member
+  function permissions = 'modules/support/queries/team/role_permissions'
+
+  case params.change
+  when 'properties'
+    if params.status_key != blank and params.status_key != ticket.status_key
+      function r = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: params.status_key, actor: actor
+      if r.valid
+        assign ticket = r.ticket
+      else
+        assign result.valid = false
+        assign result.error = r.errors.status
+      endif
+    endif
+    if result.valid and params.priority != blank
+      function r = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: params.priority, actor: actor
+      if r.valid
+        assign ticket = r.ticket
+      else
+        assign result.valid = false
+        assign result.error = r.errors.priority
+      endif
+    endif
+    if result.valid and params.assignee_id != ticket.assignee_id and params.assignee_id != null
+      function r = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: params.assignee_id, reason: 'manual', actor: actor
+      if r.valid
+        assign ticket = r.ticket
+      else
+        assign result.valid = false
+        assign result.error = r.errors.assignee_id
+      endif
+    endif
+    if result.valid
+      assign fields = { "subject": null, "department_id": null, "tags": null }
+      assign fields.department_id = params.department_id
+      if params.tags != null
+        assign fields.tags = params.tags | split: ','
+      endif
+      function r = 'modules/support/commands/tickets/update_fields', ticket: ticket, fields: fields, actor: actor
+      unless r.valid
+        assign result.valid = false
+        assign result.error = r.errors.department_id
+      endunless
+    endif
+
+  when 'snooze'
+    function r = 'modules/support/commands/tickets/snooze', ticket: ticket, until: params.snooze_until, actor: actor
+    unless r.valid
+      assign result.valid = false
+      assign result.error = r.errors.until
+    endunless
+
+  when 'link'
+    function r = 'modules/support/commands/escalation_links/create', ticket: ticket, url: params.issue_url, actor: actor
+    unless r.valid
+      assign result.valid = false
+      assign result.error = r.errors.url
+    endunless
+
+  when 'merge'
+    unless permissions[member.role] contains 'support.tickets.manage.all'
+      assign result.valid = false
+      assign result.error = 'modules/support/tickets.errors.merge_permission'
+      return result
+    endunless
+    assign number = params.target_number | remove: '#' | strip | plus: 0
+    function target = 'modules/support/queries/tickets/find', id: null, number: number, member: member
+    if target == blank
+      assign result.valid = false
+      assign result.error = 'modules/support/tickets.errors.merge_target'
+      return result
+    endif
+    function r = 'modules/support/commands/tickets/merge', source: ticket, target: target, actor: actor
+    if r.valid
+      assign result.ticket_id = target.id
+    else
+      assign result.valid = false
+      assign result.error = r.errors.target
+    endif
+
+  when 'unmerge'
+    unless permissions[member.role] contains 'support.tickets.manage.all'
+      assign result.valid = false
+      assign result.error = 'modules/support/tickets.errors.merge_permission'
+      return result
+    endunless
+    function r = 'modules/support/commands/tickets/unmerge', source: ticket, actor: actor
+    unless r.valid
+      assign result.valid = false
+      assign result.error = r.errors.source
+    endunless
+
+  else
+    assign result.valid = false
+    assign result.error = 'modules/support/ticket.unknown_change'
+  endcase
+  return result
+%}

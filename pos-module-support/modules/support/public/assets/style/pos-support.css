@@ -326,6 +326,129 @@
     align-items: center;
   }
 
+
+  .pos-support-ticket-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-block-end: var(--pos-gap-section-elements);
+  }
+
+  .pos-support-ticket-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .pos-support-ticket-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    gap: var(--pos-gap-card-card);
+    align-items: start;
+  }
+
+  .pos-support-ticket-main,
+  .pos-support-ticket-side,
+  .pos-support-thread {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pos-gap-card-card);
+    min-width: 0;
+  }
+
+  .pos-support-message {
+    padding: var(--pos-padding-card);
+    border: 1px solid var(--pos-color-frame);
+    border-radius: var(--pos-radius-card);
+    background: var(--pos-color-content-background);
+  }
+
+  .pos-support-message-agent {
+    border-inline-start: 4px solid var(--pos-color-interactive);
+  }
+
+  .pos-support-message-note,
+  .pos-support-composer-note {
+    background: var(--pos-support-status-pending-bg);
+    border-color: var(--pos-support-status-pending-fg);
+  }
+
+  .pos-support-message-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin-block-end: 0.5rem;
+  }
+
+  .pos-support-message-body {
+    overflow-wrap: anywhere;
+  }
+
+  .pos-support-message-body p + p {
+    margin-block-start: 0.75rem;
+  }
+
+  .pos-support-composer fieldset,
+  .pos-support-ticket-side fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border: 0;
+    padding: 0;
+  }
+
+  .pos-support-composer textarea,
+  .pos-support-composer input[type="text"],
+  .pos-support-ticket-side input,
+  .pos-support-ticket-side select {
+    width: 100%;
+  }
+
+  .pos-support-composer-modes {
+    flex-direction: row !important;
+  }
+
+  .pos-support-html-frame {
+    width: 100%;
+    min-height: 20rem;
+    border: 1px solid var(--pos-color-frame);
+    border-radius: var(--pos-radius-input);
+    background: #ffffff;
+  }
+
+  .pos-support-original {
+    margin-block-start: 0.5rem;
+  }
+
+  .pos-support-attachments,
+  .pos-support-plain-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .pos-support-composer-modes {
+    display: flex;
+    gap: var(--pos-gap-button-button);
+    border: 0;
+    padding: 0;
+  }
+
+  .pos-support-ticket-side .pos-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pos-gap-card-elements);
+  }
+
+  .pos-support-delivery-failed {
+    color: var(--pos-color-important);
+  }
+
   @media (max-width: 48rem) {
     .pos-support-shell {
       grid-template-columns: minmax(0, 1fr);
@@ -357,6 +480,10 @@
 
     .pos-support-attention {
       flex-direction: column;
+    }
+
+    .pos-support-ticket-layout {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

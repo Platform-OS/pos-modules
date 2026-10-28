@@ -1,10 +1,13 @@
 {% doc %}
   Sends a public agent message as email (04 §4). Runs as a background job.
-  Stores the Message-ID before sending; 2xx marks the message sent, 4xx
-  failed with the provider's error, 5xx or no response retries up to three
-  attempts, then marks it failed.
+  Stores the Message-ID before sending; 2xx marks the message sent, 4xx or
+  a configuration error (no provider, key or From address) marks it failed
+  with the reason, 5xx or no response retries up to three attempts, then
+  marks it failed. A department without a From address uses the default
+  department's.
   @param {string} message_id - The message record id
   @param {number} [attempt] - 1-based attempt number
+  @param {object[]} [attachments] - [{ filename, content_type, content_base64 }] to attach
 {% enddoc %}
 {% liquid
   assign attempt = attempt | default: 1
@@ -19,6 +22,12 @@
   assign ticket = r.records.results.first
   graphql r = 'modules/support/departments/search', id: ticket.department_id, limit: 1
   assign department = r.records.results.first
+  if department.from_address == blank
+    graphql fallback = 'modules/support/records/find_by', table: 'modules/support/department', name: 'is_default', value: 'true'
+    assign default_department = fallback.records.results.first.properties
+    assign department.from_address = default_department.from_address
+    assign department.from_name = department.from_name | default: default_department.from_name
+  endif
   graphql r = 'modules/support/contacts/search', id: ticket.requester_id, limit: 1
   assign requester = r.records.results.first
   if ticket == blank or department == blank or requester == blank
@@ -81,17 +90,27 @@
   assign email.html = html_body
   assign email.headers = built.headers
   assign email.custom_args.support_message_id = message.id
+  assign email.attachments = attachments | default: []
   function sent = 'modules/support/commands/email/send', message: email
+
+  assign permanent = false
+  if sent.status >= 400 and sent.status < 500
+    assign permanent = true
+  endif
+  assign permanent_errors = ["invalid_message", "email_provider_not_configured", "missing_api_key"]
+  if permanent_errors contains sent.error
+    assign permanent = true
+  endif
 
   if sent.ok
     graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'sent', delivery_error: null, email_message_id: email_message_id
-  elsif sent.status >= 400 and sent.status < 500
+  elsif permanent
     assign error = sent.error | append: ''
     graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'failed', delivery_error: error, email_message_id: email_message_id
   elsif attempt < 3
     assign next_attempt = attempt | plus: 1
     assign delay = attempt | times: attempt
-    background _ = 'modules/support/commands/messages/deliver', delay: delay, source_name: 'support_deliver_retry', message_id: message.id, attempt: next_attempt
+    background _ = 'modules/support/commands/messages/deliver', delay: delay, source_name: 'support_deliver_retry', message_id: message.id, attempt: next_attempt, attachments: attachments
   else
     assign error = sent.error | default: sent.status | append: ''
     graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'failed', delivery_error: error, email_message_id: email_message_id

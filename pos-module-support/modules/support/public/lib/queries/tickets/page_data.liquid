@@ -1,0 +1,94 @@
+{% doc %}
+  Everything the ticket page shows, one query per table (05 §3).
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {object} member - The signed-in team_member
+  @param {object} profile - The signed-in profile
+{% enddoc %}
+{% liquid
+  assign data = { "ticket": null, "attachments_by_message": {}, "profiles": {} }
+  assign data.ticket = ticket
+
+  graphql m = 'modules/support/messages/search', ticket_id: ticket.id, limit: 200
+  assign data.messages = m.records.results
+  graphql a = 'modules/support/attachments/search', ticket_id: ticket.id, limit: 200
+  for attachment in a.records.results
+    assign list = data.attachments_by_message[attachment.message_id] | default: []
+    assign list << attachment
+    assign data.attachments_by_message[attachment.message_id] = list
+  endfor
+  graphql e = 'modules/support/ticket_events/search', ticket_id: ticket.id, limit: 50
+  assign data.events = e.records.results
+  graphql l = 'modules/support/escalation_links/search', ticket_id: ticket.id
+  assign data.links = l.records.results
+  graphql p = 'modules/support/participants/search', ticket_id: ticket.id, email: null, role: null
+  assign data.participants = p.records.results
+
+  graphql c = 'modules/support/contacts/search', id: ticket.requester_id, limit: 1
+  assign data.requester = c.records.results.first
+  if ticket.organization_id != blank
+    graphql o = 'modules/support/organizations/search', id: ticket.organization_id, limit: 1
+    assign data.organization = o.records.results.first
+  endif
+  graphql other = 'modules/support/tickets/search', requester_id: ticket.requester_id, limit: 6
+  assign data.other_tickets = []
+  for item in other.records.results
+    if item.id != ticket.id
+      assign data.other_tickets << item
+    endif
+  endfor
+
+  assign profile_ids = []
+  if ticket.assignee_id != blank
+    assign profile_ids << ticket.assignee_id
+  endif
+  for message in data.messages
+    if message.author_type == 'agent'
+      assign profile_ids << message.author_id
+    endif
+  endfor
+  for event in data.events
+    if event.actor_type == 'user'
+      assign profile_ids << event.actor_id
+    endif
+  endfor
+  assign profile_ids = profile_ids | uniq | array_compact
+  if profile_ids.size > 0
+    graphql pr = 'modules/user/profiles/search', ids: profile_ids, limit: 100
+    for item in pr.records.results
+      assign data.profiles[item.id] = item
+    endfor
+  endif
+
+  function statuses = 'modules/support/queries/statuses/all'
+  assign data.statuses = statuses
+  graphql d = 'modules/support/departments/search', limit: 100
+  assign data.departments = d.records.results
+  function members = 'modules/support/queries/team_members/active'
+  assign data.members = []
+  for item in members
+    if item.role != 'agent' or item.department_ids contains ticket.department_id
+      assign data.members << item
+    endif
+  endfor
+
+  function brand = 'modules/support/helpers/branding'
+  graphql sr = 'modules/support/saved_replies/search', limit: 100
+  assign data.saved_replies = []
+  for reply in sr.records.results
+    if reply.department_id == blank or reply.department_id == ticket.department_id
+      function html = 'modules/support/commands/saved_replies/render', saved_reply: reply, ticket: ticket, requester: data.requester, agent: profile, brand: brand
+      assign item = { "id": null, "title": null, "html": null }
+      assign item.id = reply.id
+      assign item.title = reply.title
+      assign item.html = html
+      assign data.saved_replies << item
+    endif
+  endfor
+
+  function permissions = 'modules/support/queries/team/role_permissions'
+  assign data.can_manage = false
+  if permissions[member.role] contains 'support.tickets.manage.all'
+    assign data.can_manage = true
+  endif
+  return data
+%}

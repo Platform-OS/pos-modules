@@ -1,0 +1,20 @@
+query ($id: ID, $department_ids: [String!], $limit: Int = 100) {
+  records(
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/saved_reply" }
+      properties: [{ name: "department_id", value_in: $department_ids }]
+    }
+    sort: [{ properties: { name: "title", order: ASC } }]
+  ) {
+    total_entries
+    results {
+      id
+      title: property(name: "title")
+      body_html: property(name: "body_html")
+      actions: property_object(name: "actions")
+      department_id: property(name: "department_id")
+    }
+  }
+}

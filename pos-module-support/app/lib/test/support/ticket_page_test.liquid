@@ -1,0 +1,49 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{%- capture composer_text -%}
+Line a & b
+see https://example.com/x
+{%- endcapture -%}
+{%- capture composer_html -%}
+<p>Line a &amp; b<br />
+see <a href="https://example.com/x">https://example.com/x</a></p>
+{%- endcapture -%}
+{% liquid
+  function f = 'support_test_helpers/ticket_fixture', label: 'page'
+
+  # GitHub link: wrong URL refused, issue URL links and sets Waiting on deploy
+  function bad = 'modules/support/commands/escalation_links/create', ticket: f.ticket, url: 'https://example.com/issues/1', actor: f.actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bad.valid, expected: false, field_name: 'non-GitHub url refused'
+  function linked = 'modules/support/commands/escalation_links/create', ticket: f.ticket, url: 'https://github.com/Platform-OS/pos-modules/issues/42', actor: f.actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: linked.valid, expected: true, field_name: 'github url linked'
+  function statuses = 'modules/support/queries/statuses/all'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: linked.ticket.status_id, expected: statuses.by_key.deploy.id, field_name: 'link sets waiting on deploy'
+  graphql links = 'modules/support/escalation_links/search', ticket_id: f.ticket.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: links.records.results.first.issue_ref, expected: 'Platform-OS/pos-modules#42', field_name: 'issue ref stored'
+
+  # saved reply: whitelisted variables only, other placeholders removed, values escaped
+  assign reply = { "body_html": "<p>Hi {{ requester.first_name }}, ticket #{{ticket.number}} {{ context.constants }} {{ brand.name }} {{ agent.first_name }}</p>" }
+  assign requester = { "name": "Ann <b>Example</b>" }
+  assign ticket = { "number": 777, "subject": "S" }
+  assign agent = { "first_name": "Sam" }
+  assign brand = { "app_name": "Harbor" }
+  function html = 'modules/support/commands/saved_replies/render', saved_reply: reply, ticket: ticket, requester: requester, agent: agent, brand: brand
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: html, expected: '<p>Hi Ann, ticket #777  Harbor Sam</p>', field_name: 'saved reply whitelist'
+  assign requester = { "name": "<script>x</script> Smith" }
+  function html = 'modules/support/commands/saved_replies/render', saved_reply: reply, ticket: ticket, requester: requester, agent: agent, brand: brand
+  assign has_script = false
+  if html contains '<script>'
+    assign has_script = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_script, expected: false, field_name: 'saved reply values escaped'
+
+  # a note is never delivered as email
+  function note = 'modules/support/commands/messages/create_note', ticket: f.ticket, body_html: '<p>secret</p>', mentioned_ids: null, actor: f.actor
+  function sent = 'modules/support/commands/messages/deliver', message_id: note.message.id, attempt: 1, attachments: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: sent, expected: null, field_name: 'note not delivered'
+
+  # composer text becomes escaped paragraphs with links
+  function html = 'modules/support/helpers/text_to_html', text: composer_text
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: html, expected: composer_html, field_name: 'text to html'
+%}

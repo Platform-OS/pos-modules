@@ -1,0 +1,35 @@
+---
+slug: support-desk/tickets/:id/update
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.tickets.reply
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign member = context.exports.support.support_member
+  function ticket = 'modules/support/queries/tickets/find', id: context.params.id, number: null, member: member
+  if ticket == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+
+  function result = 'modules/support/commands/tickets/apply_form', ticket: ticket, params: context.params, member: member
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/ticket.updated', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  assign target = '/support-desk/tickets/' | append: result.ticket_id
+  redirect_to target
+%}

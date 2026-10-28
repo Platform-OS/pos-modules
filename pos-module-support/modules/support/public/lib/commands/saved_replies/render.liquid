@@ -1,0 +1,31 @@
+{% doc %}
+  Fills a saved reply's double-brace variables from a fixed whitelist
+  (05 §1); any other double-brace placeholder is removed, so a saved reply
+  can never reach other data.
+  The text is never parsed as Liquid.
+  @param {object} saved_reply - The saved reply record
+  @param {object} ticket - The ticket
+  @param {object} requester - The requester contact
+  @param {object} agent - The agent's profile
+  @param {object} brand - From helpers/branding
+{% enddoc %}
+{% liquid
+  assign first_name = requester.name | split: ' ' | first
+  assign agent_first = agent.first_name | default: agent.name | split: ' ' | first
+  assign values = { "requester.first_name": null, "requester.name": null, "ticket.number": null, "ticket.subject": null, "agent.first_name": null, "brand.name": null }
+  assign values['requester.first_name'] = first_name | escape
+  assign values['requester.name'] = requester.name | escape
+  assign values['ticket.number'] = ticket.number | append: ''
+  assign values['ticket.subject'] = ticket.subject | escape
+  assign values['agent.first_name'] = agent_first | escape
+  assign values['brand.name'] = brand.app_name | escape
+
+  assign html = saved_reply.body_html | default: ''
+  for pair in values
+    assign pattern = '\{\{\s*' | append: pair[0] | replace: '.', '\.' | append: '\s*\}\}'
+    assign value = pair[1] | default: ''
+    assign html = html | replace_regex: pattern, value
+  endfor
+  assign html = html | replace_regex: '\{\{[^}]*\}\}', ''
+  return html
+%}

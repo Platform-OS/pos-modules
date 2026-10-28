@@ -1,0 +1,23 @@
+{% doc %}
+  Turns composer plain text into escaped paragraphs: blank lines split
+  paragraphs, single newlines become line breaks, http(s) URLs become links.
+  @param {string} [text] - The typed text
+{% enddoc %}
+{%- capture nl %}
+{% endcapture -%}
+{% liquid
+  assign text = text | replace_regex: '\r', '' | strip
+  if text == blank
+    return ''
+  endif
+  assign blank_line = nl | append: nl
+  assign paragraphs = text | split: blank_line
+  assign html = ''
+  for paragraph in paragraphs
+    assign escaped = paragraph | strip | escape | replace_regex: '(https?://[^\s<&]+)', '<a href="\1">\1</a>' | newline_to_br
+    if escaped != blank
+      assign html = html | append: '<p>' | append: escaped | append: '</p>'
+    endif
+  endfor
+  return html
+%}

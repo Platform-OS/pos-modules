@@ -1,0 +1,21 @@
+---
+slug: support-desk/tickets/:id
+layout: modules/support/support
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  assign member = context.exports.support.support_member
+  function ticket = 'modules/support/queries/tickets/find', id: context.params.id, number: null, member: member
+  if ticket == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+  function data = 'modules/support/queries/tickets/page_data', ticket: ticket, member: member, profile: context.exports.support.current_profile
+  render 'modules/support/ticket/index', data: data
+%}

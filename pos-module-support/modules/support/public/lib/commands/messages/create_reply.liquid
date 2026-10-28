@@ -6,6 +6,7 @@
   @param {string} body_html - Reply HTML from the composer
   @param {string[]} [cc_emails] - Extra recipients
   @param {string} [then_status_key] - Status after sending
+  @param {object[]} [attachments] - [{ filename, content_type, content_base64 }], 10 MB in total
   @param {object} actor - { type, id, member }
 {% enddoc %}
 {% liquid
@@ -14,6 +15,16 @@
   assign body_text = body_html | replace_regex: '<(br|/p|/div|/li)[^>]*>', ' ', 'i' | strip_html | strip
   if body_text == blank
     assign result.errors.body = 'modules/support/tickets.errors.blank_body'
+    return result
+  endif
+
+  assign attachments = attachments | default: []
+  assign total = 0
+  for file in attachments
+    assign total = total | plus: file.content_base64.size
+  endfor
+  if total > 14000000
+    assign result.errors.attachments = 'modules/support/tickets.errors.attachments_size'
     return result
   endif
 
@@ -54,7 +65,22 @@
     endif
   endif
 
-  background _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, source_name: 'support_deliver', priority: 'high'
+  assign outgoing = []
+  for file in attachments
+    function stored = 'modules/support/commands/attachments/store', ticket_id: ticket.id, message_id: message.id, file: file
+    if stored
+      assign outgoing << file
+    endif
+  endfor
+  if outgoing.size > 0
+    comment
+      Attachments travel with the job as base64, so send them at once from
+      this request instead of queueing the base64 in a background job.
+    endcomment
+    function _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, attachments: outgoing
+  else
+    background _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, attachments: null, source_name: 'support_deliver', priority: 'high'
+  endif
 
   function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'replied', from_value: null, to_value: message.id, reason: null
   assign payload = { "ticket_id": null, "message_id": null, "actor_id": null }
