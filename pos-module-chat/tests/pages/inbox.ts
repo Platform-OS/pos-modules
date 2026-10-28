@@ -145,11 +145,9 @@ class Search {
     return this.results.locator('.pos-chat-conversationCard-name').getByText(fullName, { exact: true });
   }
 
-  // fill() fires a single input event, so only one search request is made. pos-chat.js is
-  // imported on DOMContentLoaded and only then listens to the input - typing before that is
-  // lost and no search is ever made, so it's waited for first.
+  // fill() fires a single input event, so only one search request is made. It doesn't wait
+  // for pos-chat.js to start: a query typed before that is searched for once it does.
   async searchFor(query: string) {
-    await this.page.waitForFunction(() => !!(window as any).pos?.modules?.active?.chat);
     await this.input.fill(query);
   }
 
