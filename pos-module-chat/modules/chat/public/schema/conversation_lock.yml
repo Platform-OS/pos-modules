@@ -1,0 +1,10 @@
+name: conversation_lock
+# A single row that serializes creating conversations - see commands/conversations/lock.
+# platformOS has no unique index or advisory lock, but updating this row inside a
+# {% transaction %} takes a database row lock held until the transaction commits, so a
+# second request creating a conversation at the same time waits for the first one and
+# then finds its conversation. `token` gets a new value on every update (an update that
+# changes nothing takes no lock); the value itself means nothing.
+properties:
+  - name: token
+    type: string

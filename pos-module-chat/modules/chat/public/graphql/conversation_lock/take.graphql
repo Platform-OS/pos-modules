@@ -1,0 +1,11 @@
+mutation take_conversation_lock($id: ID!, $token: String!) {
+  # inside a {% transaction %}, this update holds the row's lock until it commits
+  record_update(
+    id: $id
+    record: {
+      properties: [{ name: "token", value: $token }]
+    }
+  ) {
+    id
+  }
+}

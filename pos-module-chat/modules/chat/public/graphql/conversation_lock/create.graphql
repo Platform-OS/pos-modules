@@ -1,0 +1,10 @@
+mutation create_conversation_lock {
+  record_create(
+    record: {
+      table: "modules/chat/conversation_lock"
+      properties: [{ name: "token", value: "created" }]
+    }
+  ) {
+    id
+  }
+}

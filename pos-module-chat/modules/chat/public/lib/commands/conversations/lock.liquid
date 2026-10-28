@@ -1,0 +1,24 @@
+{% doc %}
+  Takes the lock that serializes creating conversations - call it first inside the
+  {% transaction %} that looks for the conversation again and creates it. Updating the
+  modules/chat/conversation_lock row holds its database lock until the transaction
+  commits, so a second request at the same time waits here and then finds the
+  conversation the first one created. Only creating conversations takes it.
+
+  The row has to exist already (see find_or_create). Should there be more than one, the
+  lowest id is locked, so everyone still locks the same row.
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/chat/conversation_lock/find'
+  assign lock = r.locks.results.first
+  if lock == blank
+    log 'no modules/chat/conversation_lock row, conversations are created without the lock', type: 'ERROR modules/chat/commands/conversations/lock'
+    return false
+  endif
+
+  # a new value every time - an update that changes nothing takes no lock
+  assign token = '' | uuid
+  graphql _ = 'modules/chat/conversation_lock/take', id: lock.id, token: token
+
+  return true
+%}
