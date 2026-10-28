@@ -1,0 +1,24 @@
+{% doc %}
+  HTML body of an agent reply to the customer. Inline CSS only.
+  @param {string} body_html - The sanitised reply
+  @param {string} [signature_html] - Department signature
+  @param {object} brand - From helpers/branding
+  @param {string} delimiter - Reply delimiter line
+  @param {object} ticket - number, subject
+{% enddoc %}
+<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1f2328;">
+    <div style="color:#6b7280;font-size:12px;padding:12px 16px;">{{ delimiter }}</div>
+    <div style="padding:0 16px 16px;">
+      {{ body_html | sanitize }}
+      {% if signature_html != blank %}
+        <div style="margin-top:16px;">{{ signature_html | sanitize }}</div>
+      {% endif %}
+    </div>
+    <div style="border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;padding:12px 16px;">
+      {% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="{{ brand.app_name }}" height="24" width="96" style="display:block;margin-bottom:8px;">{% endif %}
+      {{ 'modules/support/emails.ticket_reference' | t: number: ticket.number, brand: brand.support_email_name }}
+    </div>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+mutation ($url: String!, $method: String!, $headers: HashObject, $body: String) {
+  api_call_send(api_call: { url: $url, method: $method, headers: $headers, body: $body }, options: { timeout: 20 }) {
+    response {
+      status
+      body
+      headers
+    }
+  }
+}

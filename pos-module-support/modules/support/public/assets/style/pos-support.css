@@ -125,6 +125,23 @@
     color: var(--pos-color-important);
   }
 
+  .pos-support-ok {
+    color: var(--pos-color-confirmation);
+  }
+
+  .pos-support-steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pos-gap-card-card);
+    max-width: 48rem;
+  }
+
+  .pos-support-step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pos-gap-card-elements);
+  }
+
   @media (max-width: 48rem) {
     .pos-support-shell {
       grid-template-columns: 1fr;

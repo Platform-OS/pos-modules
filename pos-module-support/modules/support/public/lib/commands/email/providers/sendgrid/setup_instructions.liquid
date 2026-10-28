@@ -1,0 +1,21 @@
+{% doc %}
+  What Settings → Email shows for SendGrid: the MX record for the inbound
+  hostname and the masked inbound webhook URL (04 §0.1, §1).
+  @param {object} settings - From helpers/settings
+{% enddoc %}
+{% liquid
+  assign result = { "mx": null, "inbound_url": null, "inbound_url_masked": null }
+  if settings.inbound_domain != blank
+    assign result.mx = { "type": "MX", "value": "mx.sendgrid.net", "priority": 10 }
+    assign result.mx.host = settings.inbound_domain
+  endif
+
+  assign secret = context.constants['modules/support/INBOUND_SECRET']
+  if secret != blank
+    assign base = 'https://' | append: context.location.host | append: '/api/support/inbound/sendgrid/'
+    assign result.inbound_url = base | append: secret
+    assign tail = secret | slice: -4, 4
+    assign result.inbound_url_masked = base | append: '••••' | append: tail
+  endif
+  return result
+%}

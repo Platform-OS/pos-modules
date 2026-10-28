@@ -1,0 +1,28 @@
+{% doc %}
+  Creates (or updates) the Inbound Parse setting for a hostname in raw MIME
+  mode (04 §0.1 step 3, decision-9). Returns { ok, status, error }.
+  @param {string} hostname - The inbound hostname
+  @param {string} url - The module's inbound webhook URL
+{% enddoc %}
+{% liquid
+  assign body = { "spam_check": false, "send_raw": true }
+  assign body.hostname = hostname
+  assign body.url = url
+  function response = 'modules/support/commands/email/providers/sendgrid/request', path: '/v3/user/webhooks/parse/settings', method: 'POST', body: body
+
+  if response.status >= 400
+    assign path = '/v3/user/webhooks/parse/settings/' | append: hostname
+    assign patch = { "send_raw": true }
+    assign patch.url = url
+    function response = 'modules/support/commands/email/providers/sendgrid/request', path: path, method: 'PATCH', body: patch
+  endif
+
+  assign result = { "ok": false, "status": 0, "error": null }
+  assign result.status = response.status
+  if response.status == 200 or response.status == 201
+    assign result.ok = true
+  else
+    assign result.error = response.error | default: response.body.errors.first.message | default: response.status
+  endif
+  return result
+%}

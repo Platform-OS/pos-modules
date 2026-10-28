@@ -41,7 +41,6 @@ The optional page `admin/support` (permission `admin_pages.view`, `metadata.menu
 | `modules/support/ADMIN_EMAILS` | comma-separated emails that get an admin membership on first visit (recovery) |
 | `modules/support/REPLY_TOKEN_SECRET` | signs the reply token in `Reply-To` addresses; set once at install, never change it on a live desk |
 | `modules/support/INBOUND_SECRET` | secret path segment of the inbound webhook URL |
-| `modules/support/SETTINGS_VERSION` | written by the module whenever a setting changes; invalidates the settings cache |
 
 The `role_map` setting (JSON, host role → `agent`/`manager`/`admin`, default `{}`) gives desk access to holders of a host role on their first visit.
 

@@ -1,0 +1,26 @@
+query ($id: ID, $inbound_local_part: String, $limit: Int = 100) {
+  records(
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/department" }
+      properties: [{ name: "inbound_local_part", value: $inbound_local_part }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    total_entries
+    results {
+      id
+      name: property(name: "name")
+      short_code: property(name: "short_code")
+      inbound_local_part: property(name: "inbound_local_part")
+      public_address: property(name: "public_address")
+      from_name: property(name: "from_name")
+      from_address: property(name: "from_address")
+      signature_html: property(name: "signature_html")
+      sla_policy_id: property(name: "sla_policy_id")
+      is_default: property_boolean(name: "is_default")
+      active: property_boolean(name: "active")
+    }
+  }
+}

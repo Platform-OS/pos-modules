@@ -1,0 +1,55 @@
+{% doc %}
+  Calls the SendGrid v3 API with the installation's key.
+  Returns { status, body (parsed JSON when possible), headers, error }.
+  @param {string} path - API path, e.g. /v3/mail/send
+  @param {string} [method] - HTTP method, default GET
+  @param {object} [body] - Request body, sent as JSON
+{% enddoc %}
+{% liquid
+  assign result = { "status": 0, "body": null, "headers": null, "error": null }
+  assign key = context.constants['modules/support/EMAIL_API_KEY']
+  if key == blank
+    assign result.error = 'missing_api_key'
+    return result
+  endif
+
+  function settings = 'modules/support/helpers/settings'
+  assign base = settings.email_api_base_url
+  if base == blank
+    if settings.email_region == 'eu'
+      assign base = 'https://api.eu.sendgrid.com'
+    else
+      assign base = 'https://api.sendgrid.com'
+    endif
+  endif
+  assign url = base | append: path
+  assign method = method | default: 'GET'
+  assign headers = { "Content-Type": "application/json" }
+  assign headers.Authorization = 'Bearer ' | append: key
+  assign body_json = null
+  if body
+    assign body_json = body | json
+  endif
+
+  if body_json
+    graphql r = 'modules/support/email/api_request', url: url, method: method, headers: headers, body: body_json
+  else
+    graphql r = 'modules/support/email/api_request_no_body', url: url, method: method, headers: headers
+  endif
+  if r.errors
+    assign result.error = r.errors.first.message | default: 'request_failed'
+    return result
+  endif
+  assign result.status = r.api_call_send.response.status
+  assign result.headers = r.api_call_send.response.headers
+  assign raw = r.api_call_send.response.body
+  if raw != blank
+    assign first_char = raw | strip | slice: 0
+    if first_char == '{' or first_char == '['
+      assign result.body = raw | parse_json
+    else
+      assign result.body = raw
+    endif
+  endif
+  return result
+%}

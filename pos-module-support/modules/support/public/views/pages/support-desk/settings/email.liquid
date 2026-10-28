@@ -1,0 +1,20 @@
+---
+slug: support-desk/settings/email
+layout: modules/support/support
+metadata:
+  permission: support.settings.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  function settings = 'modules/support/helpers/settings'
+  assign instructions = null
+  if settings.email_provider != blank
+    assign path = 'modules/support/commands/email/providers/' | append: settings.email_provider | append: '/setup_instructions'
+    function instructions = path, settings: settings
+  endif
+  graphql departments = 'modules/support/departments/search', limit: 100
+  render 'modules/support/settings/email', settings: settings, instructions: instructions, departments: departments.records.results
+%}

@@ -1,0 +1,63 @@
+{% doc %}
+  SendGrid Mail Send (04 §4.2). Returns { ok, status, provider_message_id, error }.
+  @param {object} message - Provider-neutral message from commands/email/send
+{% enddoc %}
+{% liquid
+  assign personalization = { "to": [] }
+  assign personalization.to = message.to
+  if message.cc.size > 0
+    assign personalization.cc = message.cc
+  endif
+  assign personalizations = []
+  assign personalizations << personalization
+
+  assign content = []
+  if message.text != blank
+    assign part = { "type": "text/plain" }
+    assign part.value = message.text
+    assign content << part
+  endif
+  if message.html != blank
+    assign part = { "type": "text/html" }
+    assign part.value = message.html
+    assign content << part
+  endif
+
+  assign body = { "tracking_settings": { "click_tracking": { "enable": false }, "open_tracking": { "enable": false } } }
+  assign body.personalizations = personalizations
+  assign body.from = message.from
+  assign body.subject = message.subject
+  assign body.content = content
+  if message.reply_to != blank
+    assign body.reply_to = { "email": null }
+    assign body.reply_to.email = message.reply_to
+  endif
+  if message.headers
+    assign body.headers = message.headers
+  endif
+  if message.custom_args
+    assign body.custom_args = message.custom_args
+  endif
+  if message.attachments.size > 0
+    assign attachments = []
+    for attachment in message.attachments
+      assign item = { "disposition": "attachment" }
+      assign item.content = attachment.content_base64
+      assign item.filename = attachment.filename
+      assign item.type = attachment.content_type
+      assign attachments << item
+    endfor
+    assign body.attachments = attachments
+  endif
+
+  function response = 'modules/support/commands/email/providers/sendgrid/request', path: '/v3/mail/send', method: 'POST', body: body
+  assign result = { "ok": false, "status": 0, "provider_message_id": null, "error": null }
+  assign result.status = response.status
+  if response.status == 202
+    assign result.ok = true
+    assign result.provider_message_id = response.headers['X-Message-Id'] | default: response.headers['x-message-id']
+  else
+    assign result.error = response.error | default: response.body.errors.first.message | default: response.status
+  endif
+  return result
+%}

@@ -1,0 +1,16 @@
+mutation ($id: ID!, $delivery_state: String!, $delivery_error: String, $email_message_id: String) {
+  record: record_update(
+    id: $id
+    record: {
+      properties: [
+        { name: "delivery_state", value: $delivery_state }
+        { name: "delivery_error", value: $delivery_error }
+        { name: "email_message_id", value: $email_message_id }
+      ]
+    }
+  ) {
+    id
+    delivery_state: property(name: "delivery_state")
+    email_message_id: property(name: "email_message_id")
+  }
+}

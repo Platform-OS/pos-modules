@@ -1,0 +1,63 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # headers: subject tag once, Re: once, References capped at 20, In-Reply-To
+  assign ticket = { "number": 4321, "subject": "Payment receipts" }
+  assign department = { "from_name": "DOB Support", "from_address": "support-dob@platformos.com", "inbound_local_part": "dob" }
+  function _ = 'modules/support/commands/settings/set', key: 'inbound_domain', value: 'support-dev.platformos.com'
+  function h = 'modules/support/helpers/email/headers', ticket: ticket, department: department, message_record_id: '77', thread_ids: null, in_reply_to: '<c1@example.com>', system: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: h.subject, expected: 'Re: Payment receipts [#4321]', field_name: 'subject tag and Re'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: h.headers['In-Reply-To'], expected: '<c1@example.com>', field_name: 'in-reply-to'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: h.from.email, expected: 'support-dob@platformos.com', field_name: 'from department address'
+  assign mid_ok = h.message_id | matches: '^<support\.77\.\d+@support-dev\.platformos\.com>$'
+  function contract = 'modules/tests/assertions/true', contract: contract, value: mid_ok, field_name: 'message-id format', object: null
+  assign reply_ok = h.reply_to | matches: '^dob\+t\.4321\.[0-9a-f]{16}@support-dev\.platformos\.com$'
+  function contract = 'modules/tests/assertions/true', contract: contract, value: reply_ok, field_name: 'reply-to token', object: null
+
+  assign ticket = { "number": 4321, "subject": "Re: Payment receipts [#4321]" }
+  assign ids = '<1>,<2>,<3>,<4>,<5>,<6>,<7>,<8>,<9>,<10>,<11>,<12>,<13>,<14>,<15>,<16>,<17>,<18>,<19>,<20>,<21>,<22>' | split: ','
+  function h = 'modules/support/helpers/email/headers', ticket: ticket, department: department, message_record_id: '78', thread_ids: ids, in_reply_to: null, system: true
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: h.subject, expected: 'Re: Payment receipts [#4321]', field_name: 'subject tag kept once'
+  assign refs = h.headers.References | split: ' '
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refs.size, expected: 20, field_name: 'references capped'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refs.first, expected: '<1>', field_name: 'references keep first'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refs.last, expected: '<22>', field_name: 'references keep last'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: h.headers['Auto-Submitted'], expected: 'auto-replied', field_name: 'system mail auto-submitted'
+
+  # delivery against the example-app stub
+  assign stub = 'https://' | append: context.location.host | append: '/test/sendgrid-stub'
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: stub
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+  assign suffix = 6 | random_string
+  assign customer = 'customer-' | append: suffix | append: '@example.com'
+  function contact = 'modules/support/commands/contacts/find_or_create', email: customer, name: 'Casey Customer'
+  # 202: sent, body as expected
+  function message = 'support_test_helpers/delivery_case', subject: 'Delivery test ok', contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: message.delivery_state, expected: 'sent', field_name: '202 marks sent'
+  # the stub wrote the body in its own request, so read the row, not the cached settings
+  graphql stored = 'modules/support/records/find_by', table: 'modules/support/setting', name: 'key', value: 'test_stub_last_body'
+  assign body = stored.records.results.first.properties.value | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: body.personalizations.first.to.first.email, expected: customer, field_name: 'body to requester'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: body.from.email, expected: 'support-test@platformos.com', field_name: 'body from department'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: body.headers['Message-ID'], expected: message.email_message_id, field_name: 'stored message-id sent'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: body.custom_args.support_message_id, expected: message.id, field_name: 'custom arg message id'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: body.tracking_settings.click_tracking.enable, expected: false, field_name: 'click tracking off'
+  assign html = body.content.last.value
+  assign has_script = false
+  if html contains '<script>'
+    assign has_script = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_script, expected: false, field_name: 'html sanitised'
+
+  # 4xx: failed with the provider's error
+  function message = 'support_test_helpers/delivery_case', subject: 'Delivery test STUB400', contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: message.delivery_state, expected: 'failed', field_name: '4xx marks failed'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: message.delivery_error, expected: 'stub bad request', field_name: '4xx keeps provider error'
+
+  # 5xx on the last attempt: failed
+  function message = 'support_test_helpers/delivery_case', subject: 'Delivery test STUB500', contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: message.delivery_state, expected: 'failed', field_name: '5xx on last attempt marks failed'
+
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: null
+%}

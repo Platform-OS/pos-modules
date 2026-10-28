@@ -1,0 +1,60 @@
+{% doc %}
+  Builds the addressing and threading headers of an outgoing ticket email
+  (04 §4.1). Returns { from, reply_to, message_id, subject, headers }.
+  @param {object} ticket - number, subject
+  @param {object} department - from_name, from_address, inbound_local_part
+  @param {string} message_record_id - The message record the email is stored as
+  @param {string[]} [thread_ids] - Stored email_message_ids of the ticket's public messages, oldest first
+  @param {string} [in_reply_to] - The newest customer email_message_id
+  @param {boolean} [system] - Acknowledgement or status update (adds Auto-Submitted)
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  function brand = 'modules/support/helpers/branding'
+  assign domain = settings.inbound_domain
+
+  assign result = { "from": {}, "reply_to": null, "message_id": null, "subject": null, "headers": {} }
+  assign result.from.email = department.from_address
+  assign default_name = 'modules/support/emails.from_name' | t: brand: brand.support_email_name
+  assign result.from.name = department.from_name | default: default_name
+
+  function reply_to = 'modules/support/helpers/email_address', local_part: department.inbound_local_part, number: ticket.number, address: null
+  assign result.reply_to = reply_to
+
+  assign epoch = 'now' | to_time | strftime: '%s'
+  assign result.message_id = '<support.' | append: message_record_id | append: '.' | append: epoch | append: '@' | append: domain | append: '>'
+
+  assign tag = '[#' | append: ticket.number | append: ']'
+  assign subject = ticket.subject | default: ''
+  unless subject contains tag
+    assign subject = subject | append: ' ' | append: tag | strip
+  endunless
+  assign lowered = subject | downcase
+  assign starts_re = lowered | slice: 0, 3
+  if starts_re != 're:'
+    assign subject = 'Re: ' | append: subject
+  endif
+  assign result.subject = subject
+
+  assign result.headers['Message-ID'] = result.message_id
+  assign result.headers['X-Auto-Response-Suppress'] = 'OOF, AutoReply'
+  if in_reply_to != blank
+    assign result.headers['In-Reply-To'] = in_reply_to
+  endif
+  assign thread_ids = thread_ids | default: [] | array_compact
+  if thread_ids.size > 20
+    assign last_ids = thread_ids | slice: -19, 19
+    assign refs = []
+    assign refs << thread_ids.first
+    assign refs = refs | concat: last_ids
+  else
+    assign refs = thread_ids
+  endif
+  if refs.size > 0
+    assign result.headers.References = refs | join: ' '
+  endif
+  if system
+    assign result.headers['Auto-Submitted'] = 'auto-replied'
+  endif
+  return result
+%}

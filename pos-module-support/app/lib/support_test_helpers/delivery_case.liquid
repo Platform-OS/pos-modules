@@ -1,0 +1,37 @@
+{% doc %}
+  Creates a department, ticket and public agent message for a delivery test,
+  delivers it once as the last attempt and returns the reloaded message.
+  @param {string} subject - Ticket subject (STUB400 / STUB500 steer the stub)
+  @param {object} contact - The requester contact
+{% enddoc %}
+{% liquid
+  graphql existing = 'modules/support/departments/search', inbound_local_part: 'deliverytest', limit: 1
+  assign department_id = existing.records.results.first.id
+  if department_id == blank
+    assign rows = []
+    assign row = { "table": "modules/support/department", "properties": { "name": "Delivery test", "from_name": "Test Support", "from_address": "support-test@platformos.com", "inbound_local_part": "deliverytest", "is_default": false, "active": false } }
+    assign rows << row
+    graphql created = 'modules/support/records/create_many', records: rows
+    assign department_id = created.records.first.id
+  endif
+
+  assign rows = []
+  assign row = { "table": "modules/support/ticket", "properties": { "number": 900001, "category": "closed", "priority": "p2" } }
+  assign row.properties.subject = subject
+  assign row.properties.department_id = department_id
+  assign row.properties.requester_id = contact.id
+  assign rows << row
+  graphql created = 'modules/support/records/create_many', records: rows
+  assign ticket_id = created.records.first.id
+
+  assign rows = []
+  assign row = { "table": "modules/support/message", "properties": { "author_type": "agent", "visibility": "public", "kind": "message", "channel": "email", "body_html": "<p>Hello <script>x</script>there</p>", "body_text": "Hello there", "delivery_state": "queued" } }
+  assign row.properties.ticket_id = ticket_id
+  assign rows << row
+  graphql created = 'modules/support/records/create_many', records: rows
+  assign message_id = created.records.first.id
+
+  function _ = 'modules/support/commands/messages/deliver', message_id: message_id, attempt: 3
+  graphql m = 'modules/support/messages/search', id: message_id, limit: 1
+  return m.records.results.first
+%}

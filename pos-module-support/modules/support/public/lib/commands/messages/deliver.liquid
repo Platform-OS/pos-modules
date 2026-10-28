@@ -1,0 +1,100 @@
+{% doc %}
+  Sends a public agent message as email (04 §4). Runs as a background job.
+  Stores the Message-ID before sending; 2xx marks the message sent, 4xx
+  failed with the provider's error, 5xx or no response retries up to three
+  attempts, then marks it failed.
+  @param {string} message_id - The message record id
+  @param {number} [attempt] - 1-based attempt number
+{% enddoc %}
+{% liquid
+  assign attempt = attempt | default: 1
+
+  graphql r = 'modules/support/messages/search', id: message_id, limit: 1
+  assign message = r.records.results.first
+  if message == blank or message.visibility != 'public' or message.delivery_state == 'sent'
+    return null
+  endif
+
+  graphql r = 'modules/support/tickets/search', id: message.ticket_id, limit: 1
+  assign ticket = r.records.results.first
+  graphql r = 'modules/support/departments/search', id: ticket.department_id, limit: 1
+  assign department = r.records.results.first
+  graphql r = 'modules/support/contacts/search', id: ticket.requester_id, limit: 1
+  assign requester = r.records.results.first
+  if ticket == blank or department == blank or requester == blank
+    graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'failed', delivery_error: 'missing_ticket_department_or_requester', email_message_id: message.email_message_id
+    return null
+  endif
+
+  graphql thread = 'modules/support/messages/search', ticket_id: ticket.id, visibility: 'public', limit: 100
+  assign thread_ids = []
+  assign in_reply_to = null
+  for item in thread.records.results
+    if item.email_message_id != blank and item.id != message.id
+      assign thread_ids << item.email_message_id
+      if item.author_type == 'customer'
+        assign in_reply_to = item.email_message_id
+      endif
+    endif
+  endfor
+
+  function built = 'modules/support/helpers/email/headers', ticket: ticket, department: department, message_record_id: message.id, thread_ids: thread_ids, in_reply_to: in_reply_to, system: false
+  assign email_message_id = message.email_message_id | default: built.message_id
+  assign message_id_header = { "Message-ID": null }
+  assign message_id_header['Message-ID'] = email_message_id
+  assign built.headers = built.headers | hash_merge: message_id_header
+  graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'queued', delivery_error: null, email_message_id: email_message_id
+
+  function brand = 'modules/support/helpers/branding'
+  assign delimiter = 'modules/support/emails.reply_delimiter' | t
+  assign html = message.body_html | default: message.body_text
+  capture html_body
+    render 'modules/support/emails/reply', body_html: html, signature_html: department.signature_html, brand: brand, delimiter: delimiter, ticket: ticket
+  endcapture
+%}
+{%- capture text_body -%}
+{{ delimiter }}
+
+{{ message.body_text }}
+{%- endcapture -%}
+{% liquid
+
+  assign to = []
+  assign recipient = { "email": null, "name": null }
+  assign recipient.email = requester.emails.first
+  assign recipient.name = requester.name
+  assign to << recipient
+  assign cc = []
+  for address in message.cc_emails
+    assign item = { "email": null }
+    assign item.email = address
+    assign cc << item
+  endfor
+
+  assign email = { "custom_args": {} }
+  assign email.from = built.from
+  assign email.reply_to = built.reply_to
+  assign email.to = to
+  assign email.cc = cc
+  assign email.subject = built.subject
+  assign email.text = text_body
+  assign email.html = html_body
+  assign email.headers = built.headers
+  assign email.custom_args.support_message_id = message.id
+  function sent = 'modules/support/commands/email/send', message: email
+
+  if sent.ok
+    graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'sent', delivery_error: null, email_message_id: email_message_id
+  elsif sent.status >= 400 and sent.status < 500
+    assign error = sent.error | append: ''
+    graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'failed', delivery_error: error, email_message_id: email_message_id
+  elsif attempt < 3
+    assign next_attempt = attempt | plus: 1
+    assign delay = attempt | times: attempt
+    background _ = 'modules/support/commands/messages/deliver', delay: delay, source_name: 'support_deliver_retry', message_id: message.id, attempt: next_attempt
+  else
+    assign error = sent.error | default: sent.status | append: ''
+    graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'failed', delivery_error: error, email_message_id: email_message_id
+  endif
+  return sent
+%}

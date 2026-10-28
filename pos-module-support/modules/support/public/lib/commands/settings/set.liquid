@@ -1,5 +1,5 @@
 {% doc %}
-  Stores one setting as JSON and invalidates the settings cache.
+  Stores one setting as JSON and clears the per-request settings memo.
   @param {string} key - The setting key
   @param value - Any JSON-serialisable value
 {% enddoc %}
@@ -17,9 +17,7 @@
     graphql u = 'modules/support/settings/create', key: key, value: value_json
   endif
 
-  assign suffix = 6 | random_string
-  assign version = 'now' | to_time | strftime: '%s' | append: '-' | append: suffix
-  graphql b = 'modules/support/settings/bump_version', value: version
-  export version, namespace: 'support_settings'
+  assign values = null
+  export values, namespace: 'support_settings'
   return true
 %}

@@ -1,0 +1,26 @@
+---
+slug: support-desk/settings/email
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.settings.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  function result = 'modules/support/commands/email/setup/run_step', step: context.params.step, params: context.params, current_profile: context.exports.support.current_profile
+  if result.ok
+    function _ = 'modules/user/helpers/flash', notice: result.notice, error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/settings/email'
+%}

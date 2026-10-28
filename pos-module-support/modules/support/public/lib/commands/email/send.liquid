@@ -1,0 +1,24 @@
+{% doc %}
+  Sends one provider-neutral message through the adapter named by the
+  email_provider setting (04 §0). Returns { ok, status, provider_message_id, error }.
+  @param {object} message - { from{email,name}, reply_to, to[{email,name}], cc[], subject, text, html, headers{}, attachments[], tag, custom_args{} }
+{% enddoc %}
+{% liquid
+  assign result = { "ok": false, "status": 0, "provider_message_id": null, "error": null }
+
+  function settings = 'modules/support/helpers/settings'
+  assign provider = settings.email_provider
+  if provider == blank
+    assign result.error = 'email_provider_not_configured'
+    return result
+  endif
+
+  if message.from.email == blank or message.to.size == 0 or message.subject == blank
+    assign result.error = 'invalid_message'
+    return result
+  endif
+
+  assign adapter = 'modules/support/commands/email/providers/' | append: provider | append: '/send'
+  function result = adapter, message: message
+  return result
+%}

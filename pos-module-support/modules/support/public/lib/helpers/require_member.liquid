@@ -13,7 +13,7 @@
   endif
 
   function support_member = 'modules/support/helpers/resolve_member', profile: current_profile
-  export support_member, namespace: 'support'
+  export support_member, current_profile, namespace: 'support'
   if support_member == null or support_member.state != 'active'
     response_status 403
     render 'modules/support/no_access', member: support_member, current_profile: current_profile

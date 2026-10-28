@@ -1,0 +1,146 @@
+{% doc %}
+  Settings → Email guided setup (04 §0.1).
+  @param {object} settings - From helpers/settings
+  @param {object} [instructions] - From the adapter's setup_instructions
+  @param {object[]} departments - Department records
+{% enddoc %}
+{% liquid
+  assign status = settings.email_status | default: {}
+  assign provider_set = false
+  if settings.email_provider != blank
+    assign provider_set = true
+  endif
+%}
+<h1 class="pos-heading-2">{{ 'modules/support/settings_email.title' | t }}</h1>
+<p class="pos-supplementary">{{ 'modules/support/settings_email.intro' | t }}</p>
+
+<div class="pos-support-steps">
+  <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step1">
+    <h2 id="pos-support-email-step1" class="pos-heading-3">1. {{ 'modules/support/settings_email.step1.title' | t }}</h2>
+    {% if status.key_last4 %}
+      <p>{{ 'modules/support/settings_email.step1.saved' | t: last4: status.key_last4 }}
+        {% if status.key_ok == true %}<span class="pos-support-ok">{{ 'modules/support/settings_email.ok' | t }}</span>{% elsif status.key_ok == false %}<span class="pos-support-error">{{ 'modules/support/settings_email.failed' | t }}</span>{% endif %}
+      </p>
+      {% for problem in status.problems %}<p class="pos-support-error">{{ problem }}</p>{% endfor %}
+    {% endif %}
+    <form action="/support-desk/settings/email" method="post" class="pos-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="step" value="key">
+      <fieldset>
+        <label for="pos-support-provider">{{ 'modules/support/settings_email.step1.provider' | t }}</label>
+        <select id="pos-support-provider" name="provider">
+          <option value="sendgrid" {% if settings.email_provider == 'sendgrid' %}selected{% endif %}>SendGrid</option>
+        </select>
+      </fieldset>
+      <fieldset>
+        <label for="pos-support-region">{{ 'modules/support/settings_email.step1.region' | t }}</label>
+        <select id="pos-support-region" name="region">
+          <option value="global" {% if settings.email_region != 'eu' %}selected{% endif %}>{{ 'modules/support/settings_email.step1.region_global' | t }}</option>
+          <option value="eu" {% if settings.email_region == 'eu' %}selected{% endif %}>{{ 'modules/support/settings_email.step1.region_eu' | t }}</option>
+        </select>
+      </fieldset>
+      <fieldset>
+        <label for="pos-support-api-key">{{ 'modules/support/settings_email.step1.key' | t }}</label>
+        <input type="password" id="pos-support-api-key" name="api_key" autocomplete="off" required>
+      </fieldset>
+      <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step1.save' | t }}</button>
+    </form>
+    {% if provider_set %}
+      <form action="/support-desk/settings/email" method="post">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="step" value="check">
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings_email.step1.check' | t }}</button>
+      </form>
+    {% endif %}
+  </section>
+
+  {% if status.key_ok %}
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step2">
+      <h2 id="pos-support-email-step2" class="pos-heading-3">2. {{ 'modules/support/settings_email.step2.title' | t }}</h2>
+      <form action="/support-desk/settings/email" method="post" class="pos-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="step" value="domain">
+        <fieldset>
+          <label for="pos-support-sending-domain">{{ 'modules/support/settings_email.step2.domain' | t }}</label>
+          <select id="pos-support-sending-domain" name="sending_domain">
+            {% for domain in status.domains %}
+              <option value="{{ domain.domain }}" {% if settings.sending_domain == domain.domain %}selected{% endif %}>{{ domain.domain }}{% unless domain.valid %} ({{ 'modules/support/settings_email.step2.not_valid' | t }}){% endunless %}</option>
+            {% endfor %}
+          </select>
+        </fieldset>
+        <button type="submit" class="pos-button">{{ 'modules/support/settings_email.save' | t }}</button>
+      </form>
+    </section>
+  {% endif %}
+
+  {% if settings.sending_domain != blank %}
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step3">
+      <h2 id="pos-support-email-step3" class="pos-heading-3">3. {{ 'modules/support/settings_email.step3.title' | t }}</h2>
+      <p>{{ 'modules/support/settings_email.step3.help' | t: domain: settings.sending_domain }}</p>
+      {% if instructions.mx %}
+        <table class="pos-table">
+          <thead><tr><th scope="col">{{ 'modules/support/settings_email.dns.type' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.host' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.value' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.priority' | t }}</th></tr></thead>
+          <tbody><tr><td>{{ instructions.mx.type }}</td><td>{{ instructions.mx.host }}</td><td>{{ instructions.mx.value }}</td><td>{{ instructions.mx.priority }}</td></tr></tbody>
+        </table>
+      {% endif %}
+      {% if instructions.inbound_url_masked %}
+        <p>{{ 'modules/support/settings_email.step3.url' | t }} <code>{{ instructions.inbound_url_masked }}</code></p>
+      {% endif %}
+      {% if status.inbound_created == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step3.created' | t }}</p>{% endif %}
+      {% if status.inbound_error %}<p class="pos-support-error">{{ status.inbound_error }}</p>{% endif %}
+      <form action="/support-desk/settings/email" method="post" class="pos-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="step" value="inbound">
+        <fieldset>
+          <label for="pos-support-inbound-domain">{{ 'modules/support/settings_email.step3.hostname' | t }}</label>
+          <input type="text" id="pos-support-inbound-domain" name="inbound_domain" value="{{ settings.inbound_domain }}" required>
+        </fieldset>
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings_email.step3.create' | t }}</button>
+      </form>
+    </section>
+  {% endif %}
+
+  {% if settings.inbound_domain != blank %}
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step4">
+      <h2 id="pos-support-email-step4" class="pos-heading-3">4. {{ 'modules/support/settings_email.step4.title' | t }}</h2>
+      <p>{{ 'modules/support/settings_email.step4.help' | t }}</p>
+      <table class="pos-table">
+        <thead><tr><th scope="col">{{ 'modules/support/settings_email.step4.department' | t }}</th><th scope="col">{{ 'modules/support/settings_email.step4.public' | t }}</th><th scope="col">{{ 'modules/support/settings_email.step4.forward_to' | t }}</th></tr></thead>
+        <tbody>
+          {% for department in departments %}
+            <tr><td>{{ department.name }}</td><td>{{ department.public_address | default: '—' }}</td><td><code>{{ department.inbound_local_part }}@{{ settings.inbound_domain }}</code></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step5">
+      <h2 id="pos-support-email-step5" class="pos-heading-3">5. {{ 'modules/support/settings_email.step5.title' | t }}</h2>
+      {% if status.test_ok == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step5.sent' | t }}</p>{% elsif status.test_ok == false %}<p class="pos-support-error">{{ status.test_error }}</p>{% endif %}
+      <form action="/support-desk/settings/email" method="post">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="step" value="test">
+        <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step5.send' | t }}</button>
+      </form>
+    </section>
+
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step6">
+      <h2 id="pos-support-email-step6" class="pos-heading-3">6. {{ 'modules/support/settings_email.step6.title' | t }}</h2>
+      {% if status.enabled %}
+        <p class="pos-support-ok">{{ 'modules/support/settings_email.step6.on' | t }}</p>
+        <form action="/support-desk/settings/email" method="post">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="step" value="disable">
+          <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step6.turn_off' | t }}</button>
+        </form>
+      {% else %}
+        <p>{{ 'modules/support/settings_email.step6.off' | t }}</p>
+        <form action="/support-desk/settings/email" method="post">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="step" value="enable">
+          <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings_email.step6.turn_on' | t }}</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>

@@ -1,25 +1,22 @@
 {% doc %}
-  Returns every setting as a hash of parsed JSON values, cached until a
-  setting changes (commands/settings/set bumps SETTINGS_VERSION).
+  Returns every setting as a hash of parsed JSON values. Read once per
+  request (one query) and kept in context.exports; commands/settings/set
+  clears it so the same request sees its own change. A constant is not
+  used as a version: constant_set during a request can hide the other
+  constants from that request.
 {% enddoc %}
 {% liquid
-  assign version = context.exports.support_settings.version | default: context.constants['modules/support/SETTINGS_VERSION'] | default: '0'
-  assign cache_key = 'modules/support/settings/' | append: version
-%}
-{%- capture settings_json -%}
-  {%- cache cache_key, expire: 3600 -%}
-    {%- liquid
-      graphql r = 'modules/support/settings/all'
-      assign out = {}
-      for row in r.records.results
-        assign wrapped = '{"v":' | append: row.value | append: '}' | parse_json
-        assign out[row.key] = wrapped.v
-      endfor
-      echo out | json
-    -%}
-  {%- endcache -%}
-{%- endcapture -%}
-{% liquid
-  assign settings = settings_json | parse_json
-  return settings
+  assign cached = context.exports.support_settings.values
+  if cached != blank
+    return cached
+  endif
+
+  graphql r = 'modules/support/settings/all'
+  assign values = {}
+  for row in r.records.results
+    assign wrapped = '{"v":' | append: row.value | append: '}' | parse_json
+    assign values[row.key] = wrapped.v
+  endfor
+  export values, namespace: 'support_settings'
+  return values
 %}

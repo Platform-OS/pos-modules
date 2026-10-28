@@ -1,5 +1,0 @@
-mutation ($value: String!) {
-  constant: constant_set(name: "modules/support/SETTINGS_VERSION", value: $value) {
-    name
-  }
-}

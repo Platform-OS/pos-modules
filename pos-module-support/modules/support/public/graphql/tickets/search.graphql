@@ -1,0 +1,76 @@
+query (
+  $id: ID
+  $ids: [ID!]
+  $number: Int
+  $department_ids: [String!]
+  $categories: [String!]
+  $not_categories: [String!]
+  $assignee_id: String
+  $requester_id: String
+  $priority: String
+  $needs_reply: Boolean
+  $query: String
+  $limit: Int = 50
+  $page: Int = 1
+  $sort: [RecordsSortInput!] = [{ created_at: { order: DESC } }]
+) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      id: { value: $id, value_in: $ids }
+      table: { value: "modules/support/ticket" }
+      properties: [
+        { name: "number", value_int: $number }
+        { name: "department_id", value_in: $department_ids }
+        { name: "category", value_in: $categories, not_value_in: $not_categories }
+        { name: "assignee_id", value: $assignee_id }
+        { name: "requester_id", value: $requester_id }
+        { name: "priority", value: $priority }
+        { name: "needs_reply", value_boolean: $needs_reply }
+        { name: "search_text", contains: $query }
+      ]
+    }
+    sort: $sort
+  ) {
+    total_entries
+    total_pages
+    results {
+      id
+      created_at
+      updated_at
+      number: property_int(name: "number")
+      legacy_number: property(name: "legacy_number")
+      subject: property(name: "subject")
+      status_id: property(name: "status_id")
+      category: property(name: "category")
+      priority: property(name: "priority")
+      department_id: property(name: "department_id")
+      organization_id: property(name: "organization_id")
+      requester_id: property(name: "requester_id")
+      assignee_id: property(name: "assignee_id")
+      channel: property(name: "channel")
+      tags: property_array(name: "tags")
+      needs_reply: property_boolean(name: "needs_reply")
+      last_customer_message_at: property(name: "last_customer_message_at")
+      last_agent_reply_at: property(name: "last_agent_reply_at")
+      last_activity_at: property(name: "last_activity_at")
+      first_replied_at: property(name: "first_replied_at")
+      solved_at: property(name: "solved_at")
+      closed_at: property(name: "closed_at")
+      snooze_until: property(name: "snooze_until")
+      assigned_at: property(name: "assigned_at")
+      assignment_reason: property(name: "assignment_reason")
+      sla_policy_id: property(name: "sla_policy_id")
+      sla_first_reply_due_at: property(name: "sla_first_reply_due_at")
+      sla_next_reply_due_at: property(name: "sla_next_reply_due_at")
+      sla_resolution_due_at: property(name: "sla_resolution_due_at")
+      sla_paused_seconds: property_int(name: "sla_paused_seconds")
+      sla_paused_at: property(name: "sla_paused_at")
+      sla_state: property(name: "sla_state")
+      sla_version: property_int(name: "sla_version")
+      merged_into_id: property(name: "merged_into_id")
+      follow_up_of_id: property(name: "follow_up_of_id")
+    }
+  }
+}

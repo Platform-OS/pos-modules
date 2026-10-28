@@ -19,6 +19,11 @@
         <li>
           <a href="/support-desk" {% if pathname == '/support-desk' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.queue' | t }}</a>
         </li>
+        {% if member.role == 'admin' %}
+          <li>
+            <a href="/support-desk/settings/email" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.settings' | t }}</a>
+          </li>
+        {% endif %}
       </ul>
     </nav>
     <div class="pos-support-main">

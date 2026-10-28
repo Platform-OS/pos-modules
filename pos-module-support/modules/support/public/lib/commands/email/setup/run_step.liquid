@@ -1,0 +1,155 @@
+{% doc %}
+  Runs one Settings → Email setup step (04 §0.1) and stores the outcome in
+  the email_status setting. Constants are written last in the request,
+  because constant_set can hide other constants for the rest of it.
+  Returns { ok, notice, error }.
+  @param {string} step - key | check | domain | inbound | test | enable | disable
+  @param {object} params - The posted form
+  @param {object} current_profile - The admin running the step
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  assign status = settings.email_status | default: {}
+  assign result = { "ok": false, "notice": null, "error": null }
+  assign provider = settings.email_provider
+  assign providers = ["sendgrid"]
+  if step != 'key' and provider == blank
+    assign result.error = 'modules/support/settings_email.errors.provider'
+    return result
+  endif
+  assign adapter = 'modules/support/commands/email/providers/' | append: provider
+
+  case step
+  when 'key'
+    unless providers contains params.provider
+      assign result.error = 'modules/support/settings_email.errors.provider'
+      return result
+    endunless
+    assign key = params.api_key | strip
+    if key.size < 20
+      assign result.error = 'modules/support/settings_email.errors.key'
+      return result
+    endif
+    function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: params.provider
+    assign region = params.region | default: 'global'
+    function _ = 'modules/support/commands/settings/set', key: 'email_region', value: region
+    assign status.key_ok = null
+    assign status.key_last4 = key | slice: -4, 4
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    graphql c = 'modules/support/constants/set', name: 'modules/support/EMAIL_API_KEY', value: key
+    assign result.ok = true
+    assign result.notice = 'modules/support/settings_email.notices.key_saved'
+
+  when 'check'
+    assign path = adapter | append: '/check'
+    function checked = path
+    assign status.key_ok = checked.ok
+    assign status.problems = checked.problems
+    assign status.domains = checked.domains
+    assign status.checked_at = 'now' | to_time
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    assign result.ok = checked.ok
+    if checked.ok
+      assign result.notice = 'modules/support/settings_email.notices.key_ok'
+    else
+      assign result.error = 'modules/support/settings_email.errors.check'
+    endif
+
+  when 'domain'
+    assign domain = params.sending_domain | downcase | strip
+    assign known = status.domains | map: 'domain'
+    unless known contains domain
+      assign result.error = 'modules/support/settings_email.errors.domain'
+      return result
+    endunless
+    function _ = 'modules/support/commands/settings/set', key: 'sending_domain', value: domain
+    assign result.ok = true
+    assign result.notice = 'modules/support/settings_email.notices.domain_saved'
+
+  when 'inbound'
+    assign hostname = params.inbound_domain | downcase | strip
+    assign sending = settings.sending_domain | prepend: '.'
+    assign start = 0 | minus: sending.size
+    assign tail = hostname | slice: start, sending.size
+    if hostname == blank or settings.sending_domain == blank or tail != sending
+      assign result.error = 'modules/support/settings_email.errors.inbound_domain'
+      return result
+    endif
+    assign secret = context.constants['modules/support/INBOUND_SECRET']
+    assign new_secret = false
+    if secret == blank
+      assign secret = 32 | random_string | append: 'x' | compute_hmac: 'support-inbound' | slice: 0, 48
+      assign new_secret = true
+    endif
+    assign url = 'https://' | append: context.location.host | append: '/api/support/inbound/' | append: provider | append: '/' | append: secret
+    assign path = adapter | append: '/create_inbound'
+    function created = path, hostname: hostname, url: url
+    function _ = 'modules/support/commands/settings/set', key: 'inbound_domain', value: hostname
+    assign status.inbound_created = created.ok
+    assign status.inbound_error = created.error
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    if new_secret
+      graphql c = 'modules/support/constants/set', name: 'modules/support/INBOUND_SECRET', value: secret
+    endif
+    assign result.ok = created.ok
+    if created.ok
+      assign result.notice = 'modules/support/settings_email.notices.inbound_created'
+    else
+      assign result.error = 'modules/support/settings_email.errors.inbound_create'
+    endif
+
+  when 'test'
+    graphql r = 'modules/support/records/find_by', table: 'modules/support/department', name: 'is_default', value: 'true'
+    assign department = r.records.results.first.properties
+    assign from_address = department.from_address
+    if from_address == blank
+      assign from_address = 'support@' | append: settings.sending_domain
+    endif
+    function brand = 'modules/support/helpers/branding'
+    assign from = { "email": null, "name": null }
+    assign from.email = from_address
+    assign from.name = department.from_name | default: brand.support_email_name
+    assign to = []
+    assign recipient = { "email": null }
+    assign recipient.email = current_profile.email | default: current_profile.user.email
+    assign to << recipient
+    assign subject = 'modules/support/settings_email.test_subject' | t: brand: brand.app_name
+    assign text = 'modules/support/settings_email.test_body' | t
+    assign message = { "html": null, "headers": {} }
+    assign message.from = from
+    assign message.to = to
+    assign message.subject = subject
+    assign message.text = text
+    function sent = 'modules/support/commands/email/send', message: message
+    assign status.test_ok = sent.ok
+    assign status.test_error = sent.error
+    assign status.test_sent_at = 'now' | to_time
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    assign result.ok = sent.ok
+    if sent.ok
+      assign result.notice = 'modules/support/settings_email.notices.test_sent'
+    else
+      assign result.error = 'modules/support/settings_email.errors.test'
+    endif
+
+  when 'enable'
+    if status.test_ok != true or status.inbound_checked != true
+      assign result.error = 'modules/support/settings_email.errors.enable'
+      return result
+    endif
+    assign status.enabled = true
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    assign result.ok = true
+    assign result.notice = 'modules/support/settings_email.notices.enabled'
+
+  when 'disable'
+    assign status.enabled = false
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    assign result.ok = true
+    assign result.notice = 'modules/support/settings_email.notices.disabled'
+
+  else
+    assign result.error = 'modules/support/settings_email.errors.step'
+  endcase
+  return result
+%}

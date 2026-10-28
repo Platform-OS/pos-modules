@@ -1,0 +1,36 @@
+{% doc %}
+  Checks the API key and lists the account's authenticated domains (04 §0.1
+  steps 1-2). Returns { ok, problems[], domains[{id, domain, valid}] }.
+{% enddoc %}
+{% liquid
+  assign result = { "ok": false, "problems": [], "domains": [] }
+
+  function scopes = 'modules/support/commands/email/providers/sendgrid/request', path: '/v3/scopes', method: 'GET', body: null
+  if scopes.status != 200
+    assign problem = scopes.error | default: 'api_key_rejected'
+    assign result.problems << problem
+    return result
+  endif
+
+  assign required = ["mail.send", "user.webhooks.parse.settings.create", "user.webhooks.parse.settings.update", "whitelabel.read"]
+  for scope in required
+    unless scopes.body.scopes contains scope
+      assign problem = 'missing_scope:' | append: scope
+      assign result.problems << problem
+    endunless
+  endfor
+
+  function listed = 'modules/support/commands/email/providers/sendgrid/request', path: '/v3/whitelabel/domains?limit=500', method: 'GET', body: null
+  for item in listed.body
+    assign domain = { "id": null, "domain": null, "valid": false }
+    assign domain.id = item.id
+    assign domain.domain = item.domain
+    assign domain.valid = item.valid
+    assign result.domains << domain
+  endfor
+
+  if result.problems.size == 0
+    assign result.ok = true
+  endif
+  return result
+%}

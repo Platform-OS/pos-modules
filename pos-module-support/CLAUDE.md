@@ -22,6 +22,7 @@ validate (`validate_code`, platformos-supervisor) → write (Write/Edit only) �
 - Branding comes from `modules/support/helpers/branding` (override → `support_branding` hook → defaults). Never hardcode a product name, logo or colour.
 - Email: never hardcode a provider, domain, address or key — they come from settings and constants set at install. All sending goes through `commands/email/send`, which dispatches to the configured adapter. Every outgoing message stores its `Message-ID` before sending and carries the signed reply token in `Reply-To`. Customer emails never include internal notes.
 - CI lint fails on any platformos-check warning, not only errors: `pos-cli check run` must report no offenses before a push. A form that posts to a page that does not exist yet (MissingPage) counts.
+- `constant_set` hides other constants for the rest of the request in some contexts: write constants last. Settings are read once per request through `helpers/settings` (memo in `context.exports`, cleared by `commands/settings/set`).
 - Timers are delayed `background` jobs keyed by `sla_version`; the sweep job re-enqueues itself every 5 minutes.
 - Notifications go through `commands/notifications/dispatch`; preferences default to on when a key is missing.
 

@@ -3,6 +3,7 @@ en:
   shell:
     navigation: Support desk
     queue: Queue
+    settings: Settings
     sign_out: Sign out
   queue:
     title: Queue
@@ -29,3 +30,75 @@ en:
   contacts:
     errors:
       email_taken: already belongs to a contact
+  emails:
+    from_name: "%{brand}"
+    reply_delimiter: "##- Please type your reply above this line -##"
+    ticket_reference: "%{brand} · ticket #%{number}"
+  settings_email:
+    title: Email
+    intro: Connect your email provider, receive email as tickets and send replies from your department addresses.
+    ok: Working
+    failed: Not working
+    save: Save
+    test_subject: "Test email from %{brand} Support"
+    test_body: This is a test email from your support desk. If you can read it, sending works.
+    dns:
+      type: Type
+      host: Host
+      value: Value
+      priority: Priority
+    step1:
+      title: Service and API key
+      provider: Email service
+      region: Region
+      region_global: Global (api.sendgrid.com)
+      region_eu: EU (api.eu.sendgrid.com)
+      key: API key
+      save: Save key
+      saved: "Key ending in %{last4} is saved."
+      check: Check connection
+    step2:
+      title: Sending domain
+      domain: Authenticated domain
+      not_valid: not verified yet
+    step3:
+      title: Receiving email
+      help: "Choose a hostname on %{domain} that receives no other mail, add this MX record at your DNS provider, then create the inbound route."
+      hostname: Inbound hostname
+      url: "Inbound webhook URL:"
+      create: Create inbound route
+      created: Inbound route is set up at the provider.
+    step4:
+      title: Forward your public addresses
+      help: In Google Workspace or Microsoft 365, forward each public support address to its inbound address. Keep the original message unchanged.
+      department: Department
+      public: Public address
+      forward_to: Forward to
+    step5:
+      title: Test
+      send: Send test email to me
+      sent: Test email sent.
+    step6:
+      title: Turn on ticket email
+      on: Ticket email is on.
+      off: Ticket email is off. It can be turned on after the test email and the inbound check pass.
+      turn_on: Turn on
+      turn_off: Turn off
+    notices:
+      key_saved: API key saved. Check the connection next.
+      key_ok: The API key works.
+      domain_saved: Sending domain saved.
+      inbound_created: Inbound route created.
+      test_sent: Test email sent. Check your inbox.
+      enabled: Ticket email is on.
+      disabled: Ticket email is off.
+    errors:
+      provider: Choose an email service first.
+      key: That doesn't look like an API key.
+      check: The API key doesn't work or is missing permissions. See the problems listed.
+      domain: Choose one of the authenticated domains.
+      inbound_domain: The inbound hostname must be a subdomain of the sending domain.
+      inbound_create: The provider refused the inbound route. Check the MX record and try again.
+      test: The test email was not sent.
+      enable: Send a test email and pass the inbound check first.
+      step: Unknown step.

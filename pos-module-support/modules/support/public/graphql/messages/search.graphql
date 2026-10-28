@@ -1,0 +1,54 @@
+query (
+  $id: ID
+  $ticket_id: String
+  $visibility: String
+  $email_message_ids: [String!]
+  $limit: Int = 100
+  $page: Int = 1
+  $order: SortOrderEnum = ASC
+) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/message" }
+      properties: [
+        { name: "ticket_id", value: $ticket_id }
+        { name: "visibility", value: $visibility }
+        { name: "email_message_id", value_in: $email_message_ids }
+      ]
+    }
+    sort: [{ created_at: { order: $order } }]
+  ) {
+    total_entries
+    total_pages
+    results {
+      id
+      created_at
+      ticket_id: property(name: "ticket_id")
+      author_type: property(name: "author_type")
+      author_id: property(name: "author_id")
+      visibility: property(name: "visibility")
+      channel: property(name: "channel")
+      kind: property(name: "kind")
+      body_html: property(name: "body_html")
+      body_text: property(name: "body_text")
+      body_stripped: property(name: "body_stripped")
+      from_email: property(name: "from_email")
+      to_emails: property_array(name: "to_emails")
+      cc_emails: property_array(name: "cc_emails")
+      subject: property(name: "subject")
+      email_message_id: property(name: "email_message_id")
+      in_reply_to: property(name: "in_reply_to")
+      reference_ids: property_array(name: "reference_ids")
+      inbound_email_id: property(name: "inbound_email_id")
+      match_reason: property(name: "match_reason")
+      delivery_state: property(name: "delivery_state")
+      delivery_error: property(name: "delivery_error")
+      auth_results: property_object(name: "auth_results")
+      moved_from_ticket_id: property(name: "moved_from_ticket_id")
+      event_payload: property_object(name: "event_payload")
+    }
+  }
+}

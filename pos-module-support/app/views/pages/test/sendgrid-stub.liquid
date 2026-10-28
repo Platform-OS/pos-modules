@@ -1,0 +1,30 @@
+---
+slug: test/sendgrid-stub/v3/mail/send
+method: post
+layout: ''
+format: json
+---
+{% liquid
+  # Example-app test stub for the SendGrid Mail Send API (not distributed).
+  # Answers 400 or 500 when the subject contains STUB400 / STUB500, else 202,
+  # and keeps the last request body in the setting test_stub_last_body.
+  assign expected = context.constants['modules/support/EMAIL_API_KEY'] | prepend: 'Bearer '
+  if context.headers.HTTP_AUTHORIZATION != expected
+    response_status 401
+    echo '{"errors":[{"message":"unauthorized"}]}'
+    break
+  endif
+
+  assign body = context.params | json | parse_json
+  function _ = 'modules/support/commands/settings/set', key: 'test_stub_last_body', value: body
+  if body.subject contains 'STUB400'
+    response_status 400
+    echo '{"errors":[{"message":"stub bad request"}]}'
+  elsif body.subject contains 'STUB500'
+    response_status 500
+    echo '{"errors":[{"message":"stub server error"}]}'
+  else
+    response_status 202
+    echo '{}'
+  endif
+%}
