@@ -1,0 +1,5 @@
+mutation delete_conversation($id: ID!) {
+  record_delete(table: "modules/chat/conversation", id: $id) {
+    id
+  }
+}

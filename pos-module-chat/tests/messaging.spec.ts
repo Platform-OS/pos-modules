@@ -189,6 +189,47 @@ test.describe('Testing messaging', () => {
     await context?.close();
   });
 
+  test(`starting the same conversation twice at once creates it only once`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // no other test starts a conversation between these two, so on a freshly seeded instance
+    // both requests below really race to create it
+    const user = users.test3;
+    const otherName = 'Dummy40 User';
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    await inboxPage.goto();
+
+    const countConversations = async () => (await (await page.request.get('/api/chat/conversations?per_page=1')).json()).total_entries;
+
+    await inboxPage.search.searchFor('dummy40');
+    await inboxPage.search.isResultVisible(otherName);
+    const chatUrl = await inboxPage.search.getResultByFullName(otherName).locator('xpath=ancestor::a').getAttribute('href');
+    const toUuid = new URL(chatUrl ?? '', page.url()).searchParams.get('to_uuid');
+    expect(toUuid, 'the search result links to the chat by to_uuid').toBeTruthy();
+    const before = await countConversations();
+
+    // what two tabs (or a double click) sending the first message at the same time do
+    const ids = await page.evaluate(async (toUuid) => {
+      const start = () => fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (window as any).pos.csrfToken },
+        body: JSON.stringify({ to_uuid: toUuid })
+      }).then(response => response.json()).then(json => json.id);
+
+      return await Promise.all([start(), start(), start()]);
+    }, toUuid);
+
+    expect(ids[0]).toBeTruthy();
+    expect(new Set(ids).size, `all requests get the same conversation, got ${ids}`).toBe(1);
+    // the conversation existed already when the instance wasn't reseeded since the last run
+    expect(await countConversations()).toBeLessThanOrEqual(before + 1);
+
+    await context?.close();
+  });
+
   test(`regression: old conversation opens correct chat from people list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
