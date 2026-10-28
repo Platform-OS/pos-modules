@@ -1,0 +1,49 @@
+---
+slug: support-desk/board/move
+method: post
+layout: ''
+metadata:
+  permission: support.tickets.reply
+---
+{% liquid
+  # Move a card to another status (D-26): the same command and rules as the
+  # ticket page. JSON for the drag-and-drop script, a redirect otherwise.
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  assign wants_json = false
+  if context.params.respond == 'json'
+    assign wants_json = true
+  endif
+  assign result = { "valid": false, "errors": { "status": "modules/support/board.move_error" } }
+  if context.csrf_request_valid and context.params.ticket_id != blank
+    assign member = context.exports.support.support_member
+    function ticket = 'modules/support/queries/tickets/find', id: context.params.ticket_id, number: null, member: member
+    if ticket
+      assign actor = { "type": "user" }
+      assign actor.id = member.profile_id
+      assign actor.member = member
+      function result = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: context.params.status_key, actor: actor
+    endif
+  endif
+
+  assign message = result.errors.status | default: 'modules/support/board.move_error' | t
+  if wants_json
+    response_headers '{"Content-Type": "application/json"}'
+    assign body = { "ok": true, "error": null }
+    unless result.valid
+      response_status 422
+      assign body.ok = false
+      assign body.error = message
+    endunless
+    echo body | json | html_safe
+    break
+  endif
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/board.moved', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.errors.status, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/board'
+%}

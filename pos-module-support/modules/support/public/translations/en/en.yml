@@ -62,6 +62,16 @@ en:
     previous: Previous
     next: Next
     page_of: "Page %{page} of %{total}"
+    board: Board
+  board:
+    title: Board
+    list: List
+    show_closed: Show closed
+    show_more: "Show more (%{count})"
+    move_to: Move to
+    move: Move
+    moved: Ticket moved.
+    move_error: The ticket could not be moved.
   sign_in:
     title: Sign in to Support
     email: Email

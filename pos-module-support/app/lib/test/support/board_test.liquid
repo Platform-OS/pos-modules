@@ -1,0 +1,68 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function f = 'support_test_helpers/ticket_fixture', label: 'board'
+  assign manager = f.manager_actor.member
+  assign filters = { "department_id": null, "priority": null, "assignee_id": null, "q": null }
+  assign filters.department_id = f.department_id
+
+  # columns: active non-closed statuses only, unless show_closed
+  function board = 'modules/support/queries/tickets/board', member: manager, filters: filters, show_closed: false, expand_status: null
+  assign keys = board.columns | map: 'status' | map: 'key'
+  assign hides_closed = true
+  if keys contains 'closed' or keys contains 'spam'
+    assign hides_closed = false
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: hides_closed, field_name: 'closed columns hidden', object: null
+  function board_closed = 'modules/support/queries/tickets/board', member: manager, filters: filters, show_closed: true, expand_status: null
+  assign keys = board_closed.columns | map: 'status' | map: 'key'
+  assign shows_closed = false
+  if keys contains 'closed'
+    assign shows_closed = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: shows_closed, field_name: 'show closed adds Closed', object: null
+
+  # order within a column: P0 first, then newest first
+  function second = 'support_test_helpers/ticket_fixture', label: 'board-p0'
+  function p = 'modules/support/commands/tickets/set_priority', ticket: second.ticket, priority: 'p0', actor: f.manager_actor
+  function third = 'support_test_helpers/ticket_fixture', label: 'board-p3'
+  function p3 = 'modules/support/commands/tickets/set_priority', ticket: third.ticket, priority: 'p3', actor: f.manager_actor
+  function board = 'modules/support/queries/tickets/board', member: manager, filters: filters, show_closed: false, expand_status: null
+  assign ranks = { "p0": 0, "p1": 1, "p2": 2, "p3": 3 }
+  assign ordered = true
+  for column in board.columns
+    assign last_rank = -1
+    assign last_created = 9999999999
+    for t in column.tickets
+      assign rank = ranks[t.priority] | default: 9
+      assign created = t.created_at | to_time | strftime: '%s' | plus: 0
+      if rank < last_rank
+        assign ordered = false
+      elsif rank == last_rank and created > last_created
+        assign ordered = false
+      endif
+      if rank != last_rank
+        assign last_created = 9999999999
+      endif
+      assign last_rank = rank
+      assign last_created = created
+    endfor
+  endfor
+  function contract = 'modules/tests/assertions/true', contract: contract, value: ordered, field_name: 'column ordered by priority then newest', object: null
+  assign new_column = null
+  for column in board.columns
+    if column.status.category == 'new'
+      assign new_column = column
+    endif
+  endfor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: new_column.tickets.first.id, expected: second.ticket.id, field_name: 'P0 card at the top'
+
+  # a refused move leaves the ticket where it was
+  function a = 'modules/support/commands/tickets/assign', ticket: f.ticket, assignee_id: f.other_agent_id, reason: null, actor: f.manager_actor
+  function before = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: manager
+  function refused = 'modules/support/commands/tickets/change_status', ticket: before, status_key: 'closed', actor: f.actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refused.valid, expected: false, field_name: 'agent cannot close a ticket assigned to someone else'
+  function after = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: manager
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.status_id, expected: before.status_id, field_name: 'refused move keeps status'
+%}

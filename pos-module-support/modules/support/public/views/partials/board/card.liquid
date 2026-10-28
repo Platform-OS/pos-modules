@@ -1,0 +1,32 @@
+{% doc %}
+  A board card with a "Move to" form that works without JavaScript.
+  @param {object} ticket - Ticket record
+  @param {object} lookup - From queries/tickets/lookup
+  @param {object[]} statuses - Statuses offered in "Move to"
+{% enddoc %}
+{% liquid
+  assign requester = lookup.contacts[ticket.requester_id]
+  assign assignee = lookup.profiles[ticket.assignee_id]
+  assign department = lookup.departments[ticket.department_id]
+  assign status = lookup.statuses[ticket.status_id]
+  assign created = ticket.created_at | to_time | strftime: '%s'
+%}
+<article class="pos-support-card" draggable="true" data-ticket-id="{{ ticket.id }}" data-status-key="{{ status.key }}" data-priority="{{ ticket.priority }}" data-created="{{ created }}" aria-labelledby="card-{{ ticket.id }}">
+  <p class="pos-support-card-meta">
+    {% render 'modules/support/badges/priority', priority: ticket.priority %}
+    <span class="pos-support-number">#{{ ticket.number }}</span>
+    <span class="pos-tag">{{ department.short_code | default: department.name }}</span>
+  </p>
+  <h3 id="card-{{ ticket.id }}" class="pos-support-card-title"><a href="/support-desk/tickets/{{ ticket.id }}">{{ ticket.subject }}</a></h3>
+  <p class="pos-supplementary">{{ requester.name | default: requester.emails.first }} · {{ assignee.name | default: assignee.first_name | default: '—' }}</p>
+  {% if ticket.sla_state != blank and ticket.sla_state != 'none' %}<p class="pos-support-sla-{{ ticket.sla_state }}">{{ 'modules/support/sla.' | append: ticket.sla_state | t }}</p>{% endif %}
+  <form action="/support-desk/board/move" method="post" class="pos-support-move">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+    <label for="move-{{ ticket.id }}" class="pos-support-sr-only">{{ 'modules/support/board.move_to' | t }} #{{ ticket.number }}</label>
+    <select id="move-{{ ticket.id }}" name="status_key">
+      {% for s in statuses %}{% if s.category != 'new' %}<option value="{{ s.key }}" {% if s.id == ticket.status_id %}selected{% endif %}>{{ s.label }}</option>{% endif %}{% endfor %}
+    </select>
+    <button type="submit" class="pos-button pos-button-small">{{ 'modules/support/board.move' | t }}</button>
+  </form>
+</article>

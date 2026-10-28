@@ -1,0 +1,29 @@
+---
+slug: support-desk/tickets/:id/card
+layout: ''
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # One board card, for live refresh and after a drag-and-drop move.
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  function ticket = 'modules/support/queries/tickets/find', id: context.params.id, number: null, member: context.exports.support.support_member
+  if ticket == blank
+    response_status 404
+    break
+  endif
+  assign tickets = []
+  assign tickets << ticket
+  function lookup = 'modules/support/queries/tickets/lookup', tickets: tickets
+  function statuses = 'modules/support/queries/statuses/all'
+  assign active = []
+  for s in statuses.list
+    if s.active
+      assign active << s
+    endif
+  endfor
+  render 'modules/support/board/card', ticket: ticket, lookup: lookup, statuses: active
+%}

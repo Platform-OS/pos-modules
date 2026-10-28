@@ -14,10 +14,16 @@
 {% liquid
   assign view = data.view
   assign view_label = 'modules/support/views.' | append: view | t
+  assign board_query = { "priority": null, "department_id": null, "q": null }
+  assign board_query.priority = filters.priority
+  assign board_query.department_id = filters.department_id
+  assign board_query.q = filters.q
+  assign board_query = board_query | www_form_encode
 %}
 <div class="pos-support-queue" data-support-live data-support-departments="{{ live_departments }}" data-support-me="{{ member.profile_id }}" data-support-first-page="{% if data.page == 1 %}true{% else %}false{% endif %}" data-support-assigned-to-you="{{ 'modules/support/live.assigned_to_you' | t }}">
   <div class="pos-support-queue-head">
     <h1 class="pos-heading-2">{{ view_label }} <span class="pos-supplementary">{{ data.total_entries }}</span></h1>
+    <p><a href="/support-desk/board?{{ board_query }}">{{ 'modules/support/queue.board' | t }}</a></p>
   </div>
 
   <nav class="pos-support-attention" aria-label="{{ 'modules/support/queue.attention' | t }}">
