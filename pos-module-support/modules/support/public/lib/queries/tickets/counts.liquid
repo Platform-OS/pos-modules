@@ -1,0 +1,17 @@
+{% doc %}
+  Rail and attention-strip counts for the member's scope, one query.
+  @param {object} member - The acting team_member
+{% enddoc %}
+{% liquid
+  function scope = 'modules/support/queries/tickets/scope', member: member, department_id: null
+  function statuses = 'modules/support/queries/statuses/all'
+  assign deploy_ids = []
+  assign deploy_ids << statuses.by_key.deploy.id
+  graphql r = 'modules/support/tickets/counts', department_ids: scope, me: member.profile_id, deploy_status_ids: deploy_ids
+  assign counts = {}
+  assign keys = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,sla_at_risk,deploy" | split: ','
+  for key in keys
+    assign counts[key] = r[key].total_entries
+  endfor
+  return counts
+%}

@@ -1,0 +1,28 @@
+{% doc %}
+  Active team members with their profile names, for assignee pickers.
+  Returns [{ profile_id, role, department_ids, name }].
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/team_members/search', state: 'active', limit: 100
+  assign profile_ids = r.records.results | map: 'profile_id'
+  assign names = {}
+  if profile_ids.size > 0
+    graphql p = 'modules/user/profiles/search', ids: profile_ids, limit: 100
+    for profile in p.records.results
+      assign display = profile.name | default: profile.first_name | default: profile.email
+      assign names[profile.id] = display
+    endfor
+  endif
+  assign members = []
+  for member in r.records.results
+    if names[member.profile_id]
+      assign item = { "profile_id": null, "role": null, "department_ids": [], "name": null }
+      assign item.profile_id = member.profile_id
+      assign item.role = member.role
+      assign item.department_ids = member.department_ids
+      assign item.name = names[member.profile_id]
+      assign members << item
+    endif
+  endfor
+  return members
+%}

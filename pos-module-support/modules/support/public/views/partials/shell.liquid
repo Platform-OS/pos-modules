@@ -3,6 +3,7 @@
   @param {object} [member] - The signed-in team_member; blank on sign-in and no-access pages
   @param {string} content - The page body
   @param {string} pathname - The current path, for the active rail item
+  @param {object} [nav] - { view, counts } from the queue page
 {% enddoc %}
 {% if member and member.state == 'active' %}
   <div class="pos-support-shell">
@@ -16,9 +17,15 @@
         <span class="pos-support-brand-name">{{ brand.app_name }}</span>
       </a>
       <ul class="pos-support-rail-items">
-        <li>
-          <a href="/support-desk" {% if pathname == '/support-desk' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.queue' | t }}</a>
-        </li>
+        {% assign views = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,closed" | split: ',' %}
+        {% for view in views %}
+          <li>
+            <a href="/support-desk?view={{ view }}" {% if pathname == '/support-desk' and nav.view == view %}aria-current="page"{% endif %}>
+              <span>{{ 'modules/support/views.' | append: view | t }}</span>
+              {% if nav.counts[view] != null %}<span class="pos-support-count">{{ nav.counts[view] }}</span>{% endif %}
+            </a>
+          </li>
+        {% endfor %}
         {% if member.role == 'admin' %}
           <li>
             <a href="/support-desk/settings/email" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.settings' | t }}</a>

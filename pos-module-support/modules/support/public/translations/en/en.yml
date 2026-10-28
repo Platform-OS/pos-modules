@@ -5,9 +5,62 @@ en:
     queue: Queue
     settings: Settings
     sign_out: Sign out
+  views:
+    mine: My tickets
+    needs_reply: Needs reply
+    unassigned: Unassigned
+    all_open: All open
+    waiting: Waiting
+    awaiting_confirmation: Awaiting confirmation
+    sla_at_risk: SLA at risk
+    deploy: Waiting on deploy
+    closed: Closed
+  sla:
+    none: "—"
+    on_track: On track
+    due_soon: Due soon
+    overdue: Overdue
+    met: Met
+    missed: Missed
+    paused: Paused
   queue:
     title: Queue
-    empty: No tickets yet.
+    empty: No tickets in this view.
+    attention: Needs attention
+    search: Search tickets
+    search_placeholder: "Search by #number, subject, email or organization"
+    priority: Priority
+    any_priority: Any priority
+    department: Department
+    any_department: Any department
+    status: Status
+    any_status: Any status
+    apply: Filter
+    bulk: Change selected tickets
+    assignee: Assignee
+    bulk_assignee: Assign…
+    assign_me: Assign to me
+    unassign: Unassign
+    bulk_status: Set status…
+    bulk_priority: Set priority…
+    bulk_apply: Apply to selected
+    bulk_done: Selected tickets updated.
+    bulk_partial: Some tickets could not be changed.
+    select: Select
+    select_ticket: "Select ticket #%{number}"
+    needs_reply: Needs reply
+    priority_title: "Priority %{priority}"
+    col_priority: Priority
+    col_department: Dept.
+    col_subject: Subject
+    col_requester: Requester
+    col_status: Status
+    col_assignee: Assignee
+    col_sla: SLA
+    pages: Pages
+    previous: Previous
+    next: Next
+    page_of: "Page %{page} of %{total}"
   sign_in:
     title: Sign in to Support
     email: Email

@@ -1,0 +1,113 @@
+{% doc %}
+  A page of tickets for a queue view (05 §2), scoped to the member, with the
+  related records loaded in one query per table.
+  Returns { results, total_entries, total_pages, page, lookup: { contacts, organizations, profiles, departments, statuses } }.
+  @param {object} member - The acting team_member
+  @param {string} [view] - mine | needs_reply | unassigned | all_open | waiting | awaiting_confirmation | sla_at_risk | deploy | closed
+  @param {object} [filters] - { department_id, priority, status_key, assignee_id, organization_id, q }
+  @param {number} [page] - Page number
+  @param {number} [per_page] - Page size, max 100
+{% enddoc %}
+{% liquid
+  assign view = view | default: 'all_open'
+  assign page = page | default: 1 | plus: 0
+  assign per_page = per_page | default: 50 | at_most: 100
+  function scope = 'modules/support/queries/tickets/scope', member: member, department_id: filters.department_id
+  function statuses = 'modules/support/queries/statuses/all'
+
+  assign categories = ["new", "open", "pending", "on_hold"]
+  assign assignee_id = filters.assignee_id
+  assign assigned = null
+  assign needs_reply = null
+  assign status_ids = null
+  assign sla_states = null
+  case view
+    when 'mine'
+      assign assignee_id = member.profile_id
+    when 'needs_reply'
+      assign needs_reply = true
+    when 'unassigned'
+      assign assigned = false
+    when 'all_open'
+      assign categories = ["new", "open"]
+    when 'waiting'
+      assign categories = ["pending", "on_hold"]
+    when 'awaiting_confirmation'
+      assign categories = ["solved"]
+    when 'sla_at_risk'
+      assign categories = ["new", "open"]
+      assign sla_states = ["due_soon", "overdue"]
+    when 'deploy'
+      assign status_ids = []
+      assign status_ids << statuses.by_key.deploy.id
+      assign categories = null
+    when 'closed'
+      assign categories = ["closed"]
+  endcase
+  if filters.status_key != blank and statuses.by_key[filters.status_key]
+    assign status_ids = []
+    assign status_ids << statuses.by_key[filters.status_key].id
+    assign categories = null
+  endif
+
+  assign number = null
+  assign q = filters.q | strip
+  if q != blank
+    assign digits = q | remove: '#'
+    assign is_number = digits | matches: '^\d{1,12}$'
+    if is_number
+      assign number = digits | plus: 0
+      assign categories = null
+      assign status_ids = null
+      assign q = null
+    endif
+  endif
+
+  assign priorities = ["p0", "p1", "p2", "p3"]
+  assign priority = null
+  if priorities contains filters.priority
+    assign priority = filters.priority
+  endif
+
+  assign sort = [{ "properties": { "name": "priority", "order": "ASC" } }, { "created_at": { "order": "DESC" } }]
+  graphql r = 'modules/support/tickets/search', department_ids: scope, categories: categories, assignee_id: assignee_id, assigned: assigned, status_ids: status_ids, organization_id: filters.organization_id, sla_states: sla_states, priority: priority, needs_reply: needs_reply, query: q, number: number, page: page, limit: per_page, sort: sort
+
+  assign tickets = r.records.results
+  assign contact_ids = tickets | map: 'requester_id' | uniq | array_compact
+  assign profile_ids = tickets | map: 'assignee_id' | uniq | array_compact
+  assign organization_ids = tickets | map: 'organization_id' | uniq | array_compact
+  assign lookup = { "contacts": {}, "organizations": {}, "profiles": {}, "departments": {}, "statuses": {} }
+  assign lookup.statuses = statuses.by_id
+
+  if contact_ids.size > 0
+    graphql c = 'modules/support/contacts/search', ids: contact_ids, limit: 100
+    for item in c.records.results
+      assign lookup.contacts[item.id] = item
+    endfor
+  endif
+  if organization_ids.size > 0
+    graphql o = 'modules/support/organizations/search', ids: organization_ids, limit: 100
+    for item in o.records.results
+      assign lookup.organizations[item.id] = item
+    endfor
+  endif
+  if profile_ids.size > 0
+    graphql p = 'modules/user/profiles/search', ids: profile_ids, limit: 100
+    for item in p.records.results
+      assign lookup.profiles[item.id] = item
+    endfor
+  endif
+  graphql d = 'modules/support/departments/search', limit: 100
+  for item in d.records.results
+    assign lookup.departments[item.id] = item
+  endfor
+
+  assign result = { "results": [], "page": 1 }
+  assign result.results = tickets
+  assign result.total_entries = r.records.total_entries
+  assign result.total_pages = r.records.total_pages
+  assign result.page = page
+  assign result.lookup = lookup
+  assign result.view = view
+  return result
+%}

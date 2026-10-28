@@ -16,7 +16,7 @@
     {{ host_head }}
   </head>
   <body class="pos-support">
-    {% render 'modules/support/shell', brand: brand, member: member, content: content_for_layout, pathname: context.location.pathname %}
+    {% render 'modules/support/shell', brand: brand, member: member, content: content_for_layout, pathname: context.location.pathname, nav: context.exports.support_nav %}
     {% liquid
       function flash = 'modules/core/commands/session/get', key: 'sflash', clear: null
       if context.location.pathname != flash.from or flash.force_clear

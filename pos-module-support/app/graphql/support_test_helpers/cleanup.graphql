@@ -1,0 +1,23 @@
+mutation ($department_id: String!) {
+  tickets: records_delete_all(
+    table: "modules/support/ticket"
+    sync: true
+    filter: { properties: [{ name: "department_id", value: $department_id }] }
+  ) {
+    count
+  }
+  members: records_delete_all(
+    table: "modules/support/team_member"
+    sync: true
+    filter: { properties: [{ name: "profile_id", starts_with: "test-" }] }
+  ) {
+    count
+  }
+  delivery: records_delete_all(
+    table: "modules/support/ticket"
+    sync: true
+    filter: { properties: [{ name: "number", value_int: 900001 }] }
+  ) {
+    count
+  }
+}

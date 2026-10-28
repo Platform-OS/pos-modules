@@ -1,0 +1,16 @@
+{% doc %}
+  Runs last (alphabetical order): removes the tickets, messages and
+  memberships the other tests created, so the dev queue stays readable.
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  graphql d = 'modules/support/departments/search', inbound_local_part: 'testfixtures', limit: 1
+  assign department_id = d.records.results.first.id
+  if department_id
+    graphql cleaned = 'support_test_helpers/cleanup', department_id: department_id
+  endif
+  assign scope = []
+  assign scope << department_id
+  graphql left = 'modules/support/tickets/search', department_ids: scope, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: left.records.total_entries, expected: 0, field_name: 'fixture tickets removed'
+%}

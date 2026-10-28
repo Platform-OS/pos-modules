@@ -1,0 +1,5 @@
+{% doc %}
+  Priority badge: P0-P3 text on a semantic token.
+  @param {string} [priority] - p0 | p1 | p2 | p3
+{% enddoc %}
+<span class="pos-support-badge pos-support-priority pos-support-priority-{{ priority | default: 'p2' }}" title="{{ 'modules/support/queue.priority_title' | t: priority: priority }}">{{ priority | upcase }}</span>

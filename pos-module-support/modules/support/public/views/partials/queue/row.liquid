@@ -1,0 +1,33 @@
+{% doc %}
+  One queue row; the subject cell is the link to the ticket.
+  @param {object} ticket - Ticket record
+  @param {object} lookup - { contacts, organizations, profiles, departments, statuses } keyed by id
+{% enddoc %}
+{% liquid
+  assign requester = lookup.contacts[ticket.requester_id]
+  assign organization = lookup.organizations[ticket.organization_id]
+  assign assignee = lookup.profiles[ticket.assignee_id]
+  assign department = lookup.departments[ticket.department_id]
+  assign status = lookup.statuses[ticket.status_id]
+  assign url = '/support-desk/tickets/' | append: ticket.id
+%}
+<tr class="pos-support-row{% if ticket.needs_reply %} pos-support-row-needs-reply{% endif %}" data-url="{{ url }}">
+  <td class="pos-support-cell-select">
+    <input type="checkbox" name="ids[]" value="{{ ticket.id }}" id="pos-support-select-{{ ticket.id }}" class="pos-support-select">
+    <label for="pos-support-select-{{ ticket.id }}" class="pos-support-sr-only">{{ 'modules/support/queue.select_ticket' | t: number: ticket.number }}</label>
+  </td>
+  <td>{% render 'modules/support/badges/priority', priority: ticket.priority %}</td>
+  <td class="pos-support-number">#{{ ticket.number }}</td>
+  <td><span class="pos-tag">{{ department.short_code | default: department.name }}</span></td>
+  <td class="pos-support-subject">
+    <a href="{{ url }}">{{ ticket.subject }}</a>
+    {% if ticket.needs_reply %}<span class="pos-support-needs-reply">{{ 'modules/support/queue.needs_reply' | t }}</span>{% endif %}
+  </td>
+  <td>
+    {{ requester.name | default: requester.emails.first }}
+    {% if organization %}<span class="pos-supplementary">{{ organization.name }}</span>{% endif %}
+  </td>
+  <td>{% render 'modules/support/badges/status', status: status %}</td>
+  <td>{{ assignee.name | default: assignee.first_name | default: assignee.email | default: '—' }}</td>
+  <td class="pos-support-sla pos-support-sla-{{ ticket.sla_state | default: 'none' }}">{{ ticket.sla_state | default: 'none' | prepend: 'modules/support/sla.' | t }}</td>
+</tr>

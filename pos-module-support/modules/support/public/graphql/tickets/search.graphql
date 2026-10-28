@@ -6,6 +6,10 @@ query (
   $categories: [String!]
   $not_categories: [String!]
   $assignee_id: String
+  $assigned: Boolean
+  $status_ids: [String!]
+  $organization_id: String
+  $sla_states: [String!]
   $requester_id: String
   $priority: String
   $needs_reply: Boolean
@@ -24,7 +28,10 @@ query (
         { name: "number", value_int: $number }
         { name: "department_id", value_in: $department_ids }
         { name: "category", value_in: $categories, not_value_in: $not_categories }
-        { name: "assignee_id", value: $assignee_id }
+        { name: "assignee_id", value: $assignee_id, exists: $assigned }
+        { name: "status_id", value_in: $status_ids }
+        { name: "organization_id", value: $organization_id }
+        { name: "sla_state", value_in: $sla_states }
         { name: "requester_id", value: $requester_id }
         { name: "priority", value: $priority }
         { name: "needs_reply", value_boolean: $needs_reply }

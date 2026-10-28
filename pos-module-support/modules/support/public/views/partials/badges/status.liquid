@@ -1,0 +1,5 @@
+{% doc %}
+  Status badge: semantic token per colour key plus text (never colour alone).
+  @param {object} status - Status record (label, color)
+{% enddoc %}
+<span class="pos-support-badge pos-support-status pos-support-status-{{ status.color | default: 'open' }}">{{ status.label | default: '—' }}</span>

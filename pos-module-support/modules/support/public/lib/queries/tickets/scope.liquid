@@ -1,0 +1,30 @@
+{% doc %}
+  Department ids the member may read (05 §2): an agent's own departments,
+  everything (null) for managers and admins, narrowed by an optional filter.
+  An agent asking for a department outside their own gets an empty scope.
+  @param {object} member - The acting team_member
+  @param {string} [department_id] - Optional department filter
+{% enddoc %}
+{% liquid
+  if member.role == 'agent'
+    assign scope = member.department_ids | default: []
+    if department_id != blank
+      if scope contains department_id
+        assign scope = []
+        assign scope << department_id
+      else
+        assign scope = ["__none__"]
+      endif
+    endif
+    if scope.size == 0
+      assign scope = ["__none__"]
+    endif
+    return scope
+  endif
+  if department_id != blank
+    assign scope = []
+    assign scope << department_id
+    return scope
+  endif
+  return null
+%}

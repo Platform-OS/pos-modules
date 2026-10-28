@@ -1,5 +1,117 @@
 {% doc %}
-  Queue stub; TASK-10 replaces it with the ticket list.
+  Queue: attention strip, filters, bulk form and the ticket list (05 §3).
+  @param {object} data - From queries/tickets/search
+  @param {object} counts - From queries/tickets/counts
+  @param {object} filters - Current filters
+  @param {object[]} statuses - Status list in position order
+  @param {object[]} departments - Departments the member may filter by
+  @param {object[]} members - Active team members for the assignee picker
+  @param {object} member - The signed-in team_member
+  @param {boolean} can_manage - Member holds support.tickets.manage.all
+  @param {string} return_to - Current URL, for the bulk form redirect
 {% enddoc %}
-<h1 class="pos-heading-2">{{ 'modules/support/queue.title' | t }}</h1>
-<p class="pos-supplementary">{{ 'modules/support/queue.empty' | t }}</p>
+{% liquid
+  assign view = data.view
+  assign view_label = 'modules/support/views.' | append: view | t
+%}
+<div class="pos-support-queue">
+  <div class="pos-support-queue-head">
+    <h1 class="pos-heading-2">{{ view_label }} <span class="pos-supplementary">{{ data.total_entries }}</span></h1>
+  </div>
+
+  <nav class="pos-support-attention" aria-label="{{ 'modules/support/queue.attention' | t }}">
+    <a href="/support-desk?view=needs_reply" class="pos-support-attention-item">{{ 'modules/support/views.needs_reply' | t }} <strong>{{ counts.needs_reply }}</strong></a>
+    <a href="/support-desk?view=sla_at_risk" class="pos-support-attention-item">{{ 'modules/support/views.sla_at_risk' | t }} <strong>{{ counts.sla_at_risk }}</strong></a>
+    <a href="/support-desk?view=deploy" class="pos-support-attention-item">{{ 'modules/support/views.deploy' | t }} <strong>{{ counts.deploy }}</strong></a>
+  </nav>
+
+  <form class="pos-support-toolbar pos-form" method="get" action="/support-desk" role="search">
+    <input type="hidden" name="view" value="{{ view }}">
+    <label for="pos-support-q" class="pos-support-sr-only">{{ 'modules/support/queue.search' | t }}</label>
+    <input type="search" id="pos-support-q" name="q" value="{{ filters.q }}" placeholder="{{ 'modules/support/queue.search_placeholder' | t }}" data-support-search>
+    <label for="pos-support-priority" class="pos-support-sr-only">{{ 'modules/support/queue.priority' | t }}</label>
+    <select id="pos-support-priority" name="priority">
+      <option value="">{{ 'modules/support/queue.any_priority' | t }}</option>
+      {% assign priorities = "p0,p1,p2,p3" | split: ',' %}
+      {% for p in priorities %}<option value="{{ p }}" {% if filters.priority == p %}selected{% endif %}>{{ p | upcase }}</option>{% endfor %}
+    </select>
+    {% if departments.size > 1 %}
+      <label for="pos-support-department" class="pos-support-sr-only">{{ 'modules/support/queue.department' | t }}</label>
+      <select id="pos-support-department" name="department_id">
+        <option value="">{{ 'modules/support/queue.any_department' | t }}</option>
+        {% for d in departments %}<option value="{{ d.id }}" {% if filters.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+      </select>
+    {% endif %}
+    <label for="pos-support-status" class="pos-support-sr-only">{{ 'modules/support/queue.status' | t }}</label>
+    <select id="pos-support-status" name="status_key">
+      <option value="">{{ 'modules/support/queue.any_status' | t }}</option>
+      {% for s in statuses %}<option value="{{ s.key }}" {% if filters.status_key == s.key %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="pos-button">{{ 'modules/support/queue.apply' | t }}</button>
+  </form>
+
+  {% if data.results.size == 0 %}
+    <div class="pos-card pos-support-empty">
+      <p>{{ 'modules/support/queue.empty' | t }}</p>
+    </div>
+  {% else %}
+    <form method="post" action="/support-desk/tickets/bulk" class="pos-support-bulk-form pos-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="return_to" value="{{ return_to }}">
+      <div class="pos-support-bulk-bar" role="group" aria-label="{{ 'modules/support/queue.bulk' | t }}">
+        <label for="pos-support-bulk-assignee" class="pos-support-sr-only">{{ 'modules/support/queue.assignee' | t }}</label>
+        <select id="pos-support-bulk-assignee" name="bulk_assignee">
+          <option value="">{{ 'modules/support/queue.bulk_assignee' | t }}</option>
+          <option value="me">{{ 'modules/support/queue.assign_me' | t }}</option>
+          {% if can_manage %}
+            <option value="none">{{ 'modules/support/queue.unassign' | t }}</option>
+            {% for m in members %}{% if m.profile_id != member.profile_id %}<option value="{{ m.profile_id }}">{{ m.name }}</option>{% endif %}{% endfor %}
+          {% endif %}
+        </select>
+        <label for="pos-support-bulk-status" class="pos-support-sr-only">{{ 'modules/support/queue.status' | t }}</label>
+        <select id="pos-support-bulk-status" name="bulk_status">
+          <option value="">{{ 'modules/support/queue.bulk_status' | t }}</option>
+          {% for s in statuses %}{% if s.category != 'new' %}<option value="{{ s.key }}">{{ s.label }}</option>{% endif %}{% endfor %}
+        </select>
+        <label for="pos-support-bulk-priority" class="pos-support-sr-only">{{ 'modules/support/queue.priority' | t }}</label>
+        <select id="pos-support-bulk-priority" name="bulk_priority">
+          <option value="">{{ 'modules/support/queue.bulk_priority' | t }}</option>
+          {% for p in priorities %}<option value="{{ p }}">{{ p | upcase }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="pos-button">{{ 'modules/support/queue.bulk_apply' | t }}</button>
+      </div>
+
+      <div class="pos-support-table-wrap">
+        <table class="pos-table pos-support-table">
+          <thead>
+            <tr>
+              <th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/queue.select' | t }}</span></th>
+              <th scope="col">{{ 'modules/support/queue.col_priority' | t }}</th>
+              <th scope="col">#</th>
+              <th scope="col">{{ 'modules/support/queue.col_department' | t }}</th>
+              <th scope="col">{{ 'modules/support/queue.col_subject' | t }}</th>
+              <th scope="col">{{ 'modules/support/queue.col_requester' | t }}</th>
+              <th scope="col">{{ 'modules/support/queue.col_status' | t }}</th>
+              <th scope="col">{{ 'modules/support/queue.col_assignee' | t }}</th>
+              <th scope="col">{{ 'modules/support/queue.col_sla' | t }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ticket in data.results %}
+              {% render 'modules/support/queue/row', ticket: ticket, lookup: data.lookup %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+
+    {% if data.total_pages > 1 %}
+      <nav class="pos-support-pagination" aria-label="{{ 'modules/support/queue.pages' | t }}">
+        {% if data.page > 1 %}{% assign prev = data.page | minus: 1 %}<a class="pos-button pos-button-small" href="?view={{ view }}&page={{ prev }}&q={{ filters.q | url_encode }}&priority={{ filters.priority }}&status_key={{ filters.status_key }}&department_id={{ filters.department_id }}">{{ 'modules/support/queue.previous' | t }}</a>{% endif %}
+        <span>{{ 'modules/support/queue.page_of' | t: page: data.page, total: data.total_pages }}</span>
+        {% if data.page < data.total_pages %}{% assign next = data.page | plus: 1 %}<a class="pos-button pos-button-small" href="?view={{ view }}&page={{ next }}&q={{ filters.q | url_encode }}&priority={{ filters.priority }}&status_key={{ filters.status_key }}&department_id={{ filters.department_id }}">{{ 'modules/support/queue.next' | t }}</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% endif %}
+</div>
+<script defer src="{{ 'modules/support/js/pos-support-queue.js' | asset_url }}"></script>

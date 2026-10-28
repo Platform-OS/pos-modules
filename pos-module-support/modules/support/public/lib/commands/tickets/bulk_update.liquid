@@ -1,0 +1,62 @@
+{% doc %}
+  Applies assignee, status and priority to several tickets. Each ticket is
+  loaded through the member's scope and changed with the same commands as
+  the ticket page, so the same rules and events apply.
+  Returns { changed, failed }.
+  @param {string[]} [ids] - Ticket ids, at most 100
+  @param {string} [assignee] - me | none | profile id
+  @param {string} [status_key] - Target status
+  @param {string} [priority] - Target priority
+  @param {object} member - The acting team_member
+{% enddoc %}
+{% liquid
+  assign result = { "changed": 0, "failed": 0 }
+  assign ids = ids | default: [] | uniq | slice: 0, 100
+  assign actor = { "type": "user" }
+  assign actor.id = member.profile_id
+  assign actor.member = member
+
+  assign assignee_id = null
+  if assignee == 'me'
+    assign assignee_id = member.profile_id
+  elsif assignee != blank and assignee != 'none'
+    assign assignee_id = assignee
+  endif
+
+  for id in ids
+    function ticket = 'modules/support/queries/tickets/find', id: id, number: null, member: member
+    if ticket == blank
+      assign result.failed = result.failed | plus: 1
+      continue
+    endif
+    assign ok = true
+    if assignee != blank
+      function r = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: assignee_id, reason: 'manual', actor: actor
+      if r.valid
+        assign ticket = r.ticket
+      else
+        assign ok = false
+      endif
+    endif
+    if status_key != blank
+      function r = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: status_key, actor: actor
+      if r.valid
+        assign ticket = r.ticket
+      else
+        assign ok = false
+      endif
+    endif
+    if priority != blank
+      function r = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: priority, actor: actor
+      unless r.valid
+        assign ok = false
+      endunless
+    endif
+    if ok
+      assign result.changed = result.changed | plus: 1
+    else
+      assign result.failed = result.failed | plus: 1
+    endif
+  endfor
+  return result
+%}

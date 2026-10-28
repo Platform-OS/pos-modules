@@ -1,0 +1,90 @@
+query ($department_ids: [String!], $me: String!, $deploy_status_ids: [String!]) {
+  mine: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [
+        { name: "department_id", value_in: $department_ids }
+        { name: "assignee_id", value: $me }
+        { name: "category", value_in: ["new", "open", "pending", "on_hold"] }
+      ]
+    }
+  ) {
+    total_entries
+  }
+  needs_reply: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [
+        { name: "department_id", value_in: $department_ids }
+        { name: "needs_reply", value_boolean: true }
+        { name: "category", value_in: ["new", "open", "pending", "on_hold"] }
+      ]
+    }
+  ) {
+    total_entries
+  }
+  unassigned: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [
+        { name: "department_id", value_in: $department_ids }
+        { name: "assignee_id", exists: false }
+        { name: "category", value_in: ["new", "open", "pending", "on_hold"] }
+      ]
+    }
+  ) {
+    total_entries
+  }
+  all_open: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [{ name: "department_id", value_in: $department_ids }, { name: "category", value_in: ["new", "open"] }]
+    }
+  ) {
+    total_entries
+  }
+  waiting: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [{ name: "department_id", value_in: $department_ids }, { name: "category", value_in: ["pending", "on_hold"] }]
+    }
+  ) {
+    total_entries
+  }
+  awaiting_confirmation: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [{ name: "department_id", value_in: $department_ids }, { name: "category", value: "solved" }]
+    }
+  ) {
+    total_entries
+  }
+  sla_at_risk: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [
+        { name: "department_id", value_in: $department_ids }
+        { name: "sla_state", value_in: ["due_soon", "overdue"] }
+        { name: "category", value_in: ["new", "open"] }
+      ]
+    }
+  ) {
+    total_entries
+  }
+  deploy: records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/ticket" }
+      properties: [{ name: "department_id", value_in: $department_ids }, { name: "status_id", value_in: $deploy_status_ids }]
+    }
+  ) {
+    total_entries
+  }
+}

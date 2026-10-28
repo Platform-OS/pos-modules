@@ -1,0 +1,35 @@
+---
+slug: support-desk/tickets/bulk
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.tickets.reply
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign member = context.exports.support.support_member
+  function result = 'modules/support/commands/tickets/bulk_update', ids: context.params.ids, assignee: context.params.bulk_assignee, status_key: context.params.bulk_status, priority: context.params.bulk_priority, member: member
+
+  assign key = 'modules/support/queue.bulk_done'
+  if result.failed > 0
+    function _ = 'modules/user/helpers/flash', error: 'modules/support/queue.bulk_partial', notice: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', notice: key, error: null, info: null, force_clear: null
+  endif
+
+  assign target = context.params.return_to | default: '/support-desk'
+  assign internal = target | matches: '^/support-desk(?:[/?]|$)'
+  unless internal
+    assign target = '/support-desk'
+  endunless
+  redirect_to target
+%}

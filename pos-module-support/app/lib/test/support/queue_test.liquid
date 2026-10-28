@@ -1,0 +1,58 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function f = 'support_test_helpers/ticket_fixture', label: 'queue'
+  assign agent = f.actor.member
+  assign manager = f.manager_actor.member
+  assign filters = { "q": null }
+
+  # agent scope: own department only
+  function data = 'modules/support/queries/tickets/search', member: agent, view: 'all_open', filters: filters, page: 1, per_page: 100
+  assign departments = data.results | map: 'department_id' | uniq
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: departments.size, expected: 1, field_name: 'agent sees one department'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: departments.first, expected: f.department_id, field_name: 'agent sees own department'
+
+  # agent asking for another department gets nothing
+  graphql other = 'modules/support/departments/search', inbound_local_part: 'accela', limit: 1
+  assign filters = { "department_id": null }
+  assign filters.department_id = other.records.results.first.id
+  function data = 'modules/support/queries/tickets/search', member: agent, view: 'all_open', filters: filters, page: 1, per_page: 100
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.total_entries, expected: 0, field_name: 'agent cannot filter into another department'
+
+  # search by #number finds exactly the ticket, for the manager in every department
+  assign filters = { "q": null }
+  assign filters.q = '#' | append: f.ticket.number
+  function data = 'modules/support/queries/tickets/search', member: manager, view: 'all_open', filters: filters, page: 1, per_page: 10
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.results.first.id, expected: f.ticket.id, field_name: 'search by number'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.lookup.contacts[f.ticket.requester_id].id, expected: f.ticket.requester_id, field_name: 'requester loaded'
+
+  # search by requester email
+  assign filters.q = f.contact.emails.first
+  function data = 'modules/support/queries/tickets/search', member: manager, view: 'all_open', filters: filters, page: 1, per_page: 10
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.results.first.id, expected: f.ticket.id, field_name: 'search by email'
+
+  # counts: the new ticket is unassigned and needs a reply
+  function counts = 'modules/support/queries/tickets/counts', member: agent
+  assign has_unassigned = false
+  if counts.unassigned > 0 and counts.needs_reply > 0
+    assign has_unassigned = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: has_unassigned, field_name: 'counts include fixture', object: null
+
+  # bulk: agent assigns to self, sets priority and status; events written
+  assign ids = []
+  assign ids << f.ticket.id
+  function bulk = 'modules/support/commands/tickets/bulk_update', ids: ids, assignee: 'me', status_key: 'progress', priority: 'p1', member: agent
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bulk.changed, expected: 1, field_name: 'bulk changed one'
+  function ticket = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: agent
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.assignee_id, expected: agent.profile_id, field_name: 'bulk assigned'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.priority, expected: 'p1', field_name: 'bulk priority'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.category, expected: 'open', field_name: 'bulk status'
+  graphql ev = 'modules/support/ticket_events/search', ticket_id: f.ticket.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ev.records.total_entries, expected: 4, field_name: 'bulk wrote events'
+
+  # bulk: agent assigning someone else fails, and a ticket outside scope fails
+  function bulk = 'modules/support/commands/tickets/bulk_update', ids: ids, assignee: f.other_agent_id, status_key: null, priority: null, member: agent
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bulk.failed, expected: 1, field_name: 'agent bulk assign others refused'
+%}

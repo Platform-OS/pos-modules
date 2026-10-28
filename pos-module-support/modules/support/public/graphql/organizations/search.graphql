@@ -1,9 +1,9 @@
-query ($id: ID, $domains: [String!], $limit: Int = 20, $page: Int = 1) {
+query ($id: ID, $ids: [ID!], $domains: [String!], $limit: Int = 20, $page: Int = 1) {
   records(
     page: $page
     per_page: $limit
     filter: {
-      id: { value: $id }
+      id: { value: $id, value_in: $ids }
       table: { value: "modules/support/organization" }
       properties: [{ name: "domains", array_overlaps: $domains }]
     }
