@@ -38,6 +38,17 @@
           assign data.edit = item
         endif
       endfor
+    when 'branding'
+      function brand = 'modules/support/helpers/branding'
+      assign data.brand = brand
+      function host_brand = 'modules/core/commands/hook/fire', hook: 'support_branding', params: null, merge_to_object: true
+      assign data.host_brand = host_brand
+      function host_head = 'modules/core/queries/headscripts/search'
+      assign data.host_theme = false
+      if host_head != blank
+        assign data.host_theme = true
+      endif
+      assign data.override = settings.branding_override | default: {}
     when 'integrations'
       assign data.heartbeat = settings.sweep_heartbeat
       assign data.stale = true

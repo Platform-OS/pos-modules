@@ -1,7 +1,7 @@
 {% doc %}
   Saves one Settings form (05 §3). The form names its section and, where a
   section lists records, the record id. Returns { valid, error, notice }.
-  @param {string} section - departments | statuses | sla | saved_replies | assignment | integrations
+  @param {string} section - departments | statuses | sla | saved_replies | assignment | branding | integrations
   @param {object} params - The posted form, read by name
 {% enddoc %}
 {% liquid
@@ -32,6 +32,8 @@
     assign threshold = params.spam_threshold | plus: 0.0
     function _ = 'modules/support/commands/settings/set', key: 'spam_threshold', value: threshold
     assign result.valid = true
+  when 'branding'
+    function result = 'modules/support/commands/settings_sections/branding', params: params
   when 'integrations'
     function _ = 'modules/support/commands/maintenance/start_sweep'
     assign result.valid = true

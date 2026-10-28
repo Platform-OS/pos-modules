@@ -1,4 +1,6 @@
 @layer pos-support {
+  /* Colours: only var(--pos-*) tokens. The hex values below are the fixed
+     semantic tokens (08 §4) and are the only hex colours in this file. */
   :root {
     --pos-support-rail-width: 15rem;
     --pos-support-rail-background: var(--pos-color-content-background);
@@ -30,10 +32,35 @@
     --pos-support-priority-p2-bg: #e6eef8;
     --pos-support-priority-p3-fg: #405568;
     --pos-support-priority-p3-bg: #eff2f6;
+    --pos-support-sla-overdue: #b62324;
+    --pos-support-sla-soon: #9a4410;
+    --pos-support-sla-ok: var(--pos-color-content-text);
+    --pos-support-sla-paused: var(--pos-color-content-text-supplementary);
+    --pos-support-email-frame-background: #ffffff;
   }
 
-  .pos-theme-dark,
-  .pos-theme-darkEnabled {
+  .pos-theme-dark {
+    --pos-support-status-new-fg: #7fd6dc;
+    --pos-support-status-new-bg: #0f3a3d;
+    --pos-support-status-open-fg: #9cc3ef;
+    --pos-support-status-open-bg: #16304d;
+    --pos-support-status-pending-fg: #f2c472;
+    --pos-support-status-pending-bg: #3d2c08;
+    --pos-support-status-onhold-eng-fg: #f19bbd;
+    --pos-support-status-onhold-eng-bg: #45142a;
+    --pos-support-status-onhold-fg: #c3cfdb;
+    --pos-support-status-onhold-bg: #27313b;
+    --pos-support-status-solved-fg: #8fd68f;
+    --pos-support-status-solved-bg: #173a17;
+    --pos-support-status-closed-fg: #c9ced6;
+    --pos-support-priority-p1-fg: #f6b183;
+    --pos-support-priority-p1-bg: #44210a;
+    --pos-support-priority-p2-fg: #9cc3ef;
+    --pos-support-priority-p2-bg: #16304d;
+    --pos-support-priority-p3-fg: #c3cfdb;
+    --pos-support-priority-p3-bg: #27313b;
+    --pos-support-sla-overdue: #ff8a8a;
+    --pos-support-sla-soon: #f6b183;
     --pos-support-status-closed-bg: #2a2f36;
   }
 
@@ -58,6 +85,9 @@
       --pos-support-priority-p2-bg: #16304d;
       --pos-support-priority-p3-fg: #c3cfdb;
       --pos-support-priority-p3-bg: #27313b;
+      --pos-support-sla-overdue: #ff8a8a;
+      --pos-support-sla-soon: #f6b183;
+      --pos-support-status-closed-bg: #2a2f36;
     }
   }
 
@@ -321,8 +351,12 @@
     color: var(--pos-support-status-pending-fg);
   }
 
-  .pos-support-sla-overdue { color: var(--pos-support-priority-p0-bg); font-weight: 600; }
-  .pos-support-sla-due_soon { color: var(--pos-support-status-pending-fg); font-weight: 600; }
+  .pos-support-sla-overdue { color: var(--pos-support-sla-overdue); font-weight: 600; }
+  .pos-support-sla-overdue::before { content: "▲ "; }
+  .pos-support-sla-due_soon { color: var(--pos-support-sla-soon); font-weight: 600; }
+  .pos-support-sla-due_soon::before { content: "△ "; }
+  .pos-support-sla-on_track { color: var(--pos-support-sla-ok); }
+  .pos-support-sla-paused { color: var(--pos-support-sla-paused); }
 
   .pos-support-pagination {
     display: flex;
@@ -378,6 +412,10 @@
     border-color: var(--pos-support-status-pending-fg);
   }
 
+  .pos-support-message-note .pos-supplementary {
+    color: var(--pos-support-status-pending-fg);
+  }
+
   .pos-support-message-head {
     display: flex;
     flex-wrap: wrap;
@@ -419,7 +457,7 @@
     min-height: 20rem;
     border: 1px solid var(--pos-color-frame);
     border-radius: var(--pos-radius-input);
-    background: #ffffff;
+    background: var(--pos-support-email-frame-background);
   }
 
   .pos-support-original {
@@ -520,6 +558,41 @@
 
   @media (prefers-reduced-motion: reduce) {
     .pos-support-row-fresh { animation: none; }
+  }
+
+
+  .pos-support-subnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-block-end: var(--pos-gap-section-elements);
+    padding-block-end: 0.5rem;
+    border-block-end: 1px solid var(--pos-color-frame);
+  }
+
+  .pos-support-subnav a[aria-current="page"] {
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  .pos-support-settings-form fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border: 0;
+    padding: 0;
+  }
+
+  .pos-support-brand-preview {
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    border: 1px solid var(--pos-color-frame);
+    border-radius: var(--pos-radius-card);
+    overflow: hidden;
+  }
+
+  .pos-support-brand-preview-body {
+    padding: var(--pos-padding-card);
   }
 
   @media (max-width: 48rem) {

@@ -16,7 +16,7 @@
   assign url = settings.base_url | append: path
 
   assign push = { "title": null, "body": null, "url": null, "icon": null, "data": {} }
-  assign push.title = title
+  assign push.title = brand.short_name | default: brand.app_name | append: ' · ' | append: title
   assign push.body = body | truncate: 120
   assign push.url = path
   assign push.icon = brand.icon_url | default: brand.logo_url

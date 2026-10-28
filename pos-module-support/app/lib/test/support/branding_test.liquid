@@ -1,0 +1,30 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # an override reaches the brand used by the rail, manifest, push and emails
+  assign params = { "use_host": "false", "app_name": "Override Desk", "short_name": "Override", "support_email_name": "Override Support", "theme_color": "#123abc" }
+  function saved = 'modules/support/commands/settings_sections/branding', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: saved.valid, expected: true, field_name: 'override saved'
+  function brand = 'modules/support/helpers/branding'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.app_name, expected: 'Override Desk', field_name: 'rail and manifest name'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.support_email_name, expected: 'Override Support', field_name: 'email sender name'
+  function f = 'support_test_helpers/ticket_fixture', label: 'brand'
+  function message = 'modules/support/commands/notifications/build_message', event_key: 'assigned', ticket: f.ticket
+  assign starts = message.push.title | slice: 0, 11
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: starts, expected: 'Override · ', field_name: 'push title carries brand'
+
+  # invalid values refused
+  assign bad = { "use_host": "false", "theme_color": "blue" }
+  function r = 'modules/support/commands/settings_sections/branding', params: bad
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.valid, expected: false, field_name: 'bad colour refused'
+  assign bad = { "use_host": "false", "logo_url": "javascript:alert(1)" }
+  function r = 'modules/support/commands/settings_sections/branding', params: bad
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.valid, expected: false, field_name: 'non-https logo refused'
+
+  # back to the host's branding
+  assign reset = { "use_host": "true" }
+  function _ = 'modules/support/commands/settings_sections/branding', params: reset
+  function brand = 'modules/support/helpers/branding'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.app_name, expected: 'Harbor City Permits', field_name: 'host branding restored'
+%}

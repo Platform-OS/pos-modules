@@ -1,0 +1,55 @@
+{% doc %}
+  Saves the branding override (08 §5). "Use the host app's branding" clears
+  it; otherwise non-blank fields override the host hook per key. Colours
+  must be #rrggbb; images must be https URLs. Returns { valid, error, notice }.
+  @param {object} params - use_host, app_name, short_name, support_email_name, theme_color, background_color, logo_url, logo_dark_url, icon_url, theme_mode
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  if params.use_host == 'true'
+    assign empty_override = {}
+    function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: empty_override
+    assign result.valid = true
+    return result
+  endif
+
+  assign override = {}
+  assign texts = "app_name,short_name,support_email_name" | split: ','
+  for key in texts
+    assign value = params[key] | strip | truncate: 60, ''
+    if value != blank
+      assign override[key] = value
+    endif
+  endfor
+  assign colors = "theme_color,background_color" | split: ','
+  for key in colors
+    assign value = params[key] | strip | downcase
+    if value != blank
+      assign valid = value | matches: '^#[0-9a-f]{6}$'
+      unless valid
+        assign result.error = 'modules/support/settings.errors.color'
+        return result
+      endunless
+      assign override[key] = value
+    endif
+  endfor
+  assign images = "logo_url,logo_dark_url,icon_url" | split: ','
+  for key in images
+    assign value = params[key] | strip
+    if value != blank
+      assign valid = value | matches: '^https://[^\s"<>]+$'
+      unless valid
+        assign result.error = 'modules/support/settings.errors.image_url'
+        return result
+      endunless
+      assign override[key] = value
+    endif
+  endfor
+  assign modes = ["auto", "light", "dark"]
+  if modes contains params.theme_mode
+    assign override.theme_mode = params.theme_mode
+  endif
+  function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: override
+  assign result.valid = true
+  return result
+%}

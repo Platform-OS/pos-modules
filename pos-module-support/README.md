@@ -54,6 +54,8 @@ The `role_map` setting (JSON, host role → `agent`/`manager`/`admin`, default `
 
 CSS tokens a host can override: `--pos-support-rail-width`, `--pos-support-rail-background`, `--pos-support-rail-text`, `--pos-support-rail-active-background`, `--pos-support-rail-active-text`, `--pos-support-rail-frame`, `--pos-support-monogram-background`, `--pos-support-monogram-text`, plus every common-styling `--pos-*` token.
 
+Status, priority and SLA colours are fixed semantic tokens with light and dark values checked for 4.5:1 contrast: `--pos-support-status-{new,open,pending,onhold-eng,onhold,solved,closed}-{fg,bg}`, `--pos-support-priority-p{0..3}-{fg,bg}`, `--pos-support-sla-{overdue,soon,ok,paused}`. Hosts can override them, but then they own the contrast. Settings → Branding shows where the brand comes from (host stylesheet, `support_branding` hook, overrides), a preview, and overrides for name, sender name, colours, logo and icon.
+
 ## Development
 
 - The example host app in `app/` (not distributed) is a marketing site at `/` and a community-style admin area at `/admin` (host roles `superadmin` and `editor`, both with `admin_pages.view`), with a demo theme and branding hooks.

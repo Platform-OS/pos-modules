@@ -16,7 +16,7 @@ metadata:
     break
   endunless
 
-  assign sections = "departments,statuses,sla,saved_replies,assignment,integrations" | split: ','
+  assign sections = "departments,statuses,sla,saved_replies,assignment,branding,integrations" | split: ','
   assign section = context.params.section
   unless sections contains section
     response_status 404

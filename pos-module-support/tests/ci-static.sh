@@ -41,6 +41,15 @@ if [ -d "$ROOT/views/pages/support-desk" ]; then
   done
 fi
 
+# 4. Hex colours only in --pos-support-* token definitions (08 §2, WL-1).
+CSS="$ROOT/assets/style/pos-support.css"
+if [ -f "$CSS" ]; then
+  HEX=$(grep -nE '#[0-9a-fA-F]{3,8}\b' "$CSS" | grep -vE '^[0-9]+:\s*--pos-support-[a-z0-9-]+:' || true)
+  if [ -n "$HEX" ]; then
+    echo "ci-static: hex colours outside the semantic tokens in pos-support.css:"; echo "$HEX"; FAIL=1
+  fi
+fi
+
 if [ "$FAIL" -ne 0 ]; then
   exit 1
 fi

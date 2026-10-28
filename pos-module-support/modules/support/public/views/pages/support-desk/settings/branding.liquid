@@ -1,0 +1,14 @@
+---
+slug: support-desk/settings/branding
+layout: modules/support/support
+metadata:
+  permission: support.settings.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  function data = 'modules/support/queries/settings/section_data', section: 'branding', edit_id: null
+  render 'modules/support/settings/branding', data: data
+%}

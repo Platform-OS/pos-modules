@@ -2,7 +2,7 @@
   Settings sub-navigation.
   @param {string} current - Current section key
 {% enddoc %}
-{% assign sections = "departments,statuses,sla,saved-replies,assignment,team,blocklist,email,integrations" | split: ',' %}
+{% assign sections = "departments,statuses,sla,saved-replies,assignment,team,blocklist,email,branding,integrations" | split: ',' %}
 <nav class="pos-support-subnav" aria-label="{{ 'modules/support/settings.title' | t }}">
   {% for section in sections %}
     {% assign key = section | replace: '-', '_' %}

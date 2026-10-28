@@ -408,6 +408,30 @@ en:
     sweep_never: The maintenance job has not run yet.
     sweep_stale: The maintenance job has not run for over 15 minutes. Restart it.
     sweep_restart: Restart maintenance job
+    brand_sources: Where the branding comes from
+    host_theme_found: Host stylesheet found (headscripts hook); host colours and fonts apply.
+    host_theme_missing: No host stylesheet; the desk uses the default look.
+    host_hook_found: "Host branding hook found: %{keys}."
+    host_hook_missing: No host branding hook; defaults are used.
+    no_overrides: No overrides here.
+    overrides_found: "Overridden here: %{keys}."
+    preview: Preview
+    preview_button: Primary button
+    preview_link: A link
+    preview_status: In progress
+    preview_from: "Customer emails come from \"%{name}\"."
+    overrides: Overrides
+    use_host: Use the host app's branding (clears the overrides below)
+    app_name: Desk name
+    short_name: Short name (app icon label)
+    email_name: Sender name in emails
+    theme_color: Theme colour (#rrggbb)
+    logo_url: Logo URL (https)
+    icon_url: App icon URL (https, square PNG, 512 px)
+    theme_mode: Light or dark
+    mode_auto: Follow the device
+    mode_light: Always light
+    mode_dark: Always dark
     sections:
       departments: Departments
       statuses: Statuses
@@ -417,6 +441,7 @@ en:
       team: Team
       blocklist: Blocklist
       email: Email
+      branding: Branding
       integrations: Integrations
     errors:
       number: Enter a number in range.
@@ -434,3 +459,5 @@ en:
       hours: Opening hours must be HH:MM and close after they open.
       holidays: Holidays must be dates like 2026-12-25.
       saved_reply: Enter a title and text.
+      color: Colours must look like #1d4f91.
+      image_url: Image links must start with https://.
