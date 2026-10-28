@@ -1,0 +1,8 @@
+mutation ($id: ID!, $now: String!) {
+  record: record_update(
+    id: $id
+    record: { properties: [{ name: "hits", increment: 1 }, { name: "last_hit_at", value: $now }] }
+  ) {
+    id
+  }
+}

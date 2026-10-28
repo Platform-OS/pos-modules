@@ -1,0 +1,26 @@
+{% doc %}
+  Returns the blocklist row matching any of the addresses (exact address,
+  or its domain and parent domains), or null (D-27).
+  @param {string[]} addresses - Lower-cased email addresses
+{% enddoc %}
+{% liquid
+  assign patterns = []
+  for address in addresses
+    assign address = address | downcase | strip
+    if address contains '@'
+      assign patterns << address
+      assign labels = address | split: '@' | last | split: '.'
+      assign count = labels.size | minus: 1
+      for i in (1..count)
+        assign start = i | minus: 1
+        assign domain = labels | slice: start, labels.size | join: '.'
+        assign patterns << domain
+      endfor
+    endif
+  endfor
+  if patterns.size == 0
+    return null
+  endif
+  graphql r = 'modules/support/blocked_senders/search', patterns: patterns, limit: 1
+  return r.records.results.first
+%}

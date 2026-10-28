@@ -1,0 +1,26 @@
+mutation (
+  $id: ID!
+  $state: String!
+  $ignored_reason: String
+  $error: String
+  $message_id_header: String
+  $ticket_id: String
+  $message_id: String
+) {
+  record: record_update(
+    id: $id
+    record: {
+      properties: [
+        { name: "state", value: $state }
+        { name: "ignored_reason", value: $ignored_reason }
+        { name: "error", value: $error }
+        { name: "message_id_header", value: $message_id_header }
+        { name: "ticket_id", value: $ticket_id }
+        { name: "message_id", value: $message_id }
+      ]
+    }
+  ) {
+    id
+    state: property(name: "state")
+  }
+}

@@ -1,0 +1,24 @@
+{% doc %}
+  Decodes RFC 2047 encoded words (=?charset?B|Q?text?=) in a header value.
+  @param {string} value - The raw (unfolded) header value
+{% enddoc %}
+{% liquid
+  if value == blank
+    return ''
+  endif
+  assign result = value | replace_regex: '\?=\s+=\?', '?==?'
+  assign words = result | regex_matches: '=\?([^?]+)\?([BbQq])\?([^?]*)\?='
+  for word in words
+    assign original = '=?' | append: word[0] | append: '?' | append: word[1] | append: '?' | append: word[2] | append: '?='
+    assign charset = word[0] | split: '*' | first
+    assign kind = word[1] | upcase
+    if kind == 'B'
+      function decoded = 'modules/support/helpers/email/decode_body', body: word[2], encoding: 'base64', charset: charset
+    else
+      assign text = word[2] | replace: '_', ' '
+      function decoded = 'modules/support/helpers/email/decode_body', body: text, encoding: 'quoted-printable', charset: charset
+    endif
+    assign result = result | replace: original, decoded
+  endfor
+  return result | strip
+%}

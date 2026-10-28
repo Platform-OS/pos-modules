@@ -1,0 +1,10 @@
+mutation ($params_json: String!, $raw_mime: String, $state: String!) {
+  record: record_create(
+    record: {
+      table: "modules/support/inbound_email"
+      properties: [{ name: "params_json", value: $params_json }, { name: "raw_mime", value: $raw_mime }, { name: "state", value: $state }]
+    }
+  ) {
+    id
+  }
+}

@@ -1,0 +1,20 @@
+{% doc %}
+  Sanitises inbound HTML for display: drops script, style, iframe, object
+  and head contents, keeps a formatting allowlist, allows http(s), mailto
+  and cid: links/images only.
+  @param {string} html - The HTML body
+{% enddoc %}
+{% assign options = {
+    "elements": ["a", "abbr", "b", "blockquote", "br", "cite", "code", "dd", "div", "dl", "dt", "em", "font", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "li", "ol", "p", "pre", "q", "s", "small", "span", "strike", "strong", "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "u", "ul"],
+    "attributes": { "a": ["href", "title"], "img": ["src", "alt", "width", "height"], "td": ["colspan", "rowspan"], "th": ["colspan", "rowspan"], "blockquote": ["type"], "div": ["class"] },
+    "protocols": { "a": { "href": ["http", "https", "mailto"] }, "img": { "src": ["http", "https", "cid"] } },
+    "add_attributes": { "a": { "rel": "nofollow noopener noreferrer", "target": "_blank" } },
+    "remove_contents": ["script", "style", "iframe", "object", "embed", "head", "title", "noscript", "template"]
+  } %}
+{% liquid
+  if html == blank
+    return ''
+  endif
+  assign clean = html | sanitize: options
+  return clean
+%}

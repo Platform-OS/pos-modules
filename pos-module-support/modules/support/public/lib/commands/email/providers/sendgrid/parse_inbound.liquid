@@ -1,0 +1,88 @@
+{% doc %}
+  Turns a SendGrid raw-mode Inbound Parse post into the normalized email
+  (04 §0 adapter contract, §2.2).
+  @param {object} params - { email, envelope, SPF, dkim, spam_score, charsets } as stored
+{% enddoc %}
+{%- capture nl %}
+{% endcapture -%}
+{% liquid
+  assign two_nl = nl | append: nl
+  function mime = 'modules/support/helpers/email/mime', raw: params.email, depth: 0
+  assign head = mime.head
+
+  assign email = { "headers": {}, "attachments": [], "reference_ids": [], "auth": {} }
+
+  assign names = "Message-ID,In-Reply-To,References,Reply-To,From,To,Cc,Subject,Date,Auto-Submitted,Precedence,X-Autoreply,X-Autorespond,X-Auto-Response-Suppress,List-Id,List-Unsubscribe,Return-Path" | split: ','
+  for name in names
+    assign pattern = '^' | append: name | append: ':[ \t]*(.*)$'
+    assign found = head | regex_matches: pattern, 'i'
+    if found.size > 0
+      assign key = name | downcase
+      assign email.headers[key] = found[0][0] | strip
+    endif
+  endfor
+
+  assign message_id = email.headers['message-id'] | regex_matches: '(<[^<>\s]+>)'
+  assign email.message_id = message_id[0][0] | default: email.headers['message-id']
+  assign in_reply_to = email.headers['in-reply-to'] | regex_matches: '(<[^<>\s]+>)'
+  assign email.in_reply_to = in_reply_to[0][0]
+  assign references = email.headers.references | regex_matches: '(<[^<>\s]+>)'
+  for ref in references
+    assign email.reference_ids << ref[0]
+  endfor
+
+  function from_list = 'modules/support/helpers/email/parse_addresses', value: email.headers.from
+  assign email.from = from_list.first
+  function reply_to = 'modules/support/helpers/email/parse_addresses', value: email.headers['reply-to']
+  assign email.reply_to = reply_to.first.email
+  function to = 'modules/support/helpers/email/parse_addresses', value: email.headers.to
+  assign email.to = to
+  function cc = 'modules/support/helpers/email/parse_addresses', value: email.headers.cc
+  assign email.cc = cc
+  function subject = 'modules/support/helpers/email/decode_header', value: email.headers.subject
+  assign email.subject = subject
+
+  assign envelope = params.envelope | parse_json
+  assign email.envelope_to = envelope.to | default: []
+  assign email.envelope_from = envelope.from | downcase
+
+  assign text = null
+  assign html = null
+  for part in mime.parts
+    if part.filename != blank
+      assign attachment = { "filename": null }
+      assign attachment.filename = part.filename
+      assign attachment.content_type = part.type
+      assign attachment.content_id = part.content_id
+      assign attachment.inline = false
+      if part.disposition == 'inline'
+        assign attachment.inline = true
+      endif
+      if part.encoding == 'base64'
+        assign attachment.content_base64 = part.body | replace_regex: '\s', ''
+      else
+        function raw_bytes = 'modules/support/helpers/email/decode_body', body: part.body, encoding: part.encoding, charset: part.charset
+        assign attachment.content_base64 = raw_bytes | base64_encode
+      endif
+      assign email.attachments << attachment
+    elsif part.type == 'text/plain' and text == null
+      function text = 'modules/support/helpers/email/decode_body', body: part.body, encoding: part.encoding, charset: part.charset
+    elsif part.type == 'text/html' and html == null
+      function html = 'modules/support/helpers/email/decode_body', body: part.body, encoding: part.encoding, charset: part.charset
+    endif
+  endfor
+
+  if text == blank and html != blank
+    assign text = html | replace_regex: '<(br|/p|/div|/tr|/li)[^>]*>', nl, 'i' | strip_html | replace_regex: '\n{3,}', two_nl
+  endif
+  assign email.text = text | strip
+  function clean_html = 'modules/support/helpers/email/sanitize', html: html
+  assign email.html = clean_html
+  function stripped = 'modules/support/helpers/email/strip_quotes', text: email.text
+  assign email.body_stripped = stripped
+
+  assign email.auth.spf = params.SPF
+  assign email.auth.dkim = params.dkim
+  assign email.auth.spam_score = params.spam_score
+  return email
+%}

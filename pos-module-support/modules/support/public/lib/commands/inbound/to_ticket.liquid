@@ -1,0 +1,11 @@
+{% doc %}
+  Threads a processed inbound email into a ticket (TASK-8 fills this in).
+  Returns { ticket_id, message_id }.
+  @param {object} inbound - The inbound_email record
+  @param {object} email - Normalized email from the adapter
+  @param {object} flags - { auto_reply, spam }
+{% enddoc %}
+{% liquid
+  assign result = { "ticket_id": null, "message_id": null }
+  return result
+%}

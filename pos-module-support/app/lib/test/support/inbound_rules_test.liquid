@@ -1,0 +1,44 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{%- capture nl %}
+{% endcapture -%}
+{% liquid
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+  assign suffix = 8 | random_string
+
+  assign cases = '{"name":"auto-submitted","header":"Auto-Submitted: auto-replied","from":"person@example.com"},{"name":"bulk","header":"Precedence: bulk","from":"news@example.com"},{"name":"list-id","header":"List-Id: <updates.example.com>","from":"list@example.com"},{"name":"mailer-daemon","header":"X-Note: none","from":"MAILER-DAEMON@example.com"},{"name":"plain","header":"X-Note: none","from":"human@example.com"}' | prepend: '[' | append: ']' | parse_json
+  for item in cases
+    assign message_id = '<rule-' | append: item.name | append: '-' | append: suffix | append: '@example.com>'
+    assign raw = 'From: Someone <' | append: item.from | append: '>' | append: nl | append: 'To: dob@support-dev.platformos.com' | append: nl | append: 'Subject: Rule test' | append: nl | append: 'Message-ID: ' | append: message_id | append: nl | append: item.header | append: nl | append: nl | append: 'Body' | append: nl
+    function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: item.from
+    if item.name == 'plain'
+      function contract = 'modules/tests/assertions/equal', contract: contract, given: outcome.flags.auto_reply, expected: false, field_name: 'plain email is not an auto-reply'
+      function contract = 'modules/tests/assertions/equal', contract: contract, given: outcome.state, expected: 'processed', field_name: 'plain email processed'
+      # the same Message-ID again is a duplicate
+      function again = 'support_test_helpers/inbound_case', raw: raw, sender: item.from
+      function contract = 'modules/tests/assertions/equal', contract: contract, given: again.reason, expected: 'duplicate', field_name: 'duplicate ignored'
+    else
+      assign label = item.name | append: ' flagged as auto-reply'
+      function contract = 'modules/tests/assertions/equal', contract: contract, given: outcome.flags.auto_reply, expected: true, field_name: label
+    endif
+  endfor
+
+  # blocklist: nothing stored, hit counted
+  assign blocked_domain = suffix | downcase | append: '-blocked.example'
+  assign rows = []
+  assign row = { "table": "modules/support/blocked_sender", "properties": { "kind": "domain", "source": "manual", "hits": 0 } }
+  assign row.properties.pattern = blocked_domain
+  assign rows << row
+  graphql created = 'modules/support/records/create_many', records: rows
+  assign blocked_from = 'spammer@mail.' | append: blocked_domain
+  assign raw = 'From: ' | append: blocked_from | append: nl | append: 'Subject: x' | append: nl | append: nl | append: 'x'
+  assign envelope = '{"to":["dob@support-dev.platformos.com"],"from":"' | append: blocked_from | append: '"}'
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: null, dkim: null, spam_score: null, charsets: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.blocked, expected: true, field_name: 'blocked subdomain refused'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.id, expected: null, field_name: 'blocked email not stored'
+  assign patterns = []
+  assign patterns << blocked_domain
+  graphql b = 'modules/support/blocked_senders/search', patterns: patterns, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: b.records.results.first.hits, expected: 1, field_name: 'blocklist hit counted'
+%}

@@ -1,0 +1,112 @@
+{% doc %}
+  Background job for a stored inbound email (04 §2.2-2.4): parses it with
+  the configured adapter, handles the setup inbound check, applies the
+  duplicate, blocked, auto-reply, loop and spam rules, then hands the email
+  to commands/inbound/to_ticket. Returns { state, reason, email, flags }.
+  @param {string} inbound_email_id - The inbound_email record
+{% enddoc %}
+{% liquid
+  assign result = { "state": null, "reason": null, "email": null, "flags": { "auto_reply": false, "spam": false } }
+  graphql r = 'modules/support/inbound_emails/search', id: inbound_email_id, limit: 1
+  assign inbound = r.records.results.first
+  if inbound == blank or inbound.state != 'received'
+    return result
+  endif
+
+  function settings = 'modules/support/helpers/settings'
+  assign provider = settings.email_provider
+  assign params = inbound.params_json | parse_json
+  assign params.email = inbound.raw_mime
+  assign params.SPF = params.spf
+  assign adapter = 'modules/support/commands/email/providers/' | append: provider | append: '/parse_inbound'
+  function email = adapter, params: params
+  assign result.email = email
+
+  # setup check (Settings → Email step 5): check-<token>@<inbound domain>
+  assign check_local = null
+  for address in email.envelope_to
+    assign local = address | downcase | split: '@' | first
+    assign starts = local | slice: 0, 6
+    if starts == 'check-'
+      assign check_local = local
+      break
+    endif
+  endfor
+  if check_local
+    assign status = settings.email_status | default: {}
+    assign status.inbound_checked = true
+    assign status.inbound_checked_at = 'now' | to_time
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    graphql u = 'modules/support/inbound_emails/update', id: inbound.id, state: 'ignored', ignored_reason: 'inbound_check', message_id_header: email.message_id
+    assign result.state = 'ignored'
+    assign result.reason = 'inbound_check'
+    return result
+  endif
+
+  # 5. duplicate delivery of an email already processed
+  if email.message_id != blank
+    assign not_ids = []
+    assign not_ids << inbound.id
+    graphql dup = 'modules/support/inbound_emails/search', message_id_header: email.message_id, state: 'processed', not_ids: not_ids, limit: 1
+    if dup.records.total_entries > 0
+      graphql u = 'modules/support/inbound_emails/update', id: inbound.id, state: 'ignored', ignored_reason: 'duplicate', message_id_header: email.message_id
+      assign result.state = 'ignored'
+      assign result.reason = 'duplicate'
+      return result
+    endif
+  endif
+
+  # 1. contact blocked
+  assign sender = email.from.email | default: email.envelope_from
+  assign senders = []
+  assign senders << sender
+  graphql c = 'modules/support/contacts/search', emails: senders, limit: 1
+  if c.records.results.first.blocked
+    graphql u = 'modules/support/inbound_emails/update', id: inbound.id, state: 'ignored', ignored_reason: 'blocked', message_id_header: email.message_id
+    assign result.state = 'ignored'
+    assign result.reason = 'blocked'
+    return result
+  endif
+
+  # 2. auto-replies and bulk mail: kept, but flagged
+  assign h = email.headers
+  assign auto_submitted = h['auto-submitted'] | downcase | strip
+  assign precedence = h.precedence | downcase | strip
+  assign bulk = ["bulk", "list", "junk", "auto_reply"]
+  assign local_part = sender | split: '@' | first | downcase
+  assign robots = ["mailer-daemon", "postmaster", "noreply", "no-reply", "donotreply", "do-not-reply"]
+  assign return_path = h['return-path'] | strip
+  if auto_submitted != blank and auto_submitted != 'no'
+    assign result.flags.auto_reply = true
+  elsif bulk contains precedence or h['x-autoreply'] != blank or h['x-autorespond'] != blank or h['list-id'] != blank
+    assign result.flags.auto_reply = true
+  elsif return_path == '<>' or robots contains local_part
+    assign result.flags.auto_reply = true
+  endif
+
+  # 3. loop: more than 20 emails from the same sender in 60 minutes
+  if sender != blank
+    assign since = 'now' | add_to_time: -1, 'h' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    assign sender_key = '"sender":"' | append: sender | append: '"'
+    graphql recent = 'modules/support/inbound_emails/search', sender: sender_key, since: since, limit: 1
+    if recent.records.total_entries > 20
+      graphql u = 'modules/support/inbound_emails/update', id: inbound.id, state: 'ignored', ignored_reason: 'loop', message_id_header: email.message_id
+      assign result.state = 'ignored'
+      assign result.reason = 'loop'
+      return result
+    endif
+  endif
+
+  # 4. spam score above the threshold
+  assign threshold = settings.spam_threshold | default: 5.0
+  assign score = email.auth.spam_score | plus: 0
+  if email.auth.spam_score != blank and score > threshold
+    assign result.flags.spam = true
+  endif
+
+  assign handler = 'modules/support/commands/inbound/to_ticket'
+  function handled = handler, inbound: inbound, email: email, flags: result.flags
+  assign result.state = 'processed'
+  graphql u = 'modules/support/inbound_emails/update', id: inbound.id, state: 'processed', message_id_header: email.message_id, ticket_id: handled.ticket_id, message_id: handled.message_id
+  return result
+%}

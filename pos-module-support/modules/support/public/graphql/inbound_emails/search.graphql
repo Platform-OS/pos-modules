@@ -1,0 +1,37 @@
+query (
+  $id: ID
+  $not_ids: [ID!]
+  $message_id_header: String
+  $state: String
+  $sender: String
+  $since: String
+  $limit: Int = 20
+) {
+  records(
+    per_page: $limit
+    filter: {
+      id: { value: $id, not_value_in: $not_ids }
+      table: { value: "modules/support/inbound_email" }
+      created_at: { gte: $since }
+      properties: [
+        { name: "message_id_header", value: $message_id_header }
+        { name: "state", value: $state }
+        { name: "params_json", contains: $sender }
+      ]
+    }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      params_json: property(name: "params_json")
+      raw_mime: property(name: "raw_mime")
+      state: property(name: "state")
+      ignored_reason: property(name: "ignored_reason")
+      message_id_header: property(name: "message_id_header")
+      ticket_id: property(name: "ticket_id")
+      message_id: property(name: "message_id")
+    }
+  }
+}

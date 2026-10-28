@@ -1,0 +1,26 @@
+{% doc %}
+  Parses an address-list header into [{ email, name }], lower-casing emails.
+  @param {string} value - The header value, encoded words allowed
+{% enddoc %}
+{% liquid
+  assign list = []
+  if value == blank
+    return list
+  endif
+  function decoded = 'modules/support/helpers/email/decode_header', value: value
+  assign matches = decoded | regex_matches: '(?:"([^"]*)"|([^,<"]*?))\s*<([^<>\s]+@[^<>\s]+)>|([^\s,<>"]+@[^\s,<>"]+)'
+  for m in matches
+    assign address = { "email": null, "name": null }
+    if m[2] != blank
+      assign address.email = m[2] | downcase | strip
+      assign name = m[0] | default: m[1] | strip
+      if name != blank
+        assign address.name = name
+      endif
+    else
+      assign address.email = m[3] | downcase | strip
+    endif
+    assign list << address
+  endfor
+  return list
+%}

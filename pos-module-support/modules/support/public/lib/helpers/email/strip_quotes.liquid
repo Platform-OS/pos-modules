@@ -1,0 +1,36 @@
+{% doc %}
+  Returns the new part of a reply: the text cut at the first quote marker
+  (04 §2.5), whitespace trimmed. Falls back to the whole text when the cut
+  would leave nothing.
+  @param {string} text - Plain-text body
+{% enddoc %}
+{% assign markers = [
+    "##-[^\n]*above this line[^\n]*-##",
+    "^[ \t>]*On [^\n]{1,300}(?:\n[^\n]{1,300})?wrote:[ \t]*$",
+    "^[ \t>]*W dniu [^\n]{1,300}(?:\n[^\n]{1,300})?napisał(?:[(]a[)])?:[ \t]*$",
+    "^[ \t>]*Am [^\n]{1,300}(?:\n[^\n]{1,300})?schrieb[^\n]*:[ \t]*$",
+    "^[ \t>]*[^\n]{1,300} írta:[ \t]*$",
+    "^[ \t]*-{2,}[ \t]*Original Message[ \t]*-{2,}",
+    "^[ \t]*_{10,}[ \t]*$\n^[ \t]*From:",
+    "^[ \t]*From:[^\n]*\n(?:[^\n]*\n){0,3}?^[ \t]*(?:Sent|Date):",
+    "^[ \t]*De:[^\n]*\n(?:[^\n]*\n){0,3}?^[ \t]*Envoyé:",
+    "^-- $"
+  ] %}
+{% liquid
+  if text == blank
+    return ''
+  endif
+  assign cut = text | replace_regex: '\r', ''
+  for marker in markers
+    assign pattern = '(?:\A|\n)' | append: marker | append: '.*\z'
+    assign shorter = cut | replace_regex: pattern, '', 'm'
+    if shorter.size < cut.size
+      assign cut = shorter
+    endif
+  endfor
+  assign cut = cut | strip
+  if cut == blank
+    assign cut = text | strip
+  endif
+  return cut
+%}

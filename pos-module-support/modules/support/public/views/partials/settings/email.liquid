@@ -122,6 +122,12 @@
         <input type="hidden" name="step" value="test">
         <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step5.send' | t }}</button>
       </form>
+      {% if status.inbound_checked == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step5.inbound_ok' | t: at: status.inbound_checked_at }}</p>{% elsif status.inbound_check_sent_at %}<p>{{ 'modules/support/settings_email.step5.inbound_waiting' | t }}</p>{% endif %}
+      <form action="/support-desk/settings/email" method="post">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="step" value="check_inbound">
+        <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step5.check_inbound' | t }}</button>
+      </form>
     </section>
 
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step6">

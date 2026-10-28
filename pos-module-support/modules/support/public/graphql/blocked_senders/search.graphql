@@ -1,0 +1,23 @@
+query ($patterns: [String!], $limit: Int = 100, $page: Int = 1) {
+  records(
+    page: $page
+    per_page: $limit
+    filter: { table: { value: "modules/support/blocked_sender" }, properties: [{ name: "pattern", value_in: $patterns }] }
+    sort: [{ created_at: { order: DESC } }]
+  ) {
+    total_entries
+    total_pages
+    results {
+      id
+      created_at
+      pattern: property(name: "pattern")
+      kind: property(name: "kind")
+      reason: property(name: "reason")
+      source: property(name: "source")
+      ticket_id: property(name: "ticket_id")
+      created_by_id: property(name: "created_by_id")
+      hits: property_int(name: "hits")
+      last_hit_at: property(name: "last_hit_at")
+    }
+  }
+}

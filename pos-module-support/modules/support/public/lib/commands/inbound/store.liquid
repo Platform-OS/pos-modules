@@ -1,0 +1,50 @@
+{% doc %}
+  Stores an inbound post for background processing (04 §2.1). A sender on
+  the blocklist is not stored at all; only the blocklist row's hit counter
+  moves (D-27). Returns { valid, id, blocked }.
+  @param {string} email - The raw MIME message
+  @param {string} [envelope] - Provider envelope JSON
+  @param {string} [spf] - SPF result
+  @param {string} [dkim] - DKIM result
+  @param {string} [spam_score] - Provider spam score
+  @param {string} [charsets] - Provider charsets JSON
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "id": null, "blocked": false }
+  if email == blank
+    return result
+  endif
+
+  assign senders = []
+  assign parsed_envelope = envelope | parse_json
+  if parsed_envelope.from != blank
+    assign senders << parsed_envelope.from
+  endif
+  assign head = email | slice: 0, 65536
+  assign from_header = head | regex_matches: '^From:[^\n]*?([^\s<>"]+@[^\s<>",;]+)', 'i'
+  if from_header.size > 0
+    assign senders << from_header[0][0]
+  endif
+  function blocked = 'modules/support/queries/blocklist/match', addresses: senders
+  if blocked
+    assign now = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    graphql h = 'modules/support/blocked_senders/hit', id: blocked.id, now: now
+    assign result.blocked = true
+    return result
+  endif
+
+  assign params = { "envelope": null, "spf": null, "dkim": null, "spam_score": null, "charsets": null }
+  assign params.envelope = envelope
+  assign params.spf = spf
+  assign params.dkim = dkim
+  assign params.spam_score = spam_score
+  assign params.charsets = charsets
+  assign params.sender = parsed_envelope.from | downcase
+  assign params_json = params | json
+  graphql c = 'modules/support/inbound_emails/create', params_json: params_json, raw_mime: email, state: 'received'
+  assign result.id = c.record.id
+  if result.id
+    assign result.valid = true
+  endif
+  return result
+%}

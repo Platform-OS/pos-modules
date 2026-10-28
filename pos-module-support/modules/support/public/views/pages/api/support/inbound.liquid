@@ -1,0 +1,44 @@
+---
+slug: api/support/inbound/:provider/:secret
+method: post
+layout: ''
+---
+{% liquid
+  # Provider inbound webhook (04 §2.1). Authenticated only by the secret path
+  # segment: the current INBOUND_SECRET, or the previous one until it expires
+  # after a rotation (D-28). Read named params only: never pass or iterate
+  # context.params whole (decision-9).
+  assign expected = context.constants['modules/support/INBOUND_SECRET']
+  assign given = context.params.secret | append: ''
+  assign authorized = false
+  if expected != blank and given != blank
+    assign given_digest = given | compute_hmac: expected
+    assign expected_digest = expected | compute_hmac: expected
+    if given_digest == expected_digest
+      assign authorized = true
+    else
+      function settings = 'modules/support/helpers/settings'
+      assign previous = settings.previous_inbound_secret
+      assign expires = settings.previous_secret_expires_at | to_time
+      assign now = 'now' | to_time
+      if previous != blank and expires > now
+        assign previous_digest = previous | compute_hmac: expected
+        assign given_previous_digest = given | compute_hmac: expected
+        if previous_digest == given_previous_digest
+          assign authorized = true
+        endif
+      endif
+    endif
+  endif
+
+  unless authorized
+    response_status 404
+    break
+  endunless
+
+  function stored = 'modules/support/commands/inbound/store', email: context.params.email, envelope: context.params.envelope, spf: context.params.SPF, dkim: context.params.dkim, spam_score: context.params.spam_score, charsets: context.params.charsets
+  if stored.valid
+    background _ = 'modules/support/commands/inbound/process', inbound_email_id: stored.id, max_attempts: 3, source_name: 'support_inbound'
+  endif
+  response_status 200
+%}

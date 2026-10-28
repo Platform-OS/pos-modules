@@ -1,0 +1,78 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{%- capture gmail -%}{% render 'support_fixtures/gmail' %}{%- endcapture -%}
+{%- capture outlook -%}{% render 'support_fixtures/outlook' %}{%- endcapture -%}
+{%- capture apple -%}{% render 'support_fixtures/apple' %}{%- endcapture -%}
+{%- capture expected_gmail -%}
+Cześć,
+
+Płatność nadal nie przechodzi. Zrzut ekranu poniżej.
+
+Anna
+{%- endcapture -%}
+{%- capture expected_outlook -%}
+Thanks – the receipt arrived “today” at 9:15.
+
+Mark
+{%- endcapture -%}
+{%- capture expected_apple -%}
+Still locked out after the reset. Attached the error page.
+
+Lee
+{%- endcapture -%}
+{% liquid
+  assign envelope = '{"to":["dob+t.1042.ab12cd34ef56ab78@support-dev.platformos.com"],"from":"anna.nowak@example-city.gov"}'
+
+  # Gmail: UTF-8 quoted-printable, encoded-word subject, folded References, inline image
+  assign params = { "SPF": "pass", "dkim": "{@example-city.gov : pass}", "spam_score": "0.1" }
+  assign params.email = gmail
+  assign params.envelope = envelope
+  function email = 'modules/support/commands/email/providers/sendgrid/parse_inbound', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.subject, expected: 'Dzień dobry, nadal nie działa', field_name: 'gmail subject decoded'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.message_id, expected: '<CAHx8=gmail-fixture-1@mail.gmail.com>', field_name: 'gmail message-id'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.in_reply_to, expected: '<support.555.1793190000@support-dev.platformos.com>', field_name: 'gmail in-reply-to'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.reference_ids.last, expected: '<support.555.1793190000@support-dev.platformos.com>', field_name: 'gmail folded references'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.from.email, expected: 'anna.nowak@example-city.gov', field_name: 'gmail from'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.from.name, expected: 'Anna Nowak', field_name: 'gmail from name'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.cc.size, expected: 2, field_name: 'gmail cc count'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.cc.first.name, expected: 'Kowalski, Jan', field_name: 'gmail quoted cc name'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.body_stripped, expected: expected_gmail, field_name: 'gmail body_stripped'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.attachments.size, expected: 1, field_name: 'gmail inline image is an attachment'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.attachments.first.content_id, expected: 'ii_shot1', field_name: 'gmail content-id'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.attachments.first.inline, expected: true, field_name: 'gmail inline flag'
+  assign has_script = false
+  if email.html contains '<script'
+    assign has_script = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_script, expected: false, field_name: 'gmail html sanitised'
+  assign has_cid = false
+  if email.html contains 'cid:ii_shot1'
+    assign has_cid = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_cid, expected: true, field_name: 'gmail cid kept for rewriting'
+
+  # Outlook: Windows-1252 quoted-printable, folded Content-Type, Outlook quote header
+  assign params.email = outlook
+  function email = 'modules/support/commands/email/providers/sendgrid/parse_inbound', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.body_stripped, expected: expected_outlook, field_name: 'outlook body_stripped'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.from.email, expected: 'mark@cityofharbor.gov', field_name: 'outlook from lower-cased'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.subject, expected: 'RE: Receipt [#1043]', field_name: 'outlook subject'
+  assign has_style = false
+  if email.html contains 'margin:0'
+    assign has_style = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_style, expected: false, field_name: 'outlook style removed'
+
+  # Apple Mail: us-ascii 7bit, "> On … wrote:" quote, RFC 2231 filename
+  assign params.email = apple
+  function email = 'modules/support/commands/email/providers/sendgrid/parse_inbound', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.body_stripped, expected: expected_apple, field_name: 'apple body_stripped'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.attachments.first.filename, expected: 'błąd strony.pdf', field_name: 'apple rfc2231 filename'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.attachments.first.content_base64, expected: 'JVBERi0xLjQgdGlueQ==', field_name: 'apple attachment base64'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: email.headers['auto-submitted'], expected: 'no', field_name: 'apple auto-submitted read'
+
+  # ISO-8859-2 quoted-printable
+  function decoded = 'modules/support/helpers/email/decode_body', body: 'Za=BF=F3=B3=E6 g=EA=B6l=B1', encoding: 'quoted-printable', charset: 'ISO-8859-2'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decoded, expected: 'Zażółć gęślą', field_name: 'iso-8859-2 quoted-printable'
+%}

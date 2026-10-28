@@ -1,0 +1,38 @@
+{% doc %}
+  Decodes a MIME part body to a UTF-8 string.
+  Quoted-printable: every =XX escape becomes the character U+00XX through a
+  percent-escape and url_decode, the result is re-encoded as ISO-8859-1 to
+  recover the original bytes, which are then read in the part's charset.
+  @param {string} body - The encoded body
+  @param {string} [encoding] - Content-Transfer-Encoding
+  @param {string} [charset] - Charset from Content-Type, default UTF-8
+{% enddoc %}
+{% liquid
+  assign encoding = encoding | downcase | strip
+  assign charset = charset | default: 'UTF-8' | strip
+  assign charset_key = charset | downcase
+  if charset_key == 'us-ascii' or charset_key == 'utf8' or charset_key == 'unicode-1-1-utf-8'
+    assign charset = 'UTF-8'
+  endif
+
+  case encoding
+  when 'base64'
+    assign decoded = body | replace_regex: '\s', '' | base64_decode | encode: 'UTF-8', charset
+  when 'quoted-printable'
+    assign s = body | replace_regex: '=\r?\n', '' | replace: '%', '%25' | replace: '+', '%2B'
+    assign s = s | replace_regex: '=([0-7][0-9A-Fa-f])', '%\1'
+    assign s = s | replace_regex: '=([89ABab][0-9A-Fa-f])', '%C2%\1'
+    assign s = s | replace_regex: '=[Cc]([0-9A-Fa-f])', '%C3%8\1'
+    assign s = s | replace_regex: '=[Dd]([0-9A-Fa-f])', '%C3%9\1'
+    assign s = s | replace_regex: '=[Ee]([0-9A-Fa-f])', '%C3%A\1'
+    assign s = s | replace_regex: '=[Ff]([0-9A-Fa-f])', '%C3%B\1'
+    assign decoded = s | url_decode | encode: 'ISO-8859-1', 'UTF-8' | encode: 'UTF-8', charset
+  else
+    if charset == 'UTF-8'
+      assign decoded = body
+    else
+      assign decoded = body | encode: 'ISO-8859-1', 'UTF-8' | encode: 'UTF-8', charset
+    endif
+  endcase
+  return decoded
+%}

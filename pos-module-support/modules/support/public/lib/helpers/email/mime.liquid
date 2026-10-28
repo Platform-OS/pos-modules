@@ -1,0 +1,78 @@
+{% doc %}
+  Splits a raw RFC 5322 message (or MIME part) into its header block and its
+  leaf parts, walking nested multipart bodies. Leaf bodies stay encoded.
+  Returns { head, parts: [{ type, charset, encoding, filename, content_id, disposition, body }] }.
+  @param {string} raw - The message or part, CRLF or LF line endings
+  @param {number} [depth] - Nesting level, internal
+{% enddoc %}
+{%- capture nl %}
+{% endcapture -%}
+{% liquid
+  assign depth = depth | default: 0
+  assign text = raw | replace_regex: '\r', ''
+  assign blank_line = nl | append: nl
+  assign sections = text | split: blank_line
+  assign head = sections.first | append: nl | replace_regex: '\n[ \t]+', ' '
+  assign body = sections | slice: 1, sections.size | join: blank_line
+
+  assign ctype = head | regex_matches: '^content-type:[ \t]*(.*)$', 'i'
+  assign ctype = ctype[0][0] | default: 'text/plain'
+  assign type = ctype | split: ';' | first | strip | downcase
+  assign boundary = ctype | regex_matches: 'boundary="?([^";]+)"?', 'i'
+  assign boundary = boundary[0][0] | strip
+
+  assign result = { "parts": [] }
+  assign result.head = head
+
+  if type contains 'multipart/' and boundary != blank and depth < 6
+    assign delimiter = '--' | append: boundary
+    assign chunks = body | prepend: nl | split: delimiter
+    assign next_depth = depth | plus: 1
+    for chunk in chunks offset: 1
+      assign closing = chunk | slice: 0, 2
+      if closing == '--'
+        break
+      endif
+      assign part_raw = chunk | replace_regex: '\A[ \t]*\n', ''
+      function sub = 'modules/support/helpers/email/mime', raw: part_raw, depth: next_depth
+      assign result.parts = result.parts | concat: sub.parts
+    endfor
+    return result
+  endif
+
+  assign part = { "filename": null, "content_id": null }
+  assign part.type = type
+  assign charset = ctype | regex_matches: 'charset="?([^";\s]+)"?', 'i'
+  assign part.charset = charset[0][0]
+  assign encoding = head | regex_matches: '^content-transfer-encoding:[ \t]*(.*)$', 'i'
+  assign part.encoding = encoding[0][0] | strip | downcase
+  assign disposition = head | regex_matches: '^content-disposition:[ \t]*(.*)$', 'i'
+  assign disposition = disposition[0][0]
+  assign part.disposition = disposition | split: ';' | first | strip | downcase
+
+  assign filename = disposition | regex_matches: 'filename\*=(?:"([^"]*)"|([^;\s]*))', 'i'
+  assign filename = filename[0][0] | default: filename[0][1]
+  if filename != blank
+    assign encoded = filename | split: "''"
+    assign filename = encoded | last | url_decode | encode: 'UTF-8', 'UTF-8'
+  else
+    assign filename = disposition | regex_matches: 'filename=(?:"([^"]*)"|([^;\s]*))', 'i'
+    assign filename = filename[0][0] | default: filename[0][1]
+  endif
+  if filename == blank
+    assign filename = ctype | regex_matches: 'name=(?:"([^"]*)"|([^;\s]*))', 'i'
+    assign filename = filename[0][0] | default: filename[0][1]
+  endif
+  if filename != blank
+    function filename = 'modules/support/helpers/email/decode_header', value: filename
+    assign part.filename = filename
+  elsif type == 'message/rfc822'
+    assign part.filename = 'message.eml'
+  endif
+
+  assign content_id = head | regex_matches: '^content-id:[ \t]*<?([^>\s]*)>?', 'i'
+  assign part.content_id = content_id[0][0]
+  assign part.body = body
+  assign result.parts << part
+  return result
+%}

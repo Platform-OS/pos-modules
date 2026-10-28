@@ -78,6 +78,9 @@ en:
       title: Test
       send: Send test email to me
       sent: Test email sent.
+      check_inbound: Check inbound
+      inbound_ok: "Inbound email arrived (%{at})."
+      inbound_waiting: Waiting for the check email to arrive. Reload this page in a minute.
     step6:
       title: Turn on ticket email
       on: Ticket email is on.
@@ -90,6 +93,7 @@ en:
       domain_saved: Sending domain saved.
       inbound_created: Inbound route created.
       test_sent: Test email sent. Check your inbox.
+      inbound_check_sent: Check email sent to the inbound address. Reload this page in a minute.
       enabled: Ticket email is on.
       disabled: Ticket email is off.
     errors:
