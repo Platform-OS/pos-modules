@@ -1,5 +1,5 @@
 {% liquid
-  assign data = { "id": conversation.id, "participant_read_ids": current_profile.id }
+  assign data = { "id": conversation.id, "participant_read_ids": current_profile.id, "last_message_at": message.created_at }
 
   return data
  %}

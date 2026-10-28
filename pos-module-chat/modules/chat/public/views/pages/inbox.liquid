@@ -38,7 +38,7 @@ slug: inbox
     function presigned_upload = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
     assign context.presigned_upload = presigned_upload
   endif
-  function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 30, page: 1
+  function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 30, read: null, before: null
 
   if current_conversation and current_conversation.participants == blank
     graphql participants = 'modules/user/profiles/search', ids: current_conversation.participant_ids

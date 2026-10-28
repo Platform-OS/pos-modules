@@ -88,8 +88,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.conversations.container = document.querySelector('#pos-chat-conversations');
   // selctor for the button to load more conversations (string)
   module.settings.conversations.loadMoreButtonSelector = '.pos-chat-conversations-more';
-  // current page of conversations (int)
-  module.settings.conversations.currentPage = 1;
+  // if the next page of conversations is being loaded right now (bool)
+  module.settings.conversations.loading = false;
   // are there more pages of conversations (bool)
   module.settings.conversations.morePages = document.querySelector(module.settings.conversations.loadMoreButtonSelector) ? true : false;
 
@@ -262,15 +262,23 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     });
 
-    // load nex page of conversations when user scrolls to bottom
+    // load the next page of conversations with the 'load more' button
+    module.settings.conversations.container.addEventListener('click', event => {
+      if(event.target.closest(`${module.settings.conversations.loadMoreButtonSelector} button`)){
+        module.conversations.load();
+      }
+    });
+
+    // or when the user scrolls near the bottom of the list - not exactly to it, the scroll
+    // position can be fractional and never equal the bottom
     let conversationsListTimeout = '';
     module.settings.conversations.container.addEventListener('scroll', () => {
       if(module.settings.conversations.morePages === true){
         clearTimeout(conversationsListTimeout);
         conversationsListTimeout = setTimeout(() => {
-          if(module.settings.conversations.container.scrollTop === module.settings.conversations.container.scrollHeight - module.settings.conversations.container.clientHeight){
-            module.settings.conversations.currentPage = module.settings.conversations.currentPage + 1;
-            module.conversations.load(module.settings.conversations.currentPage);
+          const container = module.settings.conversations.container;
+          if(container.scrollHeight - container.clientHeight - container.scrollTop < 50){
+            module.conversations.load();
           }
         }, 300);
       }
@@ -1015,11 +1023,21 @@ window.pos.modules.chat = function(userSettings = {}){
 
   // purpose:   loads next page of conversations
   // ------------------------------------------------------------------------
-  module.conversations.load = (page = 1) => {
+  module.conversations.load = () => {
+    // the 'load more' button carries the cursor of the next page
+    const button = module.settings.conversations.container.querySelector(`${module.settings.conversations.loadMoreButtonSelector} button`);
+    if(!button || module.settings.conversations.loading){
+      return;
+    }
+    module.settings.conversations.loading = true;
+    button.disabled = true;
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load next page of conversations');
 
+    const params = new URLSearchParams({ read: button.dataset.read, before: button.dataset.before });
+
     // get the data
-    fetch(`/conversations.frame?page=${page}`)
+    fetch(`/conversations.frame?${params}`)
     .then(response => {
       if(response.ok){
         return response.text();
@@ -1033,7 +1051,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
       module.settings.conversations.container.insertAdjacentHTML('beforeend', data);
 
-      pos.modules.debug(module.settings.debug, module.settings.id, `Conversations page ${page} loaded`, { data });
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Next page of conversations loaded', { data });
 
       // disable loading next pages if there is nothing left
       if(!document.querySelector(module.settings.conversations.loadMoreButtonSelector)){
@@ -1043,9 +1061,11 @@ window.pos.modules.chat = function(userSettings = {}){
     })
     .catch((error) => {
       console.log(error);
-      error.json().then(data => console.log(data));
+      // the button stays, so it can be tried again
+      button.disabled = false;
     })
     .finally(() => {
+      module.settings.conversations.loading = false;
       pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous conversations');
     });
   };

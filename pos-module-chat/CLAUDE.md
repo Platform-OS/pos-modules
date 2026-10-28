@@ -25,7 +25,7 @@ They are invoked with the path relative to `public/lib/` (the `lib/` prefix is d
 
 ```liquid
 function conversation = 'modules/chat/commands/conversations/find_or_create', object: object, current_profile: current_profile
-function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 20, page: 1
+function conversations = 'modules/chat/queries/conversations/search_by_participant', participant_id: current_profile.id, limit: 20, read: null, before: null
 ```
 
 ### WebSocket channel handlers
@@ -33,7 +33,7 @@ function conversations = 'modules/chat/queries/conversations/search_by_participa
 Action Cable channel actions are Liquid partials at `views/partials/channels/<channel>/<action>.liquid`. The channel is `conversate`:
 
 - `channels/conversate/subscribed.liquid` — authorization gate: echoes `'true'`/`'false'` depending on whether `current_profile` is a participant of `room_id` (the conversation id). Returning `false` makes Action Cable reject the subscription.
-- `channels/conversate/receive.liquid` — handles an incoming message: re-verifies participation, creates the message via the command (the body is stored as typed — escaping happens at render time, as plain text with newlines turned into `<br>`: each line printed via auto-escaping `{{ }}` in `message.liquid`, `encodeHtml` in `pos-chat.js` — keep the two identical; never store it pre-escaped, don't use `markdown`, and never `html_safe` user text — on platformOS it *unescapes*), and marks the conversation unread for the recipient. **Sender-side persistence**: if the receiver is not a participant the message is skipped here and persisted on the sender's side instead (see the skip log). It also doubles as the mark-read ping: when the payload carries `mark_read: true` (sent by `pos-chat.js` when the channel connects and whenever it renders a live message, only while the tab is visible — the inbox page itself never marks read, see below), it marks the current participant read instead of creating a message, and echoes `"false"` to suppress the default rebroadcast-to-room. This is what the debounced push notification (see Events below) checks against.
+- `channels/conversate/receive.liquid` — handles an incoming message: re-verifies participation, creates the message via the command (the body is stored as typed — escaping happens at render time, as plain text with newlines turned into `<br>`: each line printed via auto-escaping `{{ }}` in `message.liquid`, `encodeHtml` in `pos-chat.js` — keep the two identical; never store it pre-escaped, don't use `markdown`, and never `html_safe` user text — on platformOS it *unescapes*), and marks the conversation unread for the recipient (which also sets its `last_message_at`). **Sender-side persistence**: if the receiver is not a participant the message is skipped here and persisted on the sender's side instead (see the skip log). It also doubles as the mark-read ping: when the payload carries `mark_read: true` (sent by `pos-chat.js` when the channel connects and whenever it renders a live message, only while the tab is visible — the inbox page itself never marks read, see below), it marks the current participant read instead of creating a message, and echoes `"false"` to suppress the default rebroadcast-to-room. This is what the debounced push notification (see Events below) checks against.
 
   `receive` is the *only* action `WebNotificationsChannel` (the Ruby ActionCable channel backing this) dispatches to — `subscribed` is a lifecycle callback, not a `perform`-able action. A custom action name (e.g. a client calling `.perform('mark_read')`) is silently dropped server-side since no such method exists on the channel; that's why mark-read piggybacks on `receive` via a payload flag instead of being its own partial.
 
@@ -45,7 +45,9 @@ Both handlers independently check the `chat.inbox` permission and then participa
 
 ## Data model (`public/schema/`)
 
-- `conversation`: `participant_ids` (array), `participant_read_ids` (array). Read-state is tracked by adding/removing a participant id from `participant_read_ids` (see the `mark_read` / `mark_unread` commands).
+- `conversation`: `participant_ids` (array), `participant_read_ids` (array), `last_message_at` (datetime). Read-state is tracked by adding/removing a participant id from `participant_read_ids` (see the `mark_read` / `mark_unread` commands). `last_message_at` is set by `mark_unread` with every new message (and by a migration for older conversations); a conversation without it has no message yet and isn't listed.
+
+The conversations list (`queries/conversations/search_by_participant`, used by the inbox, `conversations.frame` and `GET /api/chat/conversations`) shows unread ones first, then read ones, each newest first. Both groups are queried and sorted in the database (`not_array_contains` / `array_contains` on `participant_read_ids`, sorted by `last_message_at`), and paged by cursor (`read` + `before` = the group and `last_message_at` of the last one shown, returned as `next_read` / `next_before`), since opening a conversation moves it between the groups and would shift numbered pages.
 - `uploads`: `conversation_id`, `uploader_id`, `upload` (private file), `metadata` (type, name, size and image dimensions as reported by the client). The file size limit (10 MB) is the upload property's `content_length` option, which platformOS puts into the presigned policy, so S3 refuses larger files; `uploads/create/check` only checks the reported size, for a readable error.
 - `message`: `conversation_id`, `message`, **`autor_id`** (note: the field is spelled "autor", not "author" — match it exactly in queries, commands, and JS).
 

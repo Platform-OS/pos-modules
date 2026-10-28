@@ -165,25 +165,87 @@ test.describe('Testing messaging', () => {
 
     ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
 
-    // total_entries counts empty conversations too, which the inbox doesn't list
-    const countConversations = async () => (await (await page.request.get('/api/chat/conversations?per_page=1')).json()).total_entries;
+    // the chat with them renders the conversation's id when there is one, empty conversations too
+    const conversationId = async () => (await (await page.request.get(`/inbox?to_uuid=${toUuid}`)).text()).match(/data-conversation-id="([^"]*)"/)?.[1];
 
     await new PeoplePage(page).goto();
     const chatUrl = await page.getByRole('link', { name: other.fullName, exact: true }).getAttribute('href');
     const toUuid = new URL(chatUrl ?? '', page.url()).searchParams.get('to_uuid');
     expect(toUuid, 'the people list links to the chat by to_uuid').toBeTruthy();
-    const before = await countConversations();
+    expect(await conversationId(), 'there is no conversation with them yet').toBe('');
 
     await test.step('a plain GET of the chat link, as a link or redirect from another site or a prefetch makes it, creates nothing', async () => {
       const response = await page.request.get(`/inbox?to_uuid=${toUuid}`);
       expect(response.ok()).toBe(true);
-      expect(await countConversations()).toBe(before);
+      expect(await conversationId()).toBe('');
     });
 
     await test.step('starting the conversation without the CSRF token is refused', async () => {
       const response = await page.request.post('/api/chat/conversations', { form: { to_uuid: toUuid! } });
       expect(response.status()).toBe(403);
-      expect(await countConversations()).toBe(before);
+      expect(await conversationId()).toBe('');
+    });
+
+    await context?.close();
+  });
+
+  test(`the conversations list shows every conversation once, unread first, newest first`, async ({ browser }) => {
+    test.setTimeout(120_000);
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // test6 has the 40 seeded conversations, and other tests send them messages meanwhile - so
+    // only what holds while the list changes is checked: conversations that change move to the
+    // top, above the page being loaded, and aren't shown again
+    const user = users.test6;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    await inboxPage.goto();
+    const profileId = await page.evaluate(() => String((window as any).pos.profile.id));
+
+    await test.step('the API pages through them by cursor, unread ones first, each group newest first', async () => {
+      const listed: { id: string, unread: boolean, at: string }[] = [];
+      let cursor = '';
+      for (let i = 0; i < 20; i++) {
+        const json = await (await page.request.get(`/api/chat/conversations?per_page=7${cursor}`)).json();
+        listed.push(...json.results.map((c: any) => ({ id: c.id, unread: !c.participant_read_ids.includes(profileId), at: c.last_message_at })));
+        if (!json.has_next_page) break;
+        cursor = `&read=${json.next_read}&before=${encodeURIComponent(json.next_before)}`;
+      }
+
+      expect(listed.length).toBeGreaterThanOrEqual(40);
+      expect(new Set(listed.map(c => c.id)).size, 'no conversation is listed twice').toBe(listed.length);
+      const firstRead = listed.findIndex(c => !c.unread);
+      expect(listed.slice(firstRead).every(c => !c.unread), 'unread ones come first').toBe(true);
+      for (const group of [listed.slice(0, firstRead), listed.slice(firstRead)]) {
+        const times = group.map(c => Date.parse(c.at));
+        expect(times, 'newest first').toEqual([...times].sort((a, b) => b - a));
+      }
+    });
+
+    await test.step('the inbox shows 30, scrolling down and the "Load more" button load the rest - each once', async () => {
+      const cards = page.locator('#pos-chat-conversations .pos-chat-conversationCard');
+      const loadMore = page.locator('.pos-chat-conversations-more button');
+      await expect(cards).toHaveCount(30);
+      await expect(loadMore).toBeVisible();
+
+      // near the bottom is enough, not exactly at it
+      await page.locator('#pos-chat-conversations').evaluate(list => list.scrollTop = list.scrollHeight - list.clientHeight - 20);
+      await expect.poll(() => cards.count()).toBeGreaterThan(30);
+
+      while (await loadMore.isVisible()) {
+        const shown = await cards.count();
+        await loadMore.click();
+        await expect.poll(() => cards.count()).toBeGreaterThan(shown);
+      }
+
+      const ids = await page.locator('#pos-chat-conversations a[href*="conversation_id="]').evaluateAll(links => links.map(link => new URL((link as HTMLAnchorElement).href).searchParams.get('conversation_id')));
+      expect(ids.length).toBeGreaterThanOrEqual(40);
+      expect(new Set(ids).size, 'no conversation is shown twice').toBe(ids.length);
+
+      const unread = await cards.evaluateAll(cards => cards.map(card => card.classList.contains('pos-chat-conversationCard-unread')));
+      expect(unread.slice(unread.indexOf(false)).every(u => !u), 'unread ones come first').toBe(true);
     });
 
     await context?.close();
@@ -202,14 +264,11 @@ test.describe('Testing messaging', () => {
     const inboxPage = new InboxPage(page);
     await inboxPage.goto();
 
-    const countConversations = async () => (await (await page.request.get('/api/chat/conversations?per_page=1')).json()).total_entries;
-
     await inboxPage.search.searchFor('dummy40');
     await inboxPage.search.isResultVisible(otherName);
     const chatUrl = await inboxPage.search.getResultByFullName(otherName).locator('xpath=ancestor::a').getAttribute('href');
     const toUuid = new URL(chatUrl ?? '', page.url()).searchParams.get('to_uuid');
     expect(toUuid, 'the search result links to the chat by to_uuid').toBeTruthy();
-    const before = await countConversations();
 
     // what two tabs (or a double click) sending the first message at the same time do
     const ids = await page.evaluate(async (toUuid) => {
@@ -219,13 +278,14 @@ test.describe('Testing messaging', () => {
         body: JSON.stringify({ to_uuid: toUuid })
       }).then(response => response.json()).then(json => json.id);
 
-      return await Promise.all([start(), start(), start()]);
+      const ids = await Promise.all([start(), start(), start()]);
+      // and later on - a duplicate left behind would usually be found instead
+      ids.push(await start());
+      return ids;
     }, toUuid);
 
     expect(ids[0]).toBeTruthy();
     expect(new Set(ids).size, `all requests get the same conversation, got ${ids}`).toBe(1);
-    // the conversation existed already when the instance wasn't reseeded since the last run
-    expect(await countConversations()).toBeLessThanOrEqual(before + 1);
 
     await context?.close();
   });

@@ -1,0 +1,27 @@
+{% doc %}
+  Background job for migrations/20261028130000_set_conversations_last_message_at - sets
+  last_message_at on one page of conversations, from their last message.
+
+  @param {number} page - page of the conversations table, sorted by id
+  @param {number} per_page - conversations per page
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/chat/conversations/search_for_last_message_at', page: page, limit: per_page
+
+  assign updated = 0
+  for conversation in r.conversations.results
+    # set already (by a new message) or no message to take it from
+    if conversation.last_message_at != blank or conversation.last_message.size == 0
+      continue
+    endif
+
+    # one update per conversation is unavoidable - each gets a different value
+    # platformos-check-disable GraphqlInForLoop, NestedGraphQLQuery
+    graphql _update = 'modules/chat/conversations/set_last_message_at', id: conversation.id, last_message_at: conversation.last_message.first.created_at
+    # platformos-check-enable GraphqlInForLoop, NestedGraphQLQuery
+    assign updated = updated | plus: 1
+  endfor
+
+  assign summary = { "page": page, "updated": updated }
+  log summary, type: 'chat: set conversations last_message_at'
+%}

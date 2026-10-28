@@ -6,7 +6,8 @@ method: get
 {% doc %}
   Get conversations for given participant
 
-  @param {string} page - page number for pagination
+  @param {boolean} [read] - the cursor: `next_read` of the previous page
+  @param {string} [before] - the cursor: `next_before` of the previous page
   @param {number} [per_page] - items per page (default: 4, at most 50)
 {% enddoc %}
 
@@ -17,10 +18,11 @@ method: get
   include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
-  assign page = context.params.page | to_positive_integer: 0
   assign per_page = context.params.per_page | to_positive_integer: 4
+  assign read = context.params.read
+  assign before = context.params.before
 
-  function conversations = 'modules/chat/queries/conversations/search_by_participant', page: page, limit: per_page, participant_id: current_profile.id
+  function conversations = 'modules/chat/queries/conversations/search_by_participant', read: read, before: before, limit: per_page, participant_id: current_profile.id
 
   render 'modules/chat/json/conversations/show', conversations: conversations
 %}
