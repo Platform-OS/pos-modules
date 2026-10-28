@@ -1,0 +1,54 @@
+{% doc %}
+  Maintenance job, every 5 minutes (06 §4): ends the Confirmation waiting
+  period (auto_close closes; keep_open publishes support_confirmation_waiting
+  once per ticket), clears expired snoozes, re-checks SLA deadlines that
+  passed without a state change, writes the heartbeat and schedules the
+  next run. Only the chain named in the sweep_chain setting continues, so
+  restarting the sweep never leaves two chains running.
+  @param {string} chain_id - The chain this run belongs to
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  if settings.sweep_chain != chain_id
+    return null
+  endif
+  assign now_iso = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign summary = { "closed": 0, "notified": 0, "unsnoozed": 0, "rechecked": 0 }
+
+  assign wait_days = settings.confirmation_wait_days | default: 7 | plus: 0 | times: -1
+  assign solved_before = 'now' | add_to_time: wait_days, 'd' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign solved = ["solved"]
+  graphql waiting = 'modules/support/tickets/search', categories: solved, solved_before: solved_before, limit: 100
+  for ticket in waiting.records.results
+    function done = 'modules/support/commands/maintenance/confirmation_ended', ticket: ticket, mode: settings.confirmation_mode
+    if done == 'closed'
+      assign summary.closed = summary.closed | plus: 1
+    elsif done == 'notified'
+      assign summary.notified = summary.notified | plus: 1
+    endif
+  endfor
+
+  graphql snoozed = 'modules/support/tickets/search', snoozed_before: now_iso, limit: 100
+  for ticket in snoozed.records.results
+    if ticket.snooze_until != blank
+      assign values = { "snooze_until": null }
+      function _ = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+      assign summary.unsnoozed = summary.unsnoozed | plus: 1
+    endif
+  endfor
+
+  assign running_states = ["on_track", "due_soon"]
+  assign open_categories = ["new", "open"]
+  graphql missed = 'modules/support/tickets/search', categories: open_categories, sla_states: running_states, due_before: now_iso, limit: 100
+  for ticket in missed.records.results
+    function _ = 'modules/support/commands/sla/check', ticket_id: ticket.id, version: ticket.sla_version, deadline: 'sweep', kind: 'breach'
+    assign summary.rechecked = summary.rechecked | plus: 1
+  endfor
+
+  assign heartbeat = { "at": null, "summary": null }
+  assign heartbeat.at = now_iso
+  assign heartbeat.summary = summary
+  function _ = 'modules/support/commands/settings/set', key: 'sweep_heartbeat', value: heartbeat
+  background _ = 'modules/support/commands/maintenance/sweep', delay: 5, source_name: 'support_sweep', chain_id: chain_id
+  return summary
+%}

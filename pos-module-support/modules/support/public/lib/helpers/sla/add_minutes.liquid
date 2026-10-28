@@ -1,0 +1,48 @@
+{% doc %}
+  Adds working minutes to a time (06 §3). Calendar mode adds plain minutes;
+  business mode walks the policy's opening hours day by day in its time
+  zone, skipping closed days and holidays (at most 400 days). Returns epoch
+  seconds.
+  @param {number} start - Start, epoch seconds
+  @param {number} minutes - Minutes to add
+  @param {string} [mode] - calendar | business
+  @param {object} [hours] - { tz, days: { mon: ["09:00","17:00"], … }, holidays: ["YYYY-MM-DD"] }
+{% enddoc %}
+{% liquid
+  assign seconds = minutes | times: 60
+  if mode != 'business' or hours.days == blank
+    assign result = start | plus: seconds
+    return result
+  endif
+
+  assign tz = hours.tz | default: 'UTC'
+  assign holidays = hours.holidays | default: []
+  assign remaining = seconds
+  assign cursor = start
+  for i in (1..400)
+    assign local = cursor | to_time: tz
+    assign day = local | strftime: '%Y-%m-%d'
+    assign weekday = local | strftime: '%a' | downcase
+    assign window = hours.days[weekday]
+    if window.size == 2
+      unless holidays contains day
+        assign open_at = day | append: ' ' | append: window[0] | to_time: tz | strftime: '%s' | plus: 0
+        assign close_at = day | append: ' ' | append: window[1] | to_time: tz | strftime: '%s' | plus: 0
+        if cursor < open_at
+          assign cursor = open_at
+        endif
+        if cursor < close_at
+          assign available = close_at | minus: cursor
+          if remaining <= available
+            assign result = cursor | plus: remaining
+            return result
+          endif
+          assign remaining = remaining | minus: available
+        endif
+      endunless
+    endif
+    assign next_day = local | add_to_time: 1, 'd' | strftime: '%Y-%m-%d'
+    assign cursor = next_day | append: ' 00:00' | to_time: tz | strftime: '%s' | plus: 0
+  endfor
+  return cursor
+%}

@@ -1,0 +1,88 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign hours = { "tz": "America/Chicago", "days": { "mon": ["09:00", "17:00"], "tue": ["09:00", "17:00"], "wed": ["09:00", "17:00"], "thu": ["09:00", "17:00"], "fri": ["09:00", "17:00"] }, "holidays": [] }
+
+  # business hours across a weekend: Fri 16:00 + 120 min = Mon 10:00
+  assign start = '2026-10-30 16:00' | to_time: 'America/Chicago' | strftime: '%s' | plus: 0
+  function due = 'modules/support/helpers/sla/add_minutes', start: start, minutes: 120, mode: 'business', hours: hours
+  assign due_local = due | to_time: 'America/Chicago' | strftime: '%a %Y-%m-%d %H:%M'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: due_local, expected: 'Mon 2026-11-02 10:00', field_name: 'business hours across weekend'
+
+  # ... and a holiday on Monday: Tue 10:00
+  assign hours.holidays = ["2026-11-02"]
+  function due = 'modules/support/helpers/sla/add_minutes', start: start, minutes: 120, mode: 'business', hours: hours
+  assign due_local = due | to_time: 'America/Chicago' | strftime: '%a %Y-%m-%d %H:%M'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: due_local, expected: 'Tue 2026-11-03 10:00', field_name: 'business hours skip holiday'
+
+  # outside hours: Sat 12:00 + 30 min = Mon 09:30
+  assign hours.holidays = []
+  assign start = '2026-10-31 12:00' | to_time: 'America/Chicago' | strftime: '%s' | plus: 0
+  function due = 'modules/support/helpers/sla/add_minutes', start: start, minutes: 30, mode: 'business', hours: hours
+  assign due_local = due | to_time: 'America/Chicago' | strftime: '%a %H:%M'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: due_local, expected: 'Mon 09:30', field_name: 'business hours start next opening'
+
+  # calendar mode adds plain minutes
+  function due = 'modules/support/helpers/sla/add_minutes', start: 1000, minutes: 30, mode: 'calendar', hours: hours
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: due, expected: 2800, field_name: 'calendar minutes'
+
+  # due_soon at 25 %: P0 resolution 1440 min, first reply 30 min (calendar)
+  assign policy = { "id": "p", "targets": { "p0": { "first": 30, "next": 60, "resolution": 1440, "hours": "calendar" } } }
+  assign created = 'now' | to_time | strftime: '%s' | plus: 0
+  assign ticket = { "priority": "p0", "category": "new", "sla_paused_seconds": 0 }
+  assign ticket.created_at = created | to_time
+  assign now = created | plus: 1400
+  function computed = 'modules/support/commands/sla/compute', ticket: ticket, policy: policy, now: now
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: computed.values.sla_state, expected: 'due_soon', field_name: 'due soon under 25 %'
+  assign now = created | plus: 1200
+  function computed = 'modules/support/commands/sla/compute', ticket: ticket, policy: policy, now: now
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: computed.values.sla_state, expected: 'on_track', field_name: 'on track above 25 %'
+  assign now = created | plus: 1900
+  function computed = 'modules/support/commands/sla/compute', ticket: ticket, policy: policy, now: now
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: computed.values.sla_state, expected: 'overdue', field_name: 'overdue after first reply due'
+
+  # first reply met is not reset by reopening
+  assign ticket.first_replied_at = created | plus: 600 | to_time
+  assign ticket.category = 'open'
+  assign now = created | plus: 1900
+  function computed = 'modules/support/commands/sla/compute', ticket: ticket, policy: policy, now: now
+  assign names = computed.running | map: 'name' | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: names, expected: 'resolution', field_name: 'first reply not running after it was met'
+
+  # pause in pending shifts resolution by the paused time
+  function f = 'support_test_helpers/ticket_fixture', label: 'sla'
+  function updated = 'modules/support/commands/sla/update', ticket_id: f.ticket.id
+  assign before = updated.sla_resolution_due_at | to_time | strftime: '%s' | plus: 0
+  function pending = 'modules/support/commands/tickets/change_status', ticket: f.ticket, status_key: 'customer', actor: f.actor
+  function paused = 'modules/support/commands/sla/update', ticket_id: f.ticket.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: paused.sla_state, expected: 'paused', field_name: 'pending pauses'
+  assign hour_ago = 'now' | add_to_time: -1, 'h'
+  assign values = { "sla_paused_at": null }
+  assign values.sla_paused_at = hour_ago
+  function props = 'modules/support/helpers/props', values: values
+  graphql moved = 'modules/support/records/update', id: f.ticket.id, properties: props
+  function reopened = 'modules/support/commands/tickets/change_status', ticket: pending.ticket, status_key: 'progress', actor: f.actor
+  function resumed = 'modules/support/commands/sla/update', ticket_id: f.ticket.id
+  assign after = resumed.sla_resolution_due_at | to_time | strftime: '%s' | plus: 0
+  assign shift = after | minus: before
+  assign shifted = false
+  if shift >= 3590 and shift <= 3700
+    assign shifted = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: shifted, field_name: 'resolution shifted by pause', object: null
+
+  # a timer from an older sla_version exits
+  assign stale = resumed.sla_version | minus: 1
+  function result = 'modules/support/commands/sla/check', ticket_id: f.ticket.id, version: stale, deadline: 'resolution', kind: 'breach'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result, expected: null, field_name: 'stale timer exits'
+
+  # confirmation: keep_open notifies once, auto_close closes
+  function solved = 'modules/support/commands/tickets/change_status', ticket: reopened.ticket, status_key: 'confirm', actor: f.actor
+  function first = 'modules/support/commands/maintenance/confirmation_ended', ticket: solved.ticket, mode: 'keep_open'
+  function second = 'modules/support/commands/maintenance/confirmation_ended', ticket: solved.ticket, mode: 'keep_open'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: first, expected: 'notified', field_name: 'keep_open notifies'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: second, expected: null, field_name: 'keep_open notifies once'
+  function closed = 'modules/support/commands/maintenance/confirmation_ended', ticket: solved.ticket, mode: 'auto_close'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: closed, expected: 'closed', field_name: 'auto_close closes'
+%}

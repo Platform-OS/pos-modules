@@ -1,0 +1,32 @@
+{% doc %}
+  A ticket's Confirmation waiting period ended (06 §4): auto_close closes
+  it; keep_open publishes support_confirmation_waiting once per stay in
+  Confirmation. Returns closed | notified | null.
+  @param {object} ticket - A solved ticket past its waiting period
+  @param {string} [mode] - auto_close | keep_open
+{% enddoc %}
+{% liquid
+  assign actor = { "type": "system", "id": null, "member": null }
+  if mode == 'keep_open'
+    graphql seen = 'modules/support/ticket_events/search', ticket_id: ticket.id, event_type: 'confirm_wait_notified', limit: 1
+    assign last = seen.records.results.first
+    if last
+      assign notified_at = last.created_at | to_time
+      assign solved_at = ticket.solved_at | to_time
+      if notified_at > solved_at
+        return null
+      endif
+    endif
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'confirm_wait_notified', from_value: null, to_value: null, reason: null
+    assign payload = { "ticket_id": null }
+    assign payload.ticket_id = ticket.id
+    function _ = 'modules/core/commands/events/publish', type: 'support_confirmation_waiting', object: payload, delay: null, max_attempts: null
+    return 'notified'
+  endif
+
+  function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: 'closed', actor: actor
+  if changed.valid
+    return 'closed'
+  endif
+  return null
+%}

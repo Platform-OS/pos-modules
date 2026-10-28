@@ -1,0 +1,11 @@
+query ($ids: [ID!], $limit: Int = 20) {
+  records(per_page: $limit, filter: { id: { value_in: $ids }, table: { value: "modules/support/sla_policy" } }) {
+    results {
+      id
+      name: property(name: "name")
+      targets: property_object(name: "targets")
+      business_hours: property_object(name: "business_hours")
+      is_default: property_boolean(name: "is_default")
+    }
+  }
+}

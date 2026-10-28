@@ -1,0 +1,33 @@
+{% doc %}
+  The SLA policy that applies to a ticket (06 §3): the organization's, else
+  the department's, else the default policy.
+  @param {object} ticket - The ticket
+{% enddoc %}
+{% liquid
+  graphql all = 'modules/support/sla_policies/search', limit: 100
+  assign by_id = {}
+  assign default_policy = null
+  for policy in all.records.results
+    assign by_id[policy.id] = policy
+    if policy.is_default
+      assign default_policy = policy
+    endif
+  endfor
+
+  assign policy = null
+  if ticket.organization_id != blank
+    graphql o = 'modules/support/organizations/search', id: ticket.organization_id, limit: 1
+    assign org_policy = o.records.results.first.sla_policy_id
+    if org_policy != blank
+      assign policy = by_id[org_policy]
+    endif
+  endif
+  if policy == null and ticket.department_id != blank
+    graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
+    assign department_policy = d.records.results.first.sla_policy_id
+    if department_policy != blank
+      assign policy = by_id[department_policy]
+    endif
+  endif
+  return policy | default: default_policy
+%}

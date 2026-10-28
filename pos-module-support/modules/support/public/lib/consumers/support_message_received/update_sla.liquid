@@ -1,0 +1,13 @@
+---
+metadata:
+  priority: high
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_message_received
+{% enddoc %}
+{% liquid
+  unless event.auto_reply
+    function _ = 'modules/support/commands/sla/update', ticket_id: event.ticket_id
+  endunless
+%}

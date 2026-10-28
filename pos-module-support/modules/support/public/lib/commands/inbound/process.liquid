@@ -73,7 +73,7 @@
   assign auto_submitted = h['auto-submitted'] | downcase | strip
   assign precedence = h.precedence | downcase | strip
   assign bulk = ["bulk", "list", "junk", "auto_reply"]
-  assign local_part = sender | split: '@' | first | downcase
+  assign local_part = sender | split: '@' | first | split: '+' | first | downcase
   assign robots = ["mailer-daemon", "postmaster", "noreply", "no-reply", "donotreply", "do-not-reply"]
   assign return_path = h['return-path'] | strip
   if auto_submitted != blank and auto_submitted != 'no'

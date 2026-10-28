@@ -1,0 +1,10 @@
+{% doc %}
+  Starts a new sweep chain; any older chain stops at its next run.
+  Used by the install migration and Settings → Integrations.
+{% enddoc %}
+{% liquid
+  assign chain_id = 12 | random_string
+  function _ = 'modules/support/commands/settings/set', key: 'sweep_chain', value: chain_id
+  background _ = 'modules/support/commands/maintenance/sweep', delay: 0.1, source_name: 'support_sweep', chain_id: chain_id
+  return chain_id
+%}

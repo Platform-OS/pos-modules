@@ -1,0 +1,100 @@
+{% doc %}
+  Computes a ticket's SLA deadlines and state (06 §3) without writing.
+  Deadlines run from created_at; resolution is shifted by the time spent
+  paused; next reply runs from the last customer message once the first
+  reply was sent. Returns { values, running: [{ name, due, target }] }.
+  @param {object} ticket - The ticket
+  @param {object} policy - From queries/sla/policy_for
+  @param {number} [now] - Epoch seconds, default the current time
+{% enddoc %}
+{% liquid
+  assign now = now | default: 'now' | to_time | strftime: '%s' | plus: 0
+  assign target = policy.targets[ticket.priority] | default: {}
+  assign mode = target.hours | default: 'calendar'
+  assign hours = policy.business_hours
+  assign created = ticket.created_at | to_time | strftime: '%s' | plus: 0
+  assign paused_seconds = ticket.sla_paused_seconds | default: 0 | plus: 0
+
+  assign values = { "sla_first_reply_due_at": null, "sla_next_reply_due_at": null, "sla_resolution_due_at": null, "sla_due_at": null, "sla_state": "none" }
+  assign values.sla_policy_id = policy.id
+  assign running = []
+  assign closed_categories = ["solved", "closed"]
+  assign paused_categories = ["pending", "on_hold"]
+  assign is_closed = false
+  if closed_categories contains ticket.category
+    assign is_closed = true
+  endif
+  assign is_paused = false
+  if paused_categories contains ticket.category
+    assign is_paused = true
+  endif
+
+  if target.first != blank
+    function due = 'modules/support/helpers/sla/add_minutes', start: created, minutes: target.first, mode: mode, hours: hours
+    assign values.sla_first_reply_due_at = due | to_time
+    if ticket.first_replied_at == blank and is_closed == false
+      assign item = { "name": "first_reply" }
+      assign item.due = due
+      assign item.target = target.first | times: 60
+      assign running << item
+    endif
+  endif
+
+  if target.next != blank and ticket.first_replied_at != blank and ticket.needs_reply and ticket.last_customer_message_at != blank and is_closed == false and is_paused == false
+    assign last_customer = ticket.last_customer_message_at | to_time | strftime: '%s' | plus: 0
+    function due = 'modules/support/helpers/sla/add_minutes', start: last_customer, minutes: target.next, mode: mode, hours: hours
+    assign values.sla_next_reply_due_at = due | to_time
+    assign item = { "name": "next_reply" }
+    assign item.due = due
+    assign item.target = target.next | times: 60
+    assign running << item
+  endif
+
+  if target.resolution != blank
+    function due = 'modules/support/helpers/sla/add_minutes', start: created, minutes: target.resolution, mode: mode, hours: hours
+    assign due = due | plus: paused_seconds
+    assign values.sla_resolution_due_at = due | to_time
+    if is_closed == false and is_paused == false
+      assign item = { "name": "resolution" }
+      assign item.due = due
+      assign item.target = target.resolution | times: 60
+      assign running << item
+    endif
+  endif
+
+  if is_closed
+    assign values.sla_state = 'none'
+    if values.sla_resolution_due_at
+      assign finished = ticket.solved_at | default: ticket.closed_at | default: now | to_time | strftime: '%s' | plus: 0
+      assign resolution_due = values.sla_resolution_due_at | strftime: '%s' | plus: 0
+      if finished <= resolution_due
+        assign values.sla_state = 'met'
+      else
+        assign values.sla_state = 'missed'
+      endif
+    endif
+  elsif is_paused
+    assign values.sla_state = 'paused'
+  elsif running.size > 0
+    assign values.sla_state = 'on_track'
+    assign nearest = null
+    for item in running
+      if nearest == null or item.due < nearest
+        assign nearest = item.due
+      endif
+      assign left = item.due | minus: now
+      assign quarter = item.target | divided_by: 4
+      if left <= 0
+        assign values.sla_state = 'overdue'
+      elsif left < quarter and values.sla_state != 'overdue'
+        assign values.sla_state = 'due_soon'
+      endif
+    endfor
+    assign values.sla_due_at = nearest | to_time
+  endif
+
+  assign result = { "values": null, "running": null }
+  assign result.values = values
+  assign result.running = running
+  return result
+%}

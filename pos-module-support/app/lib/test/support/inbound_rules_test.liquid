@@ -9,6 +9,8 @@
 
   assign cases = '{"name":"auto-submitted","header":"Auto-Submitted: auto-replied","from":"person@example.com"},{"name":"bulk","header":"Precedence: bulk","from":"news@example.com"},{"name":"list-id","header":"List-Id: <updates.example.com>","from":"list@example.com"},{"name":"mailer-daemon","header":"X-Note: none","from":"MAILER-DAEMON@example.com"},{"name":"plain","header":"X-Note: none","from":"human@example.com"}' | prepend: '[' | append: ']' | parse_json
   for item in cases
+    assign local = item.from | split: '@' | first
+    assign item.from = local | append: '+' | append: suffix | append: '@example.com'
     assign message_id = '<rule-' | append: item.name | append: '-' | append: suffix | append: '@example.com>'
     assign raw = 'From: Someone <' | append: item.from | append: '>' | append: nl | append: 'To: dob@support-dev.platformos.com' | append: nl | append: 'Subject: Rule test' | append: nl | append: 'Message-ID: ' | append: message_id | append: nl | append: item.header | append: nl | append: nl | append: 'Body' | append: nl
     function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: item.from, to: null

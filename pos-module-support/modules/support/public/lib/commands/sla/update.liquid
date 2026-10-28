@@ -1,0 +1,53 @@
+{% doc %}
+  Recomputes and stores a ticket's SLA after a change (06 §3): pauses the
+  clock in pending/on_hold, adds the paused time when it leaves them,
+  writes deadlines and state, bumps sla_version and schedules the due-soon
+  and breach checks for each running deadline (06 §4).
+  @param {string} ticket_id - The ticket
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank
+    return null
+  endif
+  function policy = 'modules/support/queries/sla/policy_for', ticket: ticket
+  if policy == blank
+    return null
+  endif
+
+  assign now = 'now' | to_time | strftime: '%s' | plus: 0
+  assign paused_categories = ["pending", "on_hold"]
+  assign values = {}
+  if paused_categories contains ticket.category
+    if ticket.sla_paused_at == blank
+      assign values.sla_paused_at = now | to_time
+    endif
+  elsif ticket.sla_paused_at != blank
+    assign paused_from = ticket.sla_paused_at | to_time | strftime: '%s' | plus: 0
+    assign paused_for = now | minus: paused_from
+    assign values.sla_paused_seconds = ticket.sla_paused_seconds | default: 0 | plus: paused_for
+    assign values.sla_paused_at = null
+  endif
+  assign ticket = ticket | hash_merge: values
+
+  function computed = 'modules/support/commands/sla/compute', ticket: ticket, policy: policy, now: now
+  assign values = values | hash_merge: computed.values
+  assign version = ticket.sla_version | default: 0 | plus: 1
+  assign values.sla_version = version
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/update', id: ticket.id, properties: props
+
+  for item in computed.running
+    assign quarter = item.target | divided_by: 4
+    assign soon_at = item.due | minus: quarter
+    assign soon_delay = soon_at | minus: now | divided_by: 60.0
+    if soon_delay > 0
+      background _ = 'modules/support/commands/sla/check', delay: soon_delay, source_name: 'support_sla_check', ticket_id: ticket.id, version: version, deadline: item.name, kind: 'due_soon'
+    endif
+    assign breach_delay = item.due | minus: now | divided_by: 60.0 | at_least: 0
+    background _ = 'modules/support/commands/sla/check', delay: breach_delay, source_name: 'support_sla_check', ticket_id: ticket.id, version: version, deadline: item.name, kind: 'breach'
+  endfor
+
+  assign result = ticket | hash_merge: values
+  return result
+%}

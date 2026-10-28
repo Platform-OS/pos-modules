@@ -10,6 +10,9 @@ query (
   $status_ids: [String!]
   $organization_id: String
   $sla_states: [String!]
+  $solved_before: String
+  $snoozed_before: String
+  $due_before: String
   $requester_id: String
   $priority: String
   $needs_reply: Boolean
@@ -32,6 +35,9 @@ query (
         { name: "status_id", value_in: $status_ids }
         { name: "organization_id", value: $organization_id }
         { name: "sla_state", value_in: $sla_states }
+        { name: "solved_at", range: { lte: $solved_before } }
+        { name: "snooze_until", range: { lte: $snoozed_before } }
+        { name: "sla_due_at", range: { lte: $due_before } }
         { name: "requester_id", value: $requester_id }
         { name: "priority", value: $priority }
         { name: "needs_reply", value_boolean: $needs_reply }
@@ -72,6 +78,7 @@ query (
       sla_first_reply_due_at: property(name: "sla_first_reply_due_at")
       sla_next_reply_due_at: property(name: "sla_next_reply_due_at")
       sla_resolution_due_at: property(name: "sla_resolution_due_at")
+      sla_due_at: property(name: "sla_due_at")
       sla_paused_seconds: property_int(name: "sla_paused_seconds")
       sla_paused_at: property(name: "sla_paused_at")
       sla_state: property(name: "sla_state")

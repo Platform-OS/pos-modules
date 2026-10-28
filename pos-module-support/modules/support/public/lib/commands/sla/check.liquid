@@ -1,0 +1,52 @@
+{% doc %}
+  Timer job for one SLA deadline (06 §4). Exits when the ticket's
+  sla_version changed since scheduling or the ticket is solved/closed;
+  otherwise recomputes the state and, when it became due soon or overdue,
+  stores it, writes an audit row and publishes the SLA event.
+  @param {string} ticket_id - The ticket
+  @param {number} version - sla_version when the job was scheduled
+  @param {string} deadline - first_reply | next_reply | resolution
+  @param {string} kind - due_soon | breach
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank
+    return null
+  endif
+  assign current = ticket.sla_version | default: 0 | plus: 0
+  assign expected = version | plus: 0
+  if current != expected
+    return null
+  endif
+  assign closed_categories = ["solved", "closed"]
+  if closed_categories contains ticket.category
+    return null
+  endif
+
+  function policy = 'modules/support/queries/sla/policy_for', ticket: ticket
+  function computed = 'modules/support/commands/sla/compute', ticket: ticket, policy: policy, now: null
+  assign state = computed.values.sla_state
+  if state == ticket.sla_state
+    return state
+  endif
+  assign values = { "sla_state": null }
+  assign values.sla_state = state
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/update', id: ticket.id, properties: props
+
+  if state == 'due_soon' or state == 'overdue'
+    assign event_type = 'sla_due_soon'
+    assign publish_type = 'support_sla_due_soon'
+    if state == 'overdue'
+      assign event_type = 'sla_breached'
+      assign publish_type = 'support_sla_breached'
+    endif
+    assign reason = deadline | append: ':' | append: kind
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: event_type, from_value: ticket.sla_state, to_value: state, reason: reason
+    assign payload = { "ticket_id": null, "deadline": null }
+    assign payload.ticket_id = ticket.id
+    assign payload.deadline = deadline
+    function _ = 'modules/core/commands/events/publish', type: publish_type, object: payload, delay: null, max_attempts: null
+  endif
+  return state
+%}

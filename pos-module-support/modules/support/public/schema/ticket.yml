@@ -52,6 +52,8 @@ properties:
     type: datetime
   - name: sla_resolution_due_at
     type: datetime
+  - name: sla_due_at
+    type: datetime
   - name: sla_paused_seconds
     type: integer
   - name: sla_paused_at
