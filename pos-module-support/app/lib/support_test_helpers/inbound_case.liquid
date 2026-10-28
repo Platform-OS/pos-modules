@@ -2,9 +2,11 @@
   Stores a raw email as the inbound webhook would and processes it at once.
   @param {string} raw - The raw message
   @param {string} sender - Envelope sender
+  @param {string} [to] - Envelope recipient, default testfixtures@support-dev.platformos.com
 {% enddoc %}
 {% liquid
-  assign envelope = '{"to":["dob@support-dev.platformos.com"],"from":"' | append: sender | append: '"}'
+  assign to = to | default: 'testfixtures@support-dev.platformos.com'
+  assign envelope = '{"to":["' | append: to | append: '"],"from":"' | append: sender | append: '"}'
   function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: 'pass', dkim: null, spam_score: '0.0', charsets: null
   function outcome = 'modules/support/commands/inbound/process', inbound_email_id: stored.id
   return outcome

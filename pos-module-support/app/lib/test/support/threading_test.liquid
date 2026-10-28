@@ -1,0 +1,85 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function _ = 'modules/support/commands/settings/set', key: 'inbound_domain', value: 'support-dev.platformos.com'
+  function f = 'support_test_helpers/ticket_fixture', label: 'thread'
+  assign ticket = f.ticket
+  assign contact = f.contact
+
+  # token match
+  function address = 'modules/support/helpers/email_address', local_part: 'dob', number: ticket.number, address: null
+  assign email = { "subject": "anything", "reference_ids": [], "to": [], "cc": [], "envelope_to": [] }
+  assign email.envelope_to << address
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'token', field_name: 'token match reason'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.ticket.id, expected: ticket.id, field_name: 'token match ticket'
+
+  # tampered token rejected
+  assign tampered = 'dob+t.' | append: ticket.number | append: '.0000000000000000@support-dev.platformos.com'
+  assign email = { "subject": "anything", "reference_ids": [], "to": [], "cc": [], "envelope_to": [] }
+  assign email.envelope_to << tampered
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'tampered token rejected'
+
+  # header match via In-Reply-To and via References only
+  assign suffix = 8 | random_string
+  assign our_id = '<support.thread.' | append: suffix | append: '@support-dev.platformos.com>'
+  assign rows = []
+  assign row = { "table": "modules/support/message", "properties": { "author_type": "agent", "visibility": "public", "kind": "message" } }
+  assign row.properties.ticket_id = ticket.id
+  assign row.properties.email_message_id = our_id
+  assign rows << row
+  graphql created = 'modules/support/records/create_many', records: rows
+  assign email = { "subject": "Re: something", "reference_ids": [], "to": [], "cc": [], "envelope_to": ["dob@support-dev.platformos.com"] }
+  assign email.in_reply_to = our_id
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'header', field_name: 'in-reply-to match'
+  assign email = { "subject": "Re: something", "in_reply_to": "<unknown@example.com>", "to": [], "cc": [], "envelope_to": ["dob@support-dev.platformos.com"], "reference_ids": ["<older@example.com>"] }
+  assign email.reference_ids << our_id
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.ticket.id, expected: ticket.id, field_name: 'references-only match'
+
+  # a Message-ID found on more than three tickets is ignored
+  assign shared = '<shared.' | append: suffix | append: '@example.com>'
+  assign rows = []
+  for i in (1..4)
+    function other = 'support_test_helpers/ticket_fixture', label: 'shared'
+    assign row = { "table": "modules/support/message", "properties": { "author_type": "customer", "visibility": "public", "kind": "message" } }
+    assign row.properties.ticket_id = other.ticket.id
+    assign row.properties.email_message_id = shared
+    assign rows << row
+  endfor
+  graphql created = 'modules/support/records/create_many', records: rows
+  assign email = { "subject": "Fwd: list", "reference_ids": [], "to": [], "cc": [], "envelope_to": ["dob@support-dev.platformos.com"] }
+  assign email.in_reply_to = shared
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'message-id on many tickets ignored'
+
+  # subject token: requester accepted, stranger rejected
+  assign subject = 'Re: Fixture ticket [#' | append: ticket.number | append: ']'
+  assign email = { "reference_ids": [], "to": [], "cc": [], "envelope_to": ["dob@support-dev.platformos.com"], "from": {} }
+  assign email.subject = subject
+  assign email.from.email = contact.emails.first
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'subject', field_name: 'subject accepted for requester'
+  assign stranger_email = 'stranger-' | append: suffix | append: '@gmail.com'
+  function stranger = 'modules/support/commands/contacts/find_or_create', email: stranger_email, name: null
+  assign email.from.email = stranger_email
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: stranger
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'subject rejected for stranger'
+
+  # merged ticket pointer followed
+  function target = 'support_test_helpers/ticket_fixture', label: 'target'
+  function merged = 'modules/support/commands/tickets/merge', source: ticket, target: target.ticket, actor: f.manager_actor
+  function address = 'modules/support/helpers/email_address', local_part: 'dob', number: ticket.number, address: null
+  assign email = { "subject": "anything", "reference_ids": [], "to": [], "cc": [], "envelope_to": [] }
+  assign email.envelope_to << address
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.ticket.id, expected: target.ticket.id, field_name: 'merge pointer followed'
+
+  # closed ticket gives a follow-up
+  function closed = 'modules/support/commands/tickets/change_status', ticket: target.ticket, status_key: 'closed', actor: f.manager_actor
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'follow_up', field_name: 'closed gives follow-up'
+%}

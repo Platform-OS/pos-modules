@@ -11,12 +11,12 @@
   for item in cases
     assign message_id = '<rule-' | append: item.name | append: '-' | append: suffix | append: '@example.com>'
     assign raw = 'From: Someone <' | append: item.from | append: '>' | append: nl | append: 'To: dob@support-dev.platformos.com' | append: nl | append: 'Subject: Rule test' | append: nl | append: 'Message-ID: ' | append: message_id | append: nl | append: item.header | append: nl | append: nl | append: 'Body' | append: nl
-    function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: item.from
+    function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: item.from, to: null
     if item.name == 'plain'
       function contract = 'modules/tests/assertions/equal', contract: contract, given: outcome.flags.auto_reply, expected: false, field_name: 'plain email is not an auto-reply'
       function contract = 'modules/tests/assertions/equal', contract: contract, given: outcome.state, expected: 'processed', field_name: 'plain email processed'
       # the same Message-ID again is a duplicate
-      function again = 'support_test_helpers/inbound_case', raw: raw, sender: item.from
+      function again = 'support_test_helpers/inbound_case', raw: raw, sender: item.from, to: null
       function contract = 'modules/tests/assertions/equal', contract: contract, given: again.reason, expected: 'duplicate', field_name: 'duplicate ignored'
     else
       assign label = item.name | append: ' flagged as auto-reply'

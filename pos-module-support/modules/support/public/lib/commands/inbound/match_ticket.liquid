@@ -1,0 +1,111 @@
+{% doc %}
+  Finds the ticket an inbound email belongs to (04 §3): signed reply token,
+  then In-Reply-To/References, then [#number] in the subject from a known
+  sender, else none. Follows merge pointers; a closed ticket yields a
+  follow-up. Returns { ticket, reason } with reason token | header |
+  subject | new | follow_up; ticket is the matched (or closed) ticket.
+  @param {object} email - Normalized email
+  @param {object} contact - The sender's contact
+{% enddoc %}
+{% liquid
+  assign result = { "ticket": null, "reason": "new" }
+  assign ticket = null
+
+  # 1. token in a recipient address
+  assign recipients = email.envelope_to | default: []
+  assign to_emails = email.to | map: 'email'
+  assign cc_emails = email.cc | map: 'email'
+  assign recipients = recipients | concat: to_emails | concat: cc_emails
+  for address in recipients
+    function parsed = 'modules/support/helpers/email_address', address: address, local_part: null, number: null
+    if parsed.token != blank
+      function number = 'modules/support/helpers/reply_token', number: null, token: parsed.token
+      if number
+        function ticket = 'modules/support/queries/tickets/find', id: null, number: number, member: null
+        if ticket
+          assign result.reason = 'token'
+          break
+        endif
+      endif
+    endif
+  endfor
+
+  # 2. In-Reply-To and References, newest first
+  if ticket == null
+    assign ids = []
+    if email.in_reply_to != blank
+      assign ids << email.in_reply_to
+    endif
+    assign refs = email.reference_ids | reverse
+    assign ids = ids | concat: refs | uniq
+    if ids.size > 0
+      graphql found = 'modules/support/messages/search', email_message_ids: ids, limit: 50, order: 'DESC'
+      assign tickets_per_id = {}
+      for m in found.records.results
+        assign key = m.email_message_id
+        assign seen = tickets_per_id[key] | default: []
+        unless seen contains m.ticket_id
+          assign seen << m.ticket_id
+        endunless
+        assign tickets_per_id[key] = seen
+      endfor
+      for id in ids
+        assign candidates = tickets_per_id[id]
+        if candidates.size > 0 and candidates.size <= 3
+          function ticket = 'modules/support/queries/tickets/find', id: candidates.first, number: null, member: null
+          if ticket
+            assign result.reason = 'header'
+            break
+          endif
+        endif
+      endfor
+    endif
+  endif
+
+  # 3. [#number] in the subject, only from a known sender
+  if ticket == null
+    assign tag = email.subject | regex_matches: '\[#(\d+)\]'
+    if tag.size > 0
+      function candidate = 'modules/support/queries/tickets/find', id: null, number: tag[0][0], member: null
+      if candidate
+        assign known = false
+        if candidate.requester_id == contact.id
+          assign known = true
+        elsif candidate.organization_id != blank and candidate.organization_id == contact.organization_id
+          assign known = true
+        else
+          graphql p = 'modules/support/participants/search', ticket_id: candidate.id, email: email.from.email, role: null, limit: 1
+          if p.records.total_entries > 0
+            assign known = true
+          endif
+        endif
+        if known
+          assign ticket = candidate
+          assign result.reason = 'subject'
+        endif
+      endif
+    endif
+  endif
+
+  if ticket == null
+    return result
+  endif
+
+  # follow merge pointers
+  for hop in (1..5)
+    if ticket.merged_into_id == blank
+      break
+    endif
+    function next = 'modules/support/queries/tickets/find', id: ticket.merged_into_id, number: null, member: null
+    if next == blank
+      break
+    endif
+    assign ticket = next
+  endfor
+
+  assign result.ticket = ticket
+  if ticket.category == 'closed'
+    assign result.reason = 'follow_up'
+  endif
+  return result
+%}

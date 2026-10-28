@@ -1,0 +1,6 @@
+mutation {
+  presign: property_upload_presigned_url(table: "modules/support/attachment", property_name: "file") {
+    upload_url
+    upload_url_payload
+  }
+}

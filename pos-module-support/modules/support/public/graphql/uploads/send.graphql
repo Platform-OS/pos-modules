@@ -1,0 +1,9 @@
+mutation ($url: String!, $form_data: [ApiCallFormDataPartInput!]) {
+  api_call_send(api_call: { url: $url, method: "POST", form_data: $form_data }, options: { timeout: 60 }) {
+    response {
+      status
+      body
+      headers
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{% doc %}
+  Stores a customer email as a message on a ticket (05 §1): attachments in
+  private storage, cid: images pointed at the desk's attachment URL, the
+  category rule for customer replies, and support_message_received.
+  @param {object} ticket - The ticket
+  @param {object} email - Normalized email
+  @param {object} contact - The sender's contact
+  @param {string} inbound_email_id - Source record ("Show original")
+  @param {string} match_reason - token | header | subject | new | follow_up
+  @param {object} flags - { auto_reply, spam }
+{% enddoc %}
+{% liquid
+  assign values = { "author_type": "customer", "visibility": "public", "channel": "email", "kind": "message" }
+  assign values.ticket_id = ticket.id
+  assign values.author_id = contact.id
+  assign values.body_html = email.html
+  assign values.body_text = email.text
+  assign values.body_stripped = email.body_stripped
+  assign values.from_email = email.from.email
+  assign values.to_emails = email.to | map: 'email'
+  assign values.cc_emails = email.cc | map: 'email'
+  assign values.subject = email.subject
+  assign values.email_message_id = email.message_id
+  assign values.in_reply_to = email.in_reply_to
+  assign values.reference_ids = email.reference_ids
+  assign values.inbound_email_id = inbound_email_id
+  assign values.match_reason = match_reason
+  assign auth = email.auth | default: {}
+  assign auth.auto_reply = flags.auto_reply
+  assign values.auth_results = auth | json
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props
+  assign message = values
+  assign message.id = r.record.id
+
+  assign html = email.html
+  for file in email.attachments
+    function stored = 'modules/support/commands/attachments/store', ticket_id: ticket.id, message_id: message.id, file: file
+    if stored and file.content_id != blank
+      assign cid = 'cid:' | append: file.content_id
+      assign local_url = '/support-desk/attachments/' | append: stored.id
+      assign html = html | replace: cid, local_url
+    endif
+  endfor
+  if html != email.html
+    assign html_values = { "body_html": null }
+    assign html_values.body_html = html
+    function props = 'modules/support/helpers/props', values: html_values
+    graphql u = 'modules/support/records/update', id: message.id, properties: props
+    assign message.body_html = html
+  endif
+
+  function ticket = 'modules/support/commands/tickets/apply_customer_reply', ticket: ticket, auto_reply: flags.auto_reply
+
+  assign payload = { "ticket_id": null, "message_id": null, "auto_reply": false }
+  assign payload.ticket_id = ticket.id
+  assign payload.message_id = message.id
+  assign payload.auto_reply = flags.auto_reply
+  function _ = 'modules/core/commands/events/publish', type: 'support_message_received', object: payload, delay: null, max_attempts: null
+  assign result = { "message": null, "ticket": null }
+  assign result.message = message
+  assign result.ticket = ticket
+  return result
+%}

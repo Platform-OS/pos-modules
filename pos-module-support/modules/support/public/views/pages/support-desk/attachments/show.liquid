@@ -1,0 +1,23 @@
+---
+slug: support-desk/attachments/:id
+layout: modules/support/support
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  graphql r = 'modules/support/attachments/search', id: context.params.id, expires_in: 120, limit: 1
+  assign attachment = r.records.results.first
+  if attachment
+    function ticket = 'modules/support/queries/tickets/find', id: attachment.ticket_id, number: null, member: context.exports.support.support_member
+  endif
+  if attachment == blank or ticket == blank or attachment.file.url == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+  redirect_to attachment.file.url
+%}

@@ -1,0 +1,40 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{%- capture gmail -%}{% render 'support_fixtures/gmail' %}{%- endcapture -%}
+{% liquid
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+  assign suffix = 8 | random_string
+  assign unique_id = '<to-ticket-' | append: suffix | append: '@mail.gmail.com>'
+  assign raw = gmail | replace: '<CAHx8=gmail-fixture-1@mail.gmail.com>', unique_id | replace: 'In-Reply-To: <support.555.1793190000@support-dev.platformos.com>', 'X-Note: none' | replace: 'References: <CAHx8=first@mail.gmail.com>', 'X-Ref: none' | replace: 'dob+t.1042.ab12cd34ef56ab78@support-dev.platformos.com', 'testfixtures@support-dev.platformos.com'
+  assign sender = 'anna-' | append: suffix | append: '@example-city.gov'
+  assign raw = raw | replace: 'anna.nowak@example-city.gov', sender
+
+  function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: sender, to: 'testfixtures@support-dev.platformos.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: outcome.state, expected: 'processed', field_name: 'processed'
+
+  graphql inbound = 'modules/support/inbound_emails/search', message_id_header: unique_id, limit: 1
+  assign row = inbound.records.results.first
+  function ticket = 'modules/support/queries/tickets/find', id: row.ticket_id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.subject, expected: 'Dzień dobry, nadal nie działa', field_name: 'ticket subject'
+  graphql deps = 'modules/support/departments/search', inbound_local_part: 'testfixtures', limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.department_id, expected: deps.records.results.first.id, field_name: 'department from inbound address'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.needs_reply, expected: true, field_name: 'needs reply'
+
+  graphql msgs = 'modules/support/messages/search', ticket_id: ticket.id, limit: 5
+  assign message = msgs.records.results.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: message.match_reason, expected: 'new', field_name: 'match reason recorded'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: message.email_message_id, expected: unique_id, field_name: 'message-id stored'
+
+  assign message_ids = []
+  assign message_ids << message.id
+  graphql atts = 'modules/support/attachments/search', message_ids: message_ids, limit: 5
+  assign att = atts.records.results.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: att.filename, expected: 'screenshot.png', field_name: 'attachment stored'
+  assign local_url = '/support-desk/attachments/' | append: att.id
+  assign rewritten = false
+  if message.body_html contains local_url
+    assign rewritten = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: rewritten, field_name: 'cid rewritten to desk url', object: null
+%}

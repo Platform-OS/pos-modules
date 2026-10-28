@@ -1,11 +1,76 @@
 {% doc %}
-  Threads a processed inbound email into a ticket (TASK-8 fills this in).
-  Returns { ticket_id, message_id }.
+  Threads a processed inbound email into a ticket (04 §3): finds or creates
+  the sender's contact, matches or creates the ticket (follow-up for a
+  closed one), adds an unknown sender as CC, stores the message.
+  Returns { ticket_id, message_id, reason }.
   @param {object} inbound - The inbound_email record
   @param {object} email - Normalized email from the adapter
   @param {object} flags - { auto_reply, spam }
 {% enddoc %}
 {% liquid
-  assign result = { "ticket_id": null, "message_id": null }
+  assign result = { "ticket_id": null, "message_id": null, "reason": null }
+  assign sender = email.from.email | default: email.envelope_from
+  function contact = 'modules/support/commands/contacts/find_or_create', email: sender, name: email.from.name
+  unless contact.valid
+    return result
+  endunless
+
+  function match = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  assign ticket = match.ticket
+  assign reason = match.reason
+
+  if ticket == null or reason == 'follow_up'
+    graphql all_departments = 'modules/support/departments/search', limit: 100
+    assign department = null
+    for address in email.envelope_to
+      assign local = address | downcase | split: '@' | first | split: '+' | first
+      for candidate in all_departments.records.results
+        if candidate.inbound_local_part == local
+          assign department = candidate
+          break
+        endif
+      endfor
+      if department
+        break
+      endif
+    endfor
+    if department == null and ticket
+      assign department = { "id": null }
+      assign department.id = ticket.department_id
+    endif
+    if department == null
+      graphql d = 'modules/support/records/find_by', table: 'modules/support/department', name: 'is_default', value: 'true'
+      assign department = d.records.results.first
+    endif
+
+    assign object = { "channel": "email", "actor_type": "customer" }
+    assign object.subject = email.subject
+    assign object.department_id = department.id
+    assign object.requester_id = contact.id
+    assign object.actor_id = contact.id
+    if reason == 'follow_up'
+      assign object.follow_up_of_id = ticket.id
+    endif
+    function ticket = 'modules/support/commands/tickets/create', object: object
+    if reason != 'follow_up'
+      assign reason = 'new'
+    endif
+
+    if flags.spam
+      assign actor = { "type": "system", "id": null, "member": null }
+      function spam = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: 'spam', actor: actor
+      if spam.valid
+        assign ticket = spam.ticket
+      endif
+    endif
+  elsif ticket.requester_id != contact.id
+    function added = 'modules/support/commands/participants/add', ticket_id: ticket.id, email: sender, role: 'cc', contact_id: contact.id, profile_id: null
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'participant_added', from_value: null, to_value: sender, reason: 'cc'
+  endif
+
+  function created = 'modules/support/commands/messages/create_inbound', ticket: ticket, email: email, contact: contact, inbound_email_id: inbound.id, match_reason: reason, flags: flags
+  assign result.ticket_id = ticket.id
+  assign result.message_id = created.message.id
+  assign result.reason = reason
   return result
 %}

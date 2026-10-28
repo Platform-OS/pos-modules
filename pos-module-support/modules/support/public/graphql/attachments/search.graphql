@@ -1,0 +1,27 @@
+query ($id: ID, $ticket_id: String, $message_ids: [String!], $expires_in: Int = 300, $limit: Int = 100) {
+  records(
+    per_page: $limit
+    filter: {
+      id: { value: $id }
+      table: { value: "modules/support/attachment" }
+      properties: [{ name: "ticket_id", value: $ticket_id }, { name: "message_id", value_in: $message_ids }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    total_entries
+    results {
+      id
+      message_id: property(name: "message_id")
+      ticket_id: property(name: "ticket_id")
+      filename: property(name: "filename")
+      content_type: property(name: "content_type")
+      size: property_int(name: "size")
+      content_id: property(name: "content_id")
+      inline: property_boolean(name: "inline")
+      file: property_upload(name: "file", expires_in: $expires_in) {
+        url
+        file_name
+      }
+    }
+  }
+}
