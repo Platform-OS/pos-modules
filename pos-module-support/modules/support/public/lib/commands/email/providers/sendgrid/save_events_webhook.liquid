@@ -1,0 +1,25 @@
+{% doc %}
+  Creates the module's own SendGrid Event Webhook, or updates it by its
+  stored id (04 §1 step 6, decision-9). Never edits a webhook the module
+  did not create. Returns { ok, id, error }.
+  @param {string} url - The module's events endpoint URL
+  @param {string} [webhook_id] - The module's webhook id from an earlier call
+{% enddoc %}
+{% liquid
+  assign body = { "enabled": true, "delivered": true, "bounce": true, "dropped": true, "spam_report": true, "deferred": false, "processed": false, "open": false, "click": false, "unsubscribe": false, "group_unsubscribe": false, "group_resubscribe": false, "friendly_name": "Support desk" }
+  assign body.url = url
+  if webhook_id != blank
+    assign path = '/v3/user/webhooks/event/settings/' | append: webhook_id
+    function response = 'modules/support/commands/email/providers/sendgrid/request', path: path, method: 'PATCH', body: body
+  else
+    function response = 'modules/support/commands/email/providers/sendgrid/request', path: '/v3/user/webhooks/event/settings', method: 'POST', body: body
+  endif
+  assign result = { "ok": false, "id": null, "error": null }
+  if response.status >= 200 and response.status < 300
+    assign result.ok = true
+    assign result.id = response.body.id | default: webhook_id
+  else
+    assign result.error = response.error | default: response.body.errors.first.message | default: response.status
+  endif
+  return result
+%}

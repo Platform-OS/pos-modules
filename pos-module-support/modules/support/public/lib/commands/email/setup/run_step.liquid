@@ -3,7 +3,7 @@
   the email_status setting. Constants are written last in the request,
   because constant_set can hide other constants for the rest of it.
   Returns { ok, notice, error }.
-  @param {string} step - key | check | domain | inbound | test | check_inbound | rotate | enable | disable
+  @param {string} step - key | check | domain | inbound | test | check_inbound | events | rotate | enable | disable
   @param {object} params - The posted form
   @param {object} current_profile - The admin running the step
 {% enddoc %}
@@ -158,6 +158,33 @@
       assign result.notice = 'modules/support/settings_email.notices.inbound_check_sent'
     else
       assign result.error = 'modules/support/settings_email.errors.test'
+    endif
+
+  when 'events'
+    assign secret = context.constants['modules/support/EVENTS_SECRET']
+    assign new_secret = false
+    if secret == blank
+      assign seed = 32 | random_string
+      assign secret = seed | compute_hmac: 'support-events' | slice: 0, 48
+      assign new_secret = true
+    endif
+    assign url = 'https://' | append: context.location.host | append: '/api/support/email-events/' | append: provider | append: '/' | append: secret
+    assign path = adapter | append: '/save_events_webhook'
+    function saved = path, url: url, webhook_id: settings.event_webhook_id
+    if saved.ok
+      function _ = 'modules/support/commands/settings/set', key: 'event_webhook_id', value: saved.id
+    endif
+    assign status.events_ok = saved.ok
+    assign status.events_error = saved.error
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    if new_secret
+      graphql c = 'modules/support/constants/set', name: 'modules/support/EVENTS_SECRET', value: secret
+    endif
+    assign result.ok = saved.ok
+    if saved.ok
+      assign result.notice = 'modules/support/settings_email.notices.events_saved'
+    else
+      assign result.error = 'modules/support/settings_email.errors.events'
     endif
 
   when 'rotate'

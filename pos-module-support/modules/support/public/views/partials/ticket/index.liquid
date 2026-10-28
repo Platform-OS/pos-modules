@@ -40,6 +40,7 @@
               <p>{{ 'modules/support/live.new_message' | t }} <a href="{{ action }}">{{ 'modules/support/live.refresh' | t }}</a></p>
               <label><input type="checkbox" name="acknowledged" value="1"> {{ 'modules/support/live.acknowledge' | t }}</label>
             </div>
+            {% if data.requester.bounced %}<p class="pos-support-error" role="alert">{{ 'modules/support/ticket.bounced_warning' | t }}</p>{% endif %}
             <fieldset class="pos-support-composer-modes">
               <legend class="pos-support-sr-only">{{ 'modules/support/ticket.mode' | t }}</legend>
               <label><input type="radio" name="mode" value="reply" checked> {{ 'modules/support/ticket.reply' | t }}</label>

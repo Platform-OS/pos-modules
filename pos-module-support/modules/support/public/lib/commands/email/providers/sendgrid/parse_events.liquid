@@ -1,0 +1,29 @@
+{% doc %}
+  Normalizes a SendGrid Event Webhook batch (04 §6). Only events that carry
+  our support_message_id custom arg are returned.
+  Returns [{ message_ref, event: delivered|bounced|dropped|spam|deferred, hard, reason, email }].
+  @param {object[]} [events] - The posted JSON array (context.params._json)
+{% enddoc %}
+{% liquid
+  assign result = []
+  assign map = { "delivered": "delivered", "bounce": "bounced", "blocked": "bounced", "dropped": "dropped", "spamreport": "spam", "deferred": "deferred" }
+  for item in events
+    if item.support_message_id == blank
+      continue
+    endif
+    assign kind = map[item.event]
+    if kind == blank
+      continue
+    endif
+    assign entry = { "hard": false }
+    assign entry.message_ref = item.support_message_id | append: ''
+    assign entry.event = kind
+    assign entry.email = item.email | downcase
+    assign entry.reason = item.reason | default: item.response | default: item.type | truncate: 240
+    if item.event == 'bounce' and item.type != 'blocked'
+      assign entry.hard = true
+    endif
+    assign result << entry
+  endfor
+  return result
+%}

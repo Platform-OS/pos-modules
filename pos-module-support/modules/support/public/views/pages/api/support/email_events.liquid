@@ -1,0 +1,33 @@
+---
+slug: api/support/email-events/:provider/:secret
+method: post
+layout: ''
+format: json
+---
+{% liquid
+  # Provider delivery events (04 §6), authenticated by the secret path
+  # segment (EVENTS_SECRET), compared as HMAC digests.
+  assign expected = context.constants['modules/support/EVENTS_SECRET']
+  assign given = context.params.secret | append: ''
+  assign authorized = false
+  if expected != blank and given != blank
+    assign given_digest = given | compute_hmac: expected
+    assign expected_digest = expected | compute_hmac: expected
+    if given_digest == expected_digest
+      assign authorized = true
+    endif
+  endif
+  unless authorized
+    response_status 404
+    echo '{}'
+    break
+  endunless
+
+  function settings = 'modules/support/helpers/settings'
+  assign adapter = 'modules/support/commands/email/providers/' | append: settings.email_provider | append: '/parse_events'
+  function events = adapter, events: context.params._json
+  for event in events limit: 1000
+    function _ = 'modules/support/commands/email/apply_event', event: event
+  endfor
+  echo '{"ok":true}'
+%}

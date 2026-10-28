@@ -117,6 +117,10 @@ en:
     test_subject: "Test email from %{brand} Support"
     test_body: This is a test email from your support desk. If you can read it, sending works.
     reveal: Reveal
+    events_title: Delivery tracking (optional)
+    events_help: Adds the desk's own Event Webhook at the provider, so replies show delivered, bounced or dropped. Other webhooks on the account are left alone.
+    events_create: Add delivery tracking
+    events_update: Update delivery tracking
     rotate: Rotate secret
     rotate_help: Creates a new webhook URL and updates the provider. The old URL keeps working for 24 hours.
     rotation_manual: "The provider could not be updated. Paste this URL in its inbound settings within 24 hours:"
@@ -174,6 +178,7 @@ en:
       inbound_check_sent: Check email sent to the inbound address. Reload this page in a minute.
       enabled: Ticket email is on.
       disabled: Ticket email is off.
+      events_saved: Delivery tracking is set up.
       rotated: Secret rotated and the provider updated. The old URL works for 24 more hours.
       rotated_manual: Secret rotated. Update the URL at your provider; the old one works for 24 more hours.
     errors:
@@ -187,6 +192,7 @@ en:
       enable: Send a test email and pass the inbound check first.
       step: Unknown step.
       rotate_setup: Set up receiving email first.
+      events: The provider refused the delivery webhook.
   tickets:
     errors:
       unknown_status: That status doesn't exist.
@@ -263,6 +269,7 @@ en:
     delivery_dropped: Dropped
     delivery_failed: Not sent
     automatic_email: Automatic email
+    bounced_warning: Email to this customer bounced before. Check the address before replying.
   activity:
     created: "created the ticket (#%{to})"
     status_changed: "changed status from %{from} to %{to}"
@@ -284,6 +291,7 @@ en:
     sla_breached: "SLA breached"
     escalated: "escalated (%{to})"
     no_agent_available: found no available agent
+    delivery_failed: "email to %{from} was %{to}"
   assignment:
     least_loaded: "least-loaded in %{department}: %{count} open"
     on_duty: "escalated: on-duty manager"

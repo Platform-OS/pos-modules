@@ -1,0 +1,42 @@
+{% doc %}
+  Applies one normalized delivery event (04 §6): updates the message's
+  delivery_state (a later "delivered" never undoes a bounce), and a hard
+  bounce marks the recipient contact bounced. Returns the new state or null.
+  @param {object} event - From the adapter's parse_events
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/messages/search', id: event.message_ref, limit: 1
+  assign message = r.records.results.first
+  if message == blank or event.event == 'deferred'
+    return null
+  endif
+  assign final_states = ["bounced", "dropped"]
+  if final_states contains message.delivery_state and event.event == 'delivered'
+    return message.delivery_state
+  endif
+  assign state = event.event
+  if state == 'spam'
+    assign state = 'delivered'
+  endif
+  assign error = null
+  if state == 'bounced' or state == 'dropped'
+    assign error = event.reason
+  endif
+  graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: state, delivery_error: error, email_message_id: message.email_message_id
+
+  if event.hard and event.email != blank
+    assign emails = []
+    assign emails << event.email
+    graphql c = 'modules/support/contacts/search', emails: emails, limit: 1
+    assign contact = c.records.results.first
+    if contact
+      assign values = { "bounced": true }
+      function props = 'modules/support/helpers/props', values: values
+      graphql b = 'modules/support/records/update', id: contact.id, properties: props
+    endif
+  endif
+  if state == 'bounced' or state == 'dropped'
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: message.ticket_id, actor_type: 'system', actor_id: null, event_type: 'delivery_failed', from_value: event.email, to_value: state, reason: event.reason
+  endif
+  return state
+%}

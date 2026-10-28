@@ -1,0 +1,60 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function f = 'support_test_helpers/ticket_fixture', label: 'events'
+  assign rows = []
+  for i in (1..3)
+    assign row = { "table": "modules/support/message", "properties": { "author_type": "agent", "visibility": "public", "kind": "message", "delivery_state": "sent" } }
+    assign row.properties.ticket_id = f.ticket.id
+    assign rows << row
+  endfor
+  graphql created = 'modules/support/records/create_many', records: rows
+  assign first = created.records[0].id
+  assign second = created.records[1].id
+  assign third = created.records[2].id
+  assign email = f.contact.emails.first
+
+  assign batch = []
+  assign e = { "event": "delivered" }
+  assign e.support_message_id = first
+  assign e.email = email
+  assign batch << e
+  assign e = { "event": "bounce", "type": "bounce", "reason": "550 mailbox unavailable" }
+  assign e.support_message_id = second
+  assign e.email = email
+  assign batch << e
+  assign e = { "event": "dropped", "reason": "Bounced Address" }
+  assign e.support_message_id = third
+  assign e.email = email
+  assign batch << e
+  assign e = { "event": "delivered", "email": "someone@example.com" }
+  assign batch << e
+
+  function events = 'modules/support/commands/email/providers/sendgrid/parse_events', events: batch
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: events.size, expected: 3, field_name: 'events without our id ignored'
+  for event in events
+    function _ = 'modules/support/commands/email/apply_event', event: event
+  endfor
+
+  graphql m = 'modules/support/messages/search', ticket_id: f.ticket.id, limit: 10
+  assign states = {}
+  for message in m.records.results
+    assign states[message.id] = message.delivery_state
+  endfor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: states[first], expected: 'delivered', field_name: 'delivered'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: states[second], expected: 'bounced', field_name: 'bounced'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: states[third], expected: 'dropped', field_name: 'dropped'
+
+  graphql c = 'modules/support/contacts/search', id: f.contact.id, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: c.records.results.first.bounced, expected: true, field_name: 'hard bounce flags contact'
+
+  # a late "delivered" never undoes a bounce
+  assign late = []
+  assign e = { "event": "delivered" }
+  assign e.support_message_id = second
+  assign late << e
+  function events = 'modules/support/commands/email/providers/sendgrid/parse_events', events: late
+  function state = 'modules/support/commands/email/apply_event', event: events.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: state, expected: 'bounced', field_name: 'bounce kept'
+%}

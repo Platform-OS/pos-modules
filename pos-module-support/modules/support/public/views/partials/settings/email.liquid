@@ -143,6 +143,17 @@
       </form>
     </section>
 
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-events">
+      <h2 id="pos-support-email-events" class="pos-heading-3">{{ 'modules/support/settings_email.events_title' | t }}</h2>
+      <p class="pos-supplementary">{{ 'modules/support/settings_email.events_help' | t }}</p>
+      {% if status.events_ok == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.ok' | t }}</p>{% elsif status.events_ok == false %}<p class="pos-support-error">{{ status.events_error }}</p>{% endif %}
+      <form action="/support-desk/settings/email" method="post">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="step" value="events">
+        <button type="submit" class="pos-button">{% if settings.event_webhook_id %}{{ 'modules/support/settings_email.events_update' | t }}{% else %}{{ 'modules/support/settings_email.events_create' | t }}{% endif %}</button>
+      </form>
+    </section>
+
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step6">
       <h2 id="pos-support-email-step6" class="pos-heading-3">6. {{ 'modules/support/settings_email.step6.title' | t }}</h2>
       {% if status.enabled %}
