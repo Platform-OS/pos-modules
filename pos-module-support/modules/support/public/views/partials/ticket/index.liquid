@@ -120,6 +120,30 @@
           </fieldset>
           <button type="submit" class="pos-button">{{ 'modules/support/ticket.save' | t }}</button>
         </form>
+        <form action="{{ update_action }}" method="post" class="pos-form pos-support-snooze-form">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="change" value="snooze">
+          {% if ticket.snooze_until != blank %}
+            {% assign snoozed_label = ticket.snooze_until | l: 'long' %}
+            <p class="pos-supplementary">{{ 'modules/support/ticket.snoozed_until' | t: time: snoozed_label }}</p>
+            <input type="hidden" name="snooze_until" value="">
+            <button type="submit" class="pos-button">{{ 'modules/support/ticket.unsnooze' | t }}</button>
+          {% else %}
+            {% liquid
+              assign now = 'now' | to_time
+              assign in_hour = now | add_to_time: 1, 'hours' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+              assign in_day = now | add_to_time: 1, 'days' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+              assign in_week = now | add_to_time: 1, 'weeks' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+            %}
+            <label for="pos-support-snooze">{{ 'modules/support/ticket.snooze' | t }}</label>
+            <select id="pos-support-snooze" name="snooze_until">
+              <option value="{{ in_hour }}">{{ 'modules/support/ticket.snooze_hour' | t }}</option>
+              <option value="{{ in_day }}">{{ 'modules/support/ticket.snooze_day' | t }}</option>
+              <option value="{{ in_week }}">{{ 'modules/support/ticket.snooze_week' | t }}</option>
+            </select>
+            <button type="submit" class="pos-button">{{ 'modules/support/ticket.snooze' | t }}</button>
+          {% endif %}
+        </form>
         <form action="{{ update_action }}" method="post" class="pos-support-spam-form">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           {% if status.key == 'spam' %}
@@ -193,6 +217,7 @@
       <section class="pos-card">
         <h2 class="pos-heading-3">{{ 'modules/support/ticket.activity' | t }}</h2>
         <ol class="pos-support-plain-list pos-support-activity">
+          {% assign reason_events = "assigned,delivery_failed" | split: ',' %}
           {% for event in data.events %}
             {% liquid
               assign who = 'modules/support/ticket.system' | t
@@ -204,7 +229,7 @@
               endif
               assign event_key = 'modules/support/activity.' | append: event.event_type
             %}
-            <li><span>{{ who }}</span> {{ event_key | t: from: event.from_value, to: event.to_value }} <time class="pos-supplementary" datetime="{{ event.created_at }}">{{ event.created_at | l: 'long' }}</time></li>
+            <li><span>{{ who }}</span> {{ event_key | t: from: event.from_value, to: event.to_value }}{% if event.reason != blank and reason_events contains event.event_type %} <span class="pos-supplementary">({{ event.reason }})</span>{% endif %} <time class="pos-supplementary" datetime="{{ event.created_at }}">{{ event.created_at | l: 'long' }}</time></li>
           {% endfor %}
         </ol>
       </section>

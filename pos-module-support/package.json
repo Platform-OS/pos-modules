@@ -6,6 +6,7 @@
     "version": "(cd ../ && pos-cli modules version support -p) && auto-changelog -p && git add CHANGELOG.md"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
     "@playwright/test": "^1.60.0",
     "@types/node": "^22.10.6",
     "auto-changelog": "^2.4.0"

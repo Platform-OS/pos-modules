@@ -207,7 +207,11 @@
   }
 
   .pos-support-ok {
-    color: var(--pos-color-confirmation);
+    color: var(--pos-support-status-solved-fg);
+  }
+
+  .pos-support-shell p a:not(.pos-button) {
+    text-decoration: underline;
   }
 
   .pos-support-steps {
@@ -570,6 +574,8 @@
   }
 
   .pos-support-board {
+    /* contains the cards' screen-reader-only labels, which would otherwise widen the page */
+    position: relative;
     display: flex;
     gap: 1rem;
     align-items: flex-start;
@@ -649,7 +655,8 @@
     gap: 0.5rem;
   }
 
-  .pos-support-spam-form {
+  .pos-support-spam-form,
+  .pos-support-snooze-form {
     margin-block-start: 1rem;
   }
 

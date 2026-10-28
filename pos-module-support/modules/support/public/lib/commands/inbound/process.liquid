@@ -43,12 +43,30 @@
     return result
   endif
 
-  # 5. duplicate delivery of an email already processed
+  # 5. duplicate delivery: the same Message-ID already processed, or still
+  # being processed by an earlier delivery (lower id). The header is stored
+  # first so a later delivery can see this one while it is in progress.
   if email.message_id != blank
+    graphql _ = 'modules/support/inbound_emails/update', id: inbound.id, state: 'received', ignored_reason: null, message_id_header: email.message_id
     assign not_ids = []
     assign not_ids << inbound.id
-    graphql dup = 'modules/support/inbound_emails/search', message_id_header: email.message_id, state: 'processed', not_ids: not_ids, limit: 1
-    if dup.records.total_entries > 0
+    graphql others = 'modules/support/inbound_emails/search', message_id_header: email.message_id, not_ids: not_ids, limit: 20
+    assign own_id = inbound.id | plus: 0
+    assign recent = 'now' | to_time | minus: 900
+    assign is_dup = false
+    for other in others.records.results
+      assign other_id = other.id | plus: 0
+      if other.state == 'processed'
+        assign is_dup = true
+      elsif other.state == 'received' and other_id < own_id
+        # an earlier delivery still in progress; one stuck longer than 15 minutes does not block this one
+        assign other_created = other.created_at | to_time
+        if other_created > recent
+          assign is_dup = true
+        endif
+      endif
+    endfor
+    if is_dup
       graphql u = 'modules/support/inbound_emails/update', id: inbound.id, state: 'ignored', ignored_reason: 'duplicate', message_id_header: email.message_id
       assign result.state = 'ignored'
       assign result.reason = 'duplicate'

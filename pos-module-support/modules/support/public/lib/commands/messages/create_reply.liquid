@@ -88,6 +88,8 @@
   assign payload.message_id = message.id
   assign payload.actor_id = actor.id
   function _ = 'modules/core/commands/events/publish', type: 'support_reply_created', object: payload, delay: null, max_attempts: null
+  # live update now, not from a background consumer, so open screens follow at once
+  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'reply', message_id: message.id, profile_id: null, actor_id: actor.id
 
   assign result.valid = true
   assign result.message = message

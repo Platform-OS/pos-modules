@@ -18,7 +18,9 @@
 
   case params.change
   when 'properties'
-    if params.status_key != blank and params.status_key != ticket.status_key
+    function statuses = 'modules/support/queries/statuses/all'
+    assign current_key = statuses.by_id[ticket.status_id].key
+    if params.status_key != blank and params.status_key != current_key
       function r = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: params.status_key, actor: actor
       if r.valid
         assign ticket = r.ticket

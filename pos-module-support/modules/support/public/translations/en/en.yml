@@ -252,8 +252,8 @@ en:
       inbound_waiting: Waiting for the check email to arrive. Reload this page in a minute.
     step6:
       title: Turn on ticket email
-      on: Ticket email is on.
-      off: Ticket email is off. It can be turned on after the test email and the inbound check pass.
+      "on": Ticket email is on.
+      "off": Ticket email is off. It can be turned on after the test email and the inbound check pass.
       turn_on: Turn on
       turn_off: Turn off
     notices:
@@ -346,6 +346,12 @@ en:
     agent: Agent
     internal_note: Internal note
     show_original: Show original email
+    snooze: Snooze
+    snooze_hour: For 1 hour
+    snooze_day: For 1 day
+    snooze_week: For 1 week
+    snoozed_until: "Snoozed until %{time}"
+    unsnooze: Unsnooze
     original_title: Original email
     attachments: Attachments
     not_delivered: "Not delivered:"

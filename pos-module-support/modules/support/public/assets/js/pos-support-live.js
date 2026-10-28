@@ -58,7 +58,9 @@ if (root && window.pos && window.pos.csrfToken) {
         if (data.profile_id !== me) { others.set(data.profile_id, { name: data.name, state: data.state, at: Date.now() }); renderPresence(); }
         return;
       }
-      if (data.kind === 'message' && composer) {
+      // A customer message, or a reply sent by someone else, while this agent may be writing.
+      const fromOther = data.kind === 'reply' && data.actor_id && data.actor_id !== me;
+      if ((data.kind === 'message' || fromOther) && composer) {
         const warning = document.querySelector('[data-support-new-message]');
         if (warning) {
           warning.hidden = false;

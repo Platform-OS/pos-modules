@@ -1,0 +1,4 @@
+# E2E suite output
+test-results/
+playwright-report/
+tests/e2e/.state.json

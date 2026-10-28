@@ -1,0 +1,50 @@
+{% liquid
+  # E2E setup (run with pos-cli exec liquid -f): all email goes to the
+  # example app's SendGrid stub for the run; an active "E2E" department
+  # served by the agent test user, who is available for assignment.
+  # AGENT_EMAIL is replaced by the suite before the file is executed.
+  assign stub = 'https://' | append: context.location.host | append: '/test/sendgrid-stub'
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: stub
+  assign empty = []
+  function _ = 'modules/support/commands/settings/set', key: 'test_stub_bodies', value: empty
+
+  graphql d = 'modules/support/departments/search', inbound_local_part: 'e2e', limit: 1
+  assign department_id = d.records.results.first.id
+  if department_id == blank
+    assign rows = []
+    assign row = { "table": "modules/support/department", "properties": { "name": "E2E", "short_code": "E2E", "inbound_local_part": "e2e", "is_default": false, "active": true } }
+    assign rows << row
+    graphql created = 'modules/support/records/create_many', records: rows
+    assign department_id = created.records.first.id
+  endif
+
+  function agent_user = 'modules/user/queries/user/find', email: 'AGENT_EMAIL', id: null, with_token: false, expires_in: null
+  function agent_profile = 'modules/user/queries/profiles/find', user_id: agent_user.id, id: null, uuid: null, first_name: null, last_name: null
+  function member = 'modules/support/queries/team_members/find', profile_id: agent_profile.id
+  assign departments = member.department_ids | default: []
+  unless departments contains department_id
+    assign departments << department_id
+  endunless
+  # max_open is raised so tickets left open by earlier runs do not fill
+  # the agent's capacity (assignment skips agents at max_open).
+  assign values = { "availability": "available", "state": "active", "max_open": 1000 }
+  assign values.department_ids = departments
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: member.id, properties: props
+
+  # People added to E2E by earlier runs (invited outsiders, approved
+  # requests) would take tickets from the agent: disable them.
+  graphql others = 'modules/support/team_members/search', state: 'active', limit: 200
+  for other in others.records.results
+    if other.id != member.id and other.department_ids contains department_id
+      assign off = { "state": "disabled" }
+      function off_props = 'modules/support/helpers/props', values: off
+      graphql _ = 'modules/support/records/update', id: other.id, properties: off_props
+    endif
+  endfor
+
+  assign out = { "department_id": null, "agent_profile_id": null }
+  assign out.department_id = department_id
+  assign out.agent_profile_id = agent_profile.id
+  echo out | json | html_safe
+%}

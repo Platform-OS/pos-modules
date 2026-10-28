@@ -43,4 +43,16 @@
   assign patterns << blocked_domain
   graphql b = 'modules/support/blocked_senders/search', patterns: patterns, limit: 1
   function contract = 'modules/tests/assertions/equal', contract: contract, given: b.records.results.first.hits, expected: 1, field_name: 'blocklist hit counted'
+
+  # a second delivery while the first is still being processed is a duplicate
+  assign race_id = '<race-' | append: suffix | append: '@example.com>'
+  assign race_raw = 'From: Racer <racer@example.com>' | append: nl | append: 'To: testfixtures@support-dev.platformos.com' | append: nl | append: 'Subject: Race' | append: nl | append: 'Message-ID: ' | append: race_id | append: nl | append: nl | append: 'Body'
+  assign race_envelope = '{"to":["testfixtures@support-dev.platformos.com"],"from":"racer@example.com"}'
+  function first = 'modules/support/commands/inbound/store', email: race_raw, envelope: race_envelope, spf: 'pass', dkim: null, spam_score: '0.0', charsets: null
+  graphql _ = 'modules/support/inbound_emails/update', id: first.id, state: 'received', ignored_reason: null, message_id_header: race_id
+  function second = 'modules/support/commands/inbound/store', email: race_raw, envelope: race_envelope, spf: 'pass', dkim: null, spam_score: '0.0', charsets: null
+  function second_outcome = 'modules/support/commands/inbound/process', inbound_email_id: second.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: second_outcome.reason, expected: 'duplicate', field_name: 'delivery during processing ignored'
+  function first_outcome = 'modules/support/commands/inbound/process', inbound_email_id: first.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: first_outcome.state, expected: 'processed', field_name: 'first delivery still processed'
 %}
