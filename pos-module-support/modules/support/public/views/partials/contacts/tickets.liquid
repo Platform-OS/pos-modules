@@ -1,0 +1,18 @@
+{% doc %}
+  A compact ticket list for contact and organization pages.
+  @param {object[]} tickets - Ticket records
+  @param {object} lookup - From queries/tickets/lookup
+{% enddoc %}
+{% if tickets.size == 0 %}
+  <p class="pos-supplementary">{{ 'modules/support/contacts.no_tickets' | t }}</p>
+{% else %}
+  <ul class="pos-support-plain-list">
+    {% for ticket in tickets %}
+      <li>
+        {% render 'modules/support/badges/status', status: lookup.statuses[ticket.status_id] %}
+        <a href="/support-desk/tickets/{{ ticket.id }}">#{{ ticket.number }} {{ ticket.subject }}</a>
+        <span class="pos-supplementary">{{ ticket.created_at | l: 'long' }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}

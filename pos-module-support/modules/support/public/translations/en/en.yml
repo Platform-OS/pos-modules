@@ -82,8 +82,28 @@ en:
     errors:
       already_member: is already on the support team
   contacts:
+    tickets: Tickets
+    no_tickets: No tickets you can see.
+    details: Details
+    phone: Phone
+    add_email: Another email address
+    add: Add
+    merge: Merge contact
+    merge_help: Moves this contact's tickets, messages and email addresses to the other contact, then removes this one.
+    merge_into: Email of the contact to keep
+    people: People
+    domains: Email domains (comma-separated)
+    domains_help: New contacts from these domains join this organization. Existing contacts are not moved.
+    tier: Tier
+    department_policy: The department's SLA policy
+    blocked: This sender is blocked; their email is not turned into tickets.
+    bounced: Email to this contact bounced.
     errors:
-      email_taken: already belongs to a contact
+      email_taken: That address already belongs to a contact.
+      merge_self: Choose a different contact to merge into.
+      merge_permission: Only a manager can merge contacts.
+      merge_target: No contact with that email address.
+      domain: Enter domains like example.com.
   emails:
     from_name: "%{brand}"
     reply_delimiter: "##- Please type your reply above this line -##"

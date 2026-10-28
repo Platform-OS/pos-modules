@@ -1,0 +1,50 @@
+{% doc %}
+  Contact page (CO-1, CO-2).
+  @param {object} data - From queries/contacts/page_data
+{% enddoc %}
+{% liquid
+  assign contact = data.contact
+  assign action = '/support-desk/contacts/' | append: contact.id
+%}
+<div class="pos-support-steps">
+  <p class="pos-supplementary"><a href="/support-desk">{{ 'modules/support/ticket.back' | t }}</a></p>
+  <h1 class="pos-heading-2">{{ contact.name | default: contact.emails.first }}</h1>
+  <p>{{ contact.emails | join: ', ' }}{% if data.organization %} · <a href="/support-desk/organizations/{{ data.organization.id }}">{{ data.organization.name }}</a>{% endif %}</p>
+  {% if contact.blocked %}<p class="pos-support-error">{{ 'modules/support/contacts.blocked' | t }}</p>{% endif %}
+  {% if contact.bounced %}<p class="pos-support-error">{{ 'modules/support/contacts.bounced' | t }}</p>{% endif %}
+
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{{ 'modules/support/contacts.tickets' | t }}</h2>
+    {% render 'modules/support/contacts/tickets', tickets: data.tickets, lookup: data.lookup %}
+  </section>
+
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{{ 'modules/support/contacts.details' | t }}</h2>
+    <form action="{{ action }}" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="change" value="details">
+      <fieldset><label for="ct-name">{{ 'modules/support/settings.name' | t }}</label><input id="ct-name" name="name" value="{{ contact.name }}"></fieldset>
+      <fieldset><label for="ct-phone">{{ 'modules/support/contacts.phone' | t }}</label><input id="ct-phone" name="phone" value="{{ contact.phone }}"></fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+    </form>
+    <form action="{{ action }}" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="change" value="add_email">
+      <fieldset><label for="ct-email">{{ 'modules/support/contacts.add_email' | t }}</label><input id="ct-email" type="email" name="email" required></fieldset>
+      <button type="submit" class="pos-button">{{ 'modules/support/contacts.add' | t }}</button>
+    </form>
+  </section>
+
+  {% if data.can_manage %}
+    <section class="pos-card pos-support-step">
+      <h2 class="pos-heading-3">{{ 'modules/support/contacts.merge' | t }}</h2>
+      <p class="pos-supplementary">{{ 'modules/support/contacts.merge_help' | t }}</p>
+      <form action="{{ action }}" method="post" class="pos-form pos-support-settings-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="change" value="merge">
+        <fieldset><label for="ct-target">{{ 'modules/support/contacts.merge_into' | t }}</label><input id="ct-target" type="email" name="target_email" required></fieldset>
+        <button type="submit" class="pos-button">{{ 'modules/support/contacts.merge' | t }}</button>
+      </form>
+    </section>
+  {% endif %}
+</div>

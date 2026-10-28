@@ -1,0 +1,19 @@
+---
+slug: support-desk/contacts/:id
+layout: modules/support/support
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  function data = 'modules/support/queries/contacts/page_data', contact_id: context.params.id, organization_id: null, member: context.exports.support.support_member
+  if data == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+  render 'modules/support/contacts/contact', data: data
+%}

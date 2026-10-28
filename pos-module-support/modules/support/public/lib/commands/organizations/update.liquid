@@ -1,0 +1,37 @@
+{% doc %}
+  Updates an organization (CO-3): name, tier, SLA policy and domains.
+  Domains are lower-cased, de-duplicated, free-mail domains dropped; they
+  only affect contacts created from now on. Returns { valid, error }.
+  @param {object} organization - The organization
+  @param {object} params - name, domains (comma-separated), tier, sla_policy_id
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null }
+  function settings = 'modules/support/helpers/settings'
+  assign domains = []
+  assign raw = params.domains | split: ','
+  for item in raw
+    assign domain = item | downcase | strip
+    assign valid = domain | matches: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+    if domain == blank
+      continue
+    endif
+    unless valid
+      assign result.error = 'modules/support/contacts.errors.domain'
+      return result
+    endunless
+    unless settings.free_mail_domains contains domain
+      assign domains << domain
+    endunless
+  endfor
+
+  assign values = { "name": null }
+  assign values.name = params.name | strip | default: organization.name | truncate: 120, ''
+  assign values.domains = domains | uniq
+  assign values.tier = params.tier | strip | truncate: 40, ''
+  assign values.sla_policy_id = params.sla_policy_id
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: organization.id, properties: props
+  assign result.valid = true
+  return result
+%}

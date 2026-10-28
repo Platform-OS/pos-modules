@@ -1,0 +1,43 @@
+{% doc %}
+  Contact or organization page data, tickets limited to the member's scope.
+  @param {string} [contact_id] - For a contact page
+  @param {string} [organization_id] - For an organization page
+  @param {object} member - The acting team_member
+{% enddoc %}
+{% liquid
+  assign data = { "contact": null, "organization": null, "contacts": [], "tickets": [] }
+  function scope = 'modules/support/queries/tickets/scope', member: member, department_id: null
+  if contact_id != blank
+    graphql c = 'modules/support/contacts/search', id: contact_id, limit: 1
+    assign data.contact = c.records.results.first
+    if data.contact == blank
+      return null
+    endif
+    assign organization_id = data.contact.organization_id
+    graphql t = 'modules/support/tickets/search', requester_id: data.contact.id, department_ids: scope, limit: 50
+    assign data.tickets = t.records.results
+  endif
+  if organization_id != blank
+    graphql o = 'modules/support/organizations/search', id: organization_id, limit: 1
+    assign data.organization = o.records.results.first
+    if contact_id == blank
+      if data.organization == blank
+        return null
+      endif
+      graphql people = 'modules/support/contacts/search', organization_id: organization_id, limit: 100
+      assign data.contacts = people.records.results
+      graphql t = 'modules/support/tickets/search', organization_id: organization_id, department_ids: scope, limit: 50
+      assign data.tickets = t.records.results
+    endif
+  endif
+  function lookup = 'modules/support/queries/tickets/lookup', tickets: data.tickets
+  assign data.lookup = lookup
+  graphql policies = 'modules/support/sla_policies/search', limit: 50
+  assign data.policies = policies.records.results
+  function permissions = 'modules/support/queries/team/role_permissions'
+  assign data.can_manage = false
+  if permissions[member.role] contains 'support.tickets.manage.all'
+    assign data.can_manage = true
+  endif
+  return data
+%}

@@ -1,0 +1,33 @@
+---
+slug: support-desk/contacts/:id
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.tickets.reply
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+  graphql c = 'modules/support/contacts/search', id: context.params.id, limit: 1
+  assign contact = c.records.results.first
+  if contact == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+  function result = 'modules/support/commands/contacts/update', contact: contact, params: context.params, member: context.exports.support.support_member
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/settings.saved', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  assign target = '/support-desk/contacts/' | append: result.contact_id
+  redirect_to target
+%}

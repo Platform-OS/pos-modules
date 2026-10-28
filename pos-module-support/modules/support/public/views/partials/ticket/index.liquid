@@ -130,8 +130,8 @@
 
       <section class="pos-card">
         <h2 class="pos-heading-3">{{ 'modules/support/ticket.requester' | t }}</h2>
-        <p><strong>{{ data.requester.name }}</strong><br>{{ data.requester.emails | join: ', ' }}</p>
-        {% if data.organization %}<p>{{ data.organization.name }}</p>{% endif %}
+        <p><a href="/support-desk/contacts/{{ data.requester.id }}"><strong>{{ data.requester.name }}</strong></a><br>{{ data.requester.emails | join: ', ' }}</p>
+        {% if data.organization %}<p><a href="/support-desk/organizations/{{ data.organization.id }}">{{ data.organization.name }}</a></p>{% endif %}
         {% if data.participants.size > 0 %}
           <p class="pos-supplementary">{{ 'modules/support/ticket.cc' | t }}: {{ data.participants | map: 'email' | join: ', ' }}</p>
         {% endif %}

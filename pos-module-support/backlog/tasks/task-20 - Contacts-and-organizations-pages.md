@@ -1,8 +1,9 @@
 ---
 id: TASK-20
 title: 'Contacts and organizations pages'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - "@arturpawlak"
 created_date: '2026-10-27'
 labels:
   - mvp
@@ -26,17 +27,19 @@ Tests: E2E smoke
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Contact merge moves tickets and emails
-- [ ] #2 Organization domain edits affect future matching only
+- [x] #1 Contact merge moves tickets and emails
+- [x] #2 Organization domain edits affect future matching only
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Definition of Done in backlog/config.yml met
+- [x] #1 Definition of Done in backlog/config.yml met
 <!-- DOD:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-<!-- Done / Outcome / Next -->
+Done: Added the contact page (support-desk/contacts/:id: addresses, organization link, blocked/bounced notes, tickets within the member's scope, name/phone edit, add an address, merge into another contact for managers) and the organization page (support-desk/organizations/:id: domains, tier, people, tickets, edit name/domains/tier/SLA policy for managers). Commands contacts/merge (tickets, customer messages and CC rows move with records_update_all; addresses, phone and organization carried over; source deleted; logged), contacts/update and organizations/update (domains lower-cased, validated, de-duplicated, free-mail dropped). The ticket sidebar links to both pages.
+Outcome: contacts_pages_test passes (ticket and address follow the merge, source removed; existing contact keeps its organization after a domain change, a new contact on the new domain joins it, gmail.com is dropped); all 21 test files pass; both pages answer 200 for the admin on support-dev.
+Next: None.
 <!-- SECTION:FINAL_SUMMARY:END -->

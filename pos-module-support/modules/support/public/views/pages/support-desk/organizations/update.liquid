@@ -1,0 +1,33 @@
+---
+slug: support-desk/organizations/:id
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.tickets.manage.all
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+  graphql o = 'modules/support/organizations/search', id: context.params.id, limit: 1
+  assign organization = o.records.results.first
+  if organization == blank
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endif
+  function result = 'modules/support/commands/organizations/update', organization: organization, params: context.params
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/settings.saved', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  assign target = '/support-desk/organizations/' | append: organization.id
+  redirect_to target
+%}

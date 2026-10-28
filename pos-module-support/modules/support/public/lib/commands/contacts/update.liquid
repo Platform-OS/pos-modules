@@ -1,0 +1,50 @@
+{% doc %}
+  Applies the contact page form: name, phone, organization, an extra
+  address, or a merge into another contact (managers). Returns
+  { valid, error, contact_id }.
+  @param {object} contact - The contact
+  @param {object} params - The posted form, read by name
+  @param {object} member - The acting team_member
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "contact_id": null }
+  assign result.contact_id = contact.id
+  case params.change
+  when 'details'
+    assign values = { "name": null }
+    assign values.name = params.name | strip | default: contact.name | truncate: 120, ''
+    assign values.phone = params.phone | strip | truncate: 40, ''
+    if params.organization_id != null
+      assign values.organization_id = params.organization_id
+    endif
+    function props = 'modules/support/helpers/props', values: values
+    graphql u = 'modules/support/records/update', id: contact.id, properties: props
+    assign result.valid = true
+  when 'add_email'
+    function added = 'modules/support/commands/contacts/add_email', contact: contact, email: params.email
+    assign result.valid = added.valid
+    assign result.error = 'modules/support/contacts.errors.email_taken'
+  when 'merge'
+    function permissions = 'modules/support/queries/team/role_permissions'
+    unless permissions[member.role] contains 'support.tickets.manage.all'
+      assign result.error = 'modules/support/contacts.errors.merge_permission'
+      return result
+    endunless
+    assign emails = []
+    assign target_email = params.target_email | downcase | strip
+    assign emails << target_email
+    graphql t = 'modules/support/contacts/search', emails: emails, limit: 1
+    assign target = t.records.results.first
+    if target == blank
+      assign result.error = 'modules/support/contacts.errors.merge_target'
+      return result
+    endif
+    function merged = 'modules/support/commands/contacts/merge', source: contact, target: target
+    assign result.valid = merged.valid
+    assign result.error = merged.error
+    assign result.contact_id = target.id
+  else
+    assign result.error = 'modules/support/ticket.unknown_change'
+  endcase
+  return result
+%}

@@ -1,0 +1,26 @@
+mutation ($source_id: String!, $target_id: String!) {
+  tickets: records_update_all(
+    table: "modules/support/ticket"
+    sync: true
+    filter: { properties: [{ name: "requester_id", value: $source_id }] }
+    record: { properties: [{ name: "requester_id", value: $target_id }] }
+  ) {
+    count
+  }
+  messages: records_update_all(
+    table: "modules/support/message"
+    sync: true
+    filter: { properties: [{ name: "author_type", value: "customer" }, { name: "author_id", value: $source_id }] }
+    record: { properties: [{ name: "author_id", value: $target_id }] }
+  ) {
+    count
+  }
+  participants: records_update_all(
+    table: "modules/support/participant"
+    sync: true
+    filter: { properties: [{ name: "contact_id", value: $source_id }] }
+    record: { properties: [{ name: "contact_id", value: $target_id }] }
+  ) {
+    count
+  }
+}

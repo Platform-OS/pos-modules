@@ -1,0 +1,42 @@
+{% doc %}
+  Organization page (CO-3).
+  @param {object} data - From queries/contacts/page_data
+{% enddoc %}
+{% liquid
+  assign organization = data.organization
+  assign action = '/support-desk/organizations/' | append: organization.id
+%}
+<div class="pos-support-steps">
+  <p class="pos-supplementary"><a href="/support-desk">{{ 'modules/support/ticket.back' | t }}</a></p>
+  <h1 class="pos-heading-2">{{ organization.name }}</h1>
+  <p>{{ organization.domains | join: ', ' }}{% if organization.tier %} · {{ organization.tier }}{% endif %}</p>
+
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{{ 'modules/support/contacts.people' | t }}</h2>
+    <ul class="pos-support-plain-list">
+      {% for person in data.contacts %}<li><a href="/support-desk/contacts/{{ person.id }}">{{ person.name | default: person.emails.first }}</a> <span class="pos-supplementary">{{ person.emails.first }}</span></li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{{ 'modules/support/contacts.tickets' | t }}</h2>
+    {% render 'modules/support/contacts/tickets', tickets: data.tickets, lookup: data.lookup %}
+  </section>
+
+  {% if data.can_manage %}
+    <section class="pos-card pos-support-step">
+      <h2 class="pos-heading-3">{{ 'modules/support/contacts.details' | t }}</h2>
+      <form action="{{ action }}" method="post" class="pos-form pos-support-settings-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <fieldset><label for="org-name">{{ 'modules/support/settings.name' | t }}</label><input id="org-name" name="name" value="{{ organization.name }}" required></fieldset>
+        <fieldset><label for="org-domains">{{ 'modules/support/contacts.domains' | t }}</label><input id="org-domains" name="domains" value="{{ organization.domains | join: ', ' }}" aria-describedby="org-domains-help"><p id="org-domains-help" class="pos-supplementary">{{ 'modules/support/contacts.domains_help' | t }}</p></fieldset>
+        <fieldset><label for="org-tier">{{ 'modules/support/contacts.tier' | t }}</label><input id="org-tier" name="tier" value="{{ organization.tier }}"></fieldset>
+        <fieldset>
+          <label for="org-policy">{{ 'modules/support/settings.sla_policy' | t }}</label>
+          <select id="org-policy" name="sla_policy_id"><option value="">{{ 'modules/support/contacts.department_policy' | t }}</option>{% for p in data.policies %}<option value="{{ p.id }}" {% if p.id == organization.sla_policy_id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+        </fieldset>
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+      </form>
+    </section>
+  {% endif %}
+</div>

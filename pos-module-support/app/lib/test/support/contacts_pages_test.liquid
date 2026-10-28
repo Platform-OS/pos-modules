@@ -1,0 +1,45 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function f = 'support_test_helpers/ticket_fixture', label: 'merge'
+  assign suffix = 8 | random_string | downcase
+  assign other_email = 'duplicate-' | append: suffix | append: '@example.com'
+  function duplicate = 'modules/support/commands/contacts/find_or_create', email: other_email, name: 'Dup'
+
+  # merge moves tickets and emails
+  function merged = 'modules/support/commands/contacts/merge', source: f.contact, target: duplicate
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: merged.valid, expected: true, field_name: 'merge ok'
+  function ticket = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.requester_id, expected: duplicate.id, field_name: 'ticket moved to target'
+  assign source_email = f.contact.emails.first
+  function found = 'modules/support/commands/contacts/find_or_create', email: source_email, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: found.id, expected: duplicate.id, field_name: 'source email now matches target'
+  graphql gone = 'modules/support/contacts/search', id: f.contact.id, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: gone.records.total_entries, expected: 0, field_name: 'source removed'
+
+  # organization domain edits affect future matching only
+  assign domain = 'org-' | append: suffix | append: '.example.org'
+  assign early = 'early@' | append: domain
+  function early_contact = 'modules/support/commands/contacts/find_or_create', email: early, name: null
+  graphql org = 'modules/support/organizations/search', id: early_contact.organization_id, limit: 1
+  assign organization = org.records.results.first
+  assign new_domain = 'renamed-' | append: domain
+  assign params = { "name": "Renamed org" }
+  assign params.domains = new_domain
+  function updated = 'modules/support/commands/organizations/update', organization: organization, params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: updated.valid, expected: true, field_name: 'org updated'
+  graphql still = 'modules/support/contacts/search', id: early_contact.id, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: still.records.results.first.organization_id, expected: organization.id, field_name: 'existing contact keeps organization'
+  assign late = 'late@' | append: new_domain
+  function late_contact = 'modules/support/commands/contacts/find_or_create', email: late, name: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: late_contact.organization_id, expected: organization.id, field_name: 'new domain matches new contacts'
+  assign params.domains = 'gmail.com, ' | append: new_domain
+  function updated = 'modules/support/commands/organizations/update', organization: organization, params: params
+  graphql org = 'modules/support/organizations/search', id: organization.id, limit: 1
+  assign has_gmail = false
+  if org.records.results.first.domains contains 'gmail.com'
+    assign has_gmail = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_gmail, expected: false, field_name: 'free-mail domain dropped'
+%}
