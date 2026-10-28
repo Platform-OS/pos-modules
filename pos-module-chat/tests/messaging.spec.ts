@@ -34,6 +34,11 @@ test.describe('Testing messaging', () => {
 
       const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(receiver.fullName);
       expect(isChatCardVisible).toBe(true);
+
+      // the date of the last message, e.g. "Oct 28"
+      const lastMessageDate = inboxPage.chatList.getCardLastMessageDate(receiver.fullName);
+      await expect(lastMessageDate).toHaveText(/\b[A-Z][a-z]{2} \d{2}\b/);
+      await expect(lastMessageDate).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
     });
 
     await test.step(`${receiver.fullName} received the message`, async () => {

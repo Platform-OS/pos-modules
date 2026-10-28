@@ -4,6 +4,7 @@
   @param {string} name - display name of the participant
   @param {string} [image_src] - avatar image URL
   @param {string} [last_message] - last message text
+  @param {string} [last_message_at] - when the last message was sent
   @param {string} [timezone] - timezone for date formatting
   @param {boolean} [unread] - whether this conversation has unread messages
 {% enddoc %}
@@ -19,10 +20,10 @@
         </span>
         {% if last_message %}
           <div class="pos-chat-conversationCard-lastMessage">
-            {% if last_message %}
-              <small>{{ last_message }}</small>
-              <time datetime="{{ last_message.created_at }}">
-                {{ last_message.created_at | strftime: "%b %d", timezone }}
+            <small>{{ last_message }}</small>
+            {% if last_message_at %}
+              <time datetime="{{ last_message_at }}">
+                {{ last_message_at | strftime: "%b %d", timezone }}
               </time>
             {% endif %}
           </div>
