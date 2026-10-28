@@ -1,0 +1,88 @@
+{% doc %}
+  Notifies support team members about a ticket event (07 §1) by push and
+  email. Preferences default to on when a key or channel is missing (D-10);
+  a paused member gets nothing and the skip is logged; the same recipient,
+  ticket and event are not notified twice within 2 minutes; the actor is
+  never notified about their own action. Customer emails never come here.
+  Returns { pushed, emailed, skipped }.
+  @param {string} event_key - new | assigned | reply | mention | sla_due | sla_breach | unassigned | confirm_wait | p0
+  @param {string} ticket_id - The ticket
+  @param {string[]} [recipient_ids] - Profile ids
+  @param {string} [actor_id] - Profile id of whoever caused the event
+{% enddoc %}
+{% liquid
+  assign result = { "pushed": 0, "emailed": 0, "skipped": 0 }
+  assign ids = recipient_ids | default: [] | uniq | array_compact
+  if actor_id != blank
+    assign without_actor = []
+    for id in ids
+      if id != actor_id
+        assign without_actor << id
+      endif
+    endfor
+    assign ids = without_actor
+  endif
+  if ids.size == 0
+    return result
+  endif
+
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank
+    return result
+  endif
+
+  graphql members = 'modules/support/team_members/search', profile_ids: ids, state: 'active', limit: 200
+  graphql profiles = 'modules/user/profiles/search', ids: ids, limit: 200
+  assign profile_by_id = {}
+  for profile in profiles.records.results
+    assign profile_by_id[profile.id] = profile
+  endfor
+
+  assign since = 'now' | add_to_time: -2, 'm' | to_time
+  graphql recent = 'modules/support/ticket_events/search', ticket_id: ticket.id, event_type: 'notified', limit: 100
+  assign already = []
+  for row in recent.records.results
+    assign at = row.created_at | to_time
+    if at >= since and row.to_value == event_key
+      assign already << row.actor_id
+    endif
+  endfor
+
+  function message = 'modules/support/commands/notifications/build_message', event_key: event_key, ticket: ticket
+  assign now = 'now' | to_time
+
+  for member in members.records.results
+    if already contains member.profile_id
+      continue
+    endif
+    assign profile = profile_by_id[member.profile_id]
+    if profile == blank
+      continue
+    endif
+    if member.paused_until != blank
+      assign paused_until = member.paused_until | to_time
+      if paused_until > now
+        function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: member.profile_id, event_type: 'notification_skipped', from_value: null, to_value: event_key, reason: 'paused'
+        assign result.skipped = result.skipped | plus: 1
+        continue
+      endif
+    endif
+
+    assign prefs = member.notification_prefs | default: '{}' | parse_json
+    assign channel = prefs[event_key] | default: {}
+    if channel.push != false and profile.user_id != blank
+      assign user_ids = []
+      assign user_ids << profile.user_id
+      function _ = 'modules/push_notifications/commands/notifications/broadcast', user_ids: user_ids, payload: message.push, ttl: 86400, urgency: 'high'
+      assign result.pushed = result.pushed | plus: 1
+    endif
+    if channel.email != false and profile.email != blank
+      function sent = 'modules/support/commands/notifications/send_alert_email', profile: profile, message: message
+      if sent.ok
+        assign result.emailed = result.emailed | plus: 1
+      endif
+    endif
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: member.profile_id, event_type: 'notified', from_value: null, to_value: event_key, reason: null
+  endfor
+  return result
+%}

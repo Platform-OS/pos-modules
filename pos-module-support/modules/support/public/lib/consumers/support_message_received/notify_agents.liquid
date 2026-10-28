@@ -1,0 +1,20 @@
+---
+metadata:
+  priority: default
+  max_attempts: 3
+---
+{% doc %}
+  A customer reply on an existing ticket. The first message of a new ticket
+  is covered by the "new" notification.
+  @param {object} event - support_message_received
+{% enddoc %}
+{% liquid
+  if event.auto_reply
+    return null
+  endif
+  graphql first = 'modules/support/messages/search', ticket_id: event.ticket_id, limit: 1
+  if first.records.results.first.id == event.message_id
+    return null
+  endif
+  function _ = 'modules/support/commands/notifications/notify', event_key: 'reply', ticket_id: event.ticket_id, actor_id: null, mentioned_ids: null
+%}

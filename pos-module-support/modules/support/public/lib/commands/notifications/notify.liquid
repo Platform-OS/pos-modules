@@ -1,0 +1,21 @@
+{% doc %}
+  Resolves the recipients for an event and dispatches (07 §1). Used by the
+  notify_agents consumers. Tickets in an inactive department notify nobody.
+  @param {string} event_key - The event key
+  @param {string} ticket_id - The ticket
+  @param {string} [actor_id] - Who caused the event
+  @param {string[]} [mentioned_ids] - For mention
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank
+    return null
+  endif
+  graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
+  if d.records.results.first.active == false
+    return null
+  endif
+  function recipients = 'modules/support/queries/notifications/recipients', event_key: event_key, ticket: ticket, mentioned_ids: mentioned_ids
+  function result = 'modules/support/commands/notifications/dispatch', event_key: event_key, ticket_id: ticket.id, recipient_ids: recipients, actor_id: actor_id
+  return result
+%}

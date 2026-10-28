@@ -1,0 +1,13 @@
+---
+metadata:
+  priority: default
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_note_created
+{% enddoc %}
+{% liquid
+  if event.mentioned_ids.size > 0
+    function _ = 'modules/support/commands/notifications/notify', event_key: 'mention', ticket_id: event.ticket_id, actor_id: event.actor_id, mentioned_ids: event.mentioned_ids
+  endif
+%}

@@ -253,3 +253,16 @@ en:
     least_loaded: "least-loaded in %{department}: %{count} open"
     on_duty: "escalated: on-duty manager"
     reassigned_off: "re-assigned: previous assignee off for more than a business day"
+  notifications:
+    new: "New ticket · %{priority}"
+    p0: "P0 ticket · act now"
+    assigned: "Ticket assigned to you · %{priority}"
+    reply: "Customer replied · %{priority}"
+    mention: "You were mentioned in a note"
+    sla_due: "SLA due soon · %{priority}"
+    sla_breach: "SLA breached · %{priority}"
+    unassigned: "Ticket waiting for an agent · %{priority}"
+    confirm_wait: "Confirmation period ended"
+    access_requested: "Someone asked for access to Support"
+    open_ticket: Open ticket
+    footer: You get this because of your support desk notification settings.

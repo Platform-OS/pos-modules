@@ -1,0 +1,11 @@
+---
+metadata:
+  priority: high
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_ticket_unassigned
+{% enddoc %}
+{% liquid
+  function _ = 'modules/support/commands/notifications/notify', event_key: 'unassigned', ticket_id: event.ticket_id, actor_id: null, mentioned_ids: null
+%}

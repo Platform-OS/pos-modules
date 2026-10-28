@@ -1,0 +1,59 @@
+{% doc %}
+  Profile ids to notify for an event (07 §1).
+  @param {string} event_key - new | assigned | reply | mention | sla_due | sla_breach | unassigned | confirm_wait | p0 | access_requested
+  @param {object} [ticket] - The ticket
+  @param {string[]} [mentioned_ids] - For mention
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/team_members/search', state: 'active', limit: 200
+  assign managers = []
+  assign admins = []
+  assign department = []
+  for member in r.records.results
+    if member.role == 'manager' or member.role == 'admin'
+      assign managers << member.profile_id
+    endif
+    if member.role == 'admin'
+      assign admins << member.profile_id
+    endif
+    if member.role == 'agent' and member.department_ids contains ticket.department_id
+      assign department << member.profile_id
+    endif
+  endfor
+  assign everyone_new = department | concat: managers | uniq
+
+  assign ids = []
+  case event_key
+    when 'new', 'p0'
+      assign ids = everyone_new
+    when 'assigned'
+      if ticket.assignee_id != blank
+        assign ids << ticket.assignee_id
+      endif
+    when 'reply'
+      if ticket.assignee_id != blank
+        assign ids << ticket.assignee_id
+      else
+        assign ids = everyone_new
+      endif
+    when 'mention'
+      assign ids = mentioned_ids | default: []
+    when 'sla_due', 'confirm_wait'
+      if ticket.assignee_id != blank
+        assign ids << ticket.assignee_id
+      else
+        assign ids = managers
+      endif
+    when 'sla_breach'
+      assign ids = managers
+      if ticket.assignee_id != blank
+        assign ids << ticket.assignee_id
+      endif
+    when 'unassigned'
+      assign ids = managers
+    when 'access_requested'
+      assign ids = admins
+  endcase
+  assign ids = ids | uniq | array_compact
+  return ids
+%}

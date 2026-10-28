@@ -20,6 +20,12 @@
     break
   endif
 
+  function support_settings = 'modules/support/helpers/settings'
+  assign base_url = 'https://' | append: context.location.host
+  if support_settings.base_url != base_url
+    function _ = 'modules/support/commands/settings/set', key: 'base_url', value: base_url
+  endif
+
   assign support_entity = { "member": support_member, "ticket": ticket }
   # platformos-check-disable ConvertIncludeToRender, UnreachableCode
   include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: permission, access_callback: 'modules/support/can/desk', entity: support_entity, forbidden_partial: 'modules/support/forbidden', redirect_anonymous_to_login: false, anonymous_return_to: null

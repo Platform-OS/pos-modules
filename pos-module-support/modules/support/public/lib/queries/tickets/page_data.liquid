@@ -16,8 +16,14 @@
     assign list << attachment
     assign data.attachments_by_message[attachment.message_id] = list
   endfor
-  graphql e = 'modules/support/ticket_events/search', ticket_id: ticket.id, limit: 50
-  assign data.events = e.records.results
+  graphql e = 'modules/support/ticket_events/search', ticket_id: ticket.id, limit: 100
+  assign hidden = ["notified", "notification_skipped", "confirm_wait_notified"]
+  assign data.events = []
+  for event in e.records.results
+    unless hidden contains event.event_type
+      assign data.events << event
+    endunless
+  endfor
   graphql l = 'modules/support/escalation_links/search', ticket_id: ticket.id
   assign data.links = l.records.results
   graphql p = 'modules/support/participants/search', ticket_id: ticket.id, email: null, role: null

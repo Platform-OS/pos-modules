@@ -1,0 +1,32 @@
+{% doc %}
+  Builds the push payload and alert email text for an event (07 §2). Never
+  contains message bodies or customer email addresses.
+  Returns { title, body, path, url, push }.
+  @param {string} event_key - The event key
+  @param {object} ticket - The ticket
+{% enddoc %}
+{% liquid
+  function brand = 'modules/support/helpers/branding'
+  function settings = 'modules/support/helpers/settings'
+  assign priority = ticket.priority | upcase
+  assign title_key = 'modules/support/notifications.' | append: event_key
+  assign title = title_key | t: priority: priority
+  assign body = '#' | append: ticket.number | append: ' ' | append: ticket.subject
+  assign path = '/support-desk/tickets/' | append: ticket.id
+  assign url = settings.base_url | append: path
+
+  assign push = { "title": null, "body": null, "url": null, "icon": null, "data": {} }
+  assign push.title = title
+  assign push.body = body | truncate: 120
+  assign push.url = path
+  assign push.icon = brand.icon_url | default: brand.logo_url
+  assign push.data.tag = 'support-' | append: ticket.id | append: '-' | append: event_key
+
+  assign message = { "title": null }
+  assign message.title = title
+  assign message.body = body
+  assign message.path = path
+  assign message.url = url
+  assign message.push = push
+  return message
+%}

@@ -1,0 +1,19 @@
+---
+metadata:
+  priority: default
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_ticket_created
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: event.ticket_id, number: null, member: null
+  if ticket.category == 'closed'
+    return null
+  endif
+  assign key = 'new'
+  if ticket.priority == 'p0'
+    assign key = 'p0'
+  endif
+  function _ = 'modules/support/commands/notifications/notify', event_key: key, ticket_id: event.ticket_id, actor_id: event.actor_id, mentioned_ids: null
+%}

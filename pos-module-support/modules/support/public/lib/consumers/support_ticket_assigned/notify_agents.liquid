@@ -1,0 +1,13 @@
+---
+metadata:
+  priority: default
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_ticket_assigned
+{% enddoc %}
+{% liquid
+  if event.assignee_id != blank
+    function _ = 'modules/support/commands/notifications/notify', event_key: 'assigned', ticket_id: event.ticket_id, actor_id: event.actor_id, mentioned_ids: null
+  endif
+%}

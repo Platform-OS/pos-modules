@@ -1,0 +1,75 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign stub = 'https://' | append: context.location.host | append: '/test/sendgrid-stub'
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: stub
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+
+  function f = 'support_test_helpers/ticket_fixture', label: 'notify'
+
+  # a real profile behind the membership (alerts go to the profile's email)
+  assign suffix = 8 | random_string | downcase
+  assign email = 'notify-' | append: suffix | append: '@example.com'
+  assign no_roles = []
+  function user = 'modules/user/commands/user/create', first_name: 'Nora', last_name: 'Notify', email: email, password: email, roles: no_roles, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  assign departments = []
+  assign departments << f.department_id
+  assign object = { "role": "agent", "state": "active", "source": "invite", "availability": "away" }
+  assign object.profile_id = profile.id
+  assign object.department_ids = departments
+  function member = 'modules/support/commands/team_members/create', object: object
+  assign ids = []
+  assign ids << profile.id
+
+  # defaults: push and email
+  function sent = 'modules/support/commands/notifications/dispatch', event_key: 'assigned', ticket_id: f.ticket.id, recipient_ids: ids, actor_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: sent.pushed, expected: 1, field_name: 'push on by default'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: sent.emailed, expected: 1, field_name: 'email on by default'
+
+  # dedupe within 2 minutes
+  function again = 'modules/support/commands/notifications/dispatch', event_key: 'assigned', ticket_id: f.ticket.id, recipient_ids: ids, actor_id: null
+  assign total = again.pushed | plus: again.emailed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: total, expected: 0, field_name: 'deduplicated within 2 minutes'
+
+  # the actor is not notified about their own action
+  function own = 'modules/support/commands/notifications/dispatch', event_key: 'reply', ticket_id: f.ticket.id, recipient_ids: ids, actor_id: profile.id
+  assign total = own.pushed | plus: own.emailed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: total, expected: 0, field_name: 'actor not notified'
+
+  # push off for "mention" stops only that push
+  assign prefs = { "mention": { "push": false } }
+  assign values = { "notification_prefs": null }
+  assign values.notification_prefs = prefs | json
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: member.id, properties: props
+  function mention = 'modules/support/commands/notifications/dispatch', event_key: 'mention', ticket_id: f.ticket.id, recipient_ids: ids, actor_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: mention.pushed, expected: 0, field_name: 'push off stops push'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: mention.emailed, expected: 1, field_name: 'push off keeps email'
+  function sla = 'modules/support/commands/notifications/dispatch', event_key: 'sla_due', ticket_id: f.ticket.id, recipient_ids: ids, actor_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: sla.pushed, expected: 1, field_name: 'other events still pushed'
+
+  # pause skips both and logs the skip
+  assign values = { "paused_until": null }
+  assign values.paused_until = 'now' | add_to_time: 1, 'h'
+  function props = 'modules/support/helpers/props', values: values
+  graphql u = 'modules/support/records/update', id: member.id, properties: props
+  function paused = 'modules/support/commands/notifications/dispatch', event_key: 'sla_breach', ticket_id: f.ticket.id, recipient_ids: ids, actor_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: paused.skipped, expected: 1, field_name: 'pause skips'
+  assign total = paused.pushed | plus: paused.emailed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: total, expected: 0, field_name: 'pause sends nothing'
+  graphql skipped = 'modules/support/ticket_events/search', ticket_id: f.ticket.id, event_type: 'notification_skipped', limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: skipped.records.results.first.reason, expected: 'paused', field_name: 'skip logged'
+
+  # recipients: new goes to department agents and managers
+  function recipients = 'modules/support/queries/notifications/recipients', event_key: 'new', ticket: f.ticket, mentioned_ids: null
+  assign has_member = false
+  if recipients contains profile.id
+    assign has_member = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: has_member, field_name: 'department agent gets new', object: null
+
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: null
+  graphql cleanup = 'modules/user/user/delete', id: user.id
+%}

@@ -1,0 +1,38 @@
+{% doc %}
+  Sends the agent alert email (07 §1, template agent_alert) through the
+  configured provider. Returns the provider result.
+  @param {object} profile - Recipient profile (email, first_name)
+  @param {object} message - From notifications/build_message
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  function brand = 'modules/support/helpers/branding'
+  graphql d = 'modules/support/records/find_by', table: 'modules/support/department', name: 'is_default', value: 'true'
+  assign department = d.records.results.first.properties
+  assign from = { "email": null, "name": null }
+  if department.from_address != blank
+    assign from.email = department.from_address
+  else
+    assign from.email = 'support@' | append: settings.sending_domain
+  endif
+  assign from.name = brand.support_email_name
+  assign to = []
+  assign recipient = { "email": null, "name": null }
+  assign recipient.email = profile.email
+  assign recipient.name = profile.name | default: profile.first_name
+  assign to << recipient
+
+  capture html
+    render 'modules/support/emails/agent_alert', message: message, brand: brand
+  endcapture
+  assign subject = message.title | append: ' · ' | append: message.body | truncate: 180
+  assign text = message.title | append: ' - ' | append: message.body | append: ' - ' | append: message.url
+  assign email = { "headers": { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "All" } }
+  assign email.from = from
+  assign email.to = to
+  assign email.subject = subject
+  assign email.text = text
+  assign email.html = html
+  function sent = 'modules/support/commands/email/send', message: email
+  return sent
+%}
