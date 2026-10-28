@@ -1,0 +1,77 @@
+{% doc %}
+  Creates or updates a status (labels over the fixed categories, D-5). A
+  status's category is locked once a ticket used it; system statuses (New,
+  Closed, Spam) stay active. Returns { valid, error, notice }.
+  @param {object} params - id?, key (new only), label, customer_label, category, position, active
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  assign categories = ["new", "open", "pending", "on_hold", "solved", "closed"]
+  assign colors = { "new": "new", "open": "open", "pending": "pending", "on_hold": "onhold", "solved": "solved", "closed": "closed" }
+  assign label = params.label | strip
+  if label == blank
+    assign result.error = 'modules/support/settings.errors.label'
+    return result
+  endif
+
+  assign values = { "active": true }
+  assign values.label = label | truncate: 40, ''
+  assign values.customer_label = params.customer_label | strip | truncate: 60, ''
+  assign values.position = params.position | default: 50 | plus: 0
+  if params.active != 'true'
+    assign values.active = false
+  endif
+
+  if params.id != blank
+    function statuses = 'modules/support/queries/statuses/all'
+    assign current = statuses.by_id[params.id]
+    if current == blank
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    if current.system
+      assign values.active = true
+    endif
+    if params.category != blank and params.category != current.category
+      assign ids = []
+      assign ids << current.id
+      graphql used = 'modules/support/tickets/search', status_ids: ids, limit: 1
+      if used.records.total_entries > 0 or current.system
+        assign result.error = 'modules/support/settings.errors.category_locked'
+        return result
+      endif
+      unless categories contains params.category
+        assign result.error = 'modules/support/settings.errors.category'
+        return result
+      endunless
+      assign values.category = params.category
+      assign values.color = colors[params.category]
+    endif
+    function props = 'modules/support/helpers/props', values: values
+    graphql r = 'modules/support/records/update', id: current.id, properties: props
+  else
+    assign key = params.key | downcase | strip
+    assign key_ok = key | matches: '^[a-z][a-z_]{1,19}$'
+    unless key_ok and categories contains params.category
+      assign result.error = 'modules/support/settings.errors.status_key'
+      return result
+    endunless
+    if params.category == 'new'
+      assign result.error = 'modules/support/settings.errors.category'
+      return result
+    endif
+    function statuses = 'modules/support/queries/statuses/all'
+    if statuses.by_key[key]
+      assign result.error = 'modules/support/settings.errors.status_key'
+      return result
+    endif
+    assign values.key = key
+    assign values.category = params.category
+    assign values.color = colors[params.category]
+    assign values.system = false
+    function props = 'modules/support/helpers/props', values: values
+    graphql r = 'modules/support/records/create_one', table: 'modules/support/status', properties: props
+  endif
+  assign result.valid = true
+  return result
+%}

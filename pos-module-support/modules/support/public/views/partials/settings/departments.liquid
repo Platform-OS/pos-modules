@@ -1,0 +1,50 @@
+{% doc %}
+  Settings → Departments: list and the add/edit form.
+  @param {object} data - From queries/settings/section_data
+{% enddoc %}
+{% assign edit = data.edit %}
+{% render 'modules/support/settings/nav', current: 'departments' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.departments' | t }}</h1>
+  <div class="pos-support-table-wrap">
+    <table class="pos-support-table">
+      <thead><tr><th scope="col">{{ 'modules/support/settings.name' | t }}</th><th scope="col">{{ 'modules/support/settings.inbound' | t }}</th><th scope="col">{{ 'modules/support/settings.from' | t }}</th><th scope="col">{{ 'modules/support/settings.state' | t }}</th><th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/settings.edit' | t }}</span></th></tr></thead>
+      <tbody>
+        {% for d in data.departments %}
+          <tr>
+            <td>{{ d.name }} {% if d.is_default %}<span class="pos-tag">{{ 'modules/support/settings.default' | t }}</span>{% endif %}</td>
+            <td><code>{{ d.inbound_local_part }}@{{ data.settings.inbound_domain | default: '…' }}</code></td>
+            <td>{{ d.from_name }} {{ d.from_address }}</td>
+            <td>{% if d.active %}{{ 'modules/support/settings.active' | t }}{% else %}{{ 'modules/support/settings.inactive' | t }}{% endif %}</td>
+            <td><a href="/support-desk/settings/departments?edit={{ d.id }}">{{ 'modules/support/settings.edit' | t }}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <section class="pos-card pos-support-step" aria-labelledby="pos-support-department-form">
+    <h2 id="pos-support-department-form" class="pos-heading-3">{% if edit %}{{ 'modules/support/settings.edit' | t }}: {{ edit.name }}{% else %}{{ 'modules/support/settings.add_department' | t }}{% endif %}</h2>
+    <form action="/support-desk/settings/save" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="section" value="departments">
+      {% if edit %}<input type="hidden" name="id" value="{{ edit.id }}">{% endif %}
+      <fieldset><label for="dep-name">{{ 'modules/support/settings.name' | t }}</label><input id="dep-name" name="name" value="{{ edit.name }}" required></fieldset>
+      <fieldset><label for="dep-code">{{ 'modules/support/settings.short_code' | t }}</label><input id="dep-code" name="short_code" value="{{ edit.short_code }}" maxlength="8"></fieldset>
+      <fieldset><label for="dep-local">{{ 'modules/support/settings.inbound_local_part' | t }}</label><input id="dep-local" name="inbound_local_part" value="{{ edit.inbound_local_part }}" pattern="[a-z0-9][a-z0-9-]*" required></fieldset>
+      <fieldset><label for="dep-public">{{ 'modules/support/settings.public_address' | t }}</label><input id="dep-public" type="email" name="public_address" value="{{ edit.public_address }}"></fieldset>
+      <fieldset><label for="dep-from-name">{{ 'modules/support/settings.from_name' | t }}</label><input id="dep-from-name" name="from_name" value="{{ edit.from_name }}"></fieldset>
+      <fieldset><label for="dep-from">{{ 'modules/support/settings.from_address' | t }}</label><input id="dep-from" type="email" name="from_address" value="{{ edit.from_address }}" aria-describedby="dep-from-help"><p id="dep-from-help" class="pos-supplementary">{{ 'modules/support/settings.from_help' | t: domain: data.settings.sending_domain }}</p></fieldset>
+      <fieldset><label for="dep-signature">{{ 'modules/support/settings.signature' | t }}</label><textarea id="dep-signature" name="signature" rows="3">{{ edit.signature_html | strip_html }}</textarea></fieldset>
+      <fieldset>
+        <label for="dep-policy">{{ 'modules/support/settings.sla_policy' | t }}</label>
+        <select id="dep-policy" name="sla_policy_id">
+          {% for p in data.policies %}<option value="{{ p.id }}" {% if p.id == edit.sla_policy_id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+        </select>
+      </fieldset>
+      <fieldset><label><input type="checkbox" name="active" value="true" {% if edit == blank or edit.active %}checked{% endif %}> {{ 'modules/support/settings.active' | t }}</label></fieldset>
+      <fieldset><label><input type="checkbox" name="is_default" value="true" {% if edit.is_default %}checked{% endif %}> {{ 'modules/support/settings.default_help' | t }}</label></fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+    </form>
+  </section>
+</div>

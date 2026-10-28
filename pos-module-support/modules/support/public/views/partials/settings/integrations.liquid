@@ -1,0 +1,22 @@
+{% doc %}
+  Settings → Integrations: maintenance job health.
+  @param {object} data - From queries/settings/section_data
+{% enddoc %}
+{% render 'modules/support/settings/nav', current: 'integrations' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.integrations' | t }}</h1>
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{{ 'modules/support/settings.sweep' | t }}</h2>
+    {% if data.heartbeat.at %}
+      <p {% if data.stale %}class="pos-support-error"{% endif %}>{{ 'modules/support/settings.sweep_last' | t: at: data.heartbeat.at }}</p>
+    {% else %}
+      <p class="pos-support-error">{{ 'modules/support/settings.sweep_never' | t }}</p>
+    {% endif %}
+    {% if data.stale %}<p class="pos-support-error">{{ 'modules/support/settings.sweep_stale' | t }}</p>{% endif %}
+    <form action="/support-desk/settings/save" method="post">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="section" value="integrations">
+      <button type="submit" class="pos-button">{{ 'modules/support/settings.sweep_restart' | t }}</button>
+    </form>
+  </section>
+</div>

@@ -1,0 +1,71 @@
+{% doc %}
+  Creates or updates a department. The inbound local part is lower-case
+  letters, digits and dashes and unique; exactly one department is the
+  default. Returns { valid, error, notice }.
+  @param {object} params - id?, name, short_code, inbound_local_part, public_address, from_name, from_address, signature, sla_policy_id, active, is_default
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  assign name = params.name | strip
+  assign local = params.inbound_local_part | downcase | strip
+  assign local_ok = local | matches: '^[a-z0-9][a-z0-9-]{0,40}$'
+  if name == blank or local_ok == false
+    assign result.error = 'modules/support/settings.errors.department'
+    return result
+  endif
+  if params.from_address != blank
+    assign from_ok = params.from_address | is_email_valid
+    unless from_ok
+      assign result.error = 'modules/support/settings.errors.from_address'
+      return result
+    endunless
+  endif
+  graphql same = 'modules/support/departments/search', inbound_local_part: local, limit: 1
+  assign clash = same.records.results.first
+  if clash and clash.id != params.id
+    assign result.error = 'modules/support/settings.errors.local_part_taken'
+    return result
+  endif
+
+  assign values = { "active": true, "is_default": false }
+  assign values.name = name
+  assign values.short_code = params.short_code | strip | upcase | truncate: 8, ''
+  assign values.inbound_local_part = local
+  assign values.public_address = params.public_address | downcase | strip
+  assign values.from_name = params.from_name | strip
+  assign values.from_address = params.from_address | downcase | strip
+  function signature = 'modules/support/helpers/text_to_html', text: params.signature
+  assign values.signature_html = signature
+  assign values.sla_policy_id = params.sla_policy_id
+  if params.active != 'true'
+    assign values.active = false
+  endif
+  if params.is_default == 'true'
+    assign values.is_default = true
+    assign values.active = true
+  endif
+  function props = 'modules/support/helpers/props', values: values
+
+  if params.id != blank
+    graphql current = 'modules/support/departments/search', id: params.id, limit: 1
+    if current.records.total_entries == 0
+      assign result.error = 'modules/support/settings.errors.not_found'
+      return result
+    endif
+    if current.records.results.first.is_default and values.is_default == false
+      assign result.error = 'modules/support/settings.errors.default_needed'
+      return result
+    endif
+    graphql r = 'modules/support/records/update', id: params.id, properties: props
+    assign saved_id = params.id
+  else
+    graphql r = 'modules/support/records/create_one', table: 'modules/support/department', properties: props
+    assign saved_id = r.record.id
+  endif
+
+  if values.is_default
+    graphql others = 'modules/support/settings_sections/clear_default_department', keep_id: saved_id
+  endif
+  assign result.valid = true
+  return result
+%}

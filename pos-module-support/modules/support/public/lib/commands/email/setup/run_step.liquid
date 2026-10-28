@@ -3,7 +3,7 @@
   the email_status setting. Constants are written last in the request,
   because constant_set can hide other constants for the rest of it.
   Returns { ok, notice, error }.
-  @param {string} step - key | check | domain | inbound | test | check_inbound | enable | disable
+  @param {string} step - key | check | domain | inbound | test | check_inbound | rotate | enable | disable
   @param {object} params - The posted form
   @param {object} current_profile - The admin running the step
 {% enddoc %}
@@ -158,6 +158,41 @@
       assign result.notice = 'modules/support/settings_email.notices.inbound_check_sent'
     else
       assign result.error = 'modules/support/settings_email.errors.test'
+    endif
+
+  when 'rotate'
+    assign current = context.constants['modules/support/INBOUND_SECRET']
+    if settings.inbound_domain == blank or current == blank
+      assign result.error = 'modules/support/settings_email.errors.rotate_setup'
+      return result
+    endif
+    assign seed = 32 | random_string
+    assign new_secret = seed | compute_hmac: current | slice: 0, 48
+    assign expires = 'now' | add_to_time: 24, 'h' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    function _ = 'modules/support/commands/settings/set', key: 'previous_inbound_secret', value: current
+    function _ = 'modules/support/commands/settings/set', key: 'previous_secret_expires_at', value: expires
+    assign url = 'https://' | append: context.location.host | append: '/api/support/inbound/' | append: provider | append: '/' | append: new_secret
+    assign path = adapter | append: '/create_inbound'
+    function updated = path, hostname: settings.inbound_domain, url: url
+    assign status.rotated_at = 'now' | to_time
+    assign status.rotation_provider_updated = updated.ok
+    if updated.ok
+      assign status.rotation_pending_url = null
+    else
+      assign status.rotation_pending_url = url
+    endif
+    function _ = 'modules/support/commands/settings/set', key: 'email_status', value: status
+    assign provider_note = 'provider_updated'
+    unless updated.ok
+      assign provider_note = 'provider_not_updated'
+    endunless
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: current_profile.id, event_type: 'team_secret_rotated', from_value: null, to_value: null, reason: provider_note
+    graphql c = 'modules/support/constants/set', name: 'modules/support/INBOUND_SECRET', value: new_secret
+    assign result.ok = true
+    if updated.ok
+      assign result.notice = 'modules/support/settings_email.notices.rotated'
+    else
+      assign result.notice = 'modules/support/settings_email.notices.rotated_manual'
     endif
 
   when 'enable'

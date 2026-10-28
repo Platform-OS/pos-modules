@@ -1,0 +1,94 @@
+{% doc %}
+  Saves an SLA policy: targets in minutes per priority (blank = none) with
+  calendar or business hours, and business hours (time zone, a window per
+  weekday, holidays). Returns { valid, error, notice }.
+  @param {object} params - id?, name, p0_first … p3_resolution, p0_hours …, tz, mon_open, mon_close …, holidays
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  assign name = params.name | strip
+  if name == blank
+    assign result.error = 'modules/support/settings.errors.label'
+    return result
+  endif
+
+  assign targets = {}
+  assign priorities = "p0,p1,p2,p3" | split: ','
+  assign kinds = "first,next,resolution" | split: ','
+  for priority in priorities
+    assign entry = { "hours": "business" }
+    assign mode_key = priority | append: '_hours'
+    if params[mode_key] == 'calendar'
+      assign entry.hours = 'calendar'
+    endif
+    for kind in kinds
+      assign field = priority | append: '_' | append: kind
+      assign raw = params[field] | strip
+      if raw == blank
+        assign entry[kind] = null
+      else
+        assign minutes = raw | plus: 0
+        if minutes < 1 or minutes > 525600
+          assign result.error = 'modules/support/settings.errors.number'
+          return result
+        endif
+        assign entry[kind] = minutes
+      endif
+    endfor
+    assign targets[priority] = entry
+  endfor
+
+  assign tz = params.tz | strip | default: 'UTC'
+  assign probe = '2026-01-05 09:00' | to_time: tz
+  if probe == blank
+    assign result.error = 'modules/support/settings.errors.time_zone'
+    return result
+  endif
+  assign hours = { "days": {}, "holidays": [] }
+  assign hours.tz = tz
+  assign days = "mon,tue,wed,thu,fri,sat,sun" | split: ','
+  for day in days
+    assign open_key = day | append: '_open'
+    assign close_key = day | append: '_close'
+    assign open_at = params[open_key] | strip
+    assign close_at = params[close_key] | strip
+    if open_at != blank and close_at != blank
+      assign valid_open = open_at | matches: '^([01]\d|2[0-3]):[0-5]\d$'
+      assign valid_close = close_at | matches: '^([01]\d|2[0-3]):[0-5]\d$'
+      if valid_open == false or valid_close == false or open_at >= close_at
+        assign result.error = 'modules/support/settings.errors.hours'
+        return result
+      endif
+      assign window = []
+      assign window << open_at
+      assign window << close_at
+      assign hours.days[day] = window
+    endif
+  endfor
+  assign holidays = params.holidays | split: ','
+  for holiday in holidays
+    assign day = holiday | strip
+    assign valid_day = day | matches: '^\d{4}-\d{2}-\d{2}$'
+    if valid_day
+      assign hours.holidays << day
+    elsif day != blank
+      assign result.error = 'modules/support/settings.errors.holidays'
+      return result
+    endif
+  endfor
+
+  assign values = { "name": null }
+  assign values.name = name
+  assign values.targets = targets | json
+  assign values.business_hours = hours | json
+  function props = 'modules/support/helpers/props', values: values
+  if params.id != blank
+    graphql r = 'modules/support/records/update', id: params.id, properties: props
+  else
+    assign values.is_default = false
+    function props = 'modules/support/helpers/props', values: values
+    graphql r = 'modules/support/records/create_one', table: 'modules/support/sla_policy', properties: props
+  endif
+  assign result.valid = true
+  return result
+%}

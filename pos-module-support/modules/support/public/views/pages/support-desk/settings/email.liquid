@@ -15,6 +15,11 @@ metadata:
     assign path = 'modules/support/commands/email/providers/' | append: settings.email_provider | append: '/setup_instructions'
     function instructions = path, settings: settings
   endif
+  assign reveal = false
+  if context.params.reveal == '1'
+    assign reveal = true
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: context.exports.support.current_profile.id, event_type: 'team_secret_revealed', from_value: null, to_value: null, reason: null
+  endif
   graphql departments = 'modules/support/departments/search', limit: 100
-  render 'modules/support/settings/email', settings: settings, instructions: instructions, departments: departments.records.results
+  render 'modules/support/settings/email', settings: settings, instructions: instructions, departments: departments.records.results, reveal: reveal
 %}

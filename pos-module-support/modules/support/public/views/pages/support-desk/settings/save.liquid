@@ -1,0 +1,34 @@
+---
+slug: support-desk/settings/save
+method: post
+layout: modules/support/support
+metadata:
+  permission: support.settings.manage
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign sections = "departments,statuses,sla,saved_replies,assignment,integrations" | split: ','
+  assign section = context.params.section
+  unless sections contains section
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endunless
+  function result = 'modules/support/commands/settings_sections/save', section: section, params: context.params
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: result.notice, error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  assign target = '/support-desk/settings/' | append: section | replace: '_', '-'
+  redirect_to target
+%}

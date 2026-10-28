@@ -1,0 +1,72 @@
+{% doc %}
+  Settings → SLA policies and business hours.
+  @param {object} data - From queries/settings/section_data
+{% enddoc %}
+{% liquid
+  assign edit = data.edit
+  assign priorities = "p0,p1,p2,p3" | split: ','
+  assign kinds = "first,next,resolution" | split: ','
+  assign days = "mon,tue,wed,thu,fri,sat,sun" | split: ','
+  assign hours = edit.business_hours
+%}
+{% render 'modules/support/settings/nav', current: 'sla' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.sla' | t }}</h1>
+  <p>
+    {% for p in data.policies %}
+      <a href="/support-desk/settings/sla?edit={{ p.id }}" {% if p.id == edit.id %}aria-current="page"{% endif %}>{{ p.name }}{% if p.is_default %} ({{ 'modules/support/settings.default' | t }}){% endif %}</a>{% unless forloop.last %} · {% endunless %}
+    {% endfor %}
+    · <a href="/support-desk/settings/sla?edit=new">{{ 'modules/support/settings.add_policy' | t }}</a>
+  </p>
+  <form action="/support-desk/settings/save" method="post" class="pos-form">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <input type="hidden" name="section" value="sla">
+    {% if edit %}<input type="hidden" name="id" value="{{ edit.id }}">{% endif %}
+    <section class="pos-card pos-support-step">
+      <fieldset class="pos-support-settings-form"><label for="sla-name">{{ 'modules/support/settings.name' | t }}</label><input id="sla-name" name="name" value="{{ edit.name }}" required></fieldset>
+      <div class="pos-support-table-wrap">
+        <table class="pos-support-table pos-support-matrix">
+          <caption class="pos-support-sr-only">{{ 'modules/support/settings.targets' | t }}</caption>
+          <thead><tr><th scope="col">{{ 'modules/support/queue.priority' | t }}</th>{% for k in kinds %}<th scope="col">{{ 'modules/support/settings.target_' | append: k | t }}</th>{% endfor %}<th scope="col">{{ 'modules/support/settings.clock' | t }}</th></tr></thead>
+          <tbody>
+            {% for p in priorities %}
+              {% assign target = edit.targets[p] %}
+              <tr>
+                <th scope="row">{{ p | upcase }}</th>
+                {% for k in kinds %}
+                  {% assign field = p | append: '_' | append: k %}
+                  <td><label class="pos-support-sr-only" for="{{ field }}">{{ p | upcase }} {{ 'modules/support/settings.target_' | append: k | t }}</label><input id="{{ field }}" type="number" min="1" name="{{ field }}" value="{{ target[k] }}" placeholder="—"></td>
+                {% endfor %}
+                {% assign mode_field = p | append: '_hours' %}
+                <td><label class="pos-support-sr-only" for="{{ mode_field }}">{{ p | upcase }} {{ 'modules/support/settings.clock' | t }}</label>
+                  <select id="{{ mode_field }}" name="{{ mode_field }}"><option value="business" {% if target.hours != 'calendar' %}selected{% endif %}>{{ 'modules/support/settings.business' | t }}</option><option value="calendar" {% if target.hours == 'calendar' %}selected{% endif %}>{{ 'modules/support/settings.calendar' | t }}</option></select></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="pos-supplementary">{{ 'modules/support/settings.targets_help' | t }}</p>
+    </section>
+    <section class="pos-card pos-support-step">
+      <h2 class="pos-heading-3">{{ 'modules/support/settings.business_hours' | t }}</h2>
+      <fieldset class="pos-support-settings-form"><label for="sla-tz">{{ 'modules/support/settings.time_zone' | t }}</label><input id="sla-tz" name="tz" value="{{ hours.tz | default: 'UTC' }}" placeholder="America/Chicago"></fieldset>
+      <div class="pos-support-table-wrap">
+        <table class="pos-support-table pos-support-matrix">
+          <thead><tr><th scope="col">{{ 'modules/support/settings.day' | t }}</th><th scope="col">{{ 'modules/support/settings.opens' | t }}</th><th scope="col">{{ 'modules/support/settings.closes' | t }}</th></tr></thead>
+          <tbody>
+            {% for day in days %}
+              {% assign window = hours.days[day] %}
+              <tr>
+                <th scope="row">{{ 'modules/support/settings.days.' | append: day | t }}</th>
+                <td><input type="time" name="{{ day }}_open" value="{{ window[0] }}" aria-label="{{ 'modules/support/settings.days.' | append: day | t }} {{ 'modules/support/settings.opens' | t }}"></td>
+                <td><input type="time" name="{{ day }}_close" value="{{ window[1] }}" aria-label="{{ 'modules/support/settings.days.' | append: day | t }} {{ 'modules/support/settings.closes' | t }}"></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <fieldset class="pos-support-settings-form"><label for="sla-holidays">{{ 'modules/support/settings.holidays' | t }}</label><input id="sla-holidays" name="holidays" value="{{ hours.holidays | join: ', ' }}" placeholder="2026-12-25, 2027-01-01"></fieldset>
+    </section>
+    <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+  </form>
+</div>

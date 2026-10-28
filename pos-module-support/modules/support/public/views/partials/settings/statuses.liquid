@@ -1,0 +1,49 @@
+{% doc %}
+  Settings → Statuses: labels over the fixed categories (D-5).
+  @param {object} data - From queries/settings/section_data
+{% enddoc %}
+{% assign edit = data.edit %}
+{% assign categories = "open,pending,on_hold,solved,closed" | split: ',' %}
+{% render 'modules/support/settings/nav', current: 'statuses' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.statuses' | t }}</h1>
+  <p class="pos-supplementary">{{ 'modules/support/settings.statuses_help' | t }}</p>
+  <div class="pos-support-table-wrap">
+    <table class="pos-support-table">
+      <thead><tr><th scope="col">{{ 'modules/support/settings.label' | t }}</th><th scope="col">{{ 'modules/support/settings.customer_label' | t }}</th><th scope="col">{{ 'modules/support/settings.category' | t }}</th><th scope="col">{{ 'modules/support/settings.state' | t }}</th><th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/settings.edit' | t }}</span></th></tr></thead>
+      <tbody>
+        {% for s in data.statuses %}
+          <tr>
+            <td>{% render 'modules/support/badges/status', status: s %}</td>
+            <td>{{ s.customer_label | default: '—' }}</td>
+            <td>{{ 'modules/support/categories.' | append: s.category | t }}</td>
+            <td>{% if s.active %}{{ 'modules/support/settings.active' | t }}{% else %}{{ 'modules/support/settings.inactive' | t }}{% endif %}</td>
+            <td><a href="/support-desk/settings/statuses?edit={{ s.id }}">{{ 'modules/support/settings.edit' | t }}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{% if edit %}{{ 'modules/support/settings.edit' | t }}: {{ edit.label }}{% else %}{{ 'modules/support/settings.add_status' | t }}{% endif %}</h2>
+    <form action="/support-desk/settings/save" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="section" value="statuses">
+      {% if edit %}<input type="hidden" name="id" value="{{ edit.id }}">{% else %}
+        <fieldset><label for="st-key">{{ 'modules/support/settings.status_key' | t }}</label><input id="st-key" name="key" pattern="[a-z][a-z_]{1,19}" required></fieldset>
+      {% endif %}
+      <fieldset><label for="st-label">{{ 'modules/support/settings.label' | t }}</label><input id="st-label" name="label" value="{{ edit.label }}" required></fieldset>
+      <fieldset><label for="st-customer">{{ 'modules/support/settings.customer_label' | t }}</label><input id="st-customer" name="customer_label" value="{{ edit.customer_label }}"></fieldset>
+      <fieldset>
+        <label for="st-category">{{ 'modules/support/settings.category' | t }}</label>
+        <select id="st-category" name="category" {% if edit.system %}disabled{% endif %}>
+          {% for c in categories %}<option value="{{ c }}" {% if edit.category == c %}selected{% endif %}>{{ 'modules/support/categories.' | append: c | t }}</option>{% endfor %}
+        </select>
+        <p class="pos-supplementary">{{ 'modules/support/settings.category_lock' | t }}</p>
+      </fieldset>
+      <fieldset><label for="st-position">{{ 'modules/support/settings.position' | t }}</label><input id="st-position" type="number" name="position" value="{{ edit.position | default: 50 }}" min="1" max="99"></fieldset>
+      <fieldset><label><input type="checkbox" name="active" value="true" {% if edit == blank or edit.active %}checked{% endif %} {% if edit.system %}disabled{% endif %}> {{ 'modules/support/settings.active' | t }}</label>{% if edit.system %}<input type="hidden" name="active" value="true">{% endif %}</fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+    </form>
+  </section>
+</div>

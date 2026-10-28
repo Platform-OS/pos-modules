@@ -1,0 +1,33 @@
+{% doc %}
+  Creates, updates or deletes a saved reply. The text may use the
+  whitelisted variables of saved_replies/render. Returns { valid, error, notice }.
+  @param {object} params - id?, title, body, department_id, delete
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  if params.delete == 'true' and params.id != blank
+    graphql d = 'modules/support/settings_sections/delete_saved_reply', id: params.id
+    assign result.valid = true
+    assign result.notice = 'modules/support/settings.deleted'
+    return result
+  endif
+  assign title = params.title | strip
+  assign body = params.body | strip
+  if title == blank or body == blank
+    assign result.error = 'modules/support/settings.errors.saved_reply'
+    return result
+  endif
+  function body_html = 'modules/support/helpers/text_to_html', text: body
+  assign values = { "title": null }
+  assign values.title = title | truncate: 80, ''
+  assign values.body_html = body_html
+  assign values.department_id = params.department_id
+  function props = 'modules/support/helpers/props', values: values
+  if params.id != blank
+    graphql r = 'modules/support/records/update', id: params.id, properties: props
+  else
+    graphql r = 'modules/support/records/create_one', table: 'modules/support/saved_reply', properties: props
+  endif
+  assign result.valid = true
+  return result
+%}

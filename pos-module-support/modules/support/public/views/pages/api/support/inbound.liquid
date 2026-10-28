@@ -5,32 +5,10 @@ layout: ''
 ---
 {% liquid
   # Provider inbound webhook (04 §2.1). Authenticated only by the secret path
-  # segment: the current INBOUND_SECRET, or the previous one until it expires
-  # after a rotation (D-28). Read named params only: never pass or iterate
-  # context.params whole (decision-9).
-  assign expected = context.constants['modules/support/INBOUND_SECRET']
-  assign given = context.params.secret | append: ''
-  assign authorized = false
-  if expected != blank and given != blank
-    assign given_digest = given | compute_hmac: expected
-    assign expected_digest = expected | compute_hmac: expected
-    if given_digest == expected_digest
-      assign authorized = true
-    else
-      function settings = 'modules/support/helpers/settings'
-      assign previous = settings.previous_inbound_secret
-      assign expires = settings.previous_secret_expires_at | to_time
-      assign now = 'now' | to_time
-      if previous != blank and expires > now
-        assign previous_digest = previous | compute_hmac: expected
-        assign given_previous_digest = given | compute_hmac: expected
-        if previous_digest == given_previous_digest
-          assign authorized = true
-        endif
-      endif
-    endif
-  endif
-
+  # segment (current secret, or the previous one for 24 h after a rotation).
+  # Read named params only: never pass or iterate context.params whole
+  # (decision-9).
+  function authorized = 'modules/support/helpers/inbound_secret_valid', given: context.params.secret, current: null, settings: null
   unless authorized
     response_status 404
     break

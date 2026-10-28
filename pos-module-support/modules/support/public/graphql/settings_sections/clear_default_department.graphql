@@ -1,0 +1,10 @@
+mutation ($keep_id: ID!) {
+  result: records_update_all(
+    table: "modules/support/department"
+    sync: true
+    filter: { id: { not_value_in: [$keep_id] }, properties: [{ name: "is_default", value_boolean: true }] }
+    record: { properties: [{ name: "is_default", value_boolean: false }] }
+  ) {
+    count
+  }
+}

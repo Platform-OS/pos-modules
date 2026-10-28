@@ -1,0 +1,42 @@
+{% doc %}
+  Settings → Saved replies.
+  @param {object} data - From queries/settings/section_data
+{% enddoc %}
+{% assign edit = data.edit %}
+{% render 'modules/support/settings/nav', current: 'saved-replies' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.saved_replies' | t }}</h1>
+  {% if data.saved_replies.size > 0 %}
+    <ul class="pos-support-plain-list">
+      {% for r in data.saved_replies %}
+        <li><a href="/support-desk/settings/saved-replies?edit={{ r.id }}">{{ r.title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{% if edit %}{{ 'modules/support/settings.edit' | t }}: {{ edit.title }}{% else %}{{ 'modules/support/settings.add_saved_reply' | t }}{% endif %}</h2>
+    <form action="/support-desk/settings/save" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="section" value="saved_replies">
+      {% if edit %}<input type="hidden" name="id" value="{{ edit.id }}">{% endif %}
+      <fieldset><label for="sr-title">{{ 'modules/support/settings.title_field' | t }}</label><input id="sr-title" name="title" value="{{ edit.title }}" required></fieldset>
+      <fieldset><label for="sr-body">{{ 'modules/support/settings.body' | t }}</label><textarea id="sr-body" name="body" rows="6" required aria-describedby="sr-help">{{ edit.body_html | replace: '</p><p>', '
+
+' | strip_html }}</textarea><p id="sr-help" class="pos-supplementary">{{ 'modules/support/settings.variables_help' | t }}</p></fieldset>
+      <fieldset>
+        <label for="sr-dept">{{ 'modules/support/queue.department' | t }}</label>
+        <select id="sr-dept" name="department_id"><option value="">{{ 'modules/support/settings.all_departments' | t }}</option>{% for d in data.departments %}<option value="{{ d.id }}" {% if d.id == edit.department_id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
+      </fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+    </form>
+    {% if edit %}
+      <form action="/support-desk/settings/save" method="post">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="section" value="saved_replies">
+        <input type="hidden" name="id" value="{{ edit.id }}">
+        <input type="hidden" name="delete" value="true">
+        <button type="submit" class="pos-button">{{ 'modules/support/settings.delete' | t }}</button>
+      </form>
+    {% endif %}
+  </section>
+</div>

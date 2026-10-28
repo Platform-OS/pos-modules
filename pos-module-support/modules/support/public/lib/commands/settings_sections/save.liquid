@@ -1,0 +1,43 @@
+{% doc %}
+  Saves one Settings form (05 §3). The form names its section and, where a
+  section lists records, the record id. Returns { valid, error, notice }.
+  @param {string} section - departments | statuses | sla | saved_replies | assignment | integrations
+  @param {object} params - The posted form, read by name
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  case section
+  when 'departments'
+    function result = 'modules/support/commands/settings_sections/department', params: params
+  when 'statuses'
+    function result = 'modules/support/commands/settings_sections/status', params: params
+  when 'sla'
+    function result = 'modules/support/commands/settings_sections/sla', params: params
+  when 'saved_replies'
+    function result = 'modules/support/commands/settings_sections/saved_reply', params: params
+  when 'assignment'
+    assign integers = "unassigned_alert_minutes,unassigned_alert_minutes_p0,escalate_after_minutes,confirmation_wait_days" | split: ','
+    for key in integers
+      assign value = params[key] | plus: 0
+      if value < 1 or value > 10080
+        assign result.error = 'modules/support/settings.errors.number'
+        return result
+      endif
+      function _ = 'modules/support/commands/settings/set', key: key, value: value
+    endfor
+    assign modes = ["auto_close", "keep_open"]
+    if modes contains params.confirmation_mode
+      function _ = 'modules/support/commands/settings/set', key: 'confirmation_mode', value: params.confirmation_mode
+    endif
+    assign threshold = params.spam_threshold | plus: 0.0
+    function _ = 'modules/support/commands/settings/set', key: 'spam_threshold', value: threshold
+    assign result.valid = true
+  when 'integrations'
+    function _ = 'modules/support/commands/maintenance/start_sweep'
+    assign result.valid = true
+    assign result.notice = 'modules/support/settings.sweep_restarted'
+  else
+    assign result.error = 'modules/support/settings.errors.section'
+  endcase
+  return result
+%}

@@ -96,6 +96,10 @@ en:
     save: Save
     test_subject: "Test email from %{brand} Support"
     test_body: This is a test email from your support desk. If you can read it, sending works.
+    reveal: Reveal
+    rotate: Rotate secret
+    rotate_help: Creates a new webhook URL and updates the provider. The old URL keeps working for 24 hours.
+    rotation_manual: "The provider could not be updated. Paste this URL in its inbound settings within 24 hours:"
     dns:
       type: Type
       host: Host
@@ -150,6 +154,8 @@ en:
       inbound_check_sent: Check email sent to the inbound address. Reload this page in a minute.
       enabled: Ticket email is on.
       disabled: Ticket email is off.
+      rotated: Secret rotated and the provider updated. The old URL works for 24 more hours.
+      rotated_manual: Secret rotated. Update the URL at your provider; the old one works for 24 more hours.
     errors:
       provider: Choose an email service first.
       key: That doesn't look like an API key.
@@ -160,6 +166,7 @@ en:
       test: The test email was not sent.
       enable: Send a test email and pass the inbound check first.
       step: Unknown step.
+      rotate_setup: Set up receiving email first.
   tickets:
     errors:
       unknown_status: That status doesn't exist.
@@ -320,3 +327,110 @@ en:
     refresh: Show it
     acknowledge: I've seen the new message, send anyway
     assigned_to_you: Assigned to you
+  categories:
+    new: New
+    open: Open
+    pending: Pending (SLA paused)
+    on_hold: On hold (SLA paused, hidden from customer)
+    solved: Solved
+    closed: Closed
+  settings:
+    title: Settings
+    saved: Saved.
+    deleted: Deleted.
+    sweep_restarted: Maintenance job restarted.
+    save: Save
+    edit: Edit
+    delete: Delete
+    name: Name
+    title_field: Title
+    body: Text
+    state: State
+    active: Active
+    inactive: Inactive
+    default: default
+    default_help: Default department (new email to unknown addresses lands here)
+    inbound: Inbound address
+    from: Sends as
+    short_code: Short code
+    inbound_local_part: Inbound address name
+    public_address: Public address (shown to customers)
+    from_name: Sender name
+    from_address: Sender address
+    from_help: "Must be on your authenticated sending domain (%{domain})."
+    signature: Signature
+    sla_policy: SLA policy
+    add_department: Add department
+    statuses_help: Labels are yours to change. The category decides how the status behaves (SLA, customer replies) and is locked once a ticket used the status.
+    label: Agent label
+    customer_label: Customer label
+    category: Category
+    category_lock: Locked once a ticket used this status.
+    position: Order
+    status_key: Key (letters and underscores, never changes)
+    add_status: Add status
+    add_policy: Add policy
+    targets: SLA targets in minutes
+    target_first: First reply
+    target_next: Next reply
+    target_resolution: Resolution
+    clock: Clock
+    business: Business hours
+    calendar: Around the clock
+    targets_help: "Minutes; leave blank for no target. Example: 480 business minutes is one working day."
+    business_hours: Business hours
+    time_zone: Time zone
+    day: Day
+    opens: Opens
+    closes: Closes
+    holidays: Holidays (YYYY-MM-DD, comma-separated)
+    days:
+      mon: Monday
+      tue: Tuesday
+      wed: Wednesday
+      thu: Thursday
+      fri: Friday
+      sat: Saturday
+      sun: Sunday
+    add_saved_reply: Add saved reply
+    variables_help: "You can use {{ requester.first_name }}, {{ requester.name }}, {{ ticket.number }}, {{ ticket.subject }}, {{ agent.first_name }} and {{ brand.name }}."
+    all_departments: All departments
+    unassigned_alert: Alert managers when a ticket is unassigned for (minutes)
+    unassigned_alert_p0: Same for P0 (minutes)
+    escalate_after: Assign the on-duty manager after (minutes)
+    confirmation_mode: After the confirmation period
+    auto_close: Close the ticket
+    keep_open: Keep it open and remind the assignee
+    confirmation_wait_days: Confirmation period (days)
+    spam_threshold: Spam score threshold
+    sweep: Maintenance job
+    sweep_last: "Last run: %{at}"
+    sweep_never: The maintenance job has not run yet.
+    sweep_stale: The maintenance job has not run for over 15 minutes. Restart it.
+    sweep_restart: Restart maintenance job
+    sections:
+      departments: Departments
+      statuses: Statuses
+      sla: SLA and hours
+      saved_replies: Saved replies
+      assignment: Assignment
+      team: Team
+      blocklist: Blocklist
+      email: Email
+      integrations: Integrations
+    errors:
+      number: Enter a number in range.
+      section: Unknown settings section.
+      department: Enter a name and an inbound address name (lower-case letters, digits, dashes).
+      from_address: Enter a valid sender address.
+      local_part_taken: Another department already uses that inbound address.
+      not_found: That record no longer exists.
+      default_needed: One department must stay the default. Make another one the default first.
+      label: Enter a name.
+      category_locked: This status's category can't change because tickets already used it.
+      category: Choose a valid category.
+      status_key: Use a new key of 2-20 lower-case letters or underscores.
+      time_zone: Unknown time zone.
+      hours: Opening hours must be HH:MM and close after they open.
+      holidays: Holidays must be dates like 2026-12-25.
+      saved_reply: Enter a title and text.

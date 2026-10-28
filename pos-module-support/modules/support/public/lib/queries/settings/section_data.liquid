@@ -1,0 +1,53 @@
+{% doc %}
+  Data for one Settings section page.
+  @param {string} section - departments | statuses | sla | saved_replies | assignment | integrations
+  @param {string} [edit_id] - Record being edited
+{% enddoc %}
+{% liquid
+  assign data = { "edit": null }
+  assign data.section = section
+  function settings = 'modules/support/helpers/settings'
+  assign data.settings = settings
+  graphql policies = 'modules/support/sla_policies/search', limit: 50
+  assign data.policies = policies.records.results
+  graphql departments = 'modules/support/departments/search', limit: 100
+  assign data.departments = departments.records.results
+
+  case section
+    when 'departments'
+      for item in data.departments
+        if item.id == edit_id
+          assign data.edit = item
+        endif
+      endfor
+    when 'statuses'
+      function statuses = 'modules/support/queries/statuses/all'
+      assign data.statuses = statuses.list
+      assign data.edit = statuses.by_id[edit_id]
+    when 'sla'
+      for item in data.policies
+        if item.id == edit_id or edit_id == blank and item.is_default
+          assign data.edit = item
+        endif
+      endfor
+    when 'saved_replies'
+      graphql replies = 'modules/support/saved_replies/search', limit: 100
+      assign data.saved_replies = replies.records.results
+      for item in data.saved_replies
+        if item.id == edit_id
+          assign data.edit = item
+        endif
+      endfor
+    when 'integrations'
+      assign data.heartbeat = settings.sweep_heartbeat
+      assign data.stale = true
+      if settings.sweep_heartbeat.at
+        assign at = settings.sweep_heartbeat.at | to_time
+        assign limit = 'now' | add_to_time: -15, 'm' | to_time
+        if at > limit
+          assign data.stale = false
+        endif
+      endif
+  endcase
+  return data
+%}

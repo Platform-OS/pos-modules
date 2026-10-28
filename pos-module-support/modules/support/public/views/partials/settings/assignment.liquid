@@ -1,0 +1,26 @@
+{% doc %}
+  Settings → Assignment and timings.
+  @param {object} data - From queries/settings/section_data
+{% enddoc %}
+{% assign s = data.settings %}
+{% render 'modules/support/settings/nav', current: 'assignment' %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/settings.sections.assignment' | t }}</h1>
+  <form action="/support-desk/settings/save" method="post" class="pos-form pos-card pos-support-step pos-support-settings-form">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <input type="hidden" name="section" value="assignment">
+    <fieldset><label for="as-alert">{{ 'modules/support/settings.unassigned_alert' | t }}</label><input id="as-alert" type="number" min="1" name="unassigned_alert_minutes" value="{{ s.unassigned_alert_minutes | default: 15 }}" required></fieldset>
+    <fieldset><label for="as-alert-p0">{{ 'modules/support/settings.unassigned_alert_p0' | t }}</label><input id="as-alert-p0" type="number" min="1" name="unassigned_alert_minutes_p0" value="{{ s.unassigned_alert_minutes_p0 | default: 5 }}" required></fieldset>
+    <fieldset><label for="as-escalate">{{ 'modules/support/settings.escalate_after' | t }}</label><input id="as-escalate" type="number" min="1" name="escalate_after_minutes" value="{{ s.escalate_after_minutes | default: 30 }}" required></fieldset>
+    <fieldset>
+      <label for="as-mode">{{ 'modules/support/settings.confirmation_mode' | t }}</label>
+      <select id="as-mode" name="confirmation_mode">
+        <option value="auto_close" {% if s.confirmation_mode != 'keep_open' %}selected{% endif %}>{{ 'modules/support/settings.auto_close' | t }}</option>
+        <option value="keep_open" {% if s.confirmation_mode == 'keep_open' %}selected{% endif %}>{{ 'modules/support/settings.keep_open' | t }}</option>
+      </select>
+    </fieldset>
+    <fieldset><label for="as-wait">{{ 'modules/support/settings.confirmation_wait_days' | t }}</label><input id="as-wait" type="number" min="1" name="confirmation_wait_days" value="{{ s.confirmation_wait_days | default: 7 }}" required></fieldset>
+    <fieldset><label for="as-spam">{{ 'modules/support/settings.spam_threshold' | t }}</label><input id="as-spam" type="number" step="0.1" min="0" name="spam_threshold" value="{{ s.spam_threshold | default: 5.0 }}"></fieldset>
+    <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+  </form>
+</div>

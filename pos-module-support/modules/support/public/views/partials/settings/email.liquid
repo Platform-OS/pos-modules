@@ -3,6 +3,7 @@
   @param {object} settings - From helpers/settings
   @param {object} [instructions] - From the adapter's setup_instructions
   @param {object[]} departments - Department records
+  @param {boolean} [reveal] - Show the full webhook URL (logged by the page)
 {% enddoc %}
 {% liquid
   assign status = settings.email_status | default: {}
@@ -11,6 +12,7 @@
     assign provider_set = true
   endif
 %}
+{% render 'modules/support/settings/nav', current: 'email' %}
 <h1 class="pos-heading-2">{{ 'modules/support/settings_email.title' | t }}</h1>
 <p class="pos-supplementary">{{ 'modules/support/settings_email.intro' | t }}</p>
 
@@ -84,7 +86,18 @@
         </table>
       {% endif %}
       {% if instructions.inbound_url_masked %}
-        <p>{{ 'modules/support/settings_email.step3.url' | t }} <code>{{ instructions.inbound_url_masked }}</code></p>
+        <p>{{ 'modules/support/settings_email.step3.url' | t }}
+          {% if reveal %}<code>{{ instructions.inbound_url }}</code>{% else %}<code>{{ instructions.inbound_url_masked }}</code> <a href="/support-desk/settings/email?reveal=1">{{ 'modules/support/settings_email.reveal' | t }}</a>{% endif %}
+        </p>
+        {% if status.rotation_pending_url %}
+          <p class="pos-support-error">{{ 'modules/support/settings_email.rotation_manual' | t }} <code>{{ status.rotation_pending_url }}</code></p>
+        {% endif %}
+        <form action="/support-desk/settings/email" method="post">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="step" value="rotate">
+          <button type="submit" class="pos-button">{{ 'modules/support/settings_email.rotate' | t }}</button>
+          <span class="pos-supplementary">{{ 'modules/support/settings_email.rotate_help' | t }}</span>
+        </form>
       {% endif %}
       {% if status.inbound_created == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step3.created' | t }}</p>{% endif %}
       {% if status.inbound_error %}<p class="pos-support-error">{{ status.inbound_error }}</p>{% endif %}

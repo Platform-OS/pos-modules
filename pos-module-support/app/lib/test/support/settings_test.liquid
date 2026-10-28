@@ -1,0 +1,44 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # dual secret: current accepted; previous accepted until it expires
+  assign future = 'now' | add_to_time: 2, 'h' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign past = 'now' | add_to_time: -2, 'h' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign settings = { "previous_inbound_secret": "old-secret" }
+  assign settings.previous_secret_expires_at = future
+  function ok = 'modules/support/helpers/inbound_secret_valid', given: 'new-secret', current: 'new-secret', settings: settings
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: true, field_name: 'current secret accepted'
+  function ok = 'modules/support/helpers/inbound_secret_valid', given: 'old-secret', current: 'new-secret', settings: settings
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: true, field_name: 'previous secret accepted within 24 h'
+  assign settings.previous_secret_expires_at = past
+  function ok = 'modules/support/helpers/inbound_secret_valid', given: 'old-secret', current: 'new-secret', settings: settings
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: false, field_name: 'previous secret refused after expiry'
+  function ok = 'modules/support/helpers/inbound_secret_valid', given: 'guess', current: 'new-secret', settings: settings
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: false, field_name: 'wrong secret refused'
+
+  # a status's category is locked once a ticket used it
+  function f = 'support_test_helpers/ticket_fixture', label: 'settings'
+  function statuses = 'modules/support/queries/statuses/all'
+  assign params = { "label": "In progress", "category": "pending" }
+  assign params.id = statuses.by_key.progress.id
+  function changed = 'modules/support/commands/tickets/change_status', ticket: f.ticket, status_key: 'progress', actor: f.actor
+  function r = 'modules/support/commands/settings_sections/status', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.error, expected: 'modules/support/settings.errors.category_locked', field_name: 'category locked once used'
+
+  # departments: inbound name must be unique and well-formed
+  assign params = { "name": "Clash", "inbound_local_part": "dob", "active": "true" }
+  function r = 'modules/support/commands/settings_sections/department', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.error, expected: 'modules/support/settings.errors.local_part_taken', field_name: 'inbound name unique'
+  assign params = { "name": "Bad", "inbound_local_part": "Not OK!" }
+  function r = 'modules/support/commands/settings_sections/department', params: params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.valid, expected: false, field_name: 'inbound name format'
+
+  # only support.settings.manage opens settings: agents and managers do not have it
+  function permissions = 'modules/support/queries/team/role_permissions'
+  assign manager_has = false
+  if permissions.manager contains 'support.settings.manage'
+    assign manager_has = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: manager_has, expected: false, field_name: 'managers cannot open settings'
+%}
