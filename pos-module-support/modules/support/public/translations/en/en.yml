@@ -16,8 +16,7 @@ en:
     invalid: The email or password is not correct.
   no_access:
     title: You don't have access to Support
-    body: "You're signed in as %{email}, but you're not on the support team. Ask a support admin to add you, or request access."
-    request_access: Request access
+    body: "You're signed in as %{email}, but you're not on the support team. Ask a support admin to add you."
     disabled: Your access to Support has been turned off. Ask a support admin if you need it back.
     invited: You've been invited. Use the link in your invitation email to join.
   forbidden:
