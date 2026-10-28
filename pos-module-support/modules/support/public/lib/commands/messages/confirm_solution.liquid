@@ -1,0 +1,26 @@
+{% doc %}
+  Asks the requester to confirm the fix when a ticket reaches a solved
+  status (NT-3, TK-3). In auto_close mode the email names the close period;
+  in keep_open mode it asks for a reply without a deadline. Returns
+  sent | skipped reason.
+  @param {string} ticket_id - The ticket
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank or ticket.category != 'solved'
+    return 'skipped:not_solved'
+  endif
+  graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
+  if d.records.results.first.active == false
+    return 'skipped:inactive_department'
+  endif
+  function settings = 'modules/support/helpers/settings'
+  function brand = 'modules/support/helpers/branding'
+  assign mode = settings.confirmation_mode | default: 'auto_close'
+  assign days = settings.confirmation_wait_days | default: 7
+  capture body_html
+    render 'modules/support/emails/confirmation', ticket: ticket, mode: mode, days: days, brand: brand
+  endcapture
+  function _ = 'modules/support/commands/messages/send_system', ticket: ticket, kind: 'confirmation', body_html: body_html
+  return 'sent'
+%}

@@ -1,7 +1,7 @@
 {% doc %}
   Saves one Settings form (05 §3). The form names its section and, where a
   section lists records, the record id. Returns { valid, error, notice }.
-  @param {string} section - departments | statuses | sla | saved_replies | assignment | branding | integrations
+  @param {string} section - departments | statuses | confirmation | sla | saved_replies | assignment | branding | integrations
   @param {object} params - The posted form, read by name
 {% enddoc %}
 {% liquid
@@ -16,7 +16,7 @@
   when 'saved_replies'
     function result = 'modules/support/commands/settings_sections/saved_reply', params: params
   when 'assignment'
-    assign integers = "unassigned_alert_minutes,unassigned_alert_minutes_p0,escalate_after_minutes,confirmation_wait_days" | split: ','
+    assign integers = "unassigned_alert_minutes,unassigned_alert_minutes_p0,escalate_after_minutes" | split: ','
     for key in integers
       assign value = params[key] | plus: 0
       if value < 1 or value > 10080
@@ -25,12 +25,22 @@
       endif
       function _ = 'modules/support/commands/settings/set', key: key, value: value
     endfor
-    assign modes = ["auto_close", "keep_open"]
-    if modes contains params.confirmation_mode
-      function _ = 'modules/support/commands/settings/set', key: 'confirmation_mode', value: params.confirmation_mode
-    endif
     assign threshold = params.spam_threshold | plus: 0.0
     function _ = 'modules/support/commands/settings/set', key: 'spam_threshold', value: threshold
+    assign result.valid = true
+  when 'confirmation'
+    assign modes = ["auto_close", "keep_open"]
+    assign days = params.confirmation_wait_days | plus: 0
+    unless modes contains params.confirmation_mode
+      assign result.error = 'modules/support/settings.errors.section'
+      return result
+    endunless
+    if days < 1 or days > 28
+      assign result.error = 'modules/support/settings.errors.confirmation_days'
+      return result
+    endif
+    function _ = 'modules/support/commands/settings/set', key: 'confirmation_mode', value: params.confirmation_mode
+    function _ = 'modules/support/commands/settings/set', key: 'confirmation_wait_days', value: days
     assign result.valid = true
   when 'branding'
     function result = 'modules/support/commands/settings_sections/branding', params: params

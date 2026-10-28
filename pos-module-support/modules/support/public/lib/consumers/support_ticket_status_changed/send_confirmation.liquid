@@ -1,0 +1,15 @@
+---
+metadata:
+  priority: default
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_ticket_status_changed
+{% enddoc %}
+{% liquid
+  function statuses = 'modules/support/queries/statuses/all'
+  assign status = statuses.by_key[event.to_value]
+  if status.category == 'solved'
+    function _ = 'modules/support/commands/messages/confirm_solution', ticket_id: event.ticket_id
+  endif
+%}

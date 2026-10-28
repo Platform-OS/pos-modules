@@ -1,0 +1,26 @@
+{% doc %}
+  Whether a new ticket gets an acknowledgement (NT-1): not when an agent
+  created it, it is closed or spam, its first message was an auto-reply,
+  or the requester was acknowledged in the last 24 hours.
+  Returns send or skipped:<reason>.
+  @param {object} ticket - The new ticket
+{% enddoc %}
+{% liquid
+  if ticket.channel == 'agent' or ticket.category == 'closed'
+    return 'skipped:not_applicable'
+  endif
+  graphql m = 'modules/support/messages/search', ticket_id: ticket.id, limit: 1
+  if m.records.results.first.auth_results.auto_reply
+    return 'skipped:auto_reply'
+  endif
+  graphql recent = 'modules/support/ticket_events/search', event_type: 'acknowledgement_sent', actor_id: ticket.requester_id, limit: 1
+  assign last = recent.records.results.first
+  if last
+    assign last_at = last.created_at | to_time
+    assign day_ago = 'now' | add_to_time: -24, 'h' | to_time
+    if last_at > day_ago
+      return 'skipped:recent'
+    endif
+  endif
+  return 'send'
+%}

@@ -1,0 +1,10 @@
+{% doc %}
+  Acknowledgement body (NT-1): number, subject, expected first reply. No links.
+  @param {object} ticket - The ticket
+  @param [first_reply_due] - Time of the first-reply target, if any
+  @param {object} brand - From helpers/branding
+{% enddoc %}
+<p>{{ 'modules/support/customer_emails.ack_intro' | t: brand: brand.support_email_name }}</p>
+<p><strong>#{{ ticket.number }}</strong> {{ ticket.subject }}</p>
+{% if first_reply_due %}{% assign when = first_reply_due | l: 'long' %}<p>{{ 'modules/support/customer_emails.ack_expected' | t: when: when }}</p>{% endif %}
+<p>{{ 'modules/support/customer_emails.ack_reply' | t }}</p>

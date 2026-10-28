@@ -1,0 +1,55 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function f = 'support_test_helpers/ticket_fixture', label: 'ack'
+
+  # first acknowledgement goes out; a second within 24 h to the same sender does not
+  function decision = 'modules/support/queries/messages/acknowledgement_decision', ticket: f.ticket
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision, expected: 'send', field_name: 'first acknowledgement'
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: f.ticket.id, actor_type: 'system', actor_id: f.ticket.requester_id, event_type: 'acknowledgement_sent', from_value: null, to_value: null, reason: null
+  function decision = 'modules/support/queries/messages/acknowledgement_decision', ticket: f.ticket
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision, expected: 'skipped:recent', field_name: 'one per sender per 24 h'
+
+  # agent-created tickets are not acknowledged
+  assign agent_ticket = f.ticket | hash_merge: channel: 'agent'
+  function decision = 'modules/support/queries/messages/acknowledgement_decision', ticket: agent_ticket
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision, expected: 'skipped:not_applicable', field_name: 'agent ticket skipped'
+
+  # an auto-reply as first message is not acknowledged
+  function g = 'support_test_helpers/ticket_fixture', label: 'ack-auto'
+  assign rows = []
+  assign row = { "table": "modules/support/message", "properties": { "author_type": "customer", "visibility": "public", "kind": "message", "auth_results": "{\"auto_reply\":true}" } }
+  assign row.properties.ticket_id = g.ticket.id
+  assign rows << row
+  graphql created = 'modules/support/records/create_many', records: rows
+  function decision = 'modules/support/queries/messages/acknowledgement_decision', ticket: g.ticket
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision, expected: 'skipped:auto_reply', field_name: 'auto-reply skipped'
+
+  # inactive departments send no customer email
+  function sent = 'modules/support/commands/messages/acknowledge', ticket_id: g.ticket.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: sent, expected: 'skipped:inactive_department', field_name: 'inactive department skipped'
+
+  # confirmation wording follows the mode
+  function brand = 'modules/support/helpers/branding'
+  capture auto_close
+    render 'modules/support/emails/confirmation', ticket: f.ticket, mode: 'auto_close', days: 9, brand: brand
+  endcapture
+  capture keep_open
+    render 'modules/support/emails/confirmation', ticket: f.ticket, mode: 'keep_open', days: 9, brand: brand
+  endcapture
+  assign has_days = false
+  if auto_close contains 'within 9 days'
+    assign has_days = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: has_days, field_name: 'auto_close states the period', object: null
+  assign keep_has_days = false
+  if keep_open contains 'within 9 days'
+    assign keep_has_days = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: keep_has_days, expected: false, field_name: 'keep_open has no deadline'
+
+  # default mode is auto_close, 7 days
+  function settings = 'modules/support/helpers/settings'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: settings.confirmation_wait_days, expected: 7, field_name: 'default 7 days'
+%}

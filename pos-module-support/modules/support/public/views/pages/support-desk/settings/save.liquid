@@ -16,7 +16,7 @@ metadata:
     break
   endunless
 
-  assign sections = "departments,statuses,sla,saved_replies,assignment,branding,integrations" | split: ','
+  assign sections = "departments,statuses,confirmation,sla,saved_replies,assignment,branding,integrations" | split: ','
   assign section = context.params.section
   unless sections contains section
     response_status 404
@@ -29,6 +29,10 @@ metadata:
   else
     function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
   endif
-  assign target = '/support-desk/settings/' | append: section | replace: '_', '-'
+  assign target_section = section | replace: '_', '-'
+  if section == 'confirmation'
+    assign target_section = 'statuses'
+  endif
+  assign target = '/support-desk/settings/' | append: target_section
   redirect_to target
 %}

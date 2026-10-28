@@ -1,0 +1,30 @@
+{% doc %}
+  Acknowledges a new ticket to its requester (NT-1, 04 §5). Skipped for
+  tickets an agent created, tickets in inactive departments, spam,
+  auto-replies, and when this sender already got an acknowledgement in
+  the last 24 hours. Returns sent | skipped reason.
+  @param {string} ticket_id - The new ticket
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank or ticket.channel == 'agent' or ticket.category == 'closed'
+    return 'skipped:not_applicable'
+  endif
+  graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
+  if d.records.results.first.active == false
+    return 'skipped:inactive_department'
+  endif
+  function decision = 'modules/support/queries/messages/acknowledgement_decision', ticket: ticket
+  if decision != 'send'
+    return decision
+  endif
+
+  function policy = 'modules/support/queries/sla/policy_for', ticket: ticket
+  function computed = 'modules/support/commands/sla/compute', ticket: ticket, policy: policy, now: null
+  function brand = 'modules/support/helpers/branding'
+  capture body_html
+    render 'modules/support/emails/acknowledgement', ticket: ticket, first_reply_due: computed.values.sla_first_reply_due_at, brand: brand
+  endcapture
+  function _ = 'modules/support/commands/messages/send_system', ticket: ticket, kind: 'acknowledgement', body_html: body_html
+  return 'sent'
+%}

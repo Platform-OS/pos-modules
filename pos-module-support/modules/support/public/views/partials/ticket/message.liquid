@@ -11,7 +11,9 @@
   if message.visibility == 'internal'
     assign is_note = true
   endif
-  if message.author_type == 'customer'
+  if message.author_type == 'system'
+    assign author = 'modules/support/ticket.automatic_email' | t
+  elsif message.author_type == 'customer'
     assign author = message.from_email | default: requester.name
     if message.author_id == requester.id
       assign author = requester.name | default: message.from_email
@@ -31,7 +33,7 @@
     <strong id="message-{{ message.id }}-author">{{ author }}</strong>
     {% if is_note %}<span class="pos-support-badge pos-support-status-pending">{{ 'modules/support/ticket.internal_note' | t }}</span>{% endif %}
     <time datetime="{{ message.created_at }}" class="pos-supplementary">{{ message.created_at | l: 'long' }}</time>
-    {% if message.author_type == 'agent' and is_note == false %}
+    {% if message.author_type != 'customer' and is_note == false %}
       <span class="pos-supplementary pos-support-delivery pos-support-delivery-{{ message.delivery_state }}">{{ 'modules/support/ticket.delivery_' | append: message.delivery_state | t }}</span>
     {% endif %}
   </header>

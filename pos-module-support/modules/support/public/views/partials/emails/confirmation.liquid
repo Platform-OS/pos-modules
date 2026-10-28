@@ -1,0 +1,14 @@
+{% doc %}
+  Confirmation request body (NT-3). Wording follows the confirmation mode.
+  @param {object} ticket - The ticket
+  @param {string} mode - auto_close | keep_open
+  @param {number} days - Waiting period in days
+  @param {object} brand - From helpers/branding
+{% enddoc %}
+<p>{{ 'modules/support/customer_emails.confirm_intro' | t: number: ticket.number, subject: ticket.subject }}</p>
+{% if mode == 'keep_open' %}
+  <p>{{ 'modules/support/customer_emails.confirm_keep_open' | t }}</p>
+{% else %}
+  <p>{{ 'modules/support/customer_emails.confirm_auto_close' | t: days: days }}</p>
+{% endif %}
+<p>{{ 'modules/support/customer_emails.confirm_signoff' | t: brand: brand.support_email_name }}</p>

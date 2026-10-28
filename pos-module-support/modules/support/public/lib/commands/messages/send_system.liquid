@@ -1,0 +1,27 @@
+{% doc %}
+  Sends an automatic customer email (acknowledgement or confirmation, NT-1,
+  NT-3): stores it as a public system message so it shows in the thread,
+  then delivers it with Auto-Submitted headers. Never counts as an agent
+  reply for the SLA. Returns the message.
+  @param {object} ticket - The ticket
+  @param {string} kind - acknowledgement | confirmation
+  @param {string} body_html - Rendered body
+{% enddoc %}
+{% liquid
+  assign values = { "author_type": "system", "visibility": "public", "channel": "email", "kind": "status_update", "delivery_state": "queued" }
+  assign values.ticket_id = ticket.id
+  assign values.body_html = body_html
+  assign values.body_text = body_html | replace_regex: '<(br|/p|/div|/li)[^>]*>', ' ', 'i' | strip_html | strip
+  assign values.subject = ticket.subject
+  assign payload = { "kind": null }
+  assign payload.kind = kind
+  assign values.event_payload = payload | json
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props
+  assign message = values
+  assign message.id = r.record.id
+  background _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, attachments: null, source_name: 'support_deliver', priority: 'default'
+  assign event_type = kind | append: '_sent'
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: ticket.requester_id, event_type: event_type, from_value: null, to_value: message.id, reason: null
+  return message
+%}

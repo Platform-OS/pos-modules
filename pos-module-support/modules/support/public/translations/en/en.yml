@@ -262,6 +262,7 @@ en:
     delivery_bounced: Bounced
     delivery_dropped: Dropped
     delivery_failed: Not sent
+    automatic_email: Automatic email
   activity:
     created: "created the ticket (#%{to})"
     status_changed: "changed status from %{from} to %{to}"
@@ -277,6 +278,12 @@ en:
     message_moved: moved a message
     linked: "linked %{to}"
     participant_added: "added %{to} as CC"
+    acknowledgement_sent: sent the acknowledgement
+    confirmation_sent: asked the customer to confirm
+    sla_due_soon: "SLA due soon (%{to})"
+    sla_breached: "SLA breached"
+    escalated: "escalated (%{to})"
+    no_agent_available: found no available agent
   assignment:
     least_loaded: "least-loaded in %{department}: %{count} open"
     on_duty: "escalated: on-duty manager"
@@ -421,7 +428,8 @@ en:
     confirmation_mode: After the confirmation period
     auto_close: Close the ticket
     keep_open: Keep it open and remind the assignee
-    confirmation_wait_days: Confirmation period (days)
+    confirmation_wait_days: Confirmation period (days, 1-28)
+    confirmation: Confirmation
     spam_threshold: Spam score threshold
     sweep: Maintenance job
     sweep_last: "Last run: %{at}"
@@ -479,5 +487,14 @@ en:
       hours: Opening hours must be HH:MM and close after they open.
       holidays: Holidays must be dates like 2026-12-25.
       saved_reply: Enter a title and text.
+      confirmation_days: The confirmation period is 1 to 28 days.
       color: Colours must look like #1d4f91.
       image_url: Image links must start with https://.
+  customer_emails:
+    ack_intro: "Thank you for contacting %{brand}. We have received your request:"
+    ack_expected: "We aim to reply by %{when}."
+    ack_reply: Reply to this email to add more details.
+    confirm_intro: "We believe your request #%{number} (%{subject}) is resolved."
+    confirm_auto_close: "If anything is still wrong, just reply. If we don't hear from you within %{days} days, we'll close the request."
+    confirm_keep_open: Please reply to confirm that everything works, or tell us what is still wrong. We'll keep the request open until we hear from you.
+    confirm_signoff: "%{brand}"

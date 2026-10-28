@@ -1,0 +1,13 @@
+---
+metadata:
+  priority: default
+  max_attempts: 3
+  delay: 0.2
+---
+{% doc %}
+  Waits a few seconds so a spam status set right after creation is seen.
+  @param {object} event - support_ticket_created
+{% enddoc %}
+{% liquid
+  function _ = 'modules/support/commands/messages/acknowledge', ticket_id: event.ticket_id
+%}

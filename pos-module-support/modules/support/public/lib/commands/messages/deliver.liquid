@@ -1,5 +1,6 @@
 {% doc %}
   Sends a public agent message as email (04 §4). Runs as a background job.
+  Refuses ticket mail until Settings → Email is turned on (EM-0c).
   Stores the Message-ID before sending; 2xx marks the message sent, 4xx or
   a configuration error (no provider, key or From address) marks it failed
   with the reason, 5xx or no response retries up to three attempts, then
@@ -15,6 +16,12 @@
   graphql r = 'modules/support/messages/search', id: message_id, limit: 1
   assign message = r.records.results.first
   if message == blank or message.visibility != 'public' or message.delivery_state == 'sent'
+    return null
+  endif
+
+  function settings = 'modules/support/helpers/settings'
+  if settings.email_status.enabled != true
+    graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: 'failed', delivery_error: 'email_not_enabled', email_message_id: message.email_message_id
     return null
   endif
 
@@ -47,7 +54,11 @@
     endif
   endfor
 
-  function built = 'modules/support/helpers/email/headers', ticket: ticket, department: department, message_record_id: message.id, thread_ids: thread_ids, in_reply_to: in_reply_to, system: false
+  assign is_system = false
+  if message.author_type == 'system'
+    assign is_system = true
+  endif
+  function built = 'modules/support/helpers/email/headers', ticket: ticket, department: department, message_record_id: message.id, thread_ids: thread_ids, in_reply_to: in_reply_to, system: is_system
   assign email_message_id = message.email_message_id | default: built.message_id
   assign message_id_header = { "Message-ID": null }
   assign message_id_header['Message-ID'] = email_message_id
