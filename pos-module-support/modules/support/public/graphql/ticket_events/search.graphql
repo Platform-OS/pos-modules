@@ -1,10 +1,10 @@
-query ($ticket_id: String, $event_type: String, $limit: Int = 100, $page: Int = 1) {
+query ($ticket_id: String, $event_type: String, $actor_id: String, $limit: Int = 100, $page: Int = 1) {
   records(
     page: $page
     per_page: $limit
     filter: {
       table: { value: "modules/support/ticket_event" }
-      properties: [{ name: "ticket_id", value: $ticket_id }, { name: "event_type", value: $event_type }]
+      properties: [{ name: "ticket_id", value: $ticket_id }, { name: "event_type", value: $event_type }, { name: "actor_id", value: $actor_id }]
     }
     sort: [{ created_at: { order: DESC } }]
   ) {

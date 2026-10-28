@@ -18,19 +18,19 @@
 
   assign suffix = 8 | random_string | downcase
   assign agent_profile = 'test-agent-' | append: label | append: '-' | append: suffix
-  assign object = { "role": "agent", "state": "active", "source": "invite" }
+  assign object = { "role": "agent", "state": "active", "source": "invite", "availability": "away" }
   assign object.profile_id = agent_profile
   assign object.department_ids = departments
   function agent = 'modules/support/commands/team_members/create', object: object
 
   assign other_profile = 'test-other-' | append: label | append: '-' | append: suffix
-  assign object = { "role": "agent", "state": "active", "source": "invite" }
+  assign object = { "role": "agent", "state": "active", "source": "invite", "availability": "away" }
   assign object.profile_id = other_profile
   assign object.department_ids = departments
   function other = 'modules/support/commands/team_members/create', object: object
 
   assign manager_profile = 'test-manager-' | append: label | append: '-' | append: suffix
-  assign object = { "role": "manager", "state": "active", "source": "invite" }
+  assign object = { "role": "manager", "state": "active", "source": "invite", "availability": "away" }
   assign object.profile_id = manager_profile
   function manager = 'modules/support/commands/team_members/create', object: object
 

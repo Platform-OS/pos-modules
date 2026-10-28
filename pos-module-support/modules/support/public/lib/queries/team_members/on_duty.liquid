@@ -1,0 +1,20 @@
+{% doc %}
+  The on-duty manager: an active manager or admin flagged on_duty_manager,
+  preferring one who is available now. Returns the team_member or null.
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/team_members/search', state: 'active', limit: 200
+  assign fallback = null
+  for member in r.records.results
+    if member.on_duty_manager and member.role != 'agent'
+      function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
+      if availability == 'available'
+        return member
+      endif
+      if fallback == null
+        assign fallback = member
+      endif
+    endif
+  endfor
+  return fallback
+%}

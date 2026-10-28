@@ -249,3 +249,7 @@ en:
     message_moved: moved a message
     linked: "linked %{to}"
     participant_added: "added %{to} as CC"
+  assignment:
+    least_loaded: "least-loaded in %{department}: %{count} open"
+    on_duty: "escalated: on-duty manager"
+    reassigned_off: "re-assigned: previous assignee off for more than a business day"

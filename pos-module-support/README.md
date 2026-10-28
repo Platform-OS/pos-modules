@@ -49,6 +49,7 @@ The `role_map` setting (JSON, host role → `agent`/`manager`/`admin`, default `
 | Hook | Return | Used for |
 |---|---|---|
 | `support_branding` | object: `app_name`, `short_name`, `logo_url`, `logo_dark_url`, `icon_url`, `favicon_url`, `theme_color`, `background_color`, `theme_mode` (`auto`/`light`/`dark`), `support_email_name` | brand in the desk, emails, manifest and push |
+| `support_assignment` (alter) | sets `params_to_modify.assignee_id` and `.reason` from `params.ticket` | host rule that decides who gets a new ticket before least-loaded assignment |
 | `headscripts` (core) | HTML string | host stylesheet, loaded after the module CSS so host tokens win |
 
 CSS tokens a host can override: `--pos-support-rail-width`, `--pos-support-rail-background`, `--pos-support-rail-text`, `--pos-support-rail-active-background`, `--pos-support-rail-active-text`, `--pos-support-rail-frame`, `--pos-support-monogram-background`, `--pos-support-monogram-text`, plus every common-styling `--pos-*` token.

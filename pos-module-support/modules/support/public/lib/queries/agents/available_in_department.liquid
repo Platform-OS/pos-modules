@@ -1,0 +1,44 @@
+{% doc %}
+  Agents serving a department with their open load (06 §2): active members
+  whose departments include it (agents and managers), each with
+  effective_availability and open_count (assigned tickets in new/open).
+  Returns [{ member, profile_id, availability, open_count, max_open, last_assigned_at }].
+  @param {string} department_id - The department
+  @param {number} [at] - Epoch seconds for availability, default now
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/team_members/search', state: 'active', limit: 200
+  assign candidates = []
+  assign profile_ids = []
+  for member in r.records.results
+    if member.role != 'admin' and member.department_ids contains department_id
+      assign candidates << member
+      assign profile_ids << member.profile_id
+    endif
+  endfor
+  if candidates.size == 0
+    return candidates
+  endif
+
+  assign open_categories = ["new", "open"]
+  graphql open = 'modules/support/tickets/search', assignee_ids: profile_ids, categories: open_categories, limit: 500
+  assign counts = {}
+  for ticket in open.records.results
+    assign current = counts[ticket.assignee_id] | default: 0
+    assign counts[ticket.assignee_id] = current | plus: 1
+  endfor
+
+  assign agents = []
+  for member in candidates
+    function availability = 'modules/support/helpers/team/effective_availability', member: member, at: at
+    assign agent = { "member": null }
+    assign agent.member = member
+    assign agent.profile_id = member.profile_id
+    assign agent.availability = availability
+    assign agent.open_count = counts[member.profile_id] | default: 0
+    assign agent.max_open = member.max_open | default: 15
+    assign agent.last_assigned_at = member.last_assigned_at
+    assign agents << agent
+  endfor
+  return agents
+%}

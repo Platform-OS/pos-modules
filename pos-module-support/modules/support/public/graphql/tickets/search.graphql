@@ -6,6 +6,7 @@ query (
   $categories: [String!]
   $not_categories: [String!]
   $assignee_id: String
+  $assignee_ids: [String!]
   $assigned: Boolean
   $status_ids: [String!]
   $organization_id: String
@@ -31,7 +32,7 @@ query (
         { name: "number", value_int: $number }
         { name: "department_id", value_in: $department_ids }
         { name: "category", value_in: $categories, not_value_in: $not_categories }
-        { name: "assignee_id", value: $assignee_id, exists: $assigned }
+        { name: "assignee_id", value: $assignee_id, value_in: $assignee_ids, exists: $assigned }
         { name: "status_id", value_in: $status_ids }
         { name: "organization_id", value: $organization_id }
         { name: "sla_state", value_in: $sla_states }

@@ -1,0 +1,16 @@
+---
+metadata:
+  priority: default
+  max_attempts: 3
+---
+{% doc %}
+  A customer wrote on a ticket whose assignee has been away or off for more
+  than one business day (06 §2): unassign and assign again.
+  @param {object} event - support_message_received
+{% enddoc %}
+{% liquid
+  if event.auto_reply
+    return null
+  endif
+  function _ = 'modules/support/commands/assignment/reassign_if_off', ticket_id: event.ticket_id
+%}

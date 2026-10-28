@@ -1,0 +1,39 @@
+{% doc %}
+  A member's availability at a time (06 §1): their setting, or off outside
+  their working hours. Pause silences notifications only, not assignment.
+  Returns available | away | off.
+  @param {object} member - team_member record
+  @param {number} [at] - Epoch seconds, default now
+{% enddoc %}
+{% liquid
+  assign availability = member.availability | default: 'available'
+  if availability != 'available'
+    return availability
+  endif
+  if member.working_hours == blank
+    return 'available'
+  endif
+  assign hours = member.working_hours
+  assign kind = hours | type_of
+  if kind == 'String'
+    assign hours = hours | parse_json
+  endif
+  assign at = at | default: 'now' | to_time | strftime: '%s' | plus: 0
+  assign tz = hours.tz | default: 'UTC'
+  assign local = at | to_time: tz
+  assign day = local | strftime: '%Y-%m-%d'
+  if hours.holidays contains day
+    return 'off'
+  endif
+  assign weekday = local | strftime: '%a' | downcase
+  assign window = hours.days[weekday]
+  if window.size != 2
+    return 'off'
+  endif
+  assign open_at = day | append: ' ' | append: window[0] | to_time: tz | strftime: '%s' | plus: 0
+  assign close_at = day | append: ' ' | append: window[1] | to_time: tz | strftime: '%s' | plus: 0
+  if at < open_at or at >= close_at
+    return 'off'
+  endif
+  return 'available'
+%}

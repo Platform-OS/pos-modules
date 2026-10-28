@@ -1,0 +1,33 @@
+{% doc %}
+  Picks the least-loaded available agent (06 §2): available and under their
+  cap; fewest open tickets; tie → least recently assigned (never assigned
+  first); tie → lowest profile id. Returns the agent or null.
+  @param {object[]} agents - From queries/agents/available_in_department
+{% enddoc %}
+{% liquid
+  assign best = null
+  for agent in agents
+    if agent.availability != 'available' or agent.open_count >= agent.max_open
+      continue
+    endif
+    if best == null
+      assign best = agent
+      continue
+    endif
+    if agent.open_count < best.open_count
+      assign best = agent
+      continue
+    endif
+    if agent.open_count > best.open_count
+      continue
+    endif
+    assign agent_last = agent.last_assigned_at | default: '1970-01-01T00:00:00Z' | to_time | strftime: '%s' | plus: 0
+    assign best_last = best.last_assigned_at | default: '1970-01-01T00:00:00Z' | to_time | strftime: '%s' | plus: 0
+    if agent_last < best_last
+      assign best = agent
+    elsif agent_last == best_last and agent.profile_id < best.profile_id
+      assign best = agent
+    endif
+  endfor
+  return best
+%}

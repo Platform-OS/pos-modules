@@ -1,0 +1,17 @@
+{% doc %}
+  Example host rule (AS-7): tickets whose subject contains "VIP" go to the
+  first active manager. Shows how a host overrides least-loaded assignment.
+  @param {object} params - { ticket }
+  @param {object} params_to_modify - { assignee_id, reason }
+{% enddoc %}
+{% liquid
+  if params.ticket.subject contains 'VIP'
+    graphql managers = 'modules/support/team_members/search', state: 'active', role: 'manager', limit: 1
+    assign manager = managers.records.results.first
+    if manager
+      assign params_to_modify.assignee_id = manager.profile_id
+      assign params_to_modify.reason = 'host rule: VIP'
+    endif
+  endif
+  return params_to_modify
+%}

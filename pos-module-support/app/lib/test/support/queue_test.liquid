@@ -50,7 +50,12 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.priority, expected: 'p1', field_name: 'bulk priority'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.category, expected: 'open', field_name: 'bulk status'
   graphql ev = 'modules/support/ticket_events/search', ticket_id: f.ticket.id
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: ev.records.total_entries, expected: 4, field_name: 'bulk wrote events'
+  assign types = ev.records.results | map: 'event_type'
+  assign wrote_all = false
+  if types contains 'assigned' and types contains 'status_changed' and types contains 'priority_changed'
+    assign wrote_all = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: wrote_all, field_name: 'bulk wrote events', object: null
 
   # bulk: agent assigning someone else fails, and a ticket outside scope fails
   function bulk = 'modules/support/commands/tickets/bulk_update', ids: ids, assignee: f.other_agent_id, status_key: null, priority: null, member: agent

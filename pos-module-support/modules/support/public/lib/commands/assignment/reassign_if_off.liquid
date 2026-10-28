@@ -1,0 +1,39 @@
+{% doc %}
+  Re-assigns a ticket when its assignee has not been available for more
+  than one business day, measured from their last availability change
+  (ticket_event availability_changed). Returns true when re-assigned.
+  @param {string} ticket_id - The ticket
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  if ticket == blank or ticket.assignee_id == blank
+    return false
+  endif
+  function member = 'modules/support/queries/team_members/find', profile_id: ticket.assignee_id
+  if member == blank
+    return false
+  endif
+  function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
+  if availability == 'available'
+    return false
+  endif
+
+  graphql changes = 'modules/support/ticket_events/search', event_type: 'availability_changed', actor_id: member.profile_id, limit: 1
+  assign changed = changes.records.results.first
+  if changed == blank
+    return false
+  endif
+  function policy = 'modules/support/queries/sla/policy_for', ticket: ticket
+  assign since = changed.created_at | to_time | strftime: '%s' | plus: 0
+  function limit = 'modules/support/helpers/sla/add_minutes', start: since, minutes: 480, mode: 'business', hours: policy.business_hours
+  assign now = 'now' | to_time | strftime: '%s' | plus: 0
+  if now < limit
+    return false
+  endif
+
+  assign actor = { "type": "system", "id": null, "member": null }
+  assign reason = 'modules/support/assignment.reassigned_off' | t
+  function unassigned = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: null, reason: reason, actor: actor
+  function _ = 'modules/support/commands/assignment/auto_assign', ticket_id: ticket.id
+  return true
+%}

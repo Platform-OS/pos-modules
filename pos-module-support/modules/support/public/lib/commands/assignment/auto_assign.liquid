@@ -1,0 +1,55 @@
+{% doc %}
+  Assigns an unassigned ticket automatically (06 §2): the host's
+  support_assignment alter hook may decide first; otherwise the
+  least-loaded available agent of the department. With nobody available
+  the ticket stays unassigned and the escalation jobs are scheduled.
+  Returns { assignee_id, reason } or null.
+  @param {string} ticket_id - The ticket
+{% enddoc %}
+{% liquid
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  assign closed_categories = ["solved", "closed"]
+  if ticket == blank or ticket.assignee_id != blank or closed_categories contains ticket.category
+    return null
+  endif
+  assign actor = { "type": "system", "id": null, "member": null }
+
+  assign decision = { "assignee_id": null, "reason": null }
+  assign hook_params = { "ticket": null }
+  assign hook_params.ticket = ticket
+  function _ = 'modules/core/commands/hook/alter', hook: 'support_assignment', params: hook_params, params_to_modify: decision
+  if decision.assignee_id != blank
+    assign reason = decision.reason | default: 'host rule'
+    function assigned = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: decision.assignee_id, reason: reason, actor: actor
+    if assigned.valid
+      return decision
+    endif
+  endif
+
+  function agents = 'modules/support/queries/agents/available_in_department', department_id: ticket.department_id, at: null
+  function best = 'modules/support/commands/assignment/pick', agents: agents
+  if best
+    graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
+    assign department = d.records.results.first
+    assign label = department.short_code | default: department.name
+    assign reason = 'modules/support/assignment.least_loaded' | t: department: label, count: best.open_count
+    function assigned = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: best.profile_id, reason: reason, actor: actor
+    if assigned.valid
+      assign result = { "assignee_id": null, "reason": null }
+      assign result.assignee_id = best.profile_id
+      assign result.reason = reason
+      return result
+    endif
+  endif
+
+  function settings = 'modules/support/helpers/settings'
+  assign alert_after = settings.unassigned_alert_minutes | default: 15
+  if ticket.priority == 'p0'
+    assign alert_after = settings.unassigned_alert_minutes_p0 | default: 5
+  endif
+  assign escalate_after = settings.escalate_after_minutes | default: 30
+  background _ = 'modules/support/commands/assignment/escalate', delay: alert_after, source_name: 'support_escalate', ticket_id: ticket.id, stage: 'alert'
+  background _ = 'modules/support/commands/assignment/escalate', delay: escalate_after, source_name: 'support_escalate', ticket_id: ticket.id, stage: 'assign_on_duty'
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'no_agent_available', from_value: null, to_value: null, reason: null
+  return null
+%}

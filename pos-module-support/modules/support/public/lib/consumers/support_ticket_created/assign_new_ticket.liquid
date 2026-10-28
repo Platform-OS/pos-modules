@@ -1,0 +1,11 @@
+---
+metadata:
+  priority: high
+  max_attempts: 3
+---
+{% doc %}
+  @param {object} event - support_ticket_created
+{% enddoc %}
+{% liquid
+  function _ = 'modules/support/commands/assignment/auto_assign', ticket_id: event.ticket_id
+%}

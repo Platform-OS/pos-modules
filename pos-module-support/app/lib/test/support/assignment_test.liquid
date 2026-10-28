@@ -1,0 +1,74 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # pick: fewest open; tie -> least recently assigned; skips away, off, at cap
+  assign a = { "profile_id": "a", "availability": "available", "open_count": 3, "max_open": 15, "last_assigned_at": "2026-10-01T10:00:00Z" }
+  assign b = { "profile_id": "b", "availability": "available", "open_count": 1, "max_open": 15, "last_assigned_at": "2026-10-02T10:00:00Z" }
+  assign c = { "profile_id": "c", "availability": "available", "open_count": 1, "max_open": 15, "last_assigned_at": "2026-10-01T09:00:00Z" }
+  assign d = { "profile_id": "d", "availability": "away", "open_count": 0, "max_open": 15, "last_assigned_at": null }
+  assign e = { "profile_id": "e", "availability": "available", "open_count": 2, "max_open": 2, "last_assigned_at": null }
+  assign agents = []
+  assign agents << a
+  assign agents << b
+  assign agents << c
+  assign agents << d
+  assign agents << e
+  function best = 'modules/support/commands/assignment/pick', agents: agents
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: best.profile_id, expected: 'c', field_name: 'fewest open, then least recently assigned'
+
+  assign never = { "profile_id": "z", "availability": "available", "open_count": 1, "max_open": 15, "last_assigned_at": null }
+  assign agents << never
+  function best = 'modules/support/commands/assignment/pick', agents: agents
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: best.profile_id, expected: 'z', field_name: 'never assigned goes first on a tie'
+
+  assign agents = []
+  assign agents << d
+  assign agents << e
+  function best = 'modules/support/commands/assignment/pick', agents: agents
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: best, expected: null, field_name: 'away and at-cap skipped'
+
+  # working hours: outside them is off
+  assign member = { "availability": "available", "working_hours": "{\"tz\":\"America/Chicago\",\"days\":{\"mon\":[\"09:00\",\"17:00\"]}}" }
+  assign monday_noon = '2026-11-02 12:00' | to_time: 'America/Chicago' | strftime: '%s' | plus: 0
+  assign monday_night = '2026-11-02 20:00' | to_time: 'America/Chicago' | strftime: '%s' | plus: 0
+  function inside = 'modules/support/helpers/team/effective_availability', member: member, at: monday_noon
+  function outside = 'modules/support/helpers/team/effective_availability', member: member, at: monday_night
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: inside, expected: 'available', field_name: 'inside working hours'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: outside, expected: 'off', field_name: 'outside working hours'
+
+  # end to end: the available agent in the department gets the ticket with a reason
+  function f = 'support_test_helpers/ticket_fixture', label: 'assign'
+  assign departments = []
+  assign departments << f.department_id
+  assign suffix = 8 | random_string | downcase
+  assign object = { "role": "agent", "state": "active", "source": "invite", "availability": "available" }
+  assign object.profile_id = 'test-free-' | append: suffix
+  assign object.department_ids = departments
+  function free_agent = 'modules/support/commands/team_members/create', object: object
+  function assigned = 'modules/support/commands/assignment/auto_assign', ticket_id: f.ticket.id
+  function after = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.assignee_id, expected: free_agent.profile_id, field_name: 'least-loaded agent assigned'
+  assign reason_ok = after.assignment_reason | matches: '^least-loaded in TST: \d+ open$'
+  function contract = 'modules/tests/assertions/true', contract: contract, value: reason_ok, field_name: 'assignment reason recorded', object: null
+
+  # host alter hook overrides (example app assigns tickets whose subject contains "VIP" to the hook's agent)
+  function vip = 'support_test_helpers/ticket_fixture', label: 'vip'
+  assign values = { "subject": "VIP request" }
+  function vip_ticket = 'modules/support/commands/tickets/save', ticket: vip.ticket, values: values
+  function decided = 'modules/support/commands/assignment/auto_assign', ticket_id: vip.ticket.id
+  function vip_after = 'modules/support/queries/tickets/find', id: vip.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: vip_after.assignment_reason, expected: 'host rule: VIP', field_name: 'host alter hook overrides'
+
+  # free agent disabled from now on: nobody available -> escalation jobs scheduled and logged
+  assign off_values = { "availability": "off" }
+  function props = 'modules/support/helpers/props', values: off_values
+  graphql off = 'modules/support/records/update', id: free_agent.id, properties: props
+  function g = 'support_test_helpers/ticket_fixture', label: 'escalate'
+  function none = 'modules/support/commands/assignment/auto_assign', ticket_id: g.ticket.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: none, expected: null, field_name: 'nobody available'
+  graphql logged = 'modules/support/ticket_events/search', ticket_id: g.ticket.id, event_type: 'no_agent_available', limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: logged.records.results.first.event_type, expected: 'no_agent_available', field_name: 'escalation scheduled and logged'
+  function stage = 'modules/support/commands/assignment/escalate', ticket_id: g.ticket.id, stage: 'alert'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stage, expected: 'alerted', field_name: 'alert stage publishes'
+%}

@@ -2,7 +2,8 @@
   @param {object} object - { profile_id, role, state, source, created_by_id, department_ids }
 {% enddoc %}
 {% liquid
-  assign object = object | hash_merge: availability: 'available', max_open: 15
+  assign object.availability = object.availability | default: 'available'
+  assign object.max_open = object.max_open | default: 15
   assign object.department_ids = object.department_ids | default: []
   assign roles = ["agent", "manager", "admin"]
   assign states = ["invited", "active", "disabled"]
