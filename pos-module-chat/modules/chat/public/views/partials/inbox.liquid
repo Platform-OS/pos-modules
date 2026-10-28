@@ -248,14 +248,17 @@
               {% liquid
                 assign title = 'modules/chat/blank.title' | t
                 assign description = 'modules/chat/blank.description.desktop' | t
+                # the time itself, not "{{ 'now' | to_time }}" - that string is "2026-10-28 19:23:00 UTC",
+                # not a valid datetime attribute
+                assign now = 'now' | to_time
                 assign messages = [
                   {
                     "message": title,
-                    "created_at": "{{ 'now' | to_time }}"
+                    "created_at": now
                   },
                   {
                     "message": description,
-                    "created_at": "{{ 'now' | to_time }}"
+                    "created_at": now
                   }
                 ]
               %}

@@ -20,7 +20,8 @@
     else
       assign conversation['current'] = false
     endif
-    assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | default: from_profile.name
+    # without first and last name this is a single space, which `default` doesn't replace
+    assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | strip | default: from_profile.name
     assign image_src = from_profile.avatar.photo.versions.sm
     assign last_message = conversation.last_message.message
 
@@ -45,7 +46,7 @@
     endif
   %}
   <li>
-    {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, timezone: current_profile.properties.timezone, unread: unread %}
+    {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, last_message_at: conversation.last_message_at, timezone: current_profile.properties.timezone, unread: unread %}
   </li>
 {% endfor %}
 
