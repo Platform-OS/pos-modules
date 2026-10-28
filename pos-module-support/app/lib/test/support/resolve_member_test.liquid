@@ -33,6 +33,18 @@
   graphql r = 'modules/support/team_members/search', profile_id: pid, limit: 5
   function contract = 'modules/tests/assertions/equal', contract: contract, given: r.records.total_entries, expected: 1, field_name: 'disabled not recreated'
 
+  # role_map: a mapped host role gets the mapped support role
+  assign role_map = { "editor": "agent" }
+  function _ = 'modules/support/commands/settings/set', key: 'role_map', value: role_map
+  assign pid = 12 | random_string | prepend: 'rm-'
+  assign profile = { "roles": ["editor", "authenticated"] }
+  assign profile.id = pid
+  function member = 'modules/support/helpers/resolve_member', profile: profile
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.role, expected: 'agent', field_name: 'role_map role'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.source, expected: 'role_map', field_name: 'role_map source'
+  assign role_map = {}
+  function _ = 'modules/support/commands/settings/set', key: 'role_map', value: role_map
+
   # anonymous profile resolves to nothing
   assign profile = { "roles": ["anonymous"] }
   function member = 'modules/support/helpers/resolve_member', profile: profile

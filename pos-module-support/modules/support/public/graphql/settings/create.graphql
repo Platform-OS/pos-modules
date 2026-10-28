@@ -1,0 +1,7 @@
+mutation ($key: String!, $value: String!) {
+  record: record_create(
+    record: { table: "modules/support/setting", properties: [{ name: "key", value: $key }, { name: "value", value: $value }] }
+  ) {
+    id
+  }
+}

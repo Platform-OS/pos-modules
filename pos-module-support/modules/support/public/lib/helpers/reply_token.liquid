@@ -1,0 +1,39 @@
+{% doc %}
+  Builds or verifies the signed reply token "t.<number>.<mac16>" (04 §3).
+  Build: pass number, returns the token. Verify: pass token, returns the
+  ticket number when the mac matches, otherwise null.
+  @param {number} [number] - Ticket number to sign
+  @param {string} [token] - Token to verify
+{% enddoc %}
+{% liquid
+  assign secret = context.constants['modules/support/REPLY_TOKEN_SECRET']
+  if secret == blank
+    log 'REPLY_TOKEN_SECRET is not set', type: 'ERROR modules/support/helpers/reply_token'
+    return null
+  endif
+
+  if number != blank
+    assign data = number | append: ''
+    assign mac = data | compute_hmac: secret | slice: 0, 16
+    assign result = 't.' | append: data | append: '.' | append: mac
+    return result
+  endif
+
+  assign token = token | downcase
+  assign parts = token | split: '.'
+  if parts.size != 3 or parts[0] != 't'
+    return null
+  endif
+  assign is_number = parts[1] | matches: '^[0-9]{1,12}$'
+  unless is_number
+    return null
+  endunless
+  assign expected = parts[1] | compute_hmac: secret | slice: 0, 16
+  assign given_digest = parts[2] | compute_hmac: secret
+  assign expected_digest = expected | compute_hmac: secret
+  if given_digest != expected_digest
+    return null
+  endif
+  assign result = parts[1] | plus: 0
+  return result
+%}

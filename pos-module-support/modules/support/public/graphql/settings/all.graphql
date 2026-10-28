@@ -1,0 +1,9 @@
+query {
+  records(per_page: 100, filter: { table: { value: "modules/support/setting" } }) {
+    results {
+      id
+      key: property(name: "key")
+      value: property(name: "value")
+    }
+  }
+}

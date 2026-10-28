@@ -1,0 +1,41 @@
+{% doc %}
+  Inbound address helpers (04 §3).
+  Build mode: pass local_part (and number for a reply address); returns
+  "<local>[+t.<n>.<mac>]@<inbound domain>", or null when no inbound domain is set.
+  Parse mode: pass address; returns { local_part, token, domain }.
+  @param {string} [local_part] - Department inbound local part
+  @param {number} [number] - Ticket number for a reply address
+  @param {string} [address] - Address to parse
+{% enddoc %}
+{% liquid
+  if address != blank
+    assign address = address | downcase | strip
+    assign at_parts = address | split: '@'
+    if at_parts.size != 2
+      return null
+    endif
+    assign local_parts = at_parts[0] | split: '+'
+    assign parsed = { "local_part": null, "token": null, "domain": null }
+    assign parsed.local_part = local_parts[0]
+    assign parsed.domain = at_parts[1]
+    if local_parts.size > 1
+      assign parsed.token = local_parts[1]
+    endif
+    return parsed
+  endif
+
+  function settings = 'modules/support/helpers/settings'
+  assign domain = settings.inbound_domain
+  if domain == blank or local_part == blank
+    return null
+  endif
+  assign result = local_part | downcase
+  if number != blank
+    function token = 'modules/support/helpers/reply_token', number: number, token: null
+    if token
+      assign result = result | append: '+' | append: token
+    endif
+  endif
+  assign result = result | append: '@' | append: domain
+  return result
+%}

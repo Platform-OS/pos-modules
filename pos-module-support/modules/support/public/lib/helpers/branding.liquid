@@ -1,7 +1,7 @@
 {% doc %}
   Builds the brand used by the layout, emails, manifest and push (08 §3):
-  host hook support_branding over module defaults. Branding settings
-  override both once the settings table exists (TASK-4).
+  Branding settings override (setting branding_override) over the host
+  hook support_branding over module defaults, per key.
 {% enddoc %}
 {% liquid
   assign app_name = 'modules/support/app_name' | t
@@ -9,6 +9,13 @@
 
   function host_brand = 'modules/core/commands/hook/fire', hook: 'support_branding', params: null, merge_to_object: true
   for pair in host_brand
+    if pair[1] != blank
+      assign brand[pair[0]] = pair[1]
+    endif
+  endfor
+
+  function settings = 'modules/support/helpers/settings'
+  for pair in settings.branding_override
     if pair[1] != blank
       assign brand[pair[0]] = pair[1]
     endif

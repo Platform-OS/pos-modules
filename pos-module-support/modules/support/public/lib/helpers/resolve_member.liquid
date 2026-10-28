@@ -1,6 +1,6 @@
 {% doc %}
-  Loads the profile's team_member, creating it once for a host superadmin or an
-  ADMIN_EMAILS address (D-24). An existing record is returned as it is, so a
+  Loads the profile's team_member, creating it once for a host superadmin, a
+  host role listed in the role_map setting, or an ADMIN_EMAILS address (D-24). An existing record is returned as it is, so a
   disabled membership is never recreated.
   @param {object} profile - The signed-in profile
 {% enddoc %}
@@ -15,9 +15,22 @@
   endif
 
   assign source = null
+  assign role = 'admin'
   if profile.roles contains 'superadmin'
     assign source = 'superadmin'
   else
+    function settings = 'modules/support/helpers/settings'
+    for host_role in profile.roles
+      assign mapped = settings.role_map[host_role]
+      if mapped != blank
+        assign source = 'role_map'
+        assign role = mapped
+        break
+      endif
+    endfor
+  endif
+
+  if source == null
     assign email = profile.email | default: profile.user.email | downcase | strip
     assign admin_emails = context.constants['modules/support/ADMIN_EMAILS'] | default: '' | downcase | split: ','
     for admin_email in admin_emails
@@ -33,7 +46,9 @@
     return null
   endif
 
-  assign object = { "profile_id": profile.id, "role": "admin", "state": "active", "source": source }
+  assign object = { "profile_id": profile.id, "state": "active" }
+  assign object.role = role
+  assign object.source = source
   function member = 'modules/support/commands/team_members/create', object: object
   unless member.valid
     log member.errors, type: 'modules/support/helpers/resolve_member'

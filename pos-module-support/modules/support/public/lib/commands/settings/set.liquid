@@ -1,0 +1,25 @@
+{% doc %}
+  Stores one setting as JSON and invalidates the settings cache.
+  @param {string} key - The setting key
+  @param value - Any JSON-serialisable value
+{% enddoc %}
+{% liquid
+  if key == blank
+    return false
+  endif
+  assign value_json = value | json
+
+  graphql r = 'modules/support/records/find_by', table: 'modules/support/setting', name: 'key', value: key
+  assign existing = r.records.results.first
+  if existing
+    graphql u = 'modules/support/settings/update', id: existing.id, value: value_json
+  else
+    graphql u = 'modules/support/settings/create', key: key, value: value_json
+  endif
+
+  assign suffix = 6 | random_string
+  assign version = 'now' | to_time | strftime: '%s' | append: '-' | append: suffix
+  graphql b = 'modules/support/settings/bump_version', value: version
+  export version, namespace: 'support_settings'
+  return true
+%}

@@ -1,0 +1,5 @@
+mutation ($id: ID!, $value: String!) {
+  record: record_update(id: $id, record: { properties: [{ name: "value", value: $value }] }) {
+    id
+  }
+}

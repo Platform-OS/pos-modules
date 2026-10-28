@@ -1,0 +1,50 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # reply token: round trip, changed number, changed mac
+  function token = 'modules/support/helpers/reply_token', number: 1234, token: null
+  function number = 'modules/support/helpers/reply_token', number: null, token: token
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: number, expected: 1234, field_name: 'token round trip'
+
+  assign parts = token | split: '.'
+  assign forged = 't.1235.' | append: parts[2]
+  function number = 'modules/support/helpers/reply_token', number: null, token: forged
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: number, expected: null, field_name: 'changed number rejected'
+
+  assign forged = 't.1234.0000000000000000'
+  function number = 'modules/support/helpers/reply_token', number: null, token: forged
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: number, expected: null, field_name: 'changed mac rejected'
+
+  function number = 'modules/support/helpers/reply_token', number: null, token: 'garbage'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: number, expected: null, field_name: 'garbage rejected'
+
+  # settings: a change is visible on the next read
+  assign marker = 8 | random_string
+  function _ = 'modules/support/commands/settings/set', key: 'test_marker', value: marker
+  function settings = 'modules/support/helpers/settings'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: settings.test_marker, expected: marker, field_name: 'settings cache invalidated'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: settings.confirmation_wait_days, expected: 7, field_name: 'settings parse JSON numbers'
+
+  # address: parse and build
+  function parsed = 'modules/support/helpers/email_address', address: 'DOB+t.12.abc@Support-Dev.Example.com', local_part: null, number: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parsed.local_part, expected: 'dob', field_name: 'parse local part'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parsed.token, expected: 't.12.abc', field_name: 'parse token'
+  function _ = 'modules/support/commands/settings/set', key: 'inbound_domain', value: 'support-dev.platformos.com'
+  function address = 'modules/support/helpers/email_address', local_part: 'dob', number: 12, address: null
+  function parsed = 'modules/support/helpers/email_address', address: address, local_part: null, number: null
+  function number = 'modules/support/helpers/reply_token', number: null, token: parsed.token
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: number, expected: 12, field_name: 'reply address carries a valid token'
+
+  # branding: override > hook > default, per key
+  assign override = { "app_name": "Override Name" }
+  function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: override
+  function brand = 'modules/support/helpers/branding'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.app_name, expected: 'Override Name', field_name: 'override wins'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.short_name, expected: 'Harbor City', field_name: 'hook wins over default'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.theme_mode, expected: 'auto', field_name: 'default when neither'
+  assign no_override = {}
+  function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: no_override
+  function brand = 'modules/support/helpers/branding'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.app_name, expected: 'Harbor City Permits', field_name: 'hook after override removed'
+%}
