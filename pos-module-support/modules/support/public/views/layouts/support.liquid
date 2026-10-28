@@ -2,6 +2,9 @@
   function brand = 'modules/support/helpers/branding'
   function host_head = 'modules/core/queries/headscripts/search'
   assign member = context.exports.support.support_member
+  assign vapid = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY'] | default: ''
+  assign rotate_url = '/push_notifications/subscriptions/rotate' | url_encode
+  assign worker_url = '/support-desk/sw.js?vapid=' | append: vapid | append: '&rotate_url=' | append: rotate_url
 %}
 <!DOCTYPE html>
 <html class="pos-app {{ brand.theme_class }}" lang="{{ context.language | default: 'en' }}">
@@ -11,11 +14,15 @@
     <title>{{ brand.app_name }}</title>
     {% if brand.theme_color %}<meta name="theme-color" content="{{ brand.theme_color }}">{% endif %}
     {% if brand.favicon_url %}<link rel="icon" href="{{ brand.favicon_url }}">{% endif %}
+    <link rel="manifest" href="/support-desk/manifest.json">
+    <link rel="apple-touch-icon" href="{{ 'modules/support/icons/icon-192.png' | asset_url }}">
     {% render 'modules/common-styling/init', reset: true %}
     <link rel="stylesheet" href="{{ 'modules/support/style/pos-support.css' | asset_url }}">
+    {% if member %}{% render 'modules/push_notifications/init', service_worker_path: '/support-desk/sw.js', subscribe_url: null, destroy_url: null, rotate_url: null, vapid_public_key: null %}{% endif %}
     {{ host_head }}
+    <script defer src="{{ 'modules/support/js/pos-support-pwa.js' | asset_url }}"></script>
   </head>
-  <body class="pos-support">
+  <body class="pos-support" data-support-sw="{{ worker_url }}">
     {% render 'modules/support/shell', brand: brand, member: member, content: content_for_layout, pathname: context.location.pathname, nav: context.exports.support_nav %}
     {% liquid
       function flash = 'modules/core/commands/session/get', key: 'sflash', clear: null

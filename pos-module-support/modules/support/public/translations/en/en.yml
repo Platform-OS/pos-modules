@@ -266,3 +266,7 @@ en:
     access_requested: "Someone asked for access to Support"
     open_ticket: Open ticket
     footer: You get this because of your support desk notification settings.
+  pwa:
+    suffix: Support
+    install: Install Support app
+    ios_hint: "On iPhone or iPad, tap Share, then Add to Home Screen, and open Support from there to get alerts."

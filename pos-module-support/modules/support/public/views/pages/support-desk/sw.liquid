@@ -1,0 +1,20 @@
+---
+slug: support-desk/sw.js
+layout: ''
+---
+{% liquid
+  # Service worker for the desk only (07 §4.2): served from /support-desk/ so
+  # its scope can never reach host pages. Push handling comes from the
+  # push_notifications module; this file adds install/activate.
+  response_headers '{"Content-Type": "application/javascript; charset=utf-8", "Service-Worker-Allowed": "/support-desk", "Cache-Control": "no-cache"}'
+  assign push_sw = 'modules/push_notifications/sw.js' | asset_url
+%}
+importScripts({{ push_sw | json | html_safe }});
+
+self.addEventListener('install', function () {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(self.clients.claim());
+});
