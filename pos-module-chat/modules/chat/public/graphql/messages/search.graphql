@@ -4,13 +4,15 @@ query search(
   $limit: Int = 20
   $page: Int = 1
   $id: ID
+  $before_id: ID
 ) {
   messages: records(
     per_page: $limit
     page: $page
-    sort: { created_at: { order: DESC } }
+    # by id, so before_id (the oldest message already shown) pages through the same order
+    sort: { id: { order: DESC } }
     filter: {
-      id: { value: $id }
+      id: { value: $id, range: { lt: $before_id } }
       table: { exact: "modules/chat/message" },
       properties: [
         { name: "conversation_id", value_in: $conversation_id }

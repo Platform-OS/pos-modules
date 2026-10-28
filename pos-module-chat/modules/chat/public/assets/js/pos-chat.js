@@ -76,9 +76,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.currentUserId = window.pos.profile.id;
   // the loading indicator when loading messages (dom node)
   module.settings.loadingIndicator = document.querySelector('#pos-chat-loadingIndicator');
-  // current page of messages (int)
-  module.settings.currentPage = 1;
-  // are there more pages (bool)
+  // are there older messages to load (bool)
   module.settings.morePages = true;
 
   // gap (ms) since the previous message after which a timestamp is shown again (number)
@@ -258,8 +256,7 @@ window.pos.modules.chat = function(userSettings = {}){
         clearTimeout(messagesListTimeout);
         messagesListTimeout = setTimeout(() => {
           if(module.settings.messagesListContainer.scrollTop === 0){
-            module.settings.currentPage = module.settings.currentPage + 1;
-            module.loadPage(module.settings.currentPage);
+            module.loadPage();
           }
         }, 300);
       }
@@ -891,12 +888,23 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		loads messages from given page
-  // arguments:	the page number (int, default: 1)
-  //            items per page to get (int, default: 30)
+  // purpose:		loads the messages older than the oldest one shown - by its id and not
+  //            by page number, as the messages that arrived since the page loaded would
+  //            shift the pages and show some messages twice
+  // arguments:	items per page to get (int, default: 30)
   // ------------------------------------------------------------------------
-  module.loadPage = (page = 1, perPage = 30) => {
+  module.loadPage = (perPage = 30) => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load previous messages');
+
+    // live messages are added at the bottom, so the first message with an id is the oldest
+    // one loaded from the server - with none, the conversation started on this page and
+    // there is nothing older
+    const oldestId = module.settings.messagesList.querySelector('li[data-id]')?.dataset.id;
+    if(!oldestId){
+      module.settings.morePages = false;
+
+      return;
+    }
 
     let secondOldestMessage = module.settings.messagesList.querySelector('li:nth-of-type(2)');
 
@@ -904,7 +912,7 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.loadingIndicator.classList.add('active');
 
     // get the data
-    fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&page=${page}&per_page=${perPage}`)
+    fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&before=${oldestId}&per_page=${perPage}`)
     .then(response => {
       // parse it to JSON if valid
       if(response.ok){
@@ -925,6 +933,8 @@ window.pos.modules.chat = function(userSettings = {}){
 
         // build the message's <li> (text + attachments) - shared with showMessage()
         const li = module.settings.buildMessageElement(messageData);
+        // the next batch is loaded from the oldest one's id
+        li.dataset.id = messageData.id;
         const messageDate = new Date(messageData.created_at);
         module.settings.setMessageTime(li.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
 

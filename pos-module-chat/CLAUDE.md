@@ -55,7 +55,7 @@ Both handlers independently check the `chat.inbox` permission and then participa
 |---|---|---|---|
 | GET | `/inbox` | `views/pages/inbox.liquid` | Renders inbox; accepts `conversation_id`, or `to_uuid` (opens the chat with that profile, empty if it doesn't exist yet) |
 | POST | `/api/chat/conversations` | `views/pages/api/conversations/create.json.liquid` | Starts the conversation with `to_uuid` (or returns the existing one); called by `pos-chat.js` on the first message or attachment |
-| GET | `/api/chat/messages.json` | `views/pages/api/messages/show.json.liquid` | Paginated message history (`conversation_id`, `page`, `per_page`) |
+| GET | `/api/chat/messages.json` | `views/pages/api/messages/show.json.liquid` | Paginated message history (`conversation_id`, `before` = the oldest message id shown, `per_page`; `page` still works but shifts as new messages arrive). Sorted by id, like the messages the inbox renders, which carry it as `data-id` |
 
 **GET never writes.** `/inbox` neither creates a conversation nor marks one read: the session cookie is SameSite=Lax, so a cross-site link or redirect (or a prefetch) would otherwise do it on the user's behalf. Creation is a CSRF-checked POST, marking read goes over the WebSocket.
 

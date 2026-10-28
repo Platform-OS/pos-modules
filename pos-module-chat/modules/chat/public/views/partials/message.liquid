@@ -32,7 +32,7 @@
   endif
 %}
 
-<li class="pos-chat-message {% if authored %} pos-chat-message-authored {% endif %}">
+<li class="pos-chat-message {% if authored %} pos-chat-message-authored {% endif %}"{% if message.id %} data-id="{{ message.id }}"{% endif %}>
 
   <time datetime="{{ message.created_at }}">{%- if display_time and message.created_at -%}{{ message.created_at | l: 'long', timezone }}{%- endif -%}</time>
 

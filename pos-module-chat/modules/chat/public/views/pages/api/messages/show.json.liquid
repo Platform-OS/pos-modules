@@ -7,7 +7,8 @@ method: get
   Get messages for given conversation
 
   @param {string} conversation_id - the ID of the conversation
-  @param {string} page - page number for pagination
+  @param {string} [before] - id of the oldest message already shown, only older messages are returned
+  @param {string} [page] - page number, when not paging by `before` - messages that arrive meanwhile shift the pages
   @param {number} [per_page] - items per page (default: 30, at most 50)
 {% enddoc %}
 
@@ -21,8 +22,9 @@ method: get
   assign conversation_id = context.params.conversation_id
   assign page = context.params.page | to_positive_integer: 1
   assign per_page = context.params.per_page | to_positive_integer: 30
+  assign before = context.params.before
 
-  function messages = 'modules/chat/queries/messages/search_by_participant', conversation_id: conversation_id, page: page, limit: per_page, participant_id: current_profile.id
+  function messages = 'modules/chat/queries/messages/search_by_participant', conversation_id: conversation_id, page: page, before_id: before, limit: per_page, participant_id: current_profile.id
 
   render 'modules/chat/json/messages/show', messages: messages
 %}
