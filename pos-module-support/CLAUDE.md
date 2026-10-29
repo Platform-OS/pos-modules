@@ -27,6 +27,7 @@ validate (`validate_code`, platformos-supervisor) → write (Write/Edit only) �
 - Timers are delayed `background` jobs keyed by `sla_version`; the sweep job re-enqueues itself every 5 minutes.
 - Notifications go through `commands/notifications/dispatch`; preferences default to on when a key is missing. Tickets in an inactive department notify nobody and send no customer email (the test fixtures use the inactive department `testfixtures`).
 - A page that answers JSON to `fetch` must use `layout: ''`, or the layout wraps the body; `context.headers.HTTP_ACCEPT` is not reliable, so the board posts `respond=json`. Output JSON with `| json | html_safe`.
+- Queue: `/support-desk` renders the list or the board from one data source, `helpers/queue_page` → `queries/tickets/groups` (one search per priority or status group, one lookup). Layout and grouping come from `layout`/`group` params and are remembered in the session key `support_queue`; `/support-desk/board` forces the board without remembering it. Board cards keep the D-26 order (sort `board`) unless the agent picks a sort. Member lists for routing, alerts and pickers come from `queries/team_members/all_active` (every page), never one capped page.
 - Blocklist (D-27): inbound rule 0 in `commands/inbound/store` refuses blocked senders before anything is stored; Mark as spam (`commands/tickets/mark_spam`) blocks the address only, never the domain.
 
 ## Work tracking

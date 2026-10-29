@@ -25,5 +25,9 @@ metadata:
       assign active << s
     endif
   endfor
-  render 'modules/support/board/card', ticket: ticket, lookup: lookup, statuses: active
+  assign group = 'status'
+  if context.params.group == 'priority'
+    assign group = 'priority'
+  endif
+  render 'modules/support/board/card', ticket: ticket, lookup: lookup, statuses: active, group: group
 %}

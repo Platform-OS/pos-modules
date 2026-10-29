@@ -12,12 +12,23 @@ if (root && window.pos && window.pos.csrfToken) {
   );
   const text = (key, fallback) => root.dataset[key] || fallback;
 
-  // Queue: refresh changed rows, add new tickets at the top of the first page.
+  // Queue: refresh changed rows; new tickets go to the top of their swim lane
+  // (the lane of their priority or status), or of the first lane when theirs is not shown.
   const tbody = document.querySelector('.pos-support-table tbody');
   const departments = (root.dataset.supportDepartments || '').split(',').filter(Boolean);
+  const laneFor = (row) => {
+    const key = root.dataset.supportGroup === 'status' ? row.dataset.statusKey : row.dataset.priority;
+    return document.querySelector(`.pos-support-lane[data-lane="${CSS.escape(key || '')}"]`) || tbody;
+  };
+  // once the page is being left (a form was sent), rows are not fetched any more:
+  // requests racing the redirect could take the one-time flash message
+  let leaving = false;
+  document.addEventListener('submit', (event) => { if (!event.defaultPrevented) leaving = true; });
+  window.addEventListener('pagehide', () => { leaving = true; });
+  const rowOf = (ticketId) => document.querySelector(`.pos-support-row [value="${CSS.escape(ticketId)}"]`)?.closest('tr');
   const refreshRow = async (ticketId, kind) => {
-    const existing = document.querySelector(`.pos-support-row [value="${ticketId}"]`)?.closest('tr');
-    if (!existing && (kind !== 'created' || root.dataset.supportFirstPage !== 'true')) return;
+    if (leaving) return;
+    if (!rowOf(ticketId) && (kind !== 'created' || root.dataset.supportFirstPage !== 'true')) return;
     const response = await fetch(`/support-desk/tickets/${encodeURIComponent(ticketId)}/row`, { credentials: 'same-origin' });
     if (!response.ok) return;
     const template = document.createElement('template');
@@ -25,8 +36,18 @@ if (root && window.pos && window.pos.csrfToken) {
     const row = template.content.querySelector('tr');
     if (!row) return;
     row.classList.add('pos-support-row-fresh');
-    if (existing) existing.replaceWith(row);
-    else if (tbody) tbody.prepend(row);
+    // look the row up again: another update may have replaced it while this one was loading
+    const existing = rowOf(ticketId);
+    const lane = laneFor(row);
+    if (existing && existing.closest('tbody') === lane) {
+      existing.replaceWith(row);
+      return;
+    }
+    if (existing) existing.remove();
+    if (!lane) return;
+    const head = lane.querySelector('.pos-support-lane-head');
+    if (head) head.after(row);
+    else lane.prepend(row);
   };
   if (tbody) {
     departments.forEach((id) => subscribe(`queue-${id}`, (data) => refreshRow(data.ticket_id, data.kind)));

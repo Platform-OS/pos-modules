@@ -1,53 +1,34 @@
 {% doc %}
-  Board (D-26): one column per status, fixed order inside a column.
-  @param {object} board - From queries/tickets/board
-  @param {object[]} statuses - Active statuses for "Move to"
-  @param {object[]} departments - Departments for the filter
-  @param {string} query_string - Current filters as a query string, for the List link
-  @param {string} live_departments - Comma-separated department ids for live updates
+  Board (D-26): one column per priority or per status of the view, in the
+  same order as the list's swim lanes. Dragging a card to another column
+  changes its priority or status.
+  @param {object} page_data - From helpers/queue_page
+  @param {object} member - The signed-in team_member
 {% enddoc %}
-{% assign filters = board.filters %}
 {% liquid
+  assign groups = page_data.groups
   assign filtered = false
-  if filters.q != blank or filters.priority != blank or filters.department_id != blank
+  if page_data.filters.q != blank or page_data.filters.priority != blank or page_data.filters.assignee_id != blank or page_data.filters.department_id != blank
     assign filtered = true
   endif
 %}
-<div class="pos-support-queue" data-support-board data-support-filtered="{{ filtered }}" data-support-departments="{{ live_departments }}" data-support-move-error="{{ 'modules/support/board.move_error' | t }}">
-  <div class="pos-support-queue-head">
-    <h1 class="pos-support-title">{{ 'modules/support/board.title' | t }}</h1>
-    <nav class="pos-support-segmented" aria-label="{{ 'modules/support/queue.layout' | t }}">
-      <a href="/support-desk?{{ query_string }}">{% render 'modules/support/icon', name: 'list', size: 'sm' %}{{ 'modules/support/board.list' | t }}</a>
-      <a href="/support-desk/board?{{ query_string }}" aria-current="page">{% render 'modules/support/icon', name: 'square-kanban', size: 'sm' %}{{ 'modules/support/queue.board' | t }}</a>
-    </nav>
-  </div>
-  <form class="pos-support-toolbar pos-form" method="get" action="/support-desk/board" role="search" data-support-autosubmit>
-    <div class="pos-support-search">
-      {% render 'modules/support/icon', name: 'search', size: null %}
-      <label for="bd-q" class="pos-support-sr-only">{{ 'modules/support/queue.search' | t }}</label>
-      <input type="search" id="bd-q" name="q" value="{{ filters.q }}" placeholder="{{ 'modules/support/queue.search_placeholder' | t }}" autocomplete="off">
-    </div>
-    <label for="bd-priority" class="pos-support-sr-only">{{ 'modules/support/queue.priority' | t }}</label>
-    <select id="bd-priority" name="priority">
-      <option value="">{{ 'modules/support/queue.any_priority' | t }}</option>
-      {% assign priorities = "p0,p1,p2,p3" | split: ',' %}
-      {% for p in priorities %}<option value="{{ p }}" {% if filters.priority == p %}selected{% endif %}>{{ 'modules/support/priorities.' | append: p | t }}</option>{% endfor %}
-    </select>
-    {% if departments.size > 1 %}
-      <label for="bd-department" class="pos-support-sr-only">{{ 'modules/support/queue.department' | t }}</label>
-      <select id="bd-department" name="department_id"><option value="">{{ 'modules/support/queue.any_department' | t }}</option>{% for d in departments %}<option value="{{ d.id }}" {% if filters.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
-    {% endif %}
-    <label><input type="checkbox" name="show_closed" value="1" {% if board.show_closed %}checked{% endif %}> {{ 'modules/support/board.show_closed' | t }}</label>
-    <button type="submit" class="pos-button" data-support-filter-button>{% render 'modules/support/icon', name: 'filter', size: 'sm' %}{{ 'modules/support/queue.apply' | t }}</button>
-  </form>
+<div class="pos-support-queue" data-support-board data-support-group="{{ page_data.group }}" data-support-filtered="{{ filtered }}" data-support-departments="{{ page_data.live_departments }}" data-support-move-error="{{ 'modules/support/board.move_error' | t }}">
+  {% render 'modules/support/queue/head', page_data: page_data, member: member %}
 
   <div class="pos-support-board">
-    {% for column in board.columns %}
-      <section class="pos-support-column" data-status-key="{{ column.status.key }}" data-category="{{ column.status.category }}" aria-labelledby="col-{{ column.status.key }}">
-        <h2 id="col-{{ column.status.key }}" class="pos-support-column-head">{% render 'modules/support/badges/status', status: column.status %} <span class="pos-support-count" data-count>{{ column.total }}</span></h2>
-        <div class="pos-support-column-cards" data-cards data-empty="{{ 'modules/support/board.empty_column' | t }}">{% for ticket in column.tickets %}{% render 'modules/support/board/card', ticket: ticket, lookup: board.lookup, statuses: statuses %}{% endfor %}</div>
+    {% for column in groups.groups %}
+      <section class="pos-support-column" data-group-key="{{ column.key }}"{% if column.status %} data-status-key="{{ column.status.key }}" data-category="{{ column.status.category }}"{% else %} data-priority="{{ column.priority }}"{% endif %} aria-labelledby="col-{{ column.key }}">
+        <h2 id="col-{{ column.key }}" class="pos-support-column-head">
+          {% if column.priority %}
+            <span class="pos-support-column-title">{% render 'modules/support/badges/priority', priority: column.priority %} {{ 'modules/support/priorities.name_' | append: column.priority | t }}</span>
+          {% else %}
+            {% render 'modules/support/badges/status', status: column.status %}
+          {% endif %}
+          <span class="pos-support-count" data-count>{{ column.total }}</span>
+        </h2>
+        <div class="pos-support-column-cards" data-cards data-empty="{{ 'modules/support/board.empty_column' | t }}">{% for ticket in column.tickets %}{% render 'modules/support/board/card', ticket: ticket, lookup: groups.lookup, statuses: page_data.statuses, group: page_data.group %}{% endfor %}</div>
         {% if column.total > column.tickets.size %}
-          <a class="pos-button pos-button-small pos-button-ghost" href="/support-desk/board?{{ query_string }}&expand={{ column.status.key }}">{{ 'modules/support/board.show_more' | t: count: column.total }}</a>
+          <a class="pos-button pos-button-small pos-button-ghost" href="/support-desk?{{ page_data.query }}&layout=board&expand={{ column.key }}">{{ 'modules/support/board.show_more' | t: count: column.total }}</a>
         {% endif %}
       </section>
     {% endfor %}

@@ -1,0 +1,109 @@
+{% doc %}
+  Tickets of a queue view split into groups: one per priority (P0–P3) or
+  one per active status that belongs to the view. The list shows the groups
+  as swim lanes, the board as columns. Returns
+  { groups: [{ key, label, priority, status, tickets, total }], lookup, total, by }.
+  @param {object} member - The acting team_member
+  @param {string} view - Queue view key
+  @param {object} filters - { department_id, priority, status_key, assignee_id, q, sort }
+  @param {string} by - priority | status
+  @param {string} layout - list | board (the board of All open also shows waiting tickets)
+  @param {string} [expand] - Group key that loads up to 200 tickets
+{% enddoc %}
+{% liquid
+  assign limit = 25
+  if layout == 'board'
+    assign limit = 50
+  endif
+  assign include_waiting = false
+  if layout == 'board' and view == 'all_open'
+    assign include_waiting = true
+  endif
+
+  assign open_categories = ["new", "open", "pending", "on_hold"]
+  case view
+    when 'all_open', 'sla_at_risk'
+      assign categories = ["new", "open"]
+      if include_waiting
+        assign categories = open_categories
+      endif
+    when 'waiting'
+      assign categories = ["pending", "on_hold"]
+    when 'awaiting_confirmation'
+      assign categories = ["solved"]
+    when 'closed'
+      assign categories = ["closed"]
+    when 'deploy'
+      assign categories = []
+    else
+      assign categories = open_categories
+  endcase
+
+  assign specs = []
+  if by == 'status'
+    function statuses = 'modules/support/queries/statuses/all'
+    for s in statuses.list
+      if s.active == false
+        continue
+      endif
+      if filters.status_key != blank and s.key != filters.status_key
+        continue
+      endif
+      if view == 'deploy'
+        if s.key != 'deploy'
+          continue
+        endif
+      elsif categories contains s.category
+      else
+        continue
+      endif
+      assign spec = { "key": null, "label": null, "status": null, "priority": null }
+      assign spec.key = s.key
+      assign spec.label = s.label
+      assign spec.status = s
+      assign specs << spec
+    endfor
+  else
+    assign priorities = ["p0", "p1", "p2", "p3"]
+    for p in priorities
+      if filters.priority != blank and p != filters.priority
+        continue
+      endif
+      assign spec = { "key": null, "label": null, "status": null, "priority": null }
+      assign spec.key = p
+      assign spec.priority = p
+      assign spec.label = 'modules/support/priorities.' | append: p | t
+      assign specs << spec
+    endfor
+  endif
+
+  assign result = { "groups": [], "lookup": null, "total": 0, "by": null }
+  assign result.by = by
+  assign all_tickets = []
+  for spec in specs
+    assign group_filters = filters | hash_merge: {}
+    # board cards keep their fixed order unless the agent picked a sort (D-26)
+    if layout == 'board' and group_filters.sort == blank
+      assign group_filters.sort = 'board'
+    endif
+    if by == 'status'
+      assign group_filters.status_key = spec.key
+    else
+      assign group_filters.priority = spec.key
+    endif
+    assign group_limit = limit
+    if expand == spec.key
+      assign group_limit = 200
+    endif
+    function page = 'modules/support/queries/tickets/search', member: member, view: view, filters: group_filters, page: 1, per_page: group_limit, skip_lookup: true, include_waiting: include_waiting
+    assign group = spec
+    assign group.tickets = page.results
+    assign group.total = page.total_entries
+    assign result.groups << group
+    assign result.total = result.total | plus: page.total_entries
+    assign all_tickets = all_tickets | concat: page.results
+  endfor
+  function lookup = 'modules/support/queries/tickets/lookup', tickets: all_tickets
+  assign result.lookup = lookup
+  return result
+%}

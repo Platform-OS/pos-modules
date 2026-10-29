@@ -6,12 +6,17 @@
 {% liquid
   assign brand = data.brand
   assign o = data.override
+  assign theme_mode = o.theme_mode | default: 'auto'
+  # appearance has its own control, so it does not count as a branding override
+  assign appearance_keys = ["theme_mode"]
+  assign brand_override = o | hash_except: appearance_keys
   assign using_host = true
-  if o.size > 0
+  if brand_override.size > 0
     assign using_host = false
   endif
   assign host_keys = data.host_brand | hash_keys | join: ', '
-  assign override_keys = o | hash_keys | join: ', '
+  assign override_keys = brand_override | hash_keys | join: ', '
+  assign modes = "auto,light,dark" | split: ','
   assign status = { "label": null, "color": "open" }
   assign status.label = 'modules/support/settings.preview_status' | t
 %}
@@ -56,14 +61,22 @@
       <fieldset><label for="br-theme">{{ 'modules/support/settings.theme_color' | t }}</label><input id="br-theme" name="theme_color" value="{{ o.theme_color }}" placeholder="#1d4f91" pattern="#[0-9a-fA-F]{6}"></fieldset>
       <fieldset><label for="br-logo">{{ 'modules/support/settings.logo_url' | t }}</label><input id="br-logo" type="url" name="logo_url" value="{{ o.logo_url }}" placeholder="https://"></fieldset>
       <fieldset><label for="br-icon">{{ 'modules/support/settings.icon_url' | t }}</label><input id="br-icon" type="url" name="icon_url" value="{{ o.icon_url }}" placeholder="https://"></fieldset>
-      <fieldset>
-        <label for="br-mode">{{ 'modules/support/settings.theme_mode' | t }}</label>
-        <select id="br-mode" name="theme_mode">
-          {% assign modes = "auto,light,dark" | split: ',' %}
-          {% for m in modes %}<option value="{{ m }}" {% if o.theme_mode == m %}selected{% endif %}>{{ 'modules/support/settings.mode_' | append: m | t }}</option>{% endfor %}
-        </select>
-      </fieldset>
       <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
+    </form>
+  </section>
+
+  <section class="pos-card pos-support-step" aria-labelledby="br-appearance">
+    <h2 id="br-appearance" class="pos-heading-3">{{ 'modules/support/settings.appearance' | t }}</h2>
+    <p class="pos-supplementary">{{ 'modules/support/settings.appearance_help' | t }}</p>
+    <form action="/support-desk/settings/save" method="post" class="pos-support-inline-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="section" value="branding">
+      <input type="hidden" name="only" value="theme_mode">
+      <fieldset class="pos-support-segmented">
+        <legend class="pos-support-sr-only">{{ 'modules/support/settings.theme_mode' | t }}</legend>
+        {% for m in modes %}<label><input type="radio" name="theme_mode" value="{{ m }}" {% if theme_mode == m %}checked{% endif %}>{{ 'modules/support/settings.mode_' | append: m | t }}</label>{% endfor %}
+      </fieldset>
+      <button type="submit" class="pos-button pos-button-primary" data-support-appearance-save>{{ 'modules/support/settings.save' | t }}</button>
     </form>
   </section>
 </div>

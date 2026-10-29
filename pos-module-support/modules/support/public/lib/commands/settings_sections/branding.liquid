@@ -2,13 +2,34 @@
   Saves the branding override (08 §5). "Use the host app's branding" clears
   it; otherwise non-blank fields override the host hook per key. Colours
   must be #rrggbb; images must be https URLs. Returns { valid, error, notice }.
-  @param {object} params - use_host, app_name, short_name, support_email_name, theme_color, background_color, logo_url, logo_dark_url, icon_url, theme_mode
+  @param {object} params - use_host, app_name, short_name, support_email_name, theme_color, background_color, logo_url, logo_dark_url, icon_url; or only=theme_mode with theme_mode (auto | light | dark), saved on its own
 {% enddoc %}
 {% liquid
   assign result = { "valid": false, "error": null, "notice": "modules/support/settings.saved" }
+  assign modes = ["auto", "light", "dark"]
+  function settings = 'modules/support/helpers/settings'
+  assign current_mode = settings.branding_override.theme_mode
+
+  # Appearance is saved on its own and is kept by every other branding change
+  if params.only == 'theme_mode'
+    unless modes contains params.theme_mode
+      assign result.error = 'modules/support/settings.errors.theme_mode'
+      return result
+    endunless
+    assign override = settings.branding_override | default: {}
+    assign override = override | hash_merge: {}
+    assign override.theme_mode = params.theme_mode
+    function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: override
+    assign result.valid = true
+    return result
+  endif
+
   if params.use_host == 'true'
-    assign empty_override = {}
-    function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: empty_override
+    assign kept = {}
+    if current_mode != blank and current_mode != 'auto'
+      assign kept.theme_mode = current_mode
+    endif
+    function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: kept
     assign result.valid = true
     return result
   endif
@@ -45,9 +66,8 @@
       assign override[key] = value
     endif
   endfor
-  assign modes = ["auto", "light", "dark"]
-  if modes contains params.theme_mode
-    assign override.theme_mode = params.theme_mode
+  if current_mode != blank
+    assign override.theme_mode = current_mode
   endif
   function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: override
   assign result.valid = true

@@ -4,7 +4,7 @@
   @param {object} [profile] - The signed-in profile
   @param {string} content - The page body
   @param {string} pathname - The current path, for the active rail item
-  @param {object} [nav] - { view, counts }
+  @param {object} [nav] - { view, counts, departments, filters }
   @param {string} [view] - The view parameter of the request
 {% enddoc %}
 {% if member and member.state == 'active' %}
@@ -15,6 +15,24 @@
     assign views = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,closed" | split: ','
     assign icons = { "mine": "circle-user", "needs_reply": "reply", "unassigned": "user-x", "all_open": "inbox", "waiting": "clock", "awaiting_confirmation": "hourglass", "closed": "archive" }
     assign presence = member.availability | default: 'available'
+    assign on_queue = false
+    if pathname == '/support-desk' or pathname == '/support-desk/board'
+      assign on_queue = true
+    endif
+    assign current_department = nav.filters.department_id
+    # department links keep the view and the other filters; view links keep the department
+    assign department_query = { "view": null, "q": null, "priority": null, "status_key": null, "assignee_id": null, "sort": null }
+    assign department_query.view = current_view | default: 'all_open'
+    assign department_query.q = nav.filters.q
+    assign department_query.priority = nav.filters.priority
+    assign department_query.status_key = nav.filters.status_key
+    assign department_query.assignee_id = nav.filters.assignee_id
+    assign department_query.sort = nav.filters.sort
+    assign department_query = department_query | www_form_encode
+    assign view_suffix = ''
+    if current_department != blank
+      assign view_suffix = '&department_id=' | append: current_department
+    endif
   %}
   <div class="pos-support-shell">
     <input type="checkbox" id="pos-support-nav-toggle" class="pos-support-nav-toggle" aria-label="{{ 'modules/support/shell.menu' | t }}" data-support-nav-toggle>
@@ -24,7 +42,7 @@
       <ul class="pos-support-rail-items">
         {% for item in views %}
           <li>
-            <a href="/support-desk?view={{ item }}" {% if pathname == '/support-desk' and current_view == item %}aria-current="page"{% endif %}>
+            <a href="/support-desk?view={{ item }}{{ view_suffix }}" {% if on_queue and current_view == item %}aria-current="page"{% endif %}>
               {% render 'modules/support/icon', name: icons[item], size: null %}
               <span>{{ 'modules/support/views.' | append: item | t }}</span>
               {% if nav.counts[item] != null %}<span class="pos-support-count">{{ nav.counts[item] }}</span>{% endif %}
@@ -32,23 +50,37 @@
           </li>
         {% endfor %}
       </ul>
-      <p class="pos-support-rail-label">{{ 'modules/support/shell.workspace' | t }}</p>
-      <ul class="pos-support-rail-items">
-        <li>
-          <a href="/support-desk/board" {% if pathname contains '/support-desk/board' %}aria-current="page"{% endif %}>
-            {% render 'modules/support/icon', name: 'square-kanban', size: null %}
-            <span>{{ 'modules/support/board.title' | t }}</span>
-          </a>
-        </li>
-        {% if member.role == 'admin' %}
+      {% if nav.departments.departments.size > 0 %}
+        <p class="pos-support-rail-label">{{ 'modules/support/shell.departments' | t }}</p>
+        <ul class="pos-support-rail-items">
+          <li>
+            <a href="/support-desk?{{ department_query }}" {% if on_queue and current_department == blank %}aria-current="page"{% endif %}>
+              {% render 'modules/support/icon', name: 'building-2', size: null %}
+              <span>{{ 'modules/support/shell.all_departments' | t }}</span>
+              <span class="pos-support-count">{{ nav.departments.all }}</span>
+            </a>
+          </li>
+          {% for department in nav.departments.departments %}
+            <li>
+              <a href="/support-desk?{{ department_query }}&department_id={{ department.id }}" {% if on_queue and current_department == department.id %}aria-current="page"{% endif %}>
+                <span class="pos-support-dept-mark" aria-hidden="true">{{ department.short_code | default: department.name | slice: 0 | upcase }}</span>
+                <span>{{ department.name }}</span>
+                <span class="pos-support-count">{{ department.count }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if member.role == 'admin' %}
+        <ul class="pos-support-rail-items pos-support-rail-bottom">
           <li>
             <a href="/support-desk/settings/departments" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>
               {% render 'modules/support/icon', name: 'settings', size: null %}
               <span>{{ 'modules/support/shell.settings' | t }}</span>
             </a>
           </li>
-        {% endif %}
-      </ul>
+        </ul>
+      {% endif %}
       <div class="pos-support-rail-foot">
         <a class="pos-support-rail-user" href="/support-desk/profile" {% if pathname == '/support-desk/profile' %}aria-current="page"{% endif %}>
           <span class="pos-support-avatar-wrap">

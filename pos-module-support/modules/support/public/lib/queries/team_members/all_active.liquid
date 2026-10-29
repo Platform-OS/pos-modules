@@ -1,0 +1,20 @@
+{% doc %}
+  Every active team member, read 200 at a time, oldest first. Routing,
+  alerts and pickers use this rather than one page, so a member added later
+  is never left out.
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/team_members/search', state: 'active', limit: 200, page: 1
+  assign members = r.records.results
+  assign pages = r.records.total_entries | plus: 199 | divided_by: 200
+  if pages > 1
+    # one request per page of 200, not per member
+    # platformos-check-disable NestedGraphQLQuery
+    for page in (2..pages)
+      graphql more = 'modules/support/team_members/search', state: 'active', limit: 200, page: page
+      assign members = members | concat: more.records.results
+    endfor
+    # platformos-check-enable NestedGraphQLQuery
+  endif
+  return members
+%}

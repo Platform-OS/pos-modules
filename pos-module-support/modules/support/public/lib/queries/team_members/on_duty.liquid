@@ -3,9 +3,9 @@
   preferring one who is available now. Returns the team_member or null.
 {% enddoc %}
 {% liquid
-  graphql r = 'modules/support/team_members/search', state: 'active', limit: 200
+  function members = 'modules/support/queries/team_members/all_active'
   assign fallback = null
-  for member in r.records.results
+  for member in members
     if member.on_duty_manager and member.role != 'agent'
       function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
       if availability == 'available'

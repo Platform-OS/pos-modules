@@ -4,34 +4,44 @@
 {% liquid
   function f = 'support_test_helpers/ticket_fixture', label: 'board'
   assign manager = f.manager_actor.member
-  assign filters = { "department_id": null, "priority": null, "assignee_id": null, "q": null }
+  assign filters = { "department_id": null, "priority": null, "status_key": null, "assignee_id": null, "q": null, "sort": null }
   assign filters.department_id = f.department_id
 
-  # columns: active non-closed statuses only, unless show_closed
-  function board = 'modules/support/queries/tickets/board', member: manager, filters: filters, show_closed: false, expand_status: null
-  assign keys = board.columns | map: 'status' | map: 'key'
+  # status columns follow the view: the board of All open shows waiting columns, never closed ones
+  function board = 'modules/support/queries/tickets/groups', member: manager, view: 'all_open', filters: filters, by: 'status', layout: 'board', expand: null
+  assign categories = board.groups | map: 'status' | map: 'category'
   assign hides_closed = true
-  if keys contains 'closed' or keys contains 'spam'
+  if categories contains 'closed' or categories contains 'solved'
     assign hides_closed = false
   endif
   function contract = 'modules/tests/assertions/true', contract: contract, value: hides_closed, field_name: 'closed columns hidden', object: null
-  function board_closed = 'modules/support/queries/tickets/board', member: manager, filters: filters, show_closed: true, expand_status: null
-  assign keys = board_closed.columns | map: 'status' | map: 'key'
+  assign shows_waiting = false
+  if categories contains 'pending'
+    assign shows_waiting = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: shows_waiting, field_name: 'board of All open shows waiting columns', object: null
+  function closed_board = 'modules/support/queries/tickets/groups', member: manager, view: 'closed', filters: filters, by: 'status', layout: 'board', expand: null
+  assign closed_keys = closed_board.groups | map: 'key'
   assign shows_closed = false
-  if keys contains 'closed'
+  if closed_keys contains 'closed'
     assign shows_closed = true
   endif
-  function contract = 'modules/tests/assertions/true', contract: contract, value: shows_closed, field_name: 'show closed adds Closed', object: null
+  function contract = 'modules/tests/assertions/true', contract: contract, value: shows_closed, field_name: 'Closed view shows the Closed column', object: null
+
+  # priority grouping: one column per priority
+  function by_priority = 'modules/support/queries/tickets/groups', member: manager, view: 'all_open', filters: filters, by: 'priority', layout: 'board', expand: null
+  assign priority_keys = by_priority.groups | map: 'key' | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: priority_keys, expected: 'p0,p1,p2,p3', field_name: 'priority columns'
 
   # order within a column: P0 first, then newest first
   function second = 'support_test_helpers/ticket_fixture', label: 'board-p0'
   function p = 'modules/support/commands/tickets/set_priority', ticket: second.ticket, priority: 'p0', actor: f.manager_actor
   function third = 'support_test_helpers/ticket_fixture', label: 'board-p3'
   function p3 = 'modules/support/commands/tickets/set_priority', ticket: third.ticket, priority: 'p3', actor: f.manager_actor
-  function board = 'modules/support/queries/tickets/board', member: manager, filters: filters, show_closed: false, expand_status: null
+  function board = 'modules/support/queries/tickets/groups', member: manager, view: 'all_open', filters: filters, by: 'status', layout: 'board', expand: null
   assign ranks = { "p0": 0, "p1": 1, "p2": 2, "p3": 3 }
   assign ordered = true
-  for column in board.columns
+  for column in board.groups
     assign last_rank = -1
     assign last_created = 9999999999
     for t in column.tickets
@@ -51,12 +61,20 @@
   endfor
   function contract = 'modules/tests/assertions/true', contract: contract, value: ordered, field_name: 'column ordered by priority then newest', object: null
   assign new_column = null
-  for column in board.columns
+  for column in board.groups
     if column.status.category == 'new'
       assign new_column = column
     endif
   endfor
   function contract = 'modules/tests/assertions/equal', contract: contract, given: new_column.tickets.first.id, expected: second.ticket.id, field_name: 'P0 card at the top'
+
+  # list lanes: totals add up to the view's total
+  function lanes = 'modules/support/queries/tickets/groups', member: manager, view: 'all_open', filters: filters, by: 'priority', layout: 'list', expand: null
+  assign lane_sum = 0
+  for lane in lanes.groups
+    assign lane_sum = lane_sum | plus: lane.total
+  endfor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: lane_sum, expected: lanes.total, field_name: 'lane totals add up'
 
   # a refused move leaves the ticket where it was
   function a = 'modules/support/commands/tickets/assign', ticket: f.ticket, assignee_id: f.other_agent_id, reason: null, actor: f.manager_actor

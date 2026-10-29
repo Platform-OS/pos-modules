@@ -17,7 +17,7 @@
   assign requester_name = requester.name | default: requester.emails.first
   assign assignee_name = assignee.name | default: assignee.first_name | default: assignee.email
 %}
-<tr class="pos-support-row{% if ticket.needs_reply %} pos-support-row-needs-reply{% endif %}" data-url="{{ url }}">
+<tr class="pos-support-row{% if ticket.needs_reply %} pos-support-row-needs-reply{% endif %}" data-url="{{ url }}" data-priority="{{ ticket.priority }}" data-status-key="{{ status.key }}">
   <td class="pos-support-cell-select">
     <label for="pos-support-select-{{ ticket.id }}">
       <input type="checkbox" name="ids[]" value="{{ ticket.id }}" id="pos-support-select-{{ ticket.id }}" class="pos-support-select">

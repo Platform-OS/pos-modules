@@ -1,0 +1,100 @@
+{% doc %}
+  Everything the queue page needs, for both layouts. Layout (list | board)
+  and grouping (priority | status) come from the request when given (and
+  are then remembered in the session), else from the session, so they stay
+  as the agent switches views. Defaults: list grouped by priority; the
+  board grouped by status.
+  @param {object} member - The signed-in team_member
+  @param {object} params - Request params
+  @param {string} [layout] - Forces the layout without remembering it (the /support-desk/board link)
+{% enddoc %}
+{% liquid
+  assign views = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,sla_at_risk,deploy,closed" | split: ','
+  assign view = params.view
+  unless views contains view
+    assign view = 'all_open'
+  endunless
+
+  function prefs = 'modules/core/commands/session/get', key: 'support_queue', clear: null
+  assign prefs = prefs | default: {}
+  assign layouts = ["list", "board"]
+  assign groupings = ["priority", "status"]
+  assign changed = false
+  if layouts contains params.layout
+    assign prefs.layout = params.layout
+    assign changed = true
+  endif
+  if groupings contains params.group
+    assign prefs.group = params.group
+    assign changed = true
+  endif
+  if changed
+    function _ = 'modules/core/commands/session/set', key: 'support_queue', value: prefs
+  endif
+  assign current_layout = layout | default: prefs.layout | default: 'list'
+  assign group = prefs.group
+  if group == blank
+    assign group = 'priority'
+    if current_layout == 'board'
+      assign group = 'status'
+    endif
+  endif
+
+  assign filters = { "department_id": null, "priority": null, "status_key": null, "assignee_id": null, "organization_id": null, "q": null, "sort": null }
+  assign filters.department_id = params.department_id
+  assign filters.priority = params.priority
+  assign filters.status_key = params.status_key
+  assign filters.organization_id = params.organization_id
+  assign filters.assignee_id = params.assignee_id
+  assign filters.q = params.q | strip
+  assign sorts = "sla,priority,newest,oldest,activity" | split: ','
+  if sorts contains params.sort
+    assign filters.sort = params.sort
+  endif
+
+  function groups = 'modules/support/queries/tickets/groups', member: member, view: view, filters: filters, by: group, layout: current_layout, expand: params.expand
+  function counts = 'modules/support/queries/tickets/counts', member: member
+  assign include_waiting = false
+  if current_layout == 'board' and view == 'all_open'
+    assign include_waiting = true
+  endif
+  function department_counts = 'modules/support/queries/tickets/department_counts', member: member, view: view, filters: filters, include_waiting: include_waiting
+
+  function statuses = 'modules/support/queries/statuses/all'
+  function members = 'modules/support/queries/team_members/active'
+  function permissions = 'modules/support/queries/team/role_permissions'
+  assign can_manage = false
+  if permissions[member.role] contains 'support.tickets.manage.all'
+    assign can_manage = true
+  endif
+  assign active_statuses = []
+  for s in statuses.list
+    if s.active
+      assign active_statuses << s
+    endif
+  endfor
+
+  assign query = { "view": null, "q": null, "priority": null, "status_key": null, "department_id": null, "assignee_id": null, "sort": null }
+  assign query.view = view
+  assign query.q = filters.q
+  assign query.priority = filters.priority
+  assign query.status_key = filters.status_key
+  assign query.department_id = filters.department_id
+  assign query.assignee_id = filters.assignee_id
+  assign query.sort = filters.sort
+
+  assign result = { "view": null, "layout": null, "group": null, "filters": null, "groups": null, "counts": null, "department_counts": null, "statuses": null, "members": null, "can_manage": false, "query": null, "live_departments": null }
+  assign result.view = view
+  assign result.layout = current_layout
+  assign result.group = group
+  assign result.filters = filters
+  assign result.groups = groups
+  assign result.counts = counts
+  assign result.department_counts = department_counts
+  assign result.statuses = active_statuses
+  assign result.members = members
+  assign result.can_manage = can_manage
+  assign result.query = query | www_form_encode
+  assign result.live_departments = department_counts.departments | map: 'id' | join: ','
+  return result
+%}

@@ -4,6 +4,7 @@
   @param {object} ticket - Ticket record
   @param {object} lookup - From queries/tickets/lookup
   @param {object[]} statuses - Statuses offered in "Move to"
+  @param {string} [group] - status (default) | priority: what "Move to" changes
 {% enddoc %}
 {% liquid
   assign requester = lookup.contacts[ticket.requester_id]
@@ -37,9 +38,16 @@
     <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
     <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
     <label for="move-{{ ticket.id }}" class="pos-support-sr-only">{{ 'modules/support/board.move_to' | t }} #{{ ticket.number }}</label>
-    <select id="move-{{ ticket.id }}" name="status_key">
-      {% for s in statuses %}{% if s.category != 'new' %}<option value="{{ s.key }}" {% if s.id == ticket.status_id %}selected{% endif %}>{{ s.label }}</option>{% endif %}{% endfor %}
-    </select>
+    {% if group == 'priority' %}
+      {% assign priorities = "p0,p1,p2,p3" | split: ',' %}
+      <select id="move-{{ ticket.id }}" name="priority">
+        {% for p in priorities %}<option value="{{ p }}" {% if ticket.priority == p %}selected{% endif %}>{{ 'modules/support/priorities.' | append: p | t }}</option>{% endfor %}
+      </select>
+    {% else %}
+      <select id="move-{{ ticket.id }}" name="status_key">
+        {% for s in statuses %}{% if s.category != 'new' %}<option value="{{ s.key }}" {% if s.id == ticket.status_id %}selected{% endif %}>{{ s.label }}</option>{% endif %}{% endfor %}
+      </select>
+    {% endif %}
     <button type="submit" class="pos-button pos-button-small">{{ 'modules/support/board.move' | t }}</button>
   </form>
 </article>

@@ -24,9 +24,23 @@
   endif
   assign page = params.page | default: 1 | plus: 0 | at_least: 1
   assign per_page = 50
-  function data = 'modules/support/queries/tickets/search', member: member, view: params.view, filters: filters, page: page, per_page: per_page
+  assign groupings = ["priority", "status"]
+  if groupings contains params.group
+    # the list in swim lanes: the order is lane by lane, as shown
+    assign page = 1
+    function grouped = 'modules/support/queries/tickets/groups', member: member, view: params.view, filters: filters, by: params.group, layout: 'list', expand: null
+    assign ids = []
+    for group in grouped.groups
+      assign ids = ids | concat: group.tickets
+    endfor
+    assign ids = ids | map: 'id'
+    assign data = { "total_entries": null }
+    assign data.total_entries = grouped.total
+  else
+    function data = 'modules/support/queries/tickets/search', member: member, view: params.view, filters: filters, page: page, per_page: per_page, skip_lookup: true, include_waiting: false
+    assign ids = data.results | map: 'id'
+  endif
 
-  assign ids = data.results | map: 'id'
   assign index = -1
   for id in ids
     if id == ticket_id
@@ -37,7 +51,10 @@
     return null
   endif
 
-  assign query = { "view": null, "q": null, "priority": null, "status_key": null, "department_id": null, "assignee_id": null, "sort": null, "page": null }
+  assign query = { "view": null, "q": null, "priority": null, "status_key": null, "department_id": null, "assignee_id": null, "sort": null, "group": null, "page": null }
+  if groupings contains params.group
+    assign query.group = params.group
+  endif
   assign query.assignee_id = filters.assignee_id
   assign query.sort = filters.sort
   assign query.view = params.view

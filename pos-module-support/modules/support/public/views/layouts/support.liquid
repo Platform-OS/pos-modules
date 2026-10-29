@@ -15,6 +15,11 @@
       function counts = 'modules/support/queries/tickets/counts', member: member
       assign nav.counts = counts
     endif
+    if nav.departments == blank
+      assign no_filters = {}
+      function department_counts = 'modules/support/queries/tickets/department_counts', member: member, view: 'all_open', filters: no_filters, include_waiting: false
+      assign nav.departments = department_counts
+    endif
     assign current_profile = context.exports.support.current_profile
   endif
 

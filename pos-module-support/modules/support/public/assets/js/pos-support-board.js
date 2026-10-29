@@ -8,7 +8,10 @@ import { createConsumer } from './vendor/actioncable-8.0.100.esm.js';
 const root = document.querySelector('[data-support-board]');
 if (root) {
   const priorityRank = { p0: 0, p1: 1, p2: 2, p3: 3 };
-  const column = (key) => root.querySelector(`.pos-support-column[data-status-key="${CSS.escape(key)}"]`);
+  // columns are priorities or statuses; a card belongs to the column of its priority or status
+  const byPriority = root.dataset.supportGroup === 'priority';
+  const keyOf = (card) => (byPriority ? card.dataset.priority : card.dataset.statusKey);
+  const column = (key) => root.querySelector(`.pos-support-column[data-group-key="${CSS.escape(key)}"]`);
   const cardFor = (id) => root.querySelector(`.pos-support-card[data-ticket-id="${CSS.escape(id)}"]`);
   // the same message is not stacked again while it is still on screen
   let lastToast = { message: null, at: 0 };
@@ -37,7 +40,7 @@ if (root) {
   // Fetch the card again. It is dropped when the ticket left the member's
   // scope or moved to a column that is not shown.
   const refresh = async (ticketId) => {
-    const response = await fetch(`/support-desk/tickets/${encodeURIComponent(ticketId)}/card`, { credentials: 'same-origin' });
+    const response = await fetch(`/support-desk/tickets/${encodeURIComponent(ticketId)}/card?group=${byPriority ? 'priority' : 'status'}`, { credentials: 'same-origin' });
     const existing = cardFor(ticketId);
     const from = existing && existing.closest('.pos-support-column');
     let card = null;
@@ -46,7 +49,7 @@ if (root) {
       const template = document.createElement('template');
       template.innerHTML = (await response.text()).trim();
       card = template.content.querySelector('.pos-support-card');
-      if (card) target = column(card.dataset.statusKey);
+      if (card) target = column(keyOf(card));
     }
     if (existing) existing.remove();
     if (card && target) {
@@ -60,10 +63,12 @@ if (root) {
     }
   };
 
-  const move = async (card, statusKey) => {
+  const move = async (card, key) => {
     const form = card.querySelector('form.pos-support-move');
     const data = new FormData(form);
-    data.set('status_key', statusKey);
+    data.delete('status_key');
+    data.delete('priority');
+    data.set(byPriority ? 'priority' : 'status_key', key);
     data.set('respond', 'json');
     card.setAttribute('aria-busy', 'true');
     let error = null;
@@ -88,7 +93,7 @@ if (root) {
     if (form) {
       form.addEventListener('submit', (event) => {
         event.preventDefault();
-        move(card, form.elements.status_key.value);
+        move(card, (form.elements.priority || form.elements.status_key).value);
       });
     }
   };
@@ -103,7 +108,7 @@ if (root) {
       event.preventDefault();
       col.classList.remove('pos-support-drop-target');
       const card = cardFor(event.dataTransfer.getData('text/plain'));
-      if (card && card.closest('.pos-support-column') !== col) move(card, col.dataset.statusKey);
+      if (card && card.closest('.pos-support-column') !== col) move(card, col.dataset.groupKey);
     });
   });
 

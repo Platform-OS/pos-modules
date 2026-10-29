@@ -2,7 +2,32 @@
 // Ignored while typing in a form field. Also shows the bulk bar only while
 // tickets are selected and applies a filter as soon as a select changes.
 (function () {
-  const rows = () => Array.from(document.querySelectorAll('.pos-support-row'));
+  const rows = () => Array.from(document.querySelectorAll('.pos-support-row:not([hidden])'));
+
+  // swim lanes open and close; the choice is remembered per lane in this browser
+  const STORE = 'pos-support-closed-lanes';
+  const readClosed = () => { try { return JSON.parse(localStorage.getItem(STORE) || '[]'); } catch (e) { return []; } };
+  const writeClosed = (list) => { try { localStorage.setItem(STORE, JSON.stringify(list)); } catch (e) { /* storage unavailable */ } };
+  const setLane = (lane, open) => {
+    const toggle = lane.querySelector('[data-support-lane-toggle]');
+    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    lane.querySelectorAll('tr:not(.pos-support-lane-head)').forEach((tr) => { tr.hidden = !open; });
+    lane.classList.toggle('pos-support-lane-closed', !open);
+  };
+  const closed = readClosed();
+  document.querySelectorAll('.pos-support-lane').forEach((lane) => {
+    if (closed.includes(lane.dataset.lane)) setLane(lane, false);
+  });
+  document.addEventListener('click', (event) => {
+    const toggle = event.target.closest('[data-support-lane-toggle]');
+    if (!toggle) return;
+    const lane = toggle.closest('.pos-support-lane');
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    setLane(lane, open);
+    const list = readClosed().filter((key) => key !== lane.dataset.lane);
+    if (!open) list.push(lane.dataset.lane);
+    writeClosed(list);
+  });
   let index = -1;
 
   const bar = document.querySelector('[data-support-bulk-bar]');

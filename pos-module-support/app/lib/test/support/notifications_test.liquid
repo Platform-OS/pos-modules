@@ -71,5 +71,9 @@
   function contract = 'modules/tests/assertions/true', contract: contract, value: has_member, field_name: 'department agent gets new', object: null
 
   function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: null
+  # leave no active member behind: it would show up in every assignee picker
+  assign disabled = { "state": "disabled" }
+  function disabled_props = 'modules/support/helpers/props', values: disabled
+  graphql _ = 'modules/support/records/update', id: member.id, properties: disabled_props
   graphql cleanup = 'modules/user/user/delete', id: user.id
 %}

@@ -5,48 +5,23 @@ metadata:
   permission: support.tickets.read
 ---
 {% liquid
+  # Direct link to the board of a view (All open by default). The queue page
+  # shows the same board when the agent chooses the board layout.
   # platformos-check-disable ConvertIncludeToRender, UnreachableCode
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
   assign member = context.exports.support.support_member
-  assign filters = { "department_id": null, "priority": null, "assignee_id": null, "q": null }
-  assign filters.department_id = context.params.department_id
-  assign filters.priority = context.params.priority
-  assign filters.q = context.params.q | strip
-  assign show_closed = false
-  if context.params.show_closed == '1'
-    assign show_closed = true
-  endif
-  function board = 'modules/support/queries/tickets/board', member: member, filters: filters, show_closed: show_closed, expand_status: context.params.expand
-  function statuses = 'modules/support/queries/statuses/all'
-  assign active = []
-  for s in statuses.list
-    if s.active
-      assign active << s
-    endif
-  endfor
+  function page_data = 'modules/support/helpers/queue_page', member: member, params: context.params, layout: 'board'
 
-  function permissions = 'modules/support/queries/team/role_permissions'
-  assign departments = []
-  for item in board.lookup.departments
-    assign department = item[1]
-    if department.active
-      if permissions[member.role] contains 'support.tickets.manage.all' or member.department_ids contains department.id
-        assign departments << department
-      endif
-    endif
-  endfor
-  assign live_departments = departments | map: 'id' | join: ','
-  assign query = { "priority": null, "department_id": null, "q": null }
-  assign query.priority = filters.priority
-  assign query.department_id = filters.department_id
-  assign query.q = filters.q
-  assign query_string = query | www_form_encode
-  if show_closed
-    assign query_string = query_string | append: '&show_closed=1'
-  endif
+  assign nav = { "view": null, "counts": null, "departments": null, "filters": null }
+  assign nav.view = page_data.view
+  assign nav.counts = page_data.counts
+  assign nav.departments = page_data.department_counts
+  assign nav.filters = page_data.filters
+  export nav, namespace: 'support_nav'
   assign title = 'modules/support/board.title' | t
   export title, namespace: 'support_page'
-  render 'modules/support/board/index', board: board, statuses: active, departments: departments, query_string: query_string, live_departments: live_departments
+
+  render 'modules/support/board/index', page_data: page_data, member: member
 %}

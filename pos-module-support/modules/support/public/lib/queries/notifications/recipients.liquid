@@ -5,11 +5,11 @@
   @param {string[]} [mentioned_ids] - For mention
 {% enddoc %}
 {% liquid
-  graphql r = 'modules/support/team_members/search', state: 'active', limit: 200
+  function members = 'modules/support/queries/team_members/all_active'
   assign managers = []
   assign admins = []
   assign department = []
-  for member in r.records.results
+  for member in members
     if member.role == 'manager' or member.role == 'admin'
       assign managers << member.profile_id
     endif

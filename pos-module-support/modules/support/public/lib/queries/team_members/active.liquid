@@ -3,24 +3,49 @@
   Returns [{ profile_id, role, department_ids, name }].
 {% enddoc %}
 {% liquid
-  graphql r = 'modules/support/team_members/search', state: 'active', limit: 100
-  assign profile_ids = r.records.results | map: 'profile_id'
+  function active = 'modules/support/queries/team_members/all_active'
+  assign profile_ids = active | map: 'profile_id'
   assign names = {}
-  if profile_ids.size > 0
-    graphql p = 'modules/user/profiles/search', ids: profile_ids, limit: 100
-    for profile in p.records.results
-      assign display = profile.name | default: profile.first_name | default: profile.email
-      assign names[profile.id] = display
+  assign emails = {}
+  assign chunks = profile_ids.size | plus: 99 | divided_by: 100
+  if chunks > 0
+    assign last_chunk = chunks | minus: 1
+    # one request per 100 profiles, not per member
+    # platformos-check-disable NestedGraphQLQuery
+    for chunk in (0..last_chunk)
+      assign offset = chunk | times: 100
+      assign ids = profile_ids | slice: offset, 100
+      graphql p = 'modules/user/profiles/search', ids: ids, limit: 100
+      for profile in p.records.results
+        assign display = profile.name | default: profile.first_name | default: profile.email
+        assign names[profile.id] = display
+        assign emails[profile.id] = profile.email
+      endfor
     endfor
+    # platformos-check-enable NestedGraphQLQuery
   endif
+  # two people with the same name are told apart by their email
+  assign seen = {}
+  for item in names
+    assign count = seen[item[1]] | default: 0
+    assign seen[item[1]] = count | plus: 1
+  endfor
   assign members = []
-  for member in r.records.results
+  assign listed = []
+  for member in active
+    if listed contains member.profile_id
+      continue
+    endif
+    assign listed << member.profile_id
     if names[member.profile_id]
       assign item = { "profile_id": null, "role": null, "department_ids": [], "name": null }
       assign item.profile_id = member.profile_id
       assign item.role = member.role
       assign item.department_ids = member.department_ids
       assign item.name = names[member.profile_id]
+      if seen[item.name] > 1 and emails[member.profile_id] != blank and emails[member.profile_id] != item.name
+        assign item.name = item.name | append: ' (' | append: emails[member.profile_id] | append: ')'
+      endif
       assign members << item
     endif
   endfor

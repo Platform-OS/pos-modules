@@ -7,10 +7,10 @@
   @param {number} [at] - Epoch seconds for availability, default now
 {% enddoc %}
 {% liquid
-  graphql r = 'modules/support/team_members/search', state: 'active', limit: 200
+  function members = 'modules/support/queries/team_members/all_active'
   assign candidates = []
   assign profile_ids = []
-  for member in r.records.results
+  for member in members
     if member.role != 'admin' and member.department_ids contains department_id
       assign candidates << member
       assign profile_ids << member.profile_id

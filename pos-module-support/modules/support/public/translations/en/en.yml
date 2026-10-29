@@ -9,7 +9,8 @@ en:
     skip: Skip to content
     menu: Menu
     views: Views
-    workspace: Workspace
+    departments: Departments
+    all_departments: All departments
   time:
     just_now: just now
     minutes_ago: "%{count} min ago"
@@ -23,6 +24,10 @@ en:
     p1: P1 · High
     p2: P2 · Normal
     p3: P3 · Low
+    name_p0: Critical
+    name_p1: High
+    name_p2: Normal
+    name_p3: Low
   views:
     mine: My tickets
     needs_reply: Needs reply
@@ -49,6 +54,15 @@ en:
     empty_search_help: Try a different search or clear the filters.
     clear: Clear filters
     layout: Layout
+    layouts:
+      list: List
+      board: Board
+    group_by: Group by
+    groups:
+      priority: Priority
+      status: Status
+    show_all: "Show all %{count}"
+    total: "%{total} tickets"
     selected_template: "{count} selected"
     bulk_spam_confirm: "Mark %{count} tickets as spam? Each requester's address will be blocked."
     range: "%{first}–%{last} of %{total}"
@@ -89,6 +103,7 @@ en:
     assigned_to_me: Assigned to me
     sort: Sort
     sorts:
+      board: Priority, then newest
       sla: SLA due first
       priority: Priority
       activity: Latest activity
@@ -572,6 +587,8 @@ en:
     closed: Closed
   settings:
     title: Settings
+    appearance: Appearance
+    appearance_help: Light, dark, or follow each person's device setting. Applies to the whole desk.
     groups:
       routing: Routing
       content: Content
@@ -687,6 +704,7 @@ en:
       integrations: Integrations
     errors:
       number: Enter a number in range.
+      theme_mode: Choose Follow the device, Light or Dark.
       section: Unknown settings section.
       department: Enter a name and an inbound address name (lower-case letters, digits, dashes).
       from_address: Enter a valid sender address.

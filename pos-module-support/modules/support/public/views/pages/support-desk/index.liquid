@@ -10,51 +10,20 @@ metadata:
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
   assign member = context.exports.support.support_member
-  assign filters = { "department_id": null, "priority": null, "status_key": null, "assignee_id": null, "organization_id": null, "q": null }
-  assign filters.department_id = context.params.department_id
-  assign filters.priority = context.params.priority
-  assign filters.status_key = context.params.status_key
-  assign filters.organization_id = context.params.organization_id
-  assign filters.q = context.params.q | strip
-  assign filters.assignee_id = context.params.assignee_id
-  assign sorts = "sla,priority,newest,oldest,activity" | split: ','
-  if sorts contains context.params.sort
-    assign filters.sort = context.params.sort
-  endif
+  function page_data = 'modules/support/helpers/queue_page', member: member, params: context.params, layout: null
 
-  assign views = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,sla_at_risk,deploy,closed" | split: ','
-  assign view = context.params.view
-  unless views contains view
-    assign view = 'all_open'
-  endunless
-
-  function data = 'modules/support/queries/tickets/search', member: member, view: view, filters: filters, page: context.params.page, per_page: 50
-  function counts = 'modules/support/queries/tickets/counts', member: member
-  assign nav = { "view": null }
-  assign nav.view = view
-  assign nav.counts = counts
+  assign nav = { "view": null, "counts": null, "departments": null, "filters": null }
+  assign nav.view = page_data.view
+  assign nav.counts = page_data.counts
+  assign nav.departments = page_data.department_counts
+  assign nav.filters = page_data.filters
   export nav, namespace: 'support_nav'
-  assign title = 'modules/support/views.' | append: view | t
+  assign title = 'modules/support/views.' | append: page_data.view | t
   export title, namespace: 'support_page'
 
-  function statuses = 'modules/support/queries/statuses/all'
-  function members = 'modules/support/queries/team_members/active'
-  function permissions = 'modules/support/queries/team/role_permissions'
-  assign can_manage = false
-  if permissions[member.role] contains 'support.tickets.manage.all'
-    assign can_manage = true
+  if page_data.layout == 'board'
+    render 'modules/support/board/index', page_data: page_data, member: member
+  else
+    render 'modules/support/queue/index', page_data: page_data, member: member, return_to: context.location.href
   endif
-  assign departments = []
-  for item in data.lookup.departments
-    assign department = item[1]
-    if can_manage or member.department_ids contains department.id
-      if department.active
-        assign departments << department
-      endif
-    endif
-  endfor
-  assign return_to = context.location.href
-  assign live_departments = departments | map: 'id' | join: ','
-
-  render 'modules/support/queue/index', data: data, counts: counts, filters: filters, statuses: statuses.list, departments: departments, members: members, member: member, can_manage: can_manage, return_to: return_to, live_departments: live_departments
 %}

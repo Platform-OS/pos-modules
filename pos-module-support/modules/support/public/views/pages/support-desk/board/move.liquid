@@ -24,11 +24,17 @@ metadata:
       assign actor = { "type": "user" }
       assign actor.id = member.profile_id
       assign actor.member = member
-      function result = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: context.params.status_key, actor: actor
+      # a priority column changes the priority, a status column the status
+      if context.params.priority != blank
+        function result = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: context.params.priority, actor: actor
+      else
+        function result = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: context.params.status_key, actor: actor
+      endif
     endif
   endif
 
-  assign message = result.errors.status | default: 'modules/support/board.move_error' | t
+  assign error_key = result.errors.status | default: result.errors.priority
+  assign message = error_key | default: 'modules/support/board.move_error' | t
   if wants_json
     response_headers '{"Content-Type": "application/json"}'
     assign body = { "ok": true, "error": null }
@@ -43,7 +49,16 @@ metadata:
   if result.valid
     function _ = 'modules/user/helpers/flash', notice: 'modules/support/board.moved', error: null, info: null, force_clear: null
   else
-    function _ = 'modules/user/helpers/flash', error: result.errors.status, notice: null, info: null, force_clear: null
+    function _ = 'modules/user/helpers/flash', error: error_key, notice: null, info: null, force_clear: null
   endif
-  redirect_to '/support-desk/board'
+  # back to the board the form was on: the queue page in board layout or the /support-desk/board link
+  assign back = '/support-desk/board'
+  assign referer = context.headers.HTTP_REFERER | default: ''
+  assign from_queue = referer | matches: '^https?://[^/]+/support-desk(\?[^#]*)?$'
+  if from_queue
+    # only the path and query are kept, so the redirect stays on this site
+    assign parts = referer | split: '/support-desk'
+    assign back = '/support-desk' | append: parts[1]
+  endif
+  redirect_to back
 %}

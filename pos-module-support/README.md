@@ -7,7 +7,7 @@ A white-label support desk for platformOS apps. Customers email you; every email
 ## What it does (MVP)
 
 - Email to ticket through the email provider you choose at install (SendGrid in the first release), with threading by reply token, headers and subject.
-- Agent queue (list and board), ticket page with replies and internal notes, saved replies, collision warnings and live updates.
+- Agent queue as a list (swim lanes) or a board (columns), grouped by priority or status; the layout and grouping stay as agents switch views; departments with live counts in the side navigation. Ticket page with replies and internal notes, saved replies, collision warnings and live updates.
 - Departments, statuses over six fixed categories, priorities P0–P3 with SLA targets and business hours.
 - Least-loaded auto-assignment with an escalation safety net.
 - Push and email alerts for agents, each switchable per person.
@@ -130,7 +130,7 @@ Published with `modules/core/commands/events/publish`; consume them in `app/lib/
 
 ## Routes
 
-Desk: `/support-desk` (queue), `/support-desk/board`, `/support-desk/tickets/:id`, `/support-desk/contacts/:id`, `/support-desk/organizations/:id`, `/support-desk/profile`, `/support-desk/settings/*`, `/support-desk/sign-in`, `/support-desk/request-access`, `/support-desk/invites/:id`. PWA: `/support-desk/manifest.json`, `/support-desk/sw.js` (scope `/support-desk`). Webhooks: `/api/support/inbound/:provider/:secret`, `/api/support/email-events/:provider/:secret`.
+Desk: `/support-desk` (queue; `view`, `department_id`, `priority`, `status_key`, `assignee_id`, `q`, `sort`, and `layout=list|board` and `group=priority|status`, which are remembered in the session), `/support-desk/board` (the board of a view), `/support-desk/tickets/:id`, `/support-desk/contacts/:id`, `/support-desk/organizations/:id`, `/support-desk/profile`, `/support-desk/settings/*`, `/support-desk/sign-in`, `/support-desk/request-access`, `/support-desk/invites/:id`. PWA: `/support-desk/manifest.json`, `/support-desk/sw.js` (scope `/support-desk`). Webhooks: `/api/support/inbound/:provider/:secret`, `/api/support/email-events/:provider/:secret`.
 
 ## Troubleshooting
 

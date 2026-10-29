@@ -4,14 +4,16 @@
   Returns { results, total_entries, total_pages, page, lookup: { contacts, organizations, profiles, departments, statuses } }.
   @param {object} member - The acting team_member
   @param {string} [view] - mine | needs_reply | unassigned | all_open | waiting | awaiting_confirmation | sla_at_risk | deploy | closed
-  @param {object} [filters] - { department_id, priority, status_key, assignee_id, organization_id, q, sort: sla (default) | priority | newest | oldest | activity }
+  @param {object} [filters] - { department_id, priority, status_key, assignee_id, organization_id, q, sort: sla (default) | priority | newest | oldest | activity | board }
   @param {number} [page] - Page number
-  @param {number} [per_page] - Page size, max 100
+  @param {number} [per_page] - Page size, max 200
+  @param {boolean} [skip_lookup] - Leave out the related records (the caller loads them once for several searches)
+  @param {boolean} [include_waiting] - In all_open, also include pending and on-hold tickets (the board shows them as columns)
 {% enddoc %}
 {% liquid
   assign view = view | default: 'all_open'
   assign page = page | default: 1 | plus: 0
-  assign per_page = per_page | default: 50 | at_most: 100
+  assign per_page = per_page | default: 50 | at_most: 200
   function scope = 'modules/support/queries/tickets/scope', member: member, department_id: filters.department_id
   function statuses = 'modules/support/queries/statuses/all'
 
@@ -30,6 +32,9 @@
       assign assigned = false
     when 'all_open'
       assign categories = ["new", "open"]
+      if include_waiting
+        assign categories = ["new", "open", "pending", "on_hold"]
+      endif
     when 'waiting'
       assign categories = ["pending", "on_hold"]
     when 'awaiting_confirmation'
@@ -76,6 +81,9 @@
       assign sort = [{ "created_at": { "order": "ASC" } }]
     when 'activity'
       assign sort = [{ "properties": { "name": "last_activity_at", "order": "DESC" } }, { "created_at": { "order": "DESC" } }]
+    when 'board'
+      # D-26: P0 to P3, then newest first
+      assign sort = [{ "properties": { "name": "priority", "order": "ASC" } }, { "created_at": { "order": "DESC" } }]
     when 'priority'
       assign sort = [{ "properties": { "name": "priority", "order": "ASC" } }, { "properties": { "name": "sla_due_at", "order": "ASC" } }, { "created_at": { "order": "DESC" } }]
     else
@@ -84,7 +92,10 @@
   graphql r = 'modules/support/tickets/search', department_ids: scope, categories: categories, assignee_id: assignee_id, assigned: assigned, status_ids: status_ids, organization_id: filters.organization_id, sla_states: sla_states, priority: priority, needs_reply: needs_reply, query: q, number: number, page: page, limit: per_page, sort: sort
 
   assign tickets = r.records.results
-  function lookup = 'modules/support/queries/tickets/lookup', tickets: tickets
+  assign lookup = null
+  unless skip_lookup
+    function lookup = 'modules/support/queries/tickets/lookup', tickets: tickets
+  endunless
 
   assign result = { "results": [], "page": 1 }
   assign result.results = tickets
