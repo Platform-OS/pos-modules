@@ -135,6 +135,11 @@
       });
     });
 
+    /* dates formatted in the visitor's timezone and language - on every page, as other modules can add dates later */
+    import('{{ 'modules/common-styling/js/pos-time.js' | asset_url }}').then(module => {
+      window.pos.modules.active.time = new window.pos.modules.time();
+    });
+
 
     /* file upload */
     if(document.querySelector('.pos-upload')){

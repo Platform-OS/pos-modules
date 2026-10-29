@@ -238,3 +238,44 @@ test('Toast tests', async({ page }) => {
     expect(errorToast.getByText('Test error toast')).not.toBeVisible();
   });
 })
+test.describe('Dates and times', () => {
+  // a timezone far from the server's UTC, so a date formatted by the server would show
+  test.use({ timezoneId: 'Asia/Tokyo' });
+
+  test('dates are formatted in the browser', async ({ page }) => {
+    const styleGuidePage = new StyleGuidePage(page);
+    await styleGuidePage.goto();
+
+    await test.step('relative dates', async () => {
+      for(const label of ['now', '5 minutes ago', '3 hours ago', '1 day ago', '2 days ago']){
+        await expect(styleGuidePage.timeExample(label, 'relative')).toHaveText(label);
+      }
+    });
+
+    await test.step('a relative date older than 2 days is a full date, shown on hover too', async () => {
+      const relative = styleGuidePage.timeExample('10 days ago', 'relative');
+      await expect(relative).toHaveText(/^[A-Z][a-z]{2} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s[AP]M$/);
+      await expect(relative).toHaveAttribute('title', (await relative.textContent()) ?? '');
+    });
+
+    await test.step('full dates are in the visitor\'s timezone', async () => {
+      const full = styleGuidePage.timeExample('3 hours ago', 'full');
+      const datetime = await full.getAttribute('datetime');
+      // formatted by the browser's own Intl, the timezone given explicitly
+      const expected = await page.evaluate(datetime => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Tokyo' }).format(new Date(datetime)), datetime ?? '');
+      await expect(full).toHaveText(expected);
+    });
+
+    await test.step('a date added to the page later is formatted too', async () => {
+      await page.evaluate(() => {
+        const time = document.createElement('time');
+        time.className = 'pos-time';
+        time.id = 'styleguide-time-added';
+        time.dataset.format = 'relative';
+        time.setAttribute('datetime', new Date(Date.now() - 2 * 60 * 1000).toISOString());
+        document.querySelector('#time')?.append(time);
+      });
+      await expect(page.locator('#styleguide-time-added')).toHaveText('2 minutes ago');
+    });
+  });
+});
