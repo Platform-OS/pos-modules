@@ -1,0 +1,18 @@
+{% doc %}
+  A date formatted in the browser, in the visitor's timezone and language (see pos-time.js).
+  Until the script runs, the date formatted by the server is shown.
+
+  @param {string} date - the date, anything to_time understands
+  @param {string} [format] - 'full' (default) or 'relative': "now", "5 minutes ago", "3 hours ago", "1 day ago", "2 days ago", then the full date
+  @param {string} [date_style] - date part of the full date: 'full', 'long', 'medium' (default), 'short' or 'none'
+  @param {string} [time_style] - time part of the full date: 'full', 'long', 'medium', 'short' (default) or 'none'
+  @param {string} [class] - additional CSS classes
+{% enddoc %}
+{% liquid
+  if date == blank
+    return
+  endif
+
+  assign time = date | to_time
+%}
+<time class="pos-time {{ class }}" datetime="{{ time | strftime: '%Y-%m-%dT%H:%M:%S%:z' }}"{% if format == 'relative' %} data-format="relative"{% endif %}{% if date_style %} data-date-style="{{ date_style }}"{% endif %}{% if time_style %} data-time-style="{{ time_style }}"{% endif %}>{{ time | l: 'long' }}</time>

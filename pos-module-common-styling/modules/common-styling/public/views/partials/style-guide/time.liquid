@@ -1,0 +1,63 @@
+<article id="time">
+  <h2 class="pos-heading-2">Dates and times</h2>
+
+    <p>Dates are formatted in the browser, in the visitor's timezone and in the language of the page (<code>&lt;html lang&gt;</code>). Until the script runs, the date formatted by the server is shown.</p>
+
+    {% capture code %}{% raw %}
+{% render 'modules/common-styling/time', date: message.created_at %}
+{% render 'modules/common-styling/time', date: message.created_at, format: 'relative' %}
+{% render 'modules/common-styling/time', date: message.created_at, date_style: 'short', time_style: 'none' %}
+    {% endraw %}{% endcapture %}
+    <div class="styleguide-code">
+      <pre><code>{{ code | lstrip | rstrip }}</code></pre>
+    </div>
+
+    <dl class="styleguide-details">
+      <dt>date</dt><dd>the date, anything <code>to_time</code> understands <i>string</i></dd>
+      <dt>format</dt><dd><code>full</code> (default) or <code>relative</code>: "now", "5 minutes ago", "3 hours ago", "1 day ago", "2 days ago", then the full date. Relative dates are refreshed every 30 seconds and show the full date on hover <i>string</i></dd>
+      <dt>date_style</dt><dd>date part of the full date: <code>full</code>, <code>long</code>, <code>medium</code> (default), <code>short</code> or <code>none</code> <i>string</i></dd>
+      <dt>time_style</dt><dd>time part of the full date: <code>full</code>, <code>long</code>, <code>medium</code>, <code>short</code> (default) or <code>none</code> <i>string</i></dd>
+      <dt>class</dt><dd>additional CSS classes <i>string</i></dd>
+    </dl>
+
+    <p>Any <code>&lt;time class="pos-time" datetime="…"&gt;</code> is formatted, including ones added to the page later, with the options above as <code>data-format</code>, <code>data-date-style</code> and <code>data-time-style</code>. To format a date in JavaScript:</p>
+    {% capture code %}{% raw %}
+pos.modules.active.time.format(date, 'relative');
+    {% endraw %}{% endcapture %}
+    <div class="styleguide-code">
+      <pre><code>{{ code | lstrip | rstrip }}</code></pre>
+    </div>
+
+    {% liquid
+      assign now = 'now' | to_time
+      assign minutes_5 = now | add_to_time: -5, 'm'
+      assign hours_3 = now | add_to_time: -3, 'h'
+      assign hours_30 = now | add_to_time: -30, 'h'
+      assign hours_54 = now | add_to_time: -54, 'h'
+      assign days_10 = now | add_to_time: -10, 'd'
+      assign examples = [
+        { "label": "now", "date": now },
+        { "label": "5 minutes ago", "date": minutes_5 },
+        { "label": "3 hours ago", "date": hours_3 },
+        { "label": "1 day ago", "date": hours_30 },
+        { "label": "2 days ago", "date": hours_54 },
+        { "label": "10 days ago", "date": days_10 }
+      ]
+    %}
+    <section class="pos-table">
+      <header>
+        <div>Date</div>
+        <div>Relative</div>
+        <div>Full</div>
+      </header>
+      <div class="pos-table-content pos-card">
+        {% for example in examples %}
+          <ul>
+            <li>{{ example.label }}</li>
+            <li>{% render 'modules/common-styling/time', date: example.date, format: 'relative' %}</li>
+            <li>{% render 'modules/common-styling/time', date: example.date %}</li>
+          </ul>
+        {% endfor %}
+      </div>
+    </section>
+</article>

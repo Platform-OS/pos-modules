@@ -513,6 +513,10 @@ p code {
   gap: .5em;
 }
 
+.styleguide-details + p {
+  margin-block-start: var(--pos-gap-text-text);
+}
+
 
 
 /* links

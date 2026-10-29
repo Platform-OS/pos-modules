@@ -357,6 +357,44 @@ On the server-side:
 [TO DO]
 
 
+### Dates and times
+
+Dates are formatted in the browser, in the visitor's timezone and in the language of the page (`<html lang>`, the browser's language if it's not set), using `Intl.DateTimeFormat` and `Intl.RelativeTimeFormat`. Until the script runs, the date formatted by the server is shown.
+
+```liquid
+{% render 'modules/common-styling/time', date: message.created_at %}
+{% render 'modules/common-styling/time', date: message.created_at, format: 'relative' %}
+{% render 'modules/common-styling/time', date: message.created_at, date_style: 'short', time_style: 'none' %}
+```
+
+| parameter  | description |
+|------------|-------------|
+| date       | The date, anything `to_time` understands |
+| format     | `full` (default) or `relative` |
+| date_style | Date part of the full date: `full`, `long`, `medium` (default), `short` or `none` |
+| time_style | Time part of the full date: `full`, `long`, `medium`, `short` (default) or `none` |
+| class      | Additional CSS classes |
+
+A relative date shows:
+
+| age                     | shown as       |
+|-------------------------|----------------|
+| less than a minute      | now            |
+| less than an hour       | 5 minutes ago  |
+| less than 24 hours      | 3 hours ago    |
+| 24 to 48 hours          | 1 day ago      |
+| 48 to 72 hours          | 2 days ago     |
+| older, or in the future | the full date  |
+
+Relative dates are refreshed every 30 seconds and show the full date on hover.
+
+The partial renders `<time class="pos-time" datetime="...">`, with the options as `data-format`, `data-date-style` and `data-time-style`. Any such element is formatted, including ones added to the page later (for example rendered from JavaScript or loaded from an endpoint), so you can also build it yourself. To format a date in JavaScript:
+
+```js
+pos.modules.active.time.format(date, 'relative');
+```
+
+
 ### Loading HTML endpoint and placing it in a container
 
 A pre-defined method of loading HTML content into a container:
