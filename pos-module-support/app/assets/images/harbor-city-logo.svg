@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="32" viewBox="0 0 128 32" role="img" aria-label="Harbor City">
-  <rect width="32" height="32" rx="6" fill="#ffffff"/>
-  <path d="M6 22h20M9 22V12l7-4 7 4v10M13 22v-5h6v5" fill="none" stroke="#1d4f91" stroke-width="2" stroke-linejoin="round"/>
-  <text x="40" y="21" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#ffffff">Harbor City</text>
+  <rect width="32" height="32" rx="7" fill="#1d4f91"/>
+  <path d="M6 22h20M9 22V12l7-4 7 4v10M13 22v-5h6v5" fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+  <text x="40" y="21" font-family="system-ui, sans-serif" font-size="14" font-weight="650" fill="#16191f">Harbor City</text>
 </svg>

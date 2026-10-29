@@ -29,6 +29,8 @@ metadata:
   assign nav.view = view
   assign nav.counts = counts
   export nav, namespace: 'support_nav'
+  assign title = 'modules/support/views.' | append: view | t
+  export title, namespace: 'support_page'
 
   function statuses = 'modules/support/queries/statuses/all'
   function members = 'modules/support/queries/team_members/active'

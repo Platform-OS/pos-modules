@@ -1,11 +1,22 @@
 {% doc %}
-  Settings sub-navigation.
+  Settings sub-navigation, grouped. Also sets the page title for the layout.
   @param {string} current - Current section key
 {% enddoc %}
-{% assign sections = "departments,statuses,sla,saved-replies,assignment,team,blocklist,email,branding,integrations" | split: ',' %}
+{% liquid
+  assign groups = [["routing", ["departments", "statuses", "assignment", "sla"]], ["content", ["saved-replies", "branding"]], ["channels", ["email", "integrations"]], ["people", ["team", "blocklist"]]]
+  assign icons = { "departments": "building", "statuses": "circle-dot", "assignment": "shuffle", "sla": "timer", "saved-replies": "message-square-text", "branding": "palette", "email": "mail", "integrations": "plug", "team": "users", "blocklist": "shield-ban" }
+  assign current_key = current | replace: '-', '_'
+  assign section_title = 'modules/support/settings.sections.' | append: current_key | t
+  assign settings_title = 'modules/support/settings.title' | t
+  assign title = section_title | append: ' · ' | append: settings_title
+  export title, namespace: 'support_page'
+%}
 <nav class="pos-support-subnav" aria-label="{{ 'modules/support/settings.title' | t }}">
-  {% for section in sections %}
-    {% assign key = section | replace: '-', '_' %}
-    <a href="/support-desk/settings/{{ section }}" {% if current == section %}aria-current="page"{% endif %}>{{ 'modules/support/settings.sections.' | append: key | t }}</a>
+  {% for group in groups %}
+    <p class="pos-support-subnav-group">{{ 'modules/support/settings.groups.' | append: group[0] | t }}</p>
+    {% for section in group[1] %}
+      {% assign key = section | replace: '-', '_' %}
+      <a href="/support-desk/settings/{{ section }}" {% if current == section %}aria-current="page"{% endif %}>{% render 'modules/support/icon', name: icons[section], size: null %}{{ 'modules/support/settings.sections.' | append: key | t }}</a>
+    {% endfor %}
   {% endfor %}
 </nav>

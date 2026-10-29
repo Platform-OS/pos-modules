@@ -1,5 +1,5 @@
 {% doc %}
-  Queue: attention strip, filters, bulk form and the ticket list (05 §3).
+  Queue: header, attention strip, filters, bulk form and the ticket list (05 §3).
   @param {object} data - From queries/tickets/search
   @param {object} counts - From queries/tickets/counts
   @param {object} filters - Current filters
@@ -19,28 +19,48 @@
   assign board_query.department_id = filters.department_id
   assign board_query.q = filters.q
   assign board_query = board_query | www_form_encode
+  assign page_query = { "view": null, "q": null, "priority": null, "status_key": null, "department_id": null }
+  assign page_query.view = view
+  assign page_query.q = filters.q
+  assign page_query.priority = filters.priority
+  assign page_query.status_key = filters.status_key
+  assign page_query.department_id = filters.department_id
+  assign page_query = page_query | www_form_encode
+  assign filtered = false
+  if filters.q != blank or filters.priority != blank or filters.status_key != blank or filters.department_id != blank
+    assign filtered = true
+  endif
+  assign per_page = 50
+  assign first = data.page | minus: 1 | times: per_page | plus: 1
+  assign last = first | plus: data.results.size | minus: 1
 %}
 <div class="pos-support-queue" data-support-live data-support-departments="{{ live_departments }}" data-support-me="{{ member.profile_id }}" data-support-first-page="{% if data.page == 1 %}true{% else %}false{% endif %}" data-support-assigned-to-you="{{ 'modules/support/live.assigned_to_you' | t }}">
   <div class="pos-support-queue-head">
-    <h1 class="pos-heading-2">{{ view_label }} <span class="pos-supplementary">{{ data.total_entries }}</span></h1>
-    <p><a href="/support-desk/board?{{ board_query }}">{{ 'modules/support/queue.board' | t }}</a></p>
+    <h1 class="pos-support-title">{{ view_label }} <span class="pos-support-count-chip">{{ data.total_entries }}</span></h1>
+    <nav class="pos-support-segmented" aria-label="{{ 'modules/support/queue.layout' | t }}">
+      <a href="/support-desk?{{ page_query }}" aria-current="page">{% render 'modules/support/icon', name: 'list', size: 'sm' %}{{ 'modules/support/board.list' | t }}</a>
+      <a href="/support-desk/board?{{ board_query }}">{% render 'modules/support/icon', name: 'square-kanban', size: 'sm' %}{{ 'modules/support/queue.board' | t }}</a>
+    </nav>
   </div>
 
   <nav class="pos-support-attention" aria-label="{{ 'modules/support/queue.attention' | t }}">
-    <a href="/support-desk?view=needs_reply" class="pos-support-attention-item">{{ 'modules/support/views.needs_reply' | t }} <strong>{{ counts.needs_reply }}</strong></a>
-    <a href="/support-desk?view=sla_at_risk" class="pos-support-attention-item">{{ 'modules/support/views.sla_at_risk' | t }} <strong>{{ counts.sla_at_risk }}</strong></a>
-    <a href="/support-desk?view=deploy" class="pos-support-attention-item">{{ 'modules/support/views.deploy' | t }} <strong>{{ counts.deploy }}</strong></a>
+    <a href="/support-desk?view=needs_reply" class="pos-support-attention-item pos-support-attention-reply{% if counts.needs_reply == 0 %} pos-support-attention-zero{% endif %}">{% render 'modules/support/icon', name: 'reply', size: 'sm' %}<strong>{{ counts.needs_reply }}</strong> {{ 'modules/support/views.needs_reply' | t }}</a>
+    <a href="/support-desk?view=sla_at_risk" class="pos-support-attention-item pos-support-attention-sla{% if counts.sla_at_risk == 0 %} pos-support-attention-zero{% endif %}">{% render 'modules/support/icon', name: 'triangle-alert', size: 'sm' %}<strong>{{ counts.sla_at_risk }}</strong> {{ 'modules/support/views.sla_at_risk' | t }}</a>
+    <a href="/support-desk?view=deploy" class="pos-support-attention-item pos-support-attention-deploy{% if counts.deploy == 0 %} pos-support-attention-zero{% endif %}">{% render 'modules/support/icon', name: 'rocket', size: 'sm' %}<strong>{{ counts.deploy }}</strong> {{ 'modules/support/views.deploy' | t }}</a>
   </nav>
 
-  <form class="pos-support-toolbar pos-form" method="get" action="/support-desk" role="search">
+  <form class="pos-support-toolbar pos-form" method="get" action="/support-desk" role="search" data-support-autosubmit>
     <input type="hidden" name="view" value="{{ view }}">
-    <label for="pos-support-q" class="pos-support-sr-only">{{ 'modules/support/queue.search' | t }}</label>
-    <input type="search" id="pos-support-q" name="q" value="{{ filters.q }}" placeholder="{{ 'modules/support/queue.search_placeholder' | t }}" data-support-search>
+    <div class="pos-support-search">
+      {% render 'modules/support/icon', name: 'search', size: null %}
+      <label for="pos-support-q" class="pos-support-sr-only">{{ 'modules/support/queue.search' | t }}</label>
+      <input type="search" id="pos-support-q" name="q" value="{{ filters.q }}" placeholder="{{ 'modules/support/queue.search_placeholder' | t }}" autocomplete="off" data-support-search>
+    </div>
     <label for="pos-support-priority" class="pos-support-sr-only">{{ 'modules/support/queue.priority' | t }}</label>
     <select id="pos-support-priority" name="priority">
       <option value="">{{ 'modules/support/queue.any_priority' | t }}</option>
       {% assign priorities = "p0,p1,p2,p3" | split: ',' %}
-      {% for p in priorities %}<option value="{{ p }}" {% if filters.priority == p %}selected{% endif %}>{{ p | upcase }}</option>{% endfor %}
+      {% for p in priorities %}<option value="{{ p }}" {% if filters.priority == p %}selected{% endif %}>{{ 'modules/support/priorities.' | append: p | t }}</option>{% endfor %}
     </select>
     {% if departments.size > 1 %}
       <label for="pos-support-department" class="pos-support-sr-only">{{ 'modules/support/queue.department' | t }}</label>
@@ -54,18 +74,35 @@
       <option value="">{{ 'modules/support/queue.any_status' | t }}</option>
       {% for s in statuses %}<option value="{{ s.key }}" {% if filters.status_key == s.key %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
     </select>
-    <button type="submit" class="pos-button">{{ 'modules/support/queue.apply' | t }}</button>
+    <button type="submit" class="pos-button">{% render 'modules/support/icon', name: 'filter', size: 'sm' %}{{ 'modules/support/queue.apply' | t }}</button>
+    {% if filtered %}<a class="pos-button pos-button-ghost" href="/support-desk?view={{ view }}">{{ 'modules/support/queue.clear' | t }}</a>{% endif %}
   </form>
 
   {% if data.results.size == 0 %}
-    <div class="pos-card pos-support-empty">
-      <p>{{ 'modules/support/queue.empty' | t }}</p>
+    {% liquid
+      if filtered
+        assign empty_title = 'modules/support/queue.empty_search' | t
+        assign empty_text = 'modules/support/queue.empty_search_help' | t
+        assign empty_url = '/support-desk?view=' | append: view
+        assign empty_action = 'modules/support/queue.clear' | t
+        assign empty_icon = 'search'
+      else
+        assign empty_title = 'modules/support/queue.empty' | t
+        assign empty_text = 'modules/support/queue.empty_help' | t
+        assign empty_url = null
+        assign empty_action = null
+        assign empty_icon = 'circle-check'
+      endif
+    %}
+    <div class="pos-support-table-wrap">
+      {% render 'modules/support/empty', icon: empty_icon, title: empty_title, text: empty_text, action_url: empty_url, action_label: empty_action %}
     </div>
   {% else %}
-    <form method="post" action="/support-desk/tickets/bulk" class="pos-support-bulk-form pos-form">
+    <form method="post" action="/support-desk/tickets/bulk" class="pos-support-bulk-form pos-form" data-selected-template="{{ 'modules/support/queue.selected_template' | t }}">
       <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
       <input type="hidden" name="return_to" value="{{ return_to }}">
-      <div class="pos-support-bulk-bar" role="group" aria-label="{{ 'modules/support/queue.bulk' | t }}">
+      <div class="pos-support-bulk-bar" role="group" aria-label="{{ 'modules/support/queue.bulk' | t }}" data-support-bulk-bar>
+        <span class="pos-support-bulk-count" data-support-bulk-count aria-live="polite"></span>
         <label for="pos-support-bulk-assignee" class="pos-support-sr-only">{{ 'modules/support/queue.assignee' | t }}</label>
         <select id="pos-support-bulk-assignee" name="bulk_assignee">
           <option value="">{{ 'modules/support/queue.bulk_assignee' | t }}</option>
@@ -83,22 +120,26 @@
         <label for="pos-support-bulk-priority" class="pos-support-sr-only">{{ 'modules/support/queue.priority' | t }}</label>
         <select id="pos-support-bulk-priority" name="bulk_priority">
           <option value="">{{ 'modules/support/queue.bulk_priority' | t }}</option>
-          {% for p in priorities %}<option value="{{ p }}">{{ p | upcase }}</option>{% endfor %}
+          {% for p in priorities %}<option value="{{ p }}">{{ 'modules/support/priorities.' | append: p | t }}</option>{% endfor %}
         </select>
-        <button type="submit" class="pos-button">{{ 'modules/support/queue.bulk_apply' | t }}</button>
-        <button type="submit" class="pos-button" name="bulk_spam" value="1">{{ 'modules/support/blocklist.mark_spam' | t }}</button>
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/queue.bulk_apply' | t }}</button>
+        <span class="pos-support-bulk-spacer"></span>
+        <button type="submit" class="pos-button pos-button-danger" name="bulk_spam" value="1" data-support-confirm="{{ 'modules/support/queue.bulk_spam_confirm' | t }}">{% render 'modules/support/icon', name: 'ban', size: 'sm' %}{{ 'modules/support/blocklist.mark_spam' | t }}</button>
       </div>
 
       <div class="pos-support-table-wrap">
         <table class="pos-table pos-support-table">
+          <colgroup>
+            <col class="pos-support-col-select"><col class="pos-support-col-priority"><col class="pos-support-col-number"><col><col class="pos-support-col-requester"><col class="pos-support-col-department"><col class="pos-support-col-status"><col class="pos-support-col-assignee"><col class="pos-support-col-sla">
+          </colgroup>
           <thead>
             <tr>
               <th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/queue.select' | t }}</span></th>
-              <th scope="col">{{ 'modules/support/queue.col_priority' | t }}</th>
+              <th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/queue.col_priority' | t }}</span></th>
               <th scope="col">#</th>
-              <th scope="col">{{ 'modules/support/queue.col_department' | t }}</th>
               <th scope="col">{{ 'modules/support/queue.col_subject' | t }}</th>
               <th scope="col">{{ 'modules/support/queue.col_requester' | t }}</th>
+              <th scope="col">{{ 'modules/support/queue.col_department' | t }}</th>
               <th scope="col">{{ 'modules/support/queue.col_status' | t }}</th>
               <th scope="col">{{ 'modules/support/queue.col_assignee' | t }}</th>
               <th scope="col">{{ 'modules/support/queue.col_sla' | t }}</th>
@@ -113,13 +154,17 @@
       </div>
     </form>
 
-    {% if data.total_pages > 1 %}
-      <nav class="pos-support-pagination" aria-label="{{ 'modules/support/queue.pages' | t }}">
-        {% if data.page > 1 %}{% assign prev = data.page | minus: 1 %}<a class="pos-button pos-button-small" href="?view={{ view }}&page={{ prev }}&q={{ filters.q | url_encode }}&priority={{ filters.priority }}&status_key={{ filters.status_key }}&department_id={{ filters.department_id }}">{{ 'modules/support/queue.previous' | t }}</a>{% endif %}
-        <span>{{ 'modules/support/queue.page_of' | t: page: data.page, total: data.total_pages }}</span>
-        {% if data.page < data.total_pages %}{% assign next = data.page | plus: 1 %}<a class="pos-button pos-button-small" href="?view={{ view }}&page={{ next }}&q={{ filters.q | url_encode }}&priority={{ filters.priority }}&status_key={{ filters.status_key }}&department_id={{ filters.department_id }}">{{ 'modules/support/queue.next' | t }}</a>{% endif %}
-      </nav>
-    {% endif %}
+    <div class="pos-support-pagination">
+      <span class="pos-support-tnum">{{ 'modules/support/queue.range' | t: first: first, last: last, total: data.total_entries }}</span>
+      <span class="pos-support-shortcuts">{{ 'modules/support/queue.shortcuts_html' | t }}</span>
+      {% if data.total_pages > 1 %}
+        <nav class="pos-support-pagination-links" aria-label="{{ 'modules/support/queue.pages' | t }}">
+          {% if data.page > 1 %}{% assign prev = data.page | minus: 1 %}<a class="pos-button pos-button-small" href="?{{ page_query }}&page={{ prev }}" rel="prev">{% render 'modules/support/icon', name: 'chevron-left', size: 'sm' %}{{ 'modules/support/queue.previous' | t }}</a>{% endif %}
+          <span class="pos-support-sr-only">{{ 'modules/support/queue.page_of' | t: page: data.page, total: data.total_pages }}</span>
+          {% if data.page < data.total_pages %}{% assign next = data.page | plus: 1 %}<a class="pos-button pos-button-small" href="?{{ page_query }}&page={{ next }}" rel="next">{{ 'modules/support/queue.next' | t }}{% render 'modules/support/icon', name: 'chevron-right', size: 'sm' %}</a>{% endif %}
+        </nav>
+      {% endif %}
+    </div>
   {% endif %}
 </div>
 <script defer src="{{ 'modules/support/js/pos-support-queue.js' | asset_url }}"></script>

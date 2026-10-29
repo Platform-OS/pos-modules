@@ -1,0 +1,21 @@
+{% doc %}
+  Logo (or monogram) and app name. The dark logo is used in dark mode when
+  the brand has one.
+  @param {object} brand - From helpers/branding
+{% enddoc %}
+{% if brand.logo_url %}
+  {% if brand.logo_dark_url and brand.theme_mode == 'dark' %}
+    <img class="pos-support-brand-logo" src="{{ brand.logo_dark_url }}" alt="" width="128" height="32">
+  {% elsif brand.logo_dark_url and brand.theme_mode != 'light' %}
+    <picture>
+      <source srcset="{{ brand.logo_dark_url }}" media="(prefers-color-scheme: dark)">
+      <img class="pos-support-brand-logo" src="{{ brand.logo_url }}" alt="" width="128" height="32">
+    </picture>
+  {% else %}
+    <img class="pos-support-brand-logo" src="{{ brand.logo_url }}" alt="" width="128" height="32">
+  {% endif %}
+  <span class="pos-support-brand-name pos-support-sr-only">{{ brand.app_name }}</span>
+{% else %}
+  <span class="pos-support-brand-monogram" aria-hidden="true">{{ brand.initial }}</span>
+  <span class="pos-support-brand-name">{{ brand.app_name }}</span>
+{% endif %}

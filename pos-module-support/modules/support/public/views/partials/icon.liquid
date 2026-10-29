@@ -1,0 +1,6 @@
+{% doc %}
+  One icon from the sprite in icons/sprite. Decorative: the text next to it carries the meaning.
+  @param {string} name - Icon id without the psi- prefix, e.g. inbox
+  @param {string} [size] - sm | lg
+{% enddoc %}
+<svg class="pos-support-icon{% if size %} pos-support-icon-{{ size }}{% endif %}" aria-hidden="true" focusable="false"><use href="#psi-{{ name }}"></use></svg>

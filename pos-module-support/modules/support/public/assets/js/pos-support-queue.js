@@ -1,8 +1,26 @@
 // Queue keyboard shortcuts (05 §3): j/k move, x select, enter open, / search.
-// Ignored while typing in a form field.
+// Ignored while typing in a form field. Also shows the bulk bar only while
+// tickets are selected and applies a filter as soon as a select changes.
 (function () {
   const rows = () => Array.from(document.querySelectorAll('.pos-support-row'));
   let index = -1;
+
+  const bar = document.querySelector('[data-support-bulk-bar]');
+  const countLabel = document.querySelector('[data-support-bulk-count]');
+  const selectedText = (n) => (bar && bar.closest('form').dataset.selectedTemplate || '{count} selected').replace('{count}', n);
+
+  const updateBulk = () => {
+    if (!bar) return;
+    const n = document.querySelectorAll('.pos-support-select:checked').length;
+    bar.classList.toggle('pos-support-bulk-active', n > 0);
+    if (countLabel) countLabel.textContent = n > 0 ? selectedText(n) : '';
+  };
+
+  document.addEventListener('change', (event) => {
+    if (event.target.matches('.pos-support-select')) updateBulk();
+    if (event.target.matches('[data-support-autosubmit] select')) event.target.form.requestSubmit();
+  });
+  updateBulk();
 
   const focusRow = (next) => {
     const list = rows();
@@ -31,7 +49,10 @@
       case 'x': {
         const row = list[index];
         const box = row && row.querySelector('.pos-support-select');
-        if (box) box.checked = !box.checked;
+        if (box) {
+          box.checked = !box.checked;
+          updateBulk();
+        }
         break;
       }
       case '/': {

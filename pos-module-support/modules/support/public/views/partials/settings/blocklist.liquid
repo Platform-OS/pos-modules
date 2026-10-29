@@ -64,7 +64,7 @@
                 {% endif %}
               </td>
               <td>{{ row.hits | default: 0 }}</td>
-              <td>{% if row.last_hit_at != blank %}{{ row.last_hit_at | l: 'long' }}{% else %}—{% endif %}</td>
+              <td>{% if row.last_hit_at != blank %}{% render 'modules/support/time', time: row.last_hit_at, style: 'relative' %}{% else %}—{% endif %}</td>
               <td>
                 <form action="/support-desk/settings/blocklist" method="post">
                   <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
@@ -78,6 +78,8 @@
       </table>
     </div>
   {% else %}
-    <div class="pos-card pos-support-empty"><p>{{ 'modules/support/blocklist.empty' | t }}</p></div>
+    {% assign empty_title = 'modules/support/blocklist.empty' | t %}
+    {% assign empty_text = 'modules/support/blocklist.empty_help' | t %}
+    <div class="pos-support-table-wrap">{% render 'modules/support/empty', icon: 'shield-ban', title: empty_title, text: empty_text, action_url: null, action_label: null %}</div>
   {% endif %}
 </div>

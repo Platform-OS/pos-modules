@@ -1,5 +1,5 @@
 {% doc %}
-  Ticket page (05 §3): header, thread, composer and sidebar.
+  Ticket page (05 §3): header, conversation with the composer, properties pane.
   @param {object} data - From queries/tickets/page_data
 {% enddoc %}
 {% liquid
@@ -8,19 +8,36 @@
   assign action = '/support-desk/tickets/' | append: ticket.id
   assign update_action = action | append: '/update'
   assign message_action = action | append: '/messages'
+  assign department = null
+  for d in data.departments
+    if d.id == ticket.department_id
+      assign department = d
+    endif
+  endfor
+  assign from_address = department.from_address | default: department.public_address
+  assign requester_email = data.requester.emails.first
 %}
 <div class="pos-support-ticket" data-support-live data-support-ticket="{{ ticket.id }}" data-support-me="{{ data.me }}" data-support-viewing="{{ 'modules/support/live.viewing' | t }}" data-support-replying="{{ 'modules/support/live.replying' | t }}" data-support-assigned-to-you="{{ 'modules/support/live.assigned_to_you' | t }}">
   <header class="pos-support-ticket-head">
-    <p class="pos-supplementary"><a href="/support-desk">{{ 'modules/support/ticket.back' | t }}</a> · #{{ ticket.number }}</p>
-    <h1 class="pos-heading-2">{{ ticket.subject }}</h1>
-    <p class="pos-support-ticket-badges">
+    <nav class="pos-support-crumbs" aria-label="{{ 'modules/support/ticket.breadcrumb' | t }}">
+      <a href="/support-desk">{% render 'modules/support/icon', name: 'arrow-left', size: 'sm' %}{{ 'modules/support/ticket.back' | t }}</a>
+      <span aria-hidden="true">/</span>
+      <span class="pos-support-number">#{{ ticket.number }}</span>
+    </nav>
+    <div class="pos-support-ticket-title">
       {% render 'modules/support/badges/priority', priority: ticket.priority %}
+      <h1 class="pos-support-title">{{ ticket.subject }}</h1>
+    </div>
+    <p class="pos-support-ticket-badges">
       {% render 'modules/support/badges/status', status: status %}
+      {% if department %}<span class="pos-tag" title="{{ department.name }}">{% render 'modules/support/icon', name: 'building-2', size: 'sm' %}{{ department.name }}</span>{% endif %}
       {% if ticket.needs_reply %}<span class="pos-support-needs-reply">{{ 'modules/support/queue.needs_reply' | t }}</span>{% endif %}
-      {% if ticket.merged_into_id %}<span class="pos-supplementary">{{ 'modules/support/ticket.merged' | t }}</span>{% endif %}
-      {% if ticket.follow_up_of_id %}<a class="pos-supplementary" href="/support-desk/tickets/{{ ticket.follow_up_of_id }}">{{ 'modules/support/ticket.follow_up_of' | t }}</a>{% endif %}
+      {% if ticket.merged_into_id %}<span class="pos-tag">{% render 'modules/support/icon', name: 'git-merge', size: 'sm' %}{{ 'modules/support/ticket.merged' | t }}</span>{% endif %}
+      {% if ticket.follow_up_of_id %}<a href="/support-desk/tickets/{{ ticket.follow_up_of_id }}">{{ 'modules/support/ticket.follow_up_of' | t }}</a>{% endif %}
+      {% if ticket.snooze_until != blank %}<span class="pos-tag">{% render 'modules/support/icon', name: 'alarm-clock', size: 'sm' %}{{ 'modules/support/ticket.snoozed' | t }}</span>{% endif %}
+      <span>{{ 'modules/support/ticket.opened' | t }} {% render 'modules/support/time', time: ticket.created_at, style: 'relative' %} · {{ data.requester.name | default: requester_email }}</span>
     </p>
-    <p class="pos-supplementary pos-support-presence" data-support-presence aria-live="polite" hidden></p>
+    <p class="pos-support-presence" data-support-presence aria-live="polite" hidden></p>
   </header>
 
   <div class="pos-support-ticket-layout">
@@ -32,208 +49,11 @@
       </section>
 
       {% if ticket.merged_into_id == blank %}
-        <section class="pos-card pos-support-composer" aria-labelledby="pos-support-composer-title">
-          <h2 id="pos-support-composer-title" class="pos-heading-3">{{ 'modules/support/ticket.respond' | t }}</h2>
-          <form action="{{ message_action }}" method="post" class="pos-form" data-support-composer>
-            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-            <div class="pos-support-new-message" data-support-new-message role="alert" hidden>
-              <p>{{ 'modules/support/live.new_message' | t }} <a href="{{ action }}">{{ 'modules/support/live.refresh' | t }}</a></p>
-              <label><input type="checkbox" name="acknowledged" value="1"> {{ 'modules/support/live.acknowledge' | t }}</label>
-            </div>
-            {% if data.requester.bounced %}<p class="pos-support-error" role="alert">{{ 'modules/support/ticket.bounced_warning' | t }}</p>{% endif %}
-            <fieldset class="pos-support-composer-modes">
-              <legend class="pos-support-sr-only">{{ 'modules/support/ticket.mode' | t }}</legend>
-              <label><input type="radio" name="mode" value="reply" checked> {{ 'modules/support/ticket.reply' | t }}</label>
-              <label><input type="radio" name="mode" value="note"> {{ 'modules/support/ticket.note' | t }}</label>
-            </fieldset>
-            {% if data.saved_replies.size > 0 %}
-              <fieldset>
-                <label for="pos-support-saved">{{ 'modules/support/ticket.saved_replies' | t }}</label>
-                <select id="pos-support-saved" data-support-saved>
-                  <option value="">{{ 'modules/support/ticket.choose_saved' | t }}</option>
-                  {% for reply in data.saved_replies %}<option value="{{ reply.id }}" data-text="{{ reply.html | strip_html | strip }}">{{ reply.title }}</option>{% endfor %}
-                </select>
-              </fieldset>
-            {% endif %}
-            <fieldset>
-              <label for="pos-support-body">{{ 'modules/support/ticket.message' | t }}</label>
-              <textarea id="pos-support-body" name="body" rows="7" required></textarea>
-            </fieldset>
-            <fieldset data-support-reply-only>
-              <label for="pos-support-cc">{{ 'modules/support/ticket.cc' | t }}</label>
-              <input type="text" id="pos-support-cc" name="cc" placeholder="{{ 'modules/support/ticket.cc_placeholder' | t }}" autocomplete="off">
-            </fieldset>
-            <fieldset data-support-reply-only>
-              <label for="pos-support-files">{{ 'modules/support/ticket.attach' | t }}</label>
-              <input type="file" id="pos-support-files" multiple data-support-files aria-describedby="pos-support-files-help">
-              <p id="pos-support-files-help" class="pos-supplementary">{{ 'modules/support/ticket.attach_help' | t }}</p>
-              <div data-support-files-fields></div>
-            </fieldset>
-            <fieldset data-support-reply-only>
-              <label for="pos-support-then">{{ 'modules/support/ticket.then' | t }}</label>
-              <select id="pos-support-then" name="then_status">
-                <option value="">{{ 'modules/support/ticket.then_keep' | t }}</option>
-                {% for s in data.statuses.list %}{% if s.category != 'new' and s.active %}<option value="{{ s.key }}" {% if s.key == 'progress' %}selected{% endif %}>{{ s.label }}</option>{% endif %}{% endfor %}
-              </select>
-            </fieldset>
-            <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/ticket.send' | t }}</button>
-          </form>
-        </section>
+        {% render 'modules/support/ticket/composer', data: data, action: action, message_action: message_action, department: department, from_address: from_address, requester_email: requester_email %}
       {% endif %}
     </div>
 
-    <aside class="pos-support-ticket-side" aria-label="{{ 'modules/support/ticket.details' | t }}">
-      <section class="pos-card">
-        <h2 class="pos-heading-3">{{ 'modules/support/ticket.details' | t }}</h2>
-        <form action="{{ update_action }}" method="post" class="pos-form">
-          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-          <input type="hidden" name="change" value="properties">
-          <fieldset>
-            <label for="pos-support-side-status">{{ 'modules/support/queue.status' | t }}</label>
-            <select id="pos-support-side-status" name="status_key">
-              {% for s in data.statuses.list %}{% if s.active %}<option value="{{ s.key }}" {% if s.id == ticket.status_id %}selected{% endif %}>{{ s.label }}</option>{% endif %}{% endfor %}
-            </select>
-          </fieldset>
-          <fieldset>
-            <label for="pos-support-side-priority">{{ 'modules/support/queue.priority' | t }}</label>
-            <select id="pos-support-side-priority" name="priority">
-              {% assign priorities = "p0,p1,p2,p3" | split: ',' %}
-              {% for p in priorities %}<option value="{{ p }}" {% if ticket.priority == p %}selected{% endif %}>{{ p | upcase }}</option>{% endfor %}
-            </select>
-          </fieldset>
-          <fieldset>
-            <label for="pos-support-side-assignee">{{ 'modules/support/queue.assignee' | t }}</label>
-            <select id="pos-support-side-assignee" name="assignee_id">
-              <option value="">{{ 'modules/support/ticket.unassigned' | t }}</option>
-              {% for m in data.members %}<option value="{{ m.profile_id }}" {% if m.profile_id == ticket.assignee_id %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
-            </select>
-          </fieldset>
-          <fieldset>
-            <label for="pos-support-side-department">{{ 'modules/support/queue.department' | t }}</label>
-            <select id="pos-support-side-department" name="department_id">
-              {% for d in data.departments %}{% if d.active or d.id == ticket.department_id %}<option value="{{ d.id }}" {% if d.id == ticket.department_id %}selected{% endif %}>{{ d.name }}</option>{% endif %}{% endfor %}
-            </select>
-          </fieldset>
-          <fieldset>
-            <label for="pos-support-side-tags">{{ 'modules/support/ticket.tags' | t }}</label>
-            <input type="text" id="pos-support-side-tags" name="tags" value="{{ ticket.tags | join: ', ' }}">
-          </fieldset>
-          <button type="submit" class="pos-button">{{ 'modules/support/ticket.save' | t }}</button>
-        </form>
-        <form action="{{ update_action }}" method="post" class="pos-form pos-support-snooze-form">
-          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-          <input type="hidden" name="change" value="snooze">
-          {% if ticket.snooze_until != blank %}
-            {% assign snoozed_label = ticket.snooze_until | l: 'long' %}
-            <p class="pos-supplementary">{{ 'modules/support/ticket.snoozed_until' | t: time: snoozed_label }}</p>
-            <input type="hidden" name="snooze_until" value="">
-            <button type="submit" class="pos-button">{{ 'modules/support/ticket.unsnooze' | t }}</button>
-          {% else %}
-            {% liquid
-              assign now = 'now' | to_time
-              assign in_hour = now | add_to_time: 1, 'hours' | strftime: '%Y-%m-%dT%H:%M:%SZ'
-              assign in_day = now | add_to_time: 1, 'days' | strftime: '%Y-%m-%dT%H:%M:%SZ'
-              assign in_week = now | add_to_time: 1, 'weeks' | strftime: '%Y-%m-%dT%H:%M:%SZ'
-            %}
-            <label for="pos-support-snooze">{{ 'modules/support/ticket.snooze' | t }}</label>
-            <select id="pos-support-snooze" name="snooze_until">
-              <option value="{{ in_hour }}">{{ 'modules/support/ticket.snooze_hour' | t }}</option>
-              <option value="{{ in_day }}">{{ 'modules/support/ticket.snooze_day' | t }}</option>
-              <option value="{{ in_week }}">{{ 'modules/support/ticket.snooze_week' | t }}</option>
-            </select>
-            <button type="submit" class="pos-button">{{ 'modules/support/ticket.snooze' | t }}</button>
-          {% endif %}
-        </form>
-        <form action="{{ update_action }}" method="post" class="pos-support-spam-form">
-          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-          {% if status.key == 'spam' %}
-            <input type="hidden" name="change" value="unspam">
-            <button type="submit" class="pos-button">{{ 'modules/support/blocklist.undo_spam' | t }}</button>
-          {% else %}
-            <input type="hidden" name="change" value="spam">
-            <button type="submit" class="pos-button" aria-describedby="pos-support-spam-help">{{ 'modules/support/blocklist.mark_spam' | t }}</button>
-            <p id="pos-support-spam-help" class="pos-supplementary">{{ 'modules/support/blocklist.mark_spam_help' | t }}</p>
-          {% endif %}
-        </form>
-      </section>
-
-      <section class="pos-card">
-        <h2 class="pos-heading-3">{{ 'modules/support/ticket.sla' | t }}</h2>
-        <p class="pos-support-sla-{{ ticket.sla_state | default: 'none' }}">{{ ticket.sla_state | default: 'none' | prepend: 'modules/support/sla.' | t }}</p>
-        {% if ticket.sla_first_reply_due_at and ticket.first_replied_at == blank %}<p class="pos-supplementary">{{ 'modules/support/ticket.first_reply_due' | t }} {{ ticket.sla_first_reply_due_at | l: 'long' }}</p>{% endif %}
-        {% if ticket.sla_resolution_due_at %}<p class="pos-supplementary">{{ 'modules/support/ticket.resolution_due' | t }} {{ ticket.sla_resolution_due_at | l: 'long' }}</p>{% endif %}
-      </section>
-
-      <section class="pos-card">
-        <h2 class="pos-heading-3">{{ 'modules/support/ticket.requester' | t }}</h2>
-        <p><a href="/support-desk/contacts/{{ data.requester.id }}"><strong>{{ data.requester.name }}</strong></a><br>{{ data.requester.emails | join: ', ' }}</p>
-        {% if data.organization %}<p><a href="/support-desk/organizations/{{ data.organization.id }}">{{ data.organization.name }}</a></p>{% endif %}
-        {% if data.participants.size > 0 %}
-          <p class="pos-supplementary">{{ 'modules/support/ticket.cc' | t }}: {{ data.participants | map: 'email' | join: ', ' }}</p>
-        {% endif %}
-        {% if data.other_tickets.size > 0 %}
-          <h3 class="pos-heading-4">{{ 'modules/support/ticket.other_tickets' | t }}</h3>
-          <ul class="pos-support-plain-list">
-            {% for other in data.other_tickets %}<li><a href="/support-desk/tickets/{{ other.id }}">#{{ other.number }} {{ other.subject }}</a></li>{% endfor %}
-          </ul>
-        {% endif %}
-      </section>
-
-      <section class="pos-card">
-        <h2 class="pos-heading-3">{{ 'modules/support/ticket.engineering' | t }}</h2>
-        {% for link in data.links %}
-          <p><a href="{{ link.issue_url }}" target="_blank" rel="noopener noreferrer">{{ link.issue_ref }}</a></p>
-        {% endfor %}
-        <form action="{{ update_action }}" method="post" class="pos-form">
-          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-          <input type="hidden" name="change" value="link">
-          <label for="pos-support-issue-url">{{ 'modules/support/ticket.issue_url' | t }}</label>
-          <input type="url" id="pos-support-issue-url" name="issue_url" placeholder="https://github.com/owner/repo/issues/123" required>
-          <button type="submit" class="pos-button">{{ 'modules/support/ticket.link' | t }}</button>
-        </form>
-      </section>
-
-      {% if data.can_manage %}
-        <section class="pos-card">
-          <h2 class="pos-heading-3">{{ 'modules/support/ticket.merge' | t }}</h2>
-          {% if ticket.merged_into_id %}
-            <form action="{{ update_action }}" method="post">
-              <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-              <input type="hidden" name="change" value="unmerge">
-              <button type="submit" class="pos-button">{{ 'modules/support/ticket.unmerge' | t }}</button>
-            </form>
-          {% else %}
-            <form action="{{ update_action }}" method="post" class="pos-form">
-              <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-              <input type="hidden" name="change" value="merge">
-              <label for="pos-support-merge-target">{{ 'modules/support/ticket.merge_into' | t }}</label>
-              <input type="text" id="pos-support-merge-target" name="target_number" placeholder="#1234" required>
-              <button type="submit" class="pos-button">{{ 'modules/support/ticket.merge' | t }}</button>
-            </form>
-          {% endif %}
-        </section>
-      {% endif %}
-
-      <section class="pos-card">
-        <h2 class="pos-heading-3">{{ 'modules/support/ticket.activity' | t }}</h2>
-        <ol class="pos-support-plain-list pos-support-activity">
-          {% assign reason_events = "assigned,delivery_failed" | split: ',' %}
-          {% for event in data.events %}
-            {% liquid
-              assign who = 'modules/support/ticket.system' | t
-              if event.actor_type == 'user'
-                assign actor_profile = data.profiles[event.actor_id]
-                assign who = actor_profile.name | default: actor_profile.first_name | default: actor_profile.email
-              elsif event.actor_type == 'customer'
-                assign who = data.requester.name
-              endif
-              assign event_key = 'modules/support/activity.' | append: event.event_type
-            %}
-            <li><span>{{ who }}</span> {{ event_key | t: from: event.from_value, to: event.to_value }}{% if event.reason != blank and reason_events contains event.event_type %} <span class="pos-supplementary">({{ event.reason }})</span>{% endif %} <time class="pos-supplementary" datetime="{{ event.created_at }}">{{ event.created_at | l: 'long' }}</time></li>
-          {% endfor %}
-        </ol>
-      </section>
-    </aside>
+    {% render 'modules/support/ticket/side', data: data, ticket: ticket, status: status, update_action: update_action %}
   </div>
 </div>
 <script defer src="{{ 'modules/support/js/pos-support-ticket.js' | asset_url }}"></script>

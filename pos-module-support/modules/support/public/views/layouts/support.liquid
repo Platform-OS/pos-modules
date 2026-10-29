@@ -5,25 +5,54 @@
   assign vapid = context.constants['modules/push_notifications/VAPID_PUBLIC_KEY'] | default: ''
   assign rotate_url = '/push_notifications/subscriptions/rotate' | url_encode
   assign worker_url = '/support-desk/sw.js?vapid=' | append: vapid | append: '&rotate_url=' | append: rotate_url
+
+  assign nav = context.exports.support_nav.nav
+  if member and member.state == 'active'
+    if nav == blank
+      assign nav = { "view": null }
+    endif
+    if nav.counts == blank
+      function counts = 'modules/support/queries/tickets/counts', member: member
+      assign nav.counts = counts
+    endif
+    assign current_profile = context.exports.support.current_profile
+  endif
+
+  assign page_title = context.exports.support_page.title
+  assign document_title = brand.app_name
+  if page_title != blank
+    assign document_title = page_title | append: ' · ' | append: brand.app_name
+  endif
+  assign color_scheme = 'light dark'
+  if brand.theme_mode == 'dark'
+    assign color_scheme = 'dark'
+  elsif brand.theme_mode == 'light'
+    assign color_scheme = 'light'
+  endif
 %}
 <!DOCTYPE html>
 <html class="pos-app {{ brand.theme_class }}" lang="{{ context.language | default: 'en' }}">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>{{ brand.app_name }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="color-scheme" content="{{ color_scheme }}">
+    <title>{{ document_title }}</title>
     {% if brand.theme_color %}<meta name="theme-color" content="{{ brand.theme_color }}">{% endif %}
     {% if brand.favicon_url %}<link rel="icon" href="{{ brand.favicon_url }}">{% endif %}
     <link rel="manifest" href="/support-desk/manifest.json">
     <link rel="apple-touch-icon" href="{{ 'modules/support/icons/icon-192.png' | asset_url }}">
-    {% render 'modules/common-styling/init', reset: true %}
+    <script>document.documentElement.classList.add('pos-support-js');</script>
+    {% render 'modules/support/head' %}
     <link rel="stylesheet" href="{{ 'modules/support/style/pos-support.css' | asset_url }}">
     {% if member %}{% render 'modules/push_notifications/init', service_worker_path: '/support-desk/sw.js', subscribe_url: null, destroy_url: null, rotate_url: null, vapid_public_key: null %}{% endif %}
     {{ host_head }}
     <script defer src="{{ 'modules/support/js/pos-support-pwa.js' | asset_url }}"></script>
+    <script defer src="{{ 'modules/support/js/pos-support-ui.js' | asset_url }}"></script>
   </head>
   <body class="pos-support" data-support-sw="{{ worker_url }}">
-    {% render 'modules/support/shell', brand: brand, member: member, content: content_for_layout, pathname: context.location.pathname, nav: context.exports.support_nav %}
+    <a class="pos-support-skip" href="#pos-support-content">{{ 'modules/support/shell.skip' | t }}</a>
+    {% render 'modules/support/icons/sprite' %}
+    {% render 'modules/support/shell', brand: brand, member: member, profile: current_profile, content: content_for_layout, pathname: context.location.pathname, nav: nav, view: context.params.view %}
     {% liquid
       function flash = 'modules/core/commands/session/get', key: 'sflash', clear: null
       if context.location.pathname != flash.from or flash.force_clear

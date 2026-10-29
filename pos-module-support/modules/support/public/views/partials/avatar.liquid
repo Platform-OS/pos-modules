@@ -1,0 +1,31 @@
+{% doc %}
+  Initials avatar. The colour comes from a fixed semantic palette picked by a
+  hash of the email (or name), so the same person keeps the same colour.
+  @param {string} [name] - Display name
+  @param {string} [email] - Email, used for the colour and as a fallback for the initials
+  @param {string} [size] - xs | md | lg (default 1.5rem)
+  @param {boolean} [labelled] - Expose the name to assistive technology instead of hiding the avatar
+{% enddoc %}
+{% liquid
+  assign source = name | default: email | strip
+  assign css = 'pos-support-avatar'
+  if size
+    assign css = css | append: ' pos-support-avatar-' | append: size
+  endif
+  assign initials = ''
+  if source == blank
+    assign css = css | append: ' pos-support-avatar-empty'
+  else
+    assign words = source | replace: '@', ' ' | replace: '.', ' ' | replace: '_', ' ' | replace: '-', ' ' | split: ' ' | array_compact
+    assign initials = words.first | slice: 0
+    if name != blank and words.size > 1
+      assign second = words[1] | slice: 0
+      assign initials = initials | append: second
+    endif
+    assign key = email | default: name | downcase | digest: 'md5' | slice: 0
+    assign hues = { "0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 0, "9": 1, "a": 2, "b": 3, "c": 4, "d": 5, "e": 6, "f": 7 }
+    assign hue = hues[key] | default: 0
+    assign css = css | append: ' pos-support-avatar-h' | append: hue
+  endif
+%}
+<span class="{{ css }}" {% if labelled and source != blank %}role="img" aria-label="{{ source }}"{% else %}aria-hidden="true"{% endif %}{% if source != blank %} title="{{ source }}"{% endif %}>{{ initials | upcase }}</span>

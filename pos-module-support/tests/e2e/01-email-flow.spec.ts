@@ -46,7 +46,8 @@ test.describe.serial('email flow', () => {
 
   test('3. a customer reply with our token joins the ticket and the queue row updates live', async ({ browser }) => {
     const { context, page } = await contextFor(browser, users.agent);
-    await page.goto(desk('/support-desk?view=mine'));
+    // filtered to this ticket: earlier runs leave enough tickets to push it past the first page
+    await page.goto(desk(`/support-desk?view=mine&q=${encodeURIComponent(subject)}`));
     const row = page.locator('.pos-support-row', { hasText: subject });
     await expect(row).toBeVisible();
     await expect(row.locator('.pos-support-needs-reply')).toHaveCount(0);

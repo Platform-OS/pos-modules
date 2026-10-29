@@ -15,7 +15,7 @@
             <td>{{ d.name }} {% if d.is_default %}<span class="pos-tag">{{ 'modules/support/settings.default' | t }}</span>{% endif %}</td>
             <td><code>{{ d.inbound_local_part }}@{{ data.settings.inbound_domain | default: '…' }}</code></td>
             <td>{{ d.from_name }} {{ d.from_address }}</td>
-            <td>{% if d.active %}{{ 'modules/support/settings.active' | t }}{% else %}{{ 'modules/support/settings.inactive' | t }}{% endif %}</td>
+            <td>{% if d.active %}<span class="pos-tag pos-support-state-on">{{ 'modules/support/settings.active' | t }}</span>{% else %}<span class="pos-tag pos-support-state-off">{{ 'modules/support/settings.inactive' | t }}</span>{% endif %}</td>
             <td><a href="/support-desk/settings/departments?edit={{ d.id }}">{{ 'modules/support/settings.edit' | t }}</a></td>
           </tr>
         {% endfor %}

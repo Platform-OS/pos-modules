@@ -1,0 +1,9 @@
+{% doc %}
+  SLA state with an icon when it needs attention.
+  @param {string} [state] - on_track | due_soon | overdue | paused | none
+{% enddoc %}
+{% liquid
+  assign state = state | default: 'none'
+  assign icons = { "overdue": "triangle-alert", "due_soon": "timer", "paused": "circle-pause" }
+%}
+<span class="pos-support-sla pos-support-sla-{{ state }}">{% if icons[state] %}{% render 'modules/support/icon', name: icons[state], size: 'sm' %}{% endif %}{{ 'modules/support/sla.' | append: state | t }}</span>

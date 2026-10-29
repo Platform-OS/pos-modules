@@ -1,0 +1,14 @@
+{% doc %}
+  Empty state: icon, title, one sentence and an optional action link.
+  @param {string} icon - Icon id from icons/sprite
+  @param {string} title - Short title
+  @param {string} [text] - One sentence that says what to do next
+  @param {string} [action_url] - Link for the action
+  @param {string} [action_label] - Label for the action
+{% enddoc %}
+<div class="pos-support-empty">
+  <span class="pos-support-empty-icon">{% render 'modules/support/icon', name: icon, size: null %}</span>
+  <p class="pos-support-empty-title">{{ title }}</p>
+  {% if text != blank %}<p>{{ text }}</p>{% endif %}
+  {% if action_url != blank %}<a class="pos-button pos-button-small" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+</div>

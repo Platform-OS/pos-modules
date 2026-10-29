@@ -46,5 +46,7 @@ metadata:
   if show_closed
     assign query_string = query_string | append: '&show_closed=1'
   endif
+  assign title = 'modules/support/board.title' | t
+  export title, namespace: 'support_page'
   render 'modules/support/board/index', board: board, statuses: active, departments: departments, query_string: query_string, live_departments: live_departments
 %}

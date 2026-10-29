@@ -1,64 +1,91 @@
 {% doc %}
   @param {object} brand - From helpers/branding
   @param {object} [member] - The signed-in team_member; blank on sign-in and no-access pages
+  @param {object} [profile] - The signed-in profile
   @param {string} content - The page body
   @param {string} pathname - The current path, for the active rail item
-  @param {object} [nav] - { view, counts } from the queue page
+  @param {object} [nav] - { view, counts }
+  @param {string} [view] - The view parameter of the request
 {% enddoc %}
 {% if member and member.state == 'active' %}
+  {% liquid
+    assign current_view = nav.view | default: view
+    assign me_name = profile.name | default: profile.first_name | default: context.current_user.email
+    assign me_email = profile.email | default: context.current_user.email
+    assign views = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,closed" | split: ','
+    assign icons = { "mine": "circle-user", "needs_reply": "reply", "unassigned": "user-x", "all_open": "inbox", "waiting": "clock", "awaiting_confirmation": "hourglass", "closed": "archive" }
+    assign presence = member.availability | default: 'available'
+  %}
   <div class="pos-support-shell">
-    <nav class="pos-support-rail" aria-label="{{ 'modules/support/shell.navigation' | t }}">
-      <a class="pos-support-brand" href="/support-desk">
-        {% if brand.logo_url %}
-          <img class="pos-support-brand-logo" src="{{ brand.logo_url }}" alt="" width="128" height="32">
-        {% else %}
-          <span class="pos-support-brand-monogram" aria-hidden="true">{{ brand.initial }}</span>
-        {% endif %}
-        <span class="pos-support-brand-name">{{ brand.app_name }}</span>
-      </a>
+    <input type="checkbox" id="pos-support-nav-toggle" class="pos-support-nav-toggle" aria-label="{{ 'modules/support/shell.menu' | t }}" data-support-nav-toggle>
+    <nav class="pos-support-rail" id="pos-support-rail" aria-label="{{ 'modules/support/shell.navigation' | t }}">
+      <a class="pos-support-brand" href="/support-desk">{% render 'modules/support/brand', brand: brand %}</a>
+      <p class="pos-support-rail-label">{{ 'modules/support/shell.views' | t }}</p>
       <ul class="pos-support-rail-items">
-        {% assign views = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,closed" | split: ',' %}
-        {% for view in views %}
+        {% for item in views %}
           <li>
-            <a href="/support-desk?view={{ view }}" {% if pathname == '/support-desk' and nav.view == view %}aria-current="page"{% endif %}>
-              <span>{{ 'modules/support/views.' | append: view | t }}</span>
-              {% if nav.counts[view] != null %}<span class="pos-support-count">{{ nav.counts[view] }}</span>{% endif %}
+            <a href="/support-desk?view={{ item }}" {% if pathname == '/support-desk' and current_view == item %}aria-current="page"{% endif %}>
+              {% render 'modules/support/icon', name: icons[item], size: null %}
+              <span>{{ 'modules/support/views.' | append: item | t }}</span>
+              {% if nav.counts[item] != null %}<span class="pos-support-count">{{ nav.counts[item] }}</span>{% endif %}
             </a>
           </li>
         {% endfor %}
+      </ul>
+      <p class="pos-support-rail-label">{{ 'modules/support/shell.workspace' | t }}</p>
+      <ul class="pos-support-rail-items">
         <li>
-          <a href="/support-desk/profile" {% if pathname == '/support-desk/profile' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.profile' | t }}</a>
+          <a href="/support-desk/board" {% if pathname contains '/support-desk/board' %}aria-current="page"{% endif %}>
+            {% render 'modules/support/icon', name: 'square-kanban', size: null %}
+            <span>{{ 'modules/support/board.title' | t }}</span>
+          </a>
         </li>
         {% if member.role == 'admin' %}
           <li>
-            <a href="/support-desk/settings/departments" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>{{ 'modules/support/shell.settings' | t }}</a>
+            <a href="/support-desk/settings/departments" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>
+              {% render 'modules/support/icon', name: 'settings', size: null %}
+              <span>{{ 'modules/support/shell.settings' | t }}</span>
+            </a>
           </li>
         {% endif %}
       </ul>
-    </nav>
-    <div class="pos-support-main">
-      <header class="pos-support-topbar">
+      <div class="pos-support-rail-foot">
+        <a class="pos-support-rail-user" href="/support-desk/profile" {% if pathname == '/support-desk/profile' %}aria-current="page"{% endif %}>
+          <span class="pos-support-avatar-wrap">
+            {% render 'modules/support/avatar', name: me_name, email: me_email, size: null, labelled: false %}
+          </span>
+          <span class="pos-support-rail-user-name">
+            <span>{{ me_name }}</span>
+            <span><span class="pos-support-presence-dot pos-support-presence-{{ presence }}"></span> {{ 'modules/support/availability.' | append: presence | t }}</span>
+          </span>
+        </a>
         <form action="/sessions" method="post" class="pos-support-signout">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="_method" value="delete">
-          <button type="submit" class="pos-button pos-button-small">{{ 'modules/support/shell.sign_out' | t }}</button>
+          <button type="submit" class="pos-button pos-button-icon pos-button-small" title="{{ 'modules/support/shell.sign_out' | t }}">
+            {% render 'modules/support/icon', name: 'log-out', size: null %}
+            <span class="pos-support-sr-only">{{ 'modules/support/shell.sign_out' | t }}</span>
+          </button>
         </form>
+      </div>
+    </nav>
+    <label class="pos-support-scrim" for="pos-support-nav-toggle" aria-hidden="true"></label>
+    <div class="pos-support-main">
+      <header class="pos-support-topbar">
+        <label class="pos-support-menu-button" for="pos-support-nav-toggle">
+          {% render 'modules/support/icon', name: 'menu', size: null %}
+          <span class="pos-support-sr-only">{{ 'modules/support/shell.menu' | t }}</span>
+        </label>
+        <a class="pos-support-brand" href="/support-desk">{% render 'modules/support/brand', brand: brand %}</a>
       </header>
-      <main id="pos-support-content" class="pos-support-content">
+      <main id="pos-support-content" class="pos-support-content" tabindex="-1">
         {{ content }}
       </main>
     </div>
   </div>
 {% else %}
-  <main class="pos-support-centered">
-    <p class="pos-support-brand">
-      {% if brand.logo_url %}
-        <img class="pos-support-brand-logo" src="{{ brand.logo_url }}" alt="" width="128" height="32">
-      {% else %}
-        <span class="pos-support-brand-monogram" aria-hidden="true">{{ brand.initial }}</span>
-      {% endif %}
-      <span class="pos-support-brand-name">{{ brand.app_name }}</span>
-    </p>
+  <main id="pos-support-content" class="pos-support-centered">
+    <p class="pos-support-brand">{% render 'modules/support/brand', brand: brand %}</p>
     {{ content }}
   </main>
 {% endif %}

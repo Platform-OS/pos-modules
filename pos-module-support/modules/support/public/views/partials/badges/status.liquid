@@ -1,5 +1,9 @@
 {% doc %}
-  Status badge: semantic token per colour key plus text (never colour alone).
+  Status pill: semantic token per colour key plus an icon and text (never colour alone).
   @param {object} status - Status record (label, color)
 {% enddoc %}
-<span class="pos-support-badge pos-support-status pos-support-status-{{ status.color | default: 'open' }}">{{ status.label | default: '—' }}</span>
+{% liquid
+  assign color = status.color | default: 'open'
+  assign icons = { "new": "sparkles", "open": "circle-dot", "pending": "clock", "onhold": "circle-pause", "onhold-eng": "rocket", "solved": "circle-check", "closed": "archive" }
+%}
+<span class="pos-support-badge pos-support-status pos-support-status-{{ color }}">{% render 'modules/support/icon', name: icons[color], size: null %}{{ status.label | default: '—' }}</span>

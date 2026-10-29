@@ -24,7 +24,8 @@
   assign brand.initial = brand.short_name | default: brand.app_name | slice: 0 | upcase
   case brand.theme_mode
     when 'dark'
-      assign brand.theme_class = 'pos-theme-dark'
+      # common-styling switches its dark tokens only when both classes are present
+      assign brand.theme_class = 'pos-theme-dark pos-theme-darkEnabled'
     when 'light'
       assign brand.theme_class = ''
     else

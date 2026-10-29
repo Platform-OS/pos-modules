@@ -1,5 +1,6 @@
 {% doc %}
-  A board card with a "Move to" form that works without JavaScript.
+  A board card with a "Move to" form that works without JavaScript; with
+  JavaScript the form shows only while the card has keyboard focus.
   @param {object} ticket - Ticket record
   @param {object} lookup - From queries/tickets/lookup
   @param {object[]} statuses - Statuses offered in "Move to"
@@ -10,16 +11,28 @@
   assign department = lookup.departments[ticket.department_id]
   assign status = lookup.statuses[ticket.status_id]
   assign created = ticket.created_at | to_time | strftime: '%s'
+  assign assignee_name = assignee.name | default: assignee.first_name | default: assignee.email
+  assign at_risk = false
+  if ticket.sla_state == 'overdue' or ticket.sla_state == 'due_soon'
+    assign at_risk = true
+  endif
 %}
 <article class="pos-support-card" draggable="true" data-ticket-id="{{ ticket.id }}" data-status-key="{{ status.key }}" data-priority="{{ ticket.priority }}" data-created="{{ created }}" aria-labelledby="card-{{ ticket.id }}">
   <p class="pos-support-card-meta">
     {% render 'modules/support/badges/priority', priority: ticket.priority %}
     <span class="pos-support-number">#{{ ticket.number }}</span>
-    <span class="pos-tag">{{ department.short_code | default: department.name }}</span>
+    {% if at_risk %}
+      {% render 'modules/support/badges/sla', state: ticket.sla_state %}
+    {% elsif assignee %}
+      {% render 'modules/support/avatar', name: assignee_name, email: assignee.email, size: 'xs', labelled: true %}
+    {% endif %}
   </p>
   <h3 id="card-{{ ticket.id }}" class="pos-support-card-title"><a href="/support-desk/tickets/{{ ticket.id }}">{{ ticket.subject }}</a></h3>
-  <p class="pos-supplementary">{{ requester.name | default: requester.emails.first }} · {{ assignee.name | default: assignee.first_name | default: '—' }}</p>
-  {% if ticket.sla_state != blank and ticket.sla_state != 'none' %}<p class="pos-support-sla-{{ ticket.sla_state }}">{{ 'modules/support/sla.' | append: ticket.sla_state | t }}</p>{% endif %}
+  <p class="pos-support-card-meta">
+    <span class="pos-tag" title="{{ department.name }}">{{ department.short_code | default: department.name }}</span>
+    <span class="pos-support-card-requester">{{ requester.name | default: requester.emails.first }}</span>
+    {% if at_risk and assignee %}{% render 'modules/support/avatar', name: assignee_name, email: assignee.email, size: 'xs', labelled: true %}{% endif %}
+  </p>
   <form action="/support-desk/board/move" method="post" class="pos-support-move">
     <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
     <input type="hidden" name="ticket_id" value="{{ ticket.id }}">

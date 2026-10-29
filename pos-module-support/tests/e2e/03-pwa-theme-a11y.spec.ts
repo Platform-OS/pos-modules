@@ -41,7 +41,7 @@ test('10. the host theme variables reach the desk', async ({ browser }) => {
     token: getComputedStyle(document.documentElement).getPropertyValue('--pos-color-button-primary-background').trim(),
   }));
   expect(colors.token.toLowerCase()).toBe('#1d4f91');
-  expect(colors.rail).toBe('rgb(15, 39, 71)');
+  expect(colors.rail).toBe('rgb(243, 245, 248)');
   await context.close();
 });
 

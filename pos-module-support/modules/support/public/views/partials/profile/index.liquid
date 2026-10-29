@@ -27,7 +27,6 @@
   {% if editable %}
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-availability">
       <h2 id="pos-support-availability" class="pos-heading-3">{{ 'modules/support/profile.availability' | t }}</h2>
-      <p>{{ 'modules/support/profile.effective' | t }} <strong>{{ 'modules/support/availability.' | append: effective | t }}</strong></p>
       <div class="pos-support-segmented" role="group" aria-label="{{ 'modules/support/profile.availability' | t }}">
         {% assign states = "available,away,off" | split: ',' %}
         {% for state in states %}
@@ -35,16 +34,17 @@
             <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
             <input type="hidden" name="change" value="availability">
             <input type="hidden" name="value" value="{{ state }}">
-            <button type="submit" class="pos-button{% if member.availability == state %} pos-button-primary{% endif %}" aria-pressed="{% if member.availability == state %}true{% else %}false{% endif %}">{{ 'modules/support/availability.' | append: state | t }}</button>
+            <button type="submit" aria-pressed="{% if member.availability == state %}true{% else %}false{% endif %}"><span class="pos-support-presence-dot pos-support-presence-{{ state }}"></span>{{ 'modules/support/availability.' | append: state | t }}</button>
           </form>
         {% endfor %}
       </div>
+      {% if effective != member.availability %}<p class="pos-supplementary">{{ 'modules/support/profile.effective' | t }} <strong>{{ 'modules/support/availability.' | append: effective | t }}</strong></p>{% endif %}
     </section>
 
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-pause">
       <h2 id="pos-support-pause" class="pos-heading-3">{{ 'modules/support/profile.pause' | t }}</h2>
       {% if paused %}
-        <p>{{ 'modules/support/profile.paused_until' | t: until: paused_until }}</p>
+        <p class="pos-support-callout pos-support-callout-warning">{% render 'modules/support/icon', name: 'circle-pause', size: null %}<span>{{ 'modules/support/profile.paused_until_label' | t }} {% render 'modules/support/time', time: paused_until, style: 'datetime' %}</span></p>
         <form action="{{ action }}" method="post">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="change" value="resume">
@@ -59,7 +59,7 @@
               <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
               <input type="hidden" name="change" value="pause">
               <input type="hidden" name="option" value="{{ option }}">
-              <button type="submit" class="pos-button">{{ 'modules/support/profile.pause_' | append: option | t }}</button>
+              <button type="submit">{{ 'modules/support/profile.pause_' | append: option | t }}</button>
             </form>
           {% endfor %}
         </div>
@@ -72,11 +72,13 @@
       <p data-support-ios-hint hidden>{{ 'modules/support/pwa.ios_hint' | t }}</p>
       {% render 'modules/push_notifications/toggle' %}
       <button type="button" class="pos-button" data-support-install hidden>{{ 'modules/support/pwa.install' | t }}</button>
-      <form action="{{ action }}" method="post">
-        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-        <input type="hidden" name="change" value="test_push">
-        <button type="submit" class="pos-button">{{ 'modules/support/profile.test_push' | t }}</button>
-      </form>
+      {% if subscriptions.size > 0 %}
+        <form action="{{ action }}" method="post">
+          <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+          <input type="hidden" name="change" value="test_push">
+          <button type="submit" class="pos-button">{% render 'modules/support/icon', name: 'bell', size: 'sm' %}{{ 'modules/support/profile.test_push' | t }}</button>
+        </form>
+      {% endif %}
       {% render 'modules/push_notifications/subscriptions/index', subscriptions: subscriptions %}
     </section>
   {% endif %}

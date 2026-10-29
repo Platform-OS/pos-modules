@@ -134,9 +134,9 @@ test.describe('queue and ticket', () => {
     const b = await newTicket('E2E merge target');
     const { context, page } = await contextFor(browser, users.superadmin);
     await page.goto(desk(`/support-desk/tickets/${a.ticket.id}`));
-    await page.selectOption('#pos-support-side-priority', 'p0');
+    await page.check('input[name=priority][value=p0]');
     await page.fill('#pos-support-side-tags', 'billing, E2E');
-    await page.click('form:has(#pos-support-side-priority) button[type=submit]');
+    await page.click('form:has(#pos-support-side-tags) button[type=submit]');
     await expect(page.locator('.pos-support-activity')).toContainText('changed priority');
     expect(ticketField(a.ticket.id, 'priority')).toBe('p0');
     expect(ticketField(a.ticket.id, 'tags')).toEqual(['billing', 'e2e']);
@@ -273,7 +273,7 @@ test.describe('settings, contacts, profile', () => {
       await page.fill('#br-short', name);
       await page.click('form:has(#br-name) button[type=submit]');
       await page.goto(desk('/support-desk'));
-      await expect(page.locator('.pos-support-brand')).toContainText(name);
+      await expect(page.locator('.pos-support-rail .pos-support-brand')).toContainText(name);
       const manifest = await (await request.get(desk('/support-desk/manifest.json'))).json();
       expect(manifest.name).toContain(name);
     } finally {
@@ -283,7 +283,7 @@ test.describe('settings, contacts, profile', () => {
       await page.check('[name=use_host]');
       await page.click('form:has(#br-name) button[type=submit]');
       await page.goto(desk('/support-desk'));
-      await expect(page.locator('.pos-support-brand')).not.toContainText(name);
+      await expect(page.locator('.pos-support-rail .pos-support-brand')).not.toContainText(name);
       await context.close();
     }
   });

@@ -1,0 +1,74 @@
+{% doc %}
+  Reply composer: Reply / Internal note tabs, email header rows, message,
+  and a footer with attachments, saved replies, the status to set and Send.
+  Works without JavaScript; the script adds saved replies, attachments as
+  base64, the sending state, Ctrl/⌘+Enter and the unsaved-draft warning.
+  @param {object} data - From queries/tickets/page_data
+  @param {string} action - Ticket URL
+  @param {string} message_action - URL the form posts to
+  @param {object} [department] - The ticket's department
+  @param {string} [from_address] - Sender address of the department
+  @param {string} [requester_email] - Requester's first email
+{% enddoc %}
+<section class="pos-support-composer" aria-labelledby="pos-support-composer-title">
+  <h2 id="pos-support-composer-title" class="pos-support-sr-only">{{ 'modules/support/ticket.respond' | t }}</h2>
+  <form action="{{ message_action }}" method="post" class="pos-form" data-support-composer data-sending="{{ 'modules/support/ticket.sending' | t }}" data-preparing="{{ 'modules/support/ticket.preparing_files' | t }}" data-unsaved="{{ 'modules/support/ticket.unsaved' | t }}" data-too-large="{{ 'modules/support/ticket.attach_too_large' | t }}">
+    <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+    <div class="pos-support-new-message" data-support-new-message role="alert" hidden>
+      <p>{{ 'modules/support/live.new_message' | t }} <a href="{{ action }}">{{ 'modules/support/live.refresh' | t }}</a></p>
+      <label><input type="checkbox" name="acknowledged" value="1"> {{ 'modules/support/live.acknowledge' | t }}</label>
+    </div>
+    {% if data.requester.bounced %}<p class="pos-support-callout pos-support-callout-danger" role="alert">{% render 'modules/support/icon', name: 'triangle-alert', size: null %}{{ 'modules/support/ticket.bounced_warning' | t }}</p>{% endif %}
+
+    <div class="pos-support-composer-top">
+      <fieldset class="pos-support-segmented">
+        <legend class="pos-support-sr-only">{{ 'modules/support/ticket.mode' | t }}</legend>
+        <label><input type="radio" name="mode" value="reply" checked>{% render 'modules/support/icon', name: 'reply', size: 'sm' %}{{ 'modules/support/ticket.reply' | t }}</label>
+        <label><input type="radio" name="mode" value="note">{% render 'modules/support/icon', name: 'lock', size: 'sm' %}{{ 'modules/support/ticket.note' | t }}</label>
+      </fieldset>
+      {% assign requester_label = data.requester.name | default: requester_email %}
+      <span class="pos-support-composer-hint" data-support-reply-only>{{ 'modules/support/ticket.emails_to' | t: name: requester_label }}</span>
+    </div>
+
+    <div class="pos-support-composer-rows" data-support-reply-only>
+      {% if from_address != blank %}
+        <span class="pos-support-muted">{{ 'modules/support/ticket.from' | t }}</span>
+        <span>{% if department.from_name != blank %}{{ department.from_name }} &lt;{{ from_address }}&gt;{% else %}{{ from_address }}{% endif %}</span>
+      {% endif %}
+      <span class="pos-support-muted">{{ 'modules/support/ticket.to' | t }}</span>
+      <span>{{ requester_email }}</span>
+      <label for="pos-support-cc">{{ 'modules/support/ticket.cc' | t }}</label>
+      <input type="text" id="pos-support-cc" name="cc" placeholder="{{ 'modules/support/ticket.cc_placeholder' | t }}" autocomplete="off" inputmode="email">
+    </div>
+
+    <label for="pos-support-body" class="pos-support-sr-only">{{ 'modules/support/ticket.message' | t }}</label>
+    <textarea id="pos-support-body" name="body" rows="6" required placeholder="{{ 'modules/support/ticket.body_placeholder' | t }}"></textarea>
+    <div class="pos-support-composer-files" data-support-files-list></div>
+    <div data-support-files-fields></div>
+
+    <div class="pos-support-composer-foot">
+      <span class="pos-button pos-button-ghost pos-button-small pos-support-attach" data-support-reply-only>
+        {% render 'modules/support/icon', name: 'paperclip', size: 'sm' %}{{ 'modules/support/ticket.attach' | t }}
+        <input type="file" id="pos-support-files" multiple data-support-files aria-label="{{ 'modules/support/ticket.attach' | t }}" aria-describedby="pos-support-files-help">
+      </span>
+      <span id="pos-support-files-help" class="pos-support-sr-only">{{ 'modules/support/ticket.attach_help' | t }}</span>
+      {% if data.saved_replies.size > 0 %}
+        <label for="pos-support-saved" class="pos-support-sr-only">{{ 'modules/support/ticket.saved_replies' | t }}</label>
+        <select id="pos-support-saved" data-support-saved>
+          <option value="">{{ 'modules/support/ticket.choose_saved' | t }}</option>
+          {% for reply in data.saved_replies %}<option value="{{ reply.id }}" data-text="{{ reply.html | strip_html | strip }}">{{ reply.title }}</option>{% endfor %}
+        </select>
+      {% endif %}
+      <div class="pos-support-composer-send">
+        <span data-support-reply-only>
+          <label for="pos-support-then">{{ 'modules/support/ticket.then' | t }}</label>
+        </span>
+        <select id="pos-support-then" name="then_status" data-support-reply-only>
+          <option value="">{{ 'modules/support/ticket.then_keep' | t }}</option>
+          {% for s in data.statuses.list %}{% if s.category != 'new' and s.active %}<option value="{{ s.key }}" {% if s.key == 'progress' %}selected{% endif %}>{{ s.label }}</option>{% endif %}{% endfor %}
+        </select>
+        <button type="submit" class="pos-button pos-button-primary" data-support-send title="{{ 'modules/support/ticket.send_shortcut' | t }}">{% render 'modules/support/icon', name: 'send', size: 'sm' %}<span data-support-send-label>{{ 'modules/support/ticket.send' | t }}</span></button>
+      </div>
+    </div>
+  </form>
+</section>

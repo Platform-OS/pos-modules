@@ -80,10 +80,12 @@
       <h2 id="pos-support-email-step3" class="pos-heading-3">3. {{ 'modules/support/settings_email.step3.title' | t }}</h2>
       <p>{{ 'modules/support/settings_email.step3.help' | t: domain: settings.sending_domain }}</p>
       {% if instructions.mx %}
-        <table class="pos-table">
-          <thead><tr><th scope="col">{{ 'modules/support/settings_email.dns.type' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.host' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.value' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.priority' | t }}</th></tr></thead>
-          <tbody><tr><td>{{ instructions.mx.type }}</td><td>{{ instructions.mx.host }}</td><td>{{ instructions.mx.value }}</td><td>{{ instructions.mx.priority }}</td></tr></tbody>
-        </table>
+        <div class="pos-support-table-wrap" tabindex="0" role="region" aria-labelledby="pos-support-email-step3">
+          <table class="pos-support-table">
+            <thead><tr><th scope="col">{{ 'modules/support/settings_email.dns.type' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.host' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.value' | t }}</th><th scope="col">{{ 'modules/support/settings_email.dns.priority' | t }}</th></tr></thead>
+            <tbody><tr><td>{{ instructions.mx.type }}</td><td><code>{{ instructions.mx.host }}</code></td><td><code>{{ instructions.mx.value }}</code></td><td>{{ instructions.mx.priority }}</td></tr></tbody>
+          </table>
+        </div>
       {% endif %}
       {% if instructions.inbound_url_masked %}
         <p>{{ 'modules/support/settings_email.step3.url' | t }}
@@ -95,7 +97,7 @@
         <form action="/support-desk/settings/email" method="post">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="step" value="rotate">
-          <button type="submit" class="pos-button">{{ 'modules/support/settings_email.rotate' | t }}</button>
+          <button type="submit" class="pos-button pos-button-danger" data-support-confirm="{{ 'modules/support/settings_email.rotate_confirm' | t }}">{{ 'modules/support/settings_email.rotate' | t }}</button>
           <span class="pos-supplementary">{{ 'modules/support/settings_email.rotate_help' | t }}</span>
         </form>
       {% endif %}
@@ -117,14 +119,16 @@
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step4">
       <h2 id="pos-support-email-step4" class="pos-heading-3">4. {{ 'modules/support/settings_email.step4.title' | t }}</h2>
       <p>{{ 'modules/support/settings_email.step4.help' | t }}</p>
-      <table class="pos-table">
-        <thead><tr><th scope="col">{{ 'modules/support/settings_email.step4.department' | t }}</th><th scope="col">{{ 'modules/support/settings_email.step4.public' | t }}</th><th scope="col">{{ 'modules/support/settings_email.step4.forward_to' | t }}</th></tr></thead>
-        <tbody>
-          {% for department in departments %}
-            <tr><td>{{ department.name }}</td><td>{{ department.public_address | default: '—' }}</td><td><code>{{ department.inbound_local_part }}@{{ settings.inbound_domain }}</code></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="pos-support-table-wrap" tabindex="0" role="region" aria-labelledby="pos-support-email-step4">
+        <table class="pos-support-table">
+          <thead><tr><th scope="col">{{ 'modules/support/settings_email.step4.department' | t }}</th><th scope="col">{{ 'modules/support/settings_email.step4.public' | t }}</th><th scope="col">{{ 'modules/support/settings_email.step4.forward_to' | t }}</th></tr></thead>
+          <tbody>
+            {% for department in departments %}
+              <tr><td>{{ department.name }}</td><td>{{ department.public_address | default: '—' }}</td><td><code>{{ department.inbound_local_part }}@{{ settings.inbound_domain }}</code></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step5">
@@ -135,7 +139,7 @@
         <input type="hidden" name="step" value="test">
         <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step5.send' | t }}</button>
       </form>
-      {% if status.inbound_checked == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step5.inbound_ok' | t: at: status.inbound_checked_at }}</p>{% elsif status.inbound_check_sent_at %}<p>{{ 'modules/support/settings_email.step5.inbound_waiting' | t }}</p>{% endif %}
+      {% if status.inbound_checked == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step5.inbound_received' | t }} {% render 'modules/support/time', time: status.inbound_checked_at, style: 'relative' %}</p>{% elsif status.inbound_check_sent_at %}<p>{{ 'modules/support/settings_email.step5.inbound_waiting' | t }}</p>{% endif %}
       <form action="/support-desk/settings/email" method="post">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="step" value="check_inbound">
@@ -161,7 +165,7 @@
         <form action="/support-desk/settings/email" method="post">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="step" value="disable">
-          <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step6.turn_off' | t }}</button>
+          <button type="submit" class="pos-button pos-button-danger" data-support-confirm="{{ 'modules/support/settings_email.step6.turn_off_confirm' | t }}">{{ 'modules/support/settings_email.step6.turn_off' | t }}</button>
         </form>
       {% else %}
         <p>{{ 'modules/support/settings_email.step6.off' | t }}</p>

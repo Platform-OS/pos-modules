@@ -135,6 +135,8 @@ export async function signIn(page: Page, user: User) {
 export async function contextFor(browser: Browser, user: User, options = {}): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext(options);
   const page = await context.newPage();
+  // confirm() before destructive actions and the unsaved-reply warning: the tests mean to proceed
+  page.on('dialog', (dialog) => dialog.accept());
   await signIn(page, user);
   return { context, page };
 }

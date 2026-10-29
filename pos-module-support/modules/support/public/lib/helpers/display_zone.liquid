@@ -1,0 +1,20 @@
+{% doc %}
+  The time zone the desk shows times in: the default SLA policy's business
+  hours zone, else UTC. Read once per request (kept in context.exports).
+{% enddoc %}
+{% liquid
+  assign cached = context.exports.support_display_zone.zone
+  if cached != blank
+    return cached
+  endif
+
+  assign zone = 'UTC'
+  graphql all = 'modules/support/sla_policies/search', limit: 100
+  for policy in all.records.results
+    if policy.is_default and policy.business_hours.tz != blank
+      assign zone = policy.business_hours.tz
+    endif
+  endfor
+  export zone, namespace: 'support_display_zone'
+  return zone
+%}

@@ -6,6 +6,23 @@ en:
     settings: Settings
     profile: My profile
     sign_out: Sign out
+    skip: Skip to content
+    menu: Menu
+    views: Views
+    workspace: Workspace
+  time:
+    just_now: just now
+    minutes_ago: "%{count} min ago"
+    minutes_ahead: "in %{count} min"
+    hours_ago: "%{count} h ago"
+    hours_ahead: "in %{count} h"
+    days_ago: "%{count} d ago"
+    days_ahead: "in %{count} d"
+  priorities:
+    p0: P0 · Urgent
+    p1: P1 · High
+    p2: P2 · Normal
+    p3: P3 · Low
   views:
     mine: My tickets
     needs_reply: Needs reply
@@ -26,7 +43,16 @@ en:
     paused: Paused
   queue:
     title: Queue
-    empty: No tickets in this view.
+    empty: Nothing here right now
+    empty_help: New tickets in this view show up here as they arrive.
+    empty_search: No tickets match these filters
+    empty_search_help: Try a different search or clear the filters.
+    clear: Clear filters
+    layout: Layout
+    selected_template: "{count} selected"
+    bulk_spam_confirm: "Mark %{count} tickets as spam? Each requester's address will be blocked."
+    range: "%{first}–%{last} of %{total}"
+    shortcuts_html: "j / k to move · x to select · Enter to open · / to search"
     attention: Needs attention
     search: Search tickets
     search_placeholder: "Search by #number, subject, email or organization"
@@ -72,8 +98,10 @@ en:
     move: Move
     moved: Ticket moved.
     move_error: The ticket could not be moved.
+    empty_column: Drop a ticket here
   sign_in:
     title: Sign in to Support
+    lede: Use your work email and password.
     email: Email
     password: Password
     submit: Sign in
@@ -94,6 +122,7 @@ en:
     requests: Access requests
     approve: Approve
     decline: Decline
+    decline_confirm: Decline this access request?
     role: Role
     departments: Departments
     source: Added by
@@ -111,6 +140,7 @@ en:
     expires: expires
     resend: Resend
     revoke: Revoke
+    revoke_confirm: Revoke this invitation? The link in the email stops working.
     invite_title: Join the support team
     your_name: Your name
     choose_password: Choose a password
@@ -210,6 +240,7 @@ en:
     events_update: Update delivery tracking
     rotate: Rotate secret
     rotate_help: Creates a new webhook URL and updates the provider. The old URL keeps working for 24 hours.
+    rotate_confirm: Rotate the webhook secret? The provider is updated now and the old URL stops working in 24 hours.
     rotation_manual: "The provider could not be updated. Paste this URL in its inbound settings within 24 hours:"
     dns:
       type: Type
@@ -249,6 +280,7 @@ en:
       sent: Test email sent.
       check_inbound: Check inbound
       inbound_ok: "Inbound email arrived (%{at})."
+      inbound_received: Inbound email arrived
       inbound_waiting: Waiting for the check email to arrive. Reload this page in a minute.
     step6:
       title: Turn on ticket email
@@ -256,6 +288,7 @@ en:
       "off": Ticket email is off. It can be turned on after the test email and the inbound check pass.
       turn_on: Turn on
       turn_off: Turn off
+      turn_off_confirm: Turn off ticket email? Incoming email stops creating tickets and customers get no replies until you turn it on again.
     notices:
       key_saved: API key saved. Check the connection next.
       key_ok: The API key works.
@@ -304,13 +337,37 @@ en:
       merge_permission: Only a manager can merge tickets.
       merge_target: No open ticket with that number.
   ticket:
-    back: Queue
+    back: Tickets
+    breadcrumb: Breadcrumb
+    opened: Opened
+    snoozed: Snoozed
+    sending: Sending…
+    preparing_files: Preparing attachments…
+    unsaved: You have an unsent reply.
+    attach_too_large: Attachments are limited to 10 MB in total.
+    emails_to: "Emails %{name}"
+    from: From
+    to: To
+    body_placeholder: Write your reply…
+    send_shortcut: Send (Ctrl or ⌘ + Enter)
+    properties: Properties
+    tags_short: Tags
+    tags_placeholder: billing, login
+    sla_state: State
+    organization: Organization
+    issue_url_placeholder: https://github.com/owner/repo/issues/123
+    actions: Actions
+    snoozed_until_label: Snoozed until
+    merge_placeholder: "Merge into ticket #"
+    merge_confirm: Merge this ticket into the other one? Its messages move there; you can undo it.
+    received: Received
+    show: Show
     merged: Merged into another ticket
     follow_up_of: Follow-up of a closed ticket
     conversation: Conversation
     respond: Respond
     mode: Reply or note
-    reply: Reply to customer
+    reply: Reply
     note: Internal note
     saved_replies: Saved reply
     choose_saved: Insert a saved reply…
@@ -397,7 +454,9 @@ en:
     hits: Refused emails
     last_hit: Last refused
     unblock: Unblock
-    empty: Nobody is blocked.
+    empty: Nobody is blocked
+    empty_help: Block an address or a domain above, or use Mark as spam on a ticket.
+    mark_spam_confirm: "Mark this ticket as spam? The requester's address will be blocked. You can undo it."
     from_spam: Marked as spam
     added: Sender blocked.
     removed: Sender unblocked.
@@ -452,6 +511,7 @@ en:
     pause_tomorrow: Until tomorrow 9:00
     pause_forever: Until I turn them on
     paused_until: "Alerts paused until %{until}."
+    paused_until_label: Alerts paused until
     resume: Turn alerts back on
     device: This device
     device_help: Get push alerts on this phone or computer.
@@ -496,6 +556,11 @@ en:
     closed: Closed
   settings:
     title: Settings
+    groups:
+      routing: Routing
+      content: Content
+      channels: Channels
+      people: People
     saved: Saved.
     deleted: Deleted.
     sweep_restarted: Maintenance job restarted.

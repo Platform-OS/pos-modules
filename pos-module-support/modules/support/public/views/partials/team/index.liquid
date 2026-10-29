@@ -24,7 +24,7 @@
           <select id="rq-role-{{ request.id }}" name="role">{% for r in roles %}<option value="{{ r }}">{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select>
           <fieldset><legend>{{ 'modules/support/team.departments' | t }}</legend>{% for d in data.departments %}{% if d.active %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}"> {{ d.name }}</label>{% endif %}{% endfor %}</fieldset>
           <button type="submit" name="op" value="approve" class="pos-button pos-button-primary">{{ 'modules/support/team.approve' | t }}</button>
-          <button type="submit" name="op" value="decline" class="pos-button">{{ 'modules/support/team.decline' | t }}</button>
+          <button type="submit" name="op" value="decline" class="pos-button pos-button-danger" data-support-confirm="{{ 'modules/support/team.decline_confirm' | t }}">{{ 'modules/support/team.decline' | t }}</button>
         </form>
       {% endfor %}
     </section>
@@ -100,12 +100,12 @@
       <ul class="pos-support-plain-list">
         {% for invite in data.invites %}
           <li>
-            {{ invite.email }} · {{ 'modules/support/team.roles.' | append: invite.role | t }} · {{ 'modules/support/team.expires' | t }} {{ invite.expires_at | l: 'long' }}
+            {{ invite.email }} · {{ 'modules/support/team.roles.' | append: invite.role | t }} · {{ 'modules/support/team.expires' | t }} {% render 'modules/support/time', time: invite.expires_at, style: 'relative' %}
             <form action="/support-desk/settings/team" method="post" class="pos-support-inline-form">
               <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
               <input type="hidden" name="invite_id" value="{{ invite.id }}">
               <button type="submit" name="op" value="resend" class="pos-button pos-button-small">{{ 'modules/support/team.resend' | t }}</button>
-              <button type="submit" name="op" value="revoke" class="pos-button pos-button-small">{{ 'modules/support/team.revoke' | t }}</button>
+              <button type="submit" name="op" value="revoke" class="pos-button pos-button-small pos-button-danger" data-support-confirm="{{ 'modules/support/team.revoke_confirm' | t }}">{{ 'modules/support/team.revoke' | t }}</button>
             </form>
           </li>
         {% endfor %}

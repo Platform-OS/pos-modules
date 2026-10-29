@@ -1,0 +1,52 @@
+{% doc %}
+  A <time> element in the desk's time zone. "relative" shows "5 min ago" /
+  "in 3 h" for times within a week and the date after that; the full date
+  and time is always in the title.
+  @param {string} time - Time to show
+  @param {string} [style] - relative (default) | datetime | date
+{% enddoc %}
+{% if time != blank %}
+  {% liquid
+    function zone = 'modules/support/helpers/display_zone'
+    assign iso = time | strftime: '%Y-%m-%dT%H:%M:%SZ', 'UTC'
+    assign full = time | strftime: '%a, %b %-d, %Y, %-l:%M %p %Z', zone
+    assign this_year = 'now' | strftime: '%Y', zone
+    assign year = time | strftime: '%Y', zone
+    assign date_format = '%b %-d'
+    if year != this_year
+      assign date_format = '%b %-d, %Y'
+    endif
+
+    case style
+      when 'datetime'
+        assign time_part = time | strftime: '%-l:%M %p', zone
+        assign text = time | strftime: date_format, zone | append: ', ' | append: time_part
+      when 'date'
+        assign text = time | strftime: date_format, zone
+      else
+        assign minutes = time | time_diff: 'now', 'm', 0 | floor
+        assign key_suffix = '_ago'
+        if minutes < 0
+          assign key_suffix = '_ahead'
+          assign minutes = minutes | times: -1
+        endif
+        assign hours = minutes | divided_by: 60
+        assign days = hours | divided_by: 24
+        if minutes < 1
+          assign text = 'modules/support/time.just_now' | t
+        elsif minutes < 60
+          assign key = 'modules/support/time.minutes' | append: key_suffix
+          assign text = key | t: count: minutes
+        elsif hours < 24
+          assign key = 'modules/support/time.hours' | append: key_suffix
+          assign text = key | t: count: hours
+        elsif days < 7
+          assign key = 'modules/support/time.days' | append: key_suffix
+          assign text = key | t: count: days
+        else
+          assign text = time | strftime: date_format, zone
+        endif
+    endcase
+  %}
+  <time datetime="{{ iso }}" title="{{ full }}">{{ text }}</time>
+{%- endif -%}
