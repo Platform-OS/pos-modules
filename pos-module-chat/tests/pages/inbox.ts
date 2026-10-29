@@ -243,9 +243,9 @@ class MessageBox {
     return this.getMessage(type).getByText(text);
   }
 
-  //getMessageDate(text: string): Promise<string> {
-  //  return this.getMessageByText(text).locator('..').locator('time').innerText();
-  //}
+  getMessageDate(text: string): Locator {
+    return this.page.locator('li.pos-chat-message').filter({ has: this.page.getByText(text, { exact: true }) }).locator('time');
+  }
 
   countMessages(type?: string) {
     if (type === "sent") return this.countSentMessageBox();

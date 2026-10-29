@@ -47,10 +47,13 @@ cp modules/user/public/lib/queries/role_permissions/permissions.liquid app/modul
 4. Add the following to the `<head>` section of your application layout to get the basic styling provided with the module. To overwrite the colors and spacings you can overwrite the CSS variables in `pos-config.css`.
 
 ```
-{% render 'modules/common-styling/init' %}
+{% function current_profile = 'modules/user/helpers/current_profile' %}
+{% render 'modules/common-styling/init', timezone: current_profile.properties.timezone %}
 <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
 <link rel="stylesheet" href="{{ 'modules/chat/style/pos-chat-inbox.css' | asset_url }}">
 ```
+
+The `init` partial also formats the dates in the chat (and any others shown with common-styling's `time` partial) in the visitor's language and timezone. If your profiles have a `timezone` property, like the one above, the dates are shown in it instead - the chat passes it to the dates it renders too. Without one, leave the `timezone` out.
 
 The chat's scripts load each other without an import map, so none is needed. If your layout still has the `<script type="importmap">` block with the `pos-chat*.js` entries from an earlier version of this module, remove those entries. Its `"/"` entry could break your app's own module imports.
 

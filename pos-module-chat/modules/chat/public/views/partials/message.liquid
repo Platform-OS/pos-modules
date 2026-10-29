@@ -2,7 +2,7 @@
   @param {boolean} authored - if current message has been authored by the current user
   @param {boolean} [show_time] - if the timestamp should be visible or not
   @param {object} message - text message to be shown
-  @param {string} timezone - current user timezone
+  @param {string} [timezone] - timezone of the time shown until the browser formats it
   
   @param {boolean} [as_template] - if true, the message will be rendered as an empty template
 {% enddoc %}
@@ -34,7 +34,15 @@
 
 <li class="pos-chat-message {% if authored %} pos-chat-message-authored {% endif %}"{% if message.id %} data-id="{{ message.id }}"{% endif %}>
 
-  <time datetime="{{ message.created_at }}">{%- if display_time and message.created_at -%}{{ message.created_at | l: 'long', timezone }}{%- endif -%}</time>
+  {% comment %}
+    formatted in the browser by common-styling - a hidden timestamp isn't, it stays empty
+    and only keeps the date pos-chat.js orders and groups the messages by
+  {% endcomment %}
+  {% if display_time and message.created_at %}
+    {% render 'modules/common-styling/time', date: message.created_at, timezone: timezone %}
+  {% else %}
+    <time{% if message.created_at %} datetime="{{ message.created_at }}"{% endif %}></time>
+  {% endif %}
 
   {% if message.media.size > 0 or as_template %}
     {% for attachment in message.media %}

@@ -40,23 +40,6 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.atBottom = true;
   // how close to the bottom, in pixels, still counts as being at the bottom (int)
   module.settings.atBottomThreshold = 80;
-  // tries to parse the date with toLocaleString (function that gets Date object and returns parsed date or empty string if fails)
-  module.settings.timezonedDate = date => {
-    let timezonedDate;
-
-    try {
-      // the back-end returns the timezone formatted not according to tz identifier, so I'm going to risk the 'replace' here to make it work with .toLocaleString automatically
-      timezonedDate = date.toLocaleString('en-US', { day: 'numeric', weekday: 'short', year: 'numeric', month: 'short', hour: 'numeric', minute: 'numeric', hour12: true });
-    } catch {
-      if(typeof Intl == 'object' && typeof Intl.NumberFormat == 'function'){
-        timezonedDate = date.toLocaleString('en-US', { day: 'numeric', weekday: 'short', year: 'numeric', month: 'short', hour: 'numeric', minute: 'numeric', hour12: true });
-      } else {
-        timezonedDate = '';
-      }
-    }
-
-    return timezonedDate;
-  }
   // html template for the single message
   module.settings.messageTemplate = {
     // whole html template for sent message (dom node)
@@ -205,11 +188,6 @@ window.pos.modules.chat = function(userSettings = {}){
     // scroll to bottom after loading the messages
     if(module.conversationId){
       scrollBottom();
-    }
-
-    // parse dates from BE to be in the same format as browser locale
-    if(module.conversationId){
-      module.parseDates();
     }
 
     let is_desktop = true;
@@ -494,7 +472,10 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.settings.setMessageTime = (timeEl, date, show) => {
     timeEl.dateTime = date.toISOString();
-    timeEl.textContent = show ? module.settings.timezonedDate(date) : '';
+    // a shown one is formatted by common-styling's time module - right away, as the element may
+    // be on the page already, or once it's added to the page (or the module has started)
+    timeEl.classList.toggle('pos-time', show);
+    timeEl.textContent = (show && window.pos.modules.active.time) ? window.pos.modules.active.time.format(date) : '';
   };
 
 
@@ -996,23 +977,6 @@ window.pos.modules.chat = function(userSettings = {}){
     );
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Blocked the chat due to error');
-  };
-
-
-  // purpose:		parses the dates outputted from BE with JS so that everyting uses browser locale
-  // ------------------------------------------------------------------------
-  module.parseDates = () => {
-    document.querySelectorAll('.pos-chat-message time').forEach(time => {
-      // the back-end already decided whether this timestamp should be visible (grouping
-      // messages less than 7 minutes apart) - an empty one means it decided to hide it,
-      // so leave it alone instead of reinstating it here
-      if(!time.dateTime || !time.textContent.trim()){
-        return;
-      }
-
-      let currentDate = new Date(time.dateTime);
-      time.innerText = module.settings.timezonedDate(currentDate);
-    });
   };
 
 
