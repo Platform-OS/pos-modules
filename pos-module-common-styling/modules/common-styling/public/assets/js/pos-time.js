@@ -21,6 +21,23 @@ window.pos.modules.time = function(userSettings = {}){
   };
 
 
+  // purpose:		returns the timezone if Intl supports it, undefined (the visitor's own) otherwise
+  // arguments: timezone, an IANA name (string)
+  // ------------------------------------------------------------------------
+  const supportedTimeZone = timeZone => {
+    if(!timeZone){
+      return undefined;
+    }
+
+    try {
+      new Intl.DateTimeFormat(undefined, { timeZone });
+      return timeZone;
+    } catch {
+      return undefined;
+    }
+  };
+
+
   // purpose:		settings that are being used across the module
   // ------------------------------------------------------------------------
   module.settings = {};
@@ -32,8 +49,8 @@ window.pos.modules.time = function(userSettings = {}){
   module.settings.selector = userSettings.selector || 'time.pos-time';
   // language of the formatted dates, defaults to the page's language (string)
   module.settings.locale = supportedLocale(userSettings.locale || document.documentElement.lang);
-  // timezone of the formatted dates, defaults to the visitor's one (string)
-  module.settings.timeZone = userSettings.timeZone;
+  // timezone of the formatted dates as an IANA name, defaults to the visitor's one (string)
+  module.settings.timeZone = supportedTimeZone(userSettings.timeZone);
   // Intl.DateTimeFormat styles of a full date, overwritten by data-date-style and data-time-style (string)
   module.settings.dateStyle = userSettings.dateStyle || 'medium';
   module.settings.timeStyle = userSettings.timeStyle || 'short';

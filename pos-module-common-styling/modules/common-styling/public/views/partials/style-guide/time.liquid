@@ -18,7 +18,17 @@
       <dt>date_style</dt><dd>date part of the full date: <code>full</code>, <code>long</code>, <code>medium</code> (default), <code>short</code> or <code>none</code> <i>string</i></dd>
       <dt>time_style</dt><dd>time part of the full date: <code>full</code>, <code>long</code>, <code>medium</code>, <code>short</code> (default) or <code>none</code> <i>string</i></dd>
       <dt>class</dt><dd>additional CSS classes <i>string</i></dd>
+      <dt>timezone</dt><dd>timezone of the date formatted by the server, until the script runs - pass the same one as to <code>init</code> <i>string</i></dd>
     </dl>
+
+    <p>When the users can choose their timezone, for example in their profile, pass it to <code>init</code> - an IANA name (<code>Europe/Warsaw</code>) or a platformOS one (<code>Warsaw</code>):</p>
+    {% capture code %}{% raw %}
+{% render 'modules/common-styling/init', timezone: current_profile.properties.timezone %}
+{% render 'modules/common-styling/time', date: message.created_at, timezone: current_profile.properties.timezone %}
+    {% endraw %}{% endcapture %}
+    <div class="styleguide-code">
+      <pre><code>{{ code | lstrip | rstrip }}</code></pre>
+    </div>
 
     <p>Any <code>&lt;time class="pos-time" datetime="…"&gt;</code> is formatted, including ones added to the page later, with the options above as <code>data-format</code>, <code>data-date-style</code> and <code>data-time-style</code>. To format a date in JavaScript:</p>
     {% capture code %}{% raw %}

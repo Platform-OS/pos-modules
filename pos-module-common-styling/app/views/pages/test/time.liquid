@@ -1,0 +1,18 @@
+---
+slug: test/time
+layout: ''
+---
+<!DOCTYPE html>
+<html lang="en" class="pos-app">
+  <head>
+    <meta charset="utf-8">
+    <title>Dates and times test</title>
+    {% comment %} rendered twice on purpose - the dates still have to be watched only once {% endcomment %}
+    {% render 'modules/common-styling/init', reset: false, timezone: context.params.timezone %}
+    {% render 'modules/common-styling/init', reset: false, timezone: context.params.timezone %}
+  </head>
+  <body>
+    {% comment %} the partial needs a valid timezone, like the l filter - an unknown one is only tested with init {% endcomment %}
+    <p id="date">{% render 'modules/common-styling/time', date: '2026-01-15T12:00:00Z', timezone: context.params.server_timezone %}</p>
+  </body>
+</html>
