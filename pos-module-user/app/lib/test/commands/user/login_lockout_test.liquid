@@ -1,0 +1,179 @@
+{% doc %}
+  Covers the login lockout: consecutive failed sign-ins lock the account for
+  LOGIN_ATTEMPTS_UNLOCK_AFTER_MINS, a locked account is refused even with the
+  right password, the refusal looks exactly like a wrong password or an unknown
+  address, and the 2FA sign-in step is held to the same limit.
+
+  Uses whatever LOGIN_ATTEMPTS_MAX the instance has (5 when unset), so it does
+  not assume the default.
+
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function max_attempts = 'modules/user/helpers/login_max_attempts'
+  assign lockout_enabled = false
+  if max_attempts > 0
+    assign lockout_enabled = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, object: { "lockout_enabled": lockout_enabled }, field_name: 'lockout_enabled', value: null
+  assign below_max = max_attempts | minus: 1
+%}
+
+{% liquid
+  # failures are counted per account, and a password check against an unknown
+  # address gets the very same error as one against a real account
+
+  assign email = 10 | random_string | append: '-lockout@example.com'
+  assign password = email | prepend: 'Aa1-'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
+
+  function wrong = 'modules/user/commands/user/verify_password', email: email, password: 'wrong-password'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: wrong, field_name: 'wrong_password'
+
+  function unknown = 'modules/user/commands/user/verify_password', email: 'nobody-lockout@example.com', password: 'wrong-password'
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: unknown, field_name: 'unknown_address'
+  assign unknown_errors = unknown.errors | json
+  assign wrong_errors = wrong.errors | json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unknown_errors, expected: wrong_errors, field_name: 'unknown_address_errors_match_wrong_password'
+
+  function login_attempt = 'modules/user/queries/login_attempts/find', user_id: user.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: login_attempt.failed_login_attempts, expected: 1, field_name: 'failed_login_attempts_after_one'
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: login_attempt, field_name: 'locked_until'
+%}
+
+{% liquid
+  # reaching the limit locks the account; while locked even the right password
+  # is refused, with the wrong-password error, and the extra attempts do not
+  # move the lock
+
+  assign email = 10 | random_string | append: '-lockout@example.com'
+  assign password = email | prepend: 'Aa1-'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
+
+  for i in (1..max_attempts)
+    function wrong = 'modules/user/commands/user/verify_password', email: email, password: 'wrong-password'
+  endfor
+
+  function login_attempt = 'modules/user/queries/login_attempts/find', user_id: user.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: login_attempt.failed_login_attempts, expected: max_attempts, field_name: 'failed_login_attempts_at_limit'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: login_attempt, field_name: 'locked_until'
+
+  function locked = 'modules/user/helpers/login_locked', login_attempt: login_attempt
+  function contract = 'modules/tests/assertions/true', contract: contract, object: { "locked": locked }, field_name: 'locked', value: null
+
+  function right = 'modules/user/commands/user/verify_password', email: email, password: password
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: right, field_name: 'right_password_while_locked'
+  assign right_errors = right.errors | json
+  assign wrong_errors = wrong.errors | json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: right_errors, expected: wrong_errors, field_name: 'locked_errors_match_wrong_password'
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: right, field_name: 'id'
+
+  function still_locked = 'modules/user/queries/login_attempts/find', user_id: user.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: still_locked.locked_until, expected: login_attempt.locked_until, field_name: 'lock_not_extended'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: still_locked.failed_login_attempts, expected: max_attempts, field_name: 'attempts_not_counted_while_locked'
+
+  # the 2FA sign-in step refuses a locked account too, with the same message,
+  # while re-authentication of a signed-in user is not affected by the lockout
+
+  assign params = { "email": email, "password": password, "otp_code": "000000" }
+  function otp = 'modules/user/commands/user/verify_otp', object: params, email: null, track_login_attempts: true
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: otp, field_name: 'otp_while_locked'
+  function contract = 'modules/tests/assertions/true', contract: contract, object: otp, field_name: 'locked', value: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: otp.errors.otp_code, expected: wrong.errors.password, field_name: 'otp_locked_error'
+
+  function otp = 'modules/user/commands/user/verify_otp', object: params, email: null, track_login_attempts: false
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: otp, field_name: 'locked', value: null
+
+  # a completed sign-in clears the count and the lock
+
+  function reset = 'modules/user/commands/login_attempts/reset', user_id: user.id
+  function contract = 'modules/tests/assertions/true', contract: contract, object: { "reset": reset }, field_name: 'reset', value: null
+
+  function cleared = 'modules/user/queries/login_attempts/find', user_id: user.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: cleared.failed_login_attempts, expected: 0, field_name: 'failed_login_attempts_after_reset'
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: cleared, field_name: 'locked_until'
+
+  function right = 'modules/user/commands/user/verify_password', email: email, password: password
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: right, field_name: 'right_password_after_reset'
+
+  function reset = 'modules/user/commands/login_attempts/reset', user_id: user.id
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: { "reset": reset }, field_name: 'reset', value: null
+%}
+
+{% liquid
+  # failed 2FA sign-in steps count towards the same limit as failed passwords
+
+  assign email = 10 | random_string | append: '-lockout@example.com'
+  assign password = email | prepend: 'Aa1-'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
+
+  assign params = { "email": email, "password": password, "otp_code": "000000" }
+  function otp = 'modules/user/commands/user/verify_otp', object: params, email: null, track_login_attempts: true
+  function contract = 'modules/tests/assertions/not_valid_object', contract: contract, object: otp, field_name: 'otp_wrong_code'
+
+  function login_attempt = 'modules/user/queries/login_attempts/find', user_id: user.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: login_attempt.failed_login_attempts, expected: 1, field_name: 'otp_failure_counted'
+
+  # outside the sign-in step a wrong code is not counted
+  function otp = 'modules/user/commands/user/verify_otp', object: params, email: null, track_login_attempts: false
+  function login_attempt = 'modules/user/queries/login_attempts/find', user_id: user.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: login_attempt.failed_login_attempts, expected: 1, field_name: 'reauth_failure_not_counted'
+%}
+
+{% liquid
+  # the counter and the lock are computed from the stored state: an expired
+  # lock no longer blocks and the next failure starts a fresh count, and the
+  # failure that reaches the limit locks for the configured number of minutes
+
+  assign now_epoch = 'now' | to_time | date: '%s' | plus: 0
+
+  assign past_epoch = now_epoch | minus: 60
+  assign past_at = past_epoch | date: '%Y-%m-%dT%H:%M:%S%z'
+  assign expired = { "user_id": "1", "failed_login_attempts": max_attempts, "locked_until": past_at }
+
+  function locked = 'modules/user/helpers/login_locked', login_attempt: expired
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: { "locked": locked }, field_name: 'locked', value: null
+
+  function data = 'modules/user/commands/login_attempts/record_failure/build', login_attempt: expired
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.failed_login_attempts, expected: 1, field_name: 'count_restarts_after_lock_expires'
+  if max_attempts > 1
+    function contract = 'modules/tests/assertions/not_true', contract: contract, object: data, field_name: 'locked', value: null
+  endif
+
+  assign almost = { "user_id": "1", "failed_login_attempts": below_max, "locked_until": "" }
+  function data = 'modules/user/commands/login_attempts/record_failure/build', login_attempt: almost
+  function contract = 'modules/tests/assertions/true', contract: contract, object: data, field_name: 'locked', value: null
+
+  assign unlock_after_mins = context.constants.LOGIN_ATTEMPTS_UNLOCK_AFTER_MINS | default: 5 | plus: 0
+  assign expected_secs = unlock_after_mins | times: 60
+  assign locked_until_epoch = data.locked_until | to_time | date: '%s' | plus: 0
+  assign lock_secs = locked_until_epoch | minus: now_epoch
+  assign max_secs = expected_secs | plus: 5
+  assign lock_secs_ok = false
+  if lock_secs >= expected_secs and lock_secs <= max_secs
+    assign lock_secs_ok = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, object: { "lock_secs_ok": lock_secs_ok }, field_name: 'lock_secs_ok', value: null
+
+  function locked = 'modules/user/helpers/login_locked', login_attempt: data
+  function contract = 'modules/tests/assertions/true', contract: contract, object: { "locked": locked }, field_name: 'locked', value: null
+%}
+
+{% liquid
+  # login_failed and account_locked are published
+
+  assign email = 10 | random_string | append: '-lockout@example.com'
+  assign password = email | prepend: 'Aa1-'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: password, roles: null, hook_params: null
+  function login_attempt = 'modules/user/queries/login_attempts/find', user_id: user.id
+
+  assign login_attempt.failed_login_attempts = below_max
+  function failure = 'modules/user/commands/login_attempts/record_failure', login_attempt: login_attempt
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: failure, field_name: 'login_failed_event_id'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: failure, field_name: 'account_locked_event_id'
+
+  function stored = 'modules/user/queries/login_attempts/find', user_id: user.id
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: stored, field_name: 'id'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.failed_login_attempts, expected: max_attempts, field_name: 'stored_failed_login_attempts'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: stored, field_name: 'locked_until'
+%}

@@ -1,0 +1,17 @@
+query find_login_attempt($user_id: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/user/login_attempt" }
+      properties: [{ name: "user_id", value: $user_id }]
+    }
+    sort: [{ created_at: { order: ASC } }]
+  ) {
+    results {
+      id
+      user_id: property(name: "user_id")
+      failed_login_attempts: property_int(name: "failed_login_attempts")
+      locked_until: property(name: "locked_until")
+    }
+  }
+}

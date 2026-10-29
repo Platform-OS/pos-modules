@@ -1,0 +1,34 @@
+{% doc %}
+  Whether sign-in to this account is currently blocked after too many
+  failed attempts.
+
+  Checked before the password is verified, so a locked account cannot sign in
+  even with the right password. The lock expires on its own once locked_until
+  has passed; commands/login_attempts/record_failure starts the count again on
+  the next failure after that.
+
+  Callers must respond identically whether or not this returns true - see
+  commands/user/verify_password - otherwise the lockout itself reveals which
+  addresses are registered.
+
+  @param {object} login_attempt - The lockout state (from queries/login_attempts/find)
+{% enddoc %}
+{% liquid
+  if login_attempt.locked_until == blank
+    return false
+  endif
+
+  function max_attempts = 'modules/user/helpers/login_max_attempts'
+  if max_attempts <= 0
+    return false
+  endif
+
+  assign now_epoch = 'now' | to_time | date: '%s' | plus: 0
+  assign locked_until_epoch = login_attempt.locked_until | to_time | date: '%s' | plus: 0
+
+  if now_epoch < locked_until_epoch
+    return true
+  endif
+
+  return false
+%}

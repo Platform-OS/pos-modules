@@ -235,6 +235,38 @@ You can log the user in (which [creates a new session](https://documentation.pla
 function res = 'modules/user/commands/session/create', email: 'email@example.com', password: 'password'
 ```
 
+#### Login lockout
+
+After `LOGIN_ATTEMPTS_MAX` consecutive failed sign-ins the account is locked for
+`LOGIN_ATTEMPTS_UNLOCK_AFTER_MINS` minutes. While it is locked the password is not
+checked at all, so even the right one is refused.
+
+| Constant | Default | Meaning |
+| :--- | :--- | :--- |
+| `LOGIN_ATTEMPTS_MAX` | `5` | Consecutive failures that lock the account; `0` switches the lockout off |
+| `LOGIN_ATTEMPTS_UNLOCK_AFTER_MINS` | `5` | How long the lock lasts |
+
+- Both sign-in steps count: a wrong password at `POST /sessions` and a wrong
+  password or code at `POST /sessions/2fa`. Re-entering the password while
+  already signed in (changing the email, enabling or disabling 2FA) does not.
+- A locked account gets exactly the error a wrong password gets, and so does an
+  address with no account, so the lockout does not reveal who is registered.
+- The count is cleared by the next completed sign-in - including one that
+  skips the password, such as a password reset or an OAuth login, so resetting
+  the password also unlocks the account. A correct password alone does not
+  clear it while a 2FA code is still outstanding.
+- Attempts made while the account is locked are neither counted nor extend the
+  lock. Once it expires the count starts again from zero.
+- The state is kept in the module's own `modules/user/login_attempt` table (one
+  record per user that has failed to sign in: `user_id`,
+  `failed_login_attempts`, `locked_until`), not on the profile, so applications
+  that override the profile schema keep the lockout. To unlock an account by
+  hand, call `modules/user/commands/login_attempts/reset` with its `user_id`.
+- `login_failed` (payload `{user_id, profile_id, attempts}`) is published for every counted
+  failure, and `account_locked` (payload `{user_id, profile_id, attempts, locked_until}`)
+  when an account is locked. Failures for addresses with no account are not
+  published.
+
 #### Accessing current profile in Pages
 
 To access information about the currently logged-in user, use the following command provided by the module:
