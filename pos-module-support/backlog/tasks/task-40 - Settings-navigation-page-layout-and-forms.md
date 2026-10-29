@@ -1,7 +1,7 @@
 ---
 id: TASK-40
 title: 'Settings: navigation, page layout and forms'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-29'
 labels:
@@ -30,12 +30,20 @@ Source: UX review of 2026-10-29 (design critique 19/40, technical audit 12/20), 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 No horizontal scroll on any settings page at 390px
-- [ ] #2 Every destructive settings action asks for confirmation
-- [ ] #3 Sub-navigation grouped and current page clear without colour alone
+- [x] #1 No horizontal scroll on any settings page at 390px
+- [x] #2 Every destructive settings action asks for confirmation
+- [x] #3 Sub-navigation grouped and current page clear without colour alone
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Definition of Done in backlog/config.yml met
+- [x] #1 Definition of Done in backlog/config.yml met
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Done: Settings: grouped left navigation with icons (horizontal strip on narrow screens), stacked form fields, tables in the shared style with state pills, DNS tables wrapped and keyboard-focusable, confirmations for decline, revoke, rotate webhook URL and turn off email, humanised times.
+Outcome: No sideways scroll on any settings page at 390 px; destructive actions ask first. Verified on support-dev: last full E2E run 34 passed, 1 skipped (fresh install), 1 failed (scenario 15 live list update under load, passes alone twice; same intermittent delay as DRAFT-9); 26/26 Liquid unit tests pass; axe WCAG 2.2 AA 0 violations on 16 pages × light/dark × 1440/390; no sideways scroll at 390 px; platformos-check and ci-static clean.
+Next: Add/edit in a side panel, SLA durations as number + unit, Team search.
+<!-- SECTION:FINAL_SUMMARY:END -->

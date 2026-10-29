@@ -16,6 +16,11 @@ metadata:
   assign filters.status_key = context.params.status_key
   assign filters.organization_id = context.params.organization_id
   assign filters.q = context.params.q | strip
+  assign filters.assignee_id = context.params.assignee_id
+  assign sorts = "sla,priority,newest,oldest,activity" | split: ','
+  if sorts contains context.params.sort
+    assign filters.sort = context.params.sort
+  endif
 
   assign views = "mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,sla_at_risk,deploy,closed" | split: ','
   assign view = context.params.view

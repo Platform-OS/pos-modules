@@ -2,6 +2,7 @@
   One queue row; the subject link covers the whole row.
   @param {object} ticket - Ticket record
   @param {object} lookup - { contacts, organizations, profiles, departments, statuses } keyed by id
+  @param {string} [link_query] - Queue view and filters, so the ticket page can offer previous/next
 {% enddoc %}
 {% liquid
   assign requester = lookup.contacts[ticket.requester_id]
@@ -10,6 +11,9 @@
   assign department = lookup.departments[ticket.department_id]
   assign status = lookup.statuses[ticket.status_id]
   assign url = '/support-desk/tickets/' | append: ticket.id
+  if link_query != blank
+    assign url = url | append: '?' | append: link_query
+  endif
   assign requester_name = requester.name | default: requester.emails.first
   assign assignee_name = assignee.name | default: assignee.first_name | default: assignee.email
 %}
@@ -33,10 +37,12 @@
   <td class="pos-support-cell-status">{% render 'modules/support/badges/status', status: status %}</td>
   <td class="pos-support-cell-assignee">
     {% if assignee %}
-      <span class="pos-support-person">{% render 'modules/support/avatar', name: assignee_name, email: assignee.email, size: 'xs', labelled: false %}<span>{{ assignee_name }}</span></span>
+      <span class="pos-support-person">{% render 'modules/support/avatar', name: assignee_name, email: assignee.email, size: 'xs', labelled: false %}<span class="pos-support-person-name">{{ assignee_name }}</span></span>
     {% else %}
       <span class="pos-support-muted">{{ 'modules/support/ticket.unassigned' | t }}</span>
     {% endif %}
   </td>
   <td class="pos-support-cell-sla">{% render 'modules/support/badges/sla', state: ticket.sla_state %}</td>
+  {% assign activity_at = ticket.last_activity_at | default: ticket.created_at %}
+  <td class="pos-support-cell-activity pos-support-muted">{% render 'modules/support/time', time: activity_at, style: 'relative' %}</td>
 </tr>

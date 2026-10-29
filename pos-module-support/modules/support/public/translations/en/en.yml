@@ -84,6 +84,16 @@ en:
     col_status: Status
     col_assignee: Assignee
     col_sla: SLA
+    col_activity: Activity
+    any_assignee: Any assignee
+    assigned_to_me: Assigned to me
+    sort: Sort
+    sorts:
+      sla: SLA due first
+      priority: Priority
+      activity: Latest activity
+      newest: Newest
+      oldest: Oldest
     pages: Pages
     previous: Previous
     next: Next
@@ -339,6 +349,12 @@ en:
   ticket:
     back: Tickets
     breadcrumb: Breadcrumb
+    pager: Tickets in this view
+    add_note: Add note
+    position: "%{position} of %{total}"
+    previous: Previous ticket
+    next: Next ticket
+    not_saved: The change was not saved. Reload the page and try again.
     opened: Opened
     snoozed: Snoozed
     sending: Sending…

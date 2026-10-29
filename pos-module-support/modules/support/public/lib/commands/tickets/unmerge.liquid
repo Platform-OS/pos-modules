@@ -25,6 +25,11 @@
   assign values.status_id = progress.id
   assign values.category = progress.category
   function saved = 'modules/support/commands/tickets/save', ticket: source, values: values
+  # the ticket is open again: deadlines and the queue's SLA sort key come back
+  function sla = 'modules/support/commands/sla/update', ticket_id: source.id
+  if sla
+    assign saved = sla
+  endif
 
   function _ = 'modules/support/commands/ticket_events/log', ticket_id: source.id, actor_type: actor.type, actor_id: actor.id, event_type: 'unmerged', from_value: source.merged_into_id, to_value: source.id, reason: null
   assign payload = { "ticket_id": null, "actor_id": null, "target_id": null }

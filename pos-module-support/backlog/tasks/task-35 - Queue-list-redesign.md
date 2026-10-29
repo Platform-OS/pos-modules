@@ -1,7 +1,7 @@
 ---
 id: TASK-35
 title: 'Queue list redesign'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-29'
 labels:
@@ -31,14 +31,22 @@ Source: UX review of 2026-10-29 (design critique 19/40, technical audit 12/20), 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Rows are a fixed height with no wrapping at 1440px
-- [ ] #2 Bulk bar hidden until a row is selected (JS on); bulk spam asks for confirmation
-- [ ] #3 Checkbox hit area ≥24px (44px on touch)
-- [ ] #4 At 390px tickets start within the first screen and there is no sideways scroll
-- [ ] #5 Empty view shows a designed empty state
+- [x] #1 Rows are a fixed height with no wrapping at 1440px
+- [x] #2 Bulk bar hidden until a row is selected (JS on); bulk spam asks for confirmation
+- [x] #3 Checkbox hit area ≥24px (44px on touch)
+- [x] #4 At 390px tickets start within the first screen and there is no sideways scroll
+- [x] #5 Empty view shows a designed empty state
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Definition of Done in backlog/config.yml met
+- [x] #1 Definition of Done in backlog/config.yml met
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Done: Queue: List/Board switch, attention chips, search with icon, filters and sort apply on change (button kept for no-JS), assignee filter, sort (SLA, priority, activity, newest, oldest), activity column, fixed-width one-line rows, row-wide link, 44px checkbox targets, contextual bulk bar with count and confirmation on bulk spam, range + prev/next pagination, shortcut hint, empty states, card layout on phones. Rows link with the view and filters so the ticket page can offer previous/next.
+Outcome: About 45px rows at 1440; bulk bar only with a selection; phones show cards. Verified on support-dev: last full E2E run 34 passed, 1 skipped (fresh install), 1 failed (scenario 15 live list update under load, passes alone twice; same intermittent delay as DRAFT-9); 26/26 Liquid unit tests pass; axe WCAG 2.2 AA 0 violations on 16 pages × light/dark × 1440/390; no sideways scroll at 390 px; platformos-check and ci-static clean.
+Next: Group-by (priority/status) not built.
+<!-- SECTION:FINAL_SUMMARY:END -->

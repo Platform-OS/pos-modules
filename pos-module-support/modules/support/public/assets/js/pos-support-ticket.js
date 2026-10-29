@@ -18,6 +18,7 @@
     const note = form.querySelector('input[name="mode"]:checked').value === 'note';
     form.classList.toggle('pos-support-composer-note', note);
     replyOnly.forEach((el) => { el.hidden = note; });
+    if (sendLabel && !submitting) sendLabel.textContent = note ? form.dataset.noteLabel : form.dataset.sendLabel;
   };
   form.querySelectorAll('input[name="mode"]').forEach((input) => input.addEventListener('change', syncMode));
   syncMode();

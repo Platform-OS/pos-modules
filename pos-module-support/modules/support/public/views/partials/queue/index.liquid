@@ -19,17 +19,21 @@
   assign board_query.department_id = filters.department_id
   assign board_query.q = filters.q
   assign board_query = board_query | www_form_encode
-  assign page_query = { "view": null, "q": null, "priority": null, "status_key": null, "department_id": null }
+  assign page_query = { "view": null, "q": null, "priority": null, "status_key": null, "department_id": null, "assignee_id": null, "sort": null }
+  assign page_query.assignee_id = filters.assignee_id
+  assign page_query.sort = filters.sort
   assign page_query.view = view
   assign page_query.q = filters.q
   assign page_query.priority = filters.priority
   assign page_query.status_key = filters.status_key
   assign page_query.department_id = filters.department_id
   assign page_query = page_query | www_form_encode
+  assign link_query = page_query | append: '&page=' | append: data.page
   assign filtered = false
-  if filters.q != blank or filters.priority != blank or filters.status_key != blank or filters.department_id != blank
+  if filters.q != blank or filters.priority != blank or filters.status_key != blank or filters.department_id != blank or filters.assignee_id != blank
     assign filtered = true
   endif
+  assign sorts = "sla,priority,activity,newest,oldest" | split: ','
   assign per_page = 50
   assign first = data.page | minus: 1 | times: per_page | plus: 1
   assign last = first | plus: data.results.size | minus: 1
@@ -74,7 +78,19 @@
       <option value="">{{ 'modules/support/queue.any_status' | t }}</option>
       {% for s in statuses %}<option value="{{ s.key }}" {% if filters.status_key == s.key %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
     </select>
-    <button type="submit" class="pos-button">{% render 'modules/support/icon', name: 'filter', size: 'sm' %}{{ 'modules/support/queue.apply' | t }}</button>
+    {% if view != 'mine' and view != 'unassigned' %}
+      <label for="pos-support-assignee-filter" class="pos-support-sr-only">{{ 'modules/support/queue.assignee' | t }}</label>
+      <select id="pos-support-assignee-filter" name="assignee_id">
+        <option value="">{{ 'modules/support/queue.any_assignee' | t }}</option>
+        <option value="{{ member.profile_id }}" {% if filters.assignee_id == member.profile_id %}selected{% endif %}>{{ 'modules/support/queue.assigned_to_me' | t }}</option>
+        {% for m in members %}{% if m.profile_id != member.profile_id %}<option value="{{ m.profile_id }}" {% if filters.assignee_id == m.profile_id %}selected{% endif %}>{{ m.name }}</option>{% endif %}{% endfor %}
+      </select>
+    {% endif %}
+    <label for="pos-support-sort" class="pos-support-sr-only">{{ 'modules/support/queue.sort' | t }}</label>
+    <select id="pos-support-sort" name="sort">
+      {% for s in sorts %}<option value="{{ s }}" {% if filters.sort == s %}selected{% endif %}>{{ 'modules/support/queue.sorts.' | append: s | t }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="pos-button" data-support-filter-button>{% render 'modules/support/icon', name: 'filter', size: 'sm' %}{{ 'modules/support/queue.apply' | t }}</button>
     {% if filtered %}<a class="pos-button pos-button-ghost" href="/support-desk?view={{ view }}">{{ 'modules/support/queue.clear' | t }}</a>{% endif %}
   </form>
 
@@ -130,7 +146,7 @@
       <div class="pos-support-table-wrap">
         <table class="pos-table pos-support-table">
           <colgroup>
-            <col class="pos-support-col-select"><col class="pos-support-col-priority"><col class="pos-support-col-number"><col><col class="pos-support-col-requester"><col class="pos-support-col-department"><col class="pos-support-col-status"><col class="pos-support-col-assignee"><col class="pos-support-col-sla">
+            <col class="pos-support-col-select"><col class="pos-support-col-priority"><col class="pos-support-col-number"><col><col class="pos-support-col-requester"><col class="pos-support-col-department"><col class="pos-support-col-status"><col class="pos-support-col-assignee"><col class="pos-support-col-sla"><col class="pos-support-col-activity">
           </colgroup>
           <thead>
             <tr>
@@ -143,11 +159,12 @@
               <th scope="col">{{ 'modules/support/queue.col_status' | t }}</th>
               <th scope="col">{{ 'modules/support/queue.col_assignee' | t }}</th>
               <th scope="col">{{ 'modules/support/queue.col_sla' | t }}</th>
+              <th scope="col">{{ 'modules/support/queue.col_activity' | t }}</th>
             </tr>
           </thead>
           <tbody>
             {% for ticket in data.results %}
-              {% render 'modules/support/queue/row', ticket: ticket, lookup: data.lookup %}
+              {% render 'modules/support/queue/row', ticket: ticket, lookup: data.lookup, link_query: link_query %}
             {% endfor %}
           </tbody>
         </table>

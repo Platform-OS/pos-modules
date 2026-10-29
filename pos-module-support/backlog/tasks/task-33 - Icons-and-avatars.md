@@ -1,7 +1,7 @@
 ---
 id: TASK-33
 title: 'Icons and avatars'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-29'
 labels:
@@ -26,13 +26,21 @@ Source: UX review of 2026-10-29 (design critique 19/40, technical audit 12/20), 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Rail, queue, board and ticket page show icons from one set
-- [ ] #2 Assignees, requesters and message authors show initials avatars
-- [ ] #3 Status is never conveyed by colour alone (icon + text)
-- [ ] #4 No unicode glyphs used as icons
+- [x] #1 Rail, queue, board and ticket page show icons from one set
+- [x] #2 Assignees, requesters and message authors show initials avatars
+- [x] #3 Status is never conveyed by colour alone (icon + text)
+- [x] #4 No unicode glyphs used as icons
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Definition of Done in backlog/config.yml met
+- [x] #1 Definition of Done in backlog/config.yml met
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Done: Lucide sprite (partials/icons/sprite, ISC) + icon partial; avatar partial with 8-hue semantic palette picked by email digest; status pills with category icons; badges/sla with icons instead of ▲ glyphs.
+Outcome: Rail, queue, board, ticket and settings use one icon set; people show initials avatars; status is icon + text. Verified on support-dev: last full E2E run 34 passed, 1 skipped (fresh install), 1 failed (scenario 15 live list update under load, passes alone twice; same intermittent delay as DRAFT-9); 26/26 Liquid unit tests pass; axe WCAG 2.2 AA 0 violations on 16 pages × light/dark × 1440/390; no sideways scroll at 390 px; platformos-check and ci-static clean.
+Next: None.
+<!-- SECTION:FINAL_SUMMARY:END -->

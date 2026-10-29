@@ -35,6 +35,11 @@
   assign values.closed_at = 'now' | to_time
   assign values.merged_into_id = target.id
   function saved = 'modules/support/commands/tickets/save', ticket: source, values: values
+  # closed by the merge: the SLA stops (met or missed) like any other close
+  function sla = 'modules/support/commands/sla/update', ticket_id: source.id
+  if sla
+    assign saved = sla
+  endif
   if source.needs_reply
     assign target_values = { "needs_reply": true }
     function target = 'modules/support/commands/tickets/save', ticket: target, values: target_values

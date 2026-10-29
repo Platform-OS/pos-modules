@@ -13,7 +13,7 @@
 <aside class="pos-support-ticket-side" aria-label="{{ 'modules/support/ticket.details' | t }}">
   <section class="pos-support-side-section" aria-labelledby="pos-support-side-properties">
     <h2 id="pos-support-side-properties">{{ 'modules/support/ticket.properties' | t }}</h2>
-    <form action="{{ update_action }}" method="post" class="pos-form">
+    <form action="{{ update_action }}" method="post" class="pos-form" data-support-autosave data-saved="{{ 'modules/support/ticket.updated' | t }}" data-failed="{{ 'modules/support/ticket.not_saved' | t }}">
       <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
       <input type="hidden" name="change" value="properties">
       <fieldset>

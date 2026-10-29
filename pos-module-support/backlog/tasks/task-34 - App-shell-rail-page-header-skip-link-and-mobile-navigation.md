@@ -1,7 +1,7 @@
 ---
 id: TASK-34
 title: 'App shell: rail, page header, skip link and mobile navigation'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-29'
 labels:
@@ -28,13 +28,21 @@ Source: UX review of 2026-10-29 (design critique 19/40, technical audit 12/20), 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Rail shows icons and counts on queue, board, ticket and settings pages
-- [ ] #2 Each page has its own <title>
-- [ ] #3 Skip link is the first tab stop
-- [ ] #4 At 390px the navigation is a drawer, no horizontal page scroll
+- [x] #1 Rail shows icons and counts on queue, board, ticket and settings pages
+- [x] #2 Each page has its own <title>
+- [x] #3 Skip link is the first tab stop
+- [x] #4 At 390px the navigation is a drawer, no horizontal page scroll
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Definition of Done in backlog/config.yml met
+- [x] #1 Definition of Done in backlog/config.yml met
 <!-- DOD:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Done: Shell rewritten: sticky rail with Views/Workspace sections, icons and counts (fixed: the layout read support_nav instead of support_nav.nav), user block with availability and sign out, skip link, per-page <title> via export title namespace support_page, phone drawer with checkbox toggle and scrim, brand partial with dark logo.
+Outcome: Counts show on every page; each page has its own title; skip link is the first tab stop; no sideways scroll at 390 px. Verified on support-dev: last full E2E run 34 passed, 1 skipped (fresh install), 1 failed (scenario 15 live list update under load, passes alone twice; same intermittent delay as DRAFT-9); 26/26 Liquid unit tests pass; axe WCAG 2.2 AA 0 violations on 16 pages × light/dark × 1440/390; no sideways scroll at 390 px; platformos-check and ci-static clean.
+Next: Command palette (⌘K) not built.
+<!-- SECTION:FINAL_SUMMARY:END -->

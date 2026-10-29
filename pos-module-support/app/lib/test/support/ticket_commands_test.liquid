@@ -71,10 +71,17 @@
   endif
   function contract = 'modules/tests/assertions/true', contract: contract, value: moved_ok, field_name: 'merge moved messages', object: null
   function contract = 'modules/tests/assertions/equal', contract: contract, given: m.ticket.merged_into_id, expected: u.ticket.id, field_name: 'source points at target'
+  # merging closes the ticket, so its SLA stops and no deadline is left to sort by
+  function merged_source = 'modules/support/queries/tickets/find', id: f2.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: merged_source, field_name: 'sla_due_at'
   function um = 'modules/support/commands/tickets/unmerge', source: m.ticket, actor: f2.manager_actor
   function contract = 'modules/tests/assertions/equal', contract: contract, given: um.valid, expected: true, field_name: 'unmerge ok'
   graphql back = 'modules/support/messages/search', ticket_id: f2.ticket.id, limit: 10
   function contract = 'modules/tests/assertions/equal', contract: contract, given: back.records.total_entries, expected: 1, field_name: 'unmerge moved message back'
+  # an unmerged ticket is open again with its SLA deadlines (the queue sorts by sla_due_at)
+  function reopened = 'modules/support/queries/tickets/find', id: f2.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: reopened, field_name: 'sla_due_at'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: reopened, field_name: 'sla_first_reply_due_at'
 
   # note is internal
   function contract = 'modules/tests/assertions/equal', contract: contract, given: note.message.visibility, expected: 'internal', field_name: 'note internal'

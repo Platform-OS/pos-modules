@@ -38,7 +38,7 @@
       <select id="bd-department" name="department_id"><option value="">{{ 'modules/support/queue.any_department' | t }}</option>{% for d in departments %}<option value="{{ d.id }}" {% if filters.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
     {% endif %}
     <label><input type="checkbox" name="show_closed" value="1" {% if board.show_closed %}checked{% endif %}> {{ 'modules/support/board.show_closed' | t }}</label>
-    <button type="submit" class="pos-button">{% render 'modules/support/icon', name: 'filter', size: 'sm' %}{{ 'modules/support/queue.apply' | t }}</button>
+    <button type="submit" class="pos-button" data-support-filter-button>{% render 'modules/support/icon', name: 'filter', size: 'sm' %}{{ 'modules/support/queue.apply' | t }}</button>
   </form>
 
   <div class="pos-support-board">

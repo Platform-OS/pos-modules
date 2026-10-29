@@ -18,7 +18,7 @@
 
   document.addEventListener('change', (event) => {
     if (event.target.matches('.pos-support-select')) updateBulk();
-    if (event.target.matches('[data-support-autosubmit] select')) event.target.form.requestSubmit();
+    if (event.target.matches('[data-support-autosubmit] select, [data-support-autosubmit] input[type="checkbox"]')) event.target.form.requestSubmit();
   });
   updateBulk();
 
