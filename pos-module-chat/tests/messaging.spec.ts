@@ -14,6 +14,8 @@ test.describe('Testing messaging', () => {
     const sender = users.test2;
     const senderMessage = messages.test2.message1;
     const receiver = users.test4;
+    // the time of the message as shown live, right after it was sent
+    let liveDate: string | null = null;
 
     await test.step(`${sender.fullName} sends message to ${receiver.fullName} via profile`, async () => {
       ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test2.email}.json`));
@@ -24,6 +26,11 @@ test.describe('Testing messaging', () => {
 
       const isMessageSent = await inboxPage.sendMessage(receiver.fullName, senderMessage);
       expect(isMessageSent).toBe(true);
+
+      // the first message always shows its time, formatted by common-styling, e.g. "Oct 29, 2026, 3:14 PM"
+      const date = inboxPage.message.getMessageDate(senderMessage);
+      await expect(date).toHaveText(/\d{4}, \d{1,2}:\d{2}/);
+      liveDate = await date.textContent();
     });
 
     await test.step(`verify chatCard was created and is visible after page refresh`, async () => {
@@ -35,10 +42,12 @@ test.describe('Testing messaging', () => {
       const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(receiver.fullName);
       expect(isChatCardVisible).toBe(true);
 
-      // the date of the last message, e.g. "Oct 28"
+      // when the last message was sent, relative to now and formatted by common-styling
       const lastMessageDate = inboxPage.chatList.getCardLastMessageDate(receiver.fullName);
-      await expect(lastMessageDate).toHaveText(/\b[A-Z][a-z]{2} \d{2}\b/);
+      await expect(lastMessageDate).toHaveText(/^(now|\d+ minutes? ago)$/);
       await expect(lastMessageDate).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
+      // the exact date on hover
+      await expect(lastMessageDate).toHaveAttribute('title', /\d{4}/);
     });
 
     await test.step(`${receiver.fullName} received the message`, async () => {
@@ -56,6 +65,9 @@ test.describe('Testing messaging', () => {
 
       const isMessageVisible = await inboxPage.message.isMessageReceived(senderMessage);
       expect(isMessageVisible).toBe(true);
+
+      // rendered by the server this time, but shown the same way as live
+      await expect(inboxPage.message.getMessageDate(senderMessage)).toHaveText(liveDate ?? '');
     });
   });
 

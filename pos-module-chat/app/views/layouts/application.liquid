@@ -8,7 +8,7 @@
 
       <meta charset="utf-8">
       {% comment %} default platformOS provided styles {% endcomment %}
-      {% render 'modules/common-styling/init', reset: true %}
+      {% render 'modules/common-styling/init', reset: true, timezone: current_profile.properties.timezone %}
       <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
       <link rel="stylesheet" href="{{ 'modules/chat/style/pos-chat-inbox.css' | asset_url }}">
       {% comment %} custom styles specific for this app, some overwrite the defaults {% endcomment %}

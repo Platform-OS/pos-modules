@@ -55,10 +55,10 @@
 <!-- message templates -->
 {% assign dummy_message = { "message": "", "created_at": null } %}
 <template id="pos-chat-template-message-received">
-  {% render 'modules/chat/message', message: dummy_message, authored: false, timezone: null, as_template: true %}
+  {% render 'modules/chat/message', message: dummy_message, authored: false, as_template: true %}
 </template>
 <template id="pos-chat-template-message-sent">
-  {% render 'modules/chat/message', message: dummy_message, authored: true, timezone: null, as_template: true %}
+  {% render 'modules/chat/message', message: dummy_message, authored: true, as_template: true %}
 </template>
 <!-- end message templates -->
 
@@ -152,7 +152,7 @@
               endif
               assign previous_created_at = message.created_at
 
-              render 'modules/chat/message', message: message, authored: authored, timezone: current_profile.properties.timezone, show_time: show_time
+              render 'modules/chat/message', message: message, authored: authored, show_time: show_time, timezone: current_profile.properties.timezone
             endfor
           %}
         </ul>
