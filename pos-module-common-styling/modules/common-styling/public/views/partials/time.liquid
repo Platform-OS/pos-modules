@@ -7,6 +7,7 @@
   @param {string} [date_style] - date part of the full date: 'full', 'long', 'medium' (default), 'short' or 'none'
   @param {string} [time_style] - time part of the full date: 'full', 'long', 'medium', 'short' (default) or 'none'
   @param {string} [class] - additional CSS classes
+  @param {string} [timezone] - timezone of the date formatted by the server, like the current profile's (the browser's one is set by init) - has to be a valid one, as for the l filter
 {% enddoc %}
 {% liquid
   if date == blank
@@ -15,4 +16,4 @@
 
   assign time = date | to_time
 %}
-<time class="pos-time {{ class }}" datetime="{{ time | strftime: '%Y-%m-%dT%H:%M:%S%:z' }}"{% if format == 'relative' %} data-format="relative"{% endif %}{% if date_style %} data-date-style="{{ date_style }}"{% endif %}{% if time_style %} data-time-style="{{ time_style }}"{% endif %}>{{ time | l: 'long' }}</time>
+<time class="pos-time {{ class }}" datetime="{{ time | strftime: '%Y-%m-%dT%H:%M:%S%:z' }}"{% if format == 'relative' %} data-format="relative"{% endif %}{% if date_style %} data-date-style="{{ date_style }}"{% endif %}{% if time_style %} data-time-style="{{ time_style }}"{% endif %}>{{ time | l: 'long', timezone }}</time>
