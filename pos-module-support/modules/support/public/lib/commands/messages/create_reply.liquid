@@ -65,19 +65,10 @@
     endif
   endif
 
-  assign outgoing = []
-  for file in attachments
-    function stored = 'modules/support/commands/attachments/store', ticket_id: ticket.id, message_id: message.id, file: file
-    if stored
-      assign outgoing << file
-    endif
-  endfor
-  if outgoing.size > 0
-    comment
-      Attachments travel with the job as base64, so send them at once from
-      this request instead of queueing the base64 in a background job.
-    endcomment
-    function _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, attachments: outgoing
+  # files are stored and the email sent in the background: a job carries
+  # their base64 (14 MB checked), so the request does not wait for either
+  if attachments.size > 0
+    background _ = 'modules/support/commands/messages/attach_and_deliver', message_id: message.id, ticket_id: ticket.id, attachments: attachments, source_name: 'support_deliver', priority: 'high'
   else
     background _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, attachments: null, source_name: 'support_deliver', priority: 'high'
   endif

@@ -1,0 +1,20 @@
+{% doc %}
+  Background job for a reply with attachments: stores each file on the
+  message, then sends the email with the files attached. Runs outside the
+  request because uploading the files and calling the email provider take
+  seconds for a few megabytes.
+  @param {string} message_id - The reply
+  @param {string} ticket_id - Its ticket
+  @param {object[]} attachments - [{ filename, content_type, content_base64 }]
+{% enddoc %}
+{% liquid
+  assign outgoing = []
+  for file in attachments
+    function stored = 'modules/support/commands/attachments/store', ticket_id: ticket_id, message_id: message_id, file: file
+    if stored
+      assign outgoing << file
+    endif
+  endfor
+  function _ = 'modules/support/commands/messages/deliver', message_id: message_id, attempt: 1, attachments: outgoing
+  return outgoing.size
+%}
