@@ -28,7 +28,7 @@
   if groupings contains params.group
     # the list in swim lanes: the order is lane by lane, as shown
     assign page = 1
-    function grouped = 'modules/support/queries/tickets/groups', member: member, view: params.view, filters: filters, by: params.group, layout: 'list', expand: null
+    function grouped = 'modules/support/queries/tickets/groups', member: member, view: params.view, filters: filters, by: params.group, layout: 'list', expand: null, expand_page: null
     assign ids = []
     for group in grouped.groups
       assign ids = ids | concat: group.tickets

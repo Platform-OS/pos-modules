@@ -15,5 +15,5 @@ metadata:
   function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
   assign title = 'modules/support/profile.title' | t
   export title, namespace: 'support_page'
-  render 'modules/support/profile/index', member: member, subscriptions: subscriptions.results, effective: availability, editable: true, action: '/support-desk/profile'
+  render 'modules/support/profile/index', member: member, subscriptions: subscriptions.results, effective: availability, editable: true, action: '/support-desk/profile', heading: null
 %}

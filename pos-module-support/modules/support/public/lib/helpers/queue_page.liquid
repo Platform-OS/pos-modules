@@ -52,13 +52,14 @@
     assign filters.sort = params.sort
   endif
 
-  function groups = 'modules/support/queries/tickets/groups', member: member, view: view, filters: filters, by: group, layout: current_layout, expand: params.expand
-  function counts = 'modules/support/queries/tickets/counts', member: member
+  function groups = 'modules/support/queries/tickets/groups', member: member, view: view, filters: filters, by: group, layout: current_layout, expand: params.expand, expand_page: params.lane_page
   assign include_waiting = false
   if current_layout == 'board' and view == 'all_open'
     assign include_waiting = true
   endif
-  function department_counts = 'modules/support/queries/tickets/department_counts', member: member, view: view, filters: filters, include_waiting: include_waiting
+  function rail = 'modules/support/queries/tickets/rail_counts', member: member, view: view, filters: filters, include_waiting: include_waiting
+  assign counts = rail.counts
+  assign department_counts = rail.departments
 
   function statuses = 'modules/support/queries/statuses/all'
   function members = 'modules/support/queries/team_members/active'

@@ -21,14 +21,14 @@
   assign values = { "priority": null }
   assign values.priority = priority
   function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+  # live update right after the save, before the audit row and the event
+  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'updated', message_id: null, profile_id: null, actor_id: actor.id
   function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'priority_changed', from_value: ticket.priority, to_value: priority, reason: null
   assign payload = { "ticket_id": null, "actor_id": null, "to_value": null }
   assign payload.ticket_id = ticket.id
   assign payload.actor_id = actor.id
   assign payload.to_value = priority
   function _ = 'modules/core/commands/events/publish', type: 'support_ticket_priority_changed', object: payload, delay: null, max_attempts: null
-  # live update now, not from a background consumer, so open screens follow at once
-  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'updated', message_id: null, profile_id: null, actor_id: actor.id
 
   assign result.valid = true
   assign result.ticket = saved

@@ -5,8 +5,17 @@
 {% enddoc %}
 {% liquid
   assign data = { "edit": null }
-  graphql m = 'modules/support/team_members/search', limit: 200
-  assign data.members = m.records.results
+  # every membership, a page of 500 at a time
+  assign data.members = []
+  # platformos-check-disable NestedGraphQLQuery
+  for page in (1..10)
+    graphql m = 'modules/support/team_members/search', limit: 500, page: page
+    assign data.members = data.members | concat: m.records.results
+    if m.records.results.size < 500
+      break
+    endif
+  endfor
+  # platformos-check-enable NestedGraphQLQuery
   assign closed = false
   graphql i = 'modules/support/team_invites/search', closed: closed, limit: 100
   assign data.invites = i.records.results
@@ -17,11 +26,19 @@
   assign request_ids = data.requests | map: 'profile_id'
   assign ids = ids | concat: request_ids | uniq | array_compact
   assign data.profiles = {}
-  if ids.size > 0
-    graphql p = 'modules/user/profiles/search', ids: ids, limit: 250
-    for profile in p.records.results
-      assign data.profiles[profile.id] = profile
+  assign chunks = ids.size | plus: 249 | divided_by: 250
+  if chunks > 0
+    assign last_chunk = chunks | minus: 1
+    # platformos-check-disable NestedGraphQLQuery
+    for chunk in (0..last_chunk)
+      assign offset = chunk | times: 250
+      assign chunk_ids = ids | slice: offset, 250
+      graphql p = 'modules/user/profiles/search', ids: chunk_ids, limit: 250
+      for profile in p.records.results
+        assign data.profiles[profile.id] = profile
+      endfor
     endfor
+    # platformos-check-enable NestedGraphQLQuery
   endif
   for member in data.members
     if member.id == edit_id

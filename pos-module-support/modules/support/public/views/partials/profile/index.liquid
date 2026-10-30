@@ -7,6 +7,7 @@
   @param {string} effective - Effective availability now
   @param {boolean} editable - The member is looking at their own profile
   @param {string} action - Form action URL
+  @param {string} [heading] - Page heading when it is not the member's own profile
 {% enddoc %}
 {% liquid
   assign prefs = member.notification_prefs | default: '{}' | parse_json
@@ -22,7 +23,7 @@
   endif
 %}
 <div class="pos-support-steps">
-  <h1 class="pos-heading-2">{{ 'modules/support/profile.title' | t }}</h1>
+  <h1 class="pos-heading-2">{% if heading != blank %}{{ heading }}{% else %}{{ 'modules/support/profile.title' | t }}{% endif %}</h1>
 
   {% if editable %}
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-availability">
@@ -30,7 +31,7 @@
       <div class="pos-support-segmented" role="group" aria-label="{{ 'modules/support/profile.availability' | t }}">
         {% assign states = "available,away,off" | split: ',' %}
         {% for state in states %}
-          <form action="{{ action }}" method="post">
+          <form action="{{ action }}" method="post" data-support-availability-form>
             <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
             <input type="hidden" name="change" value="availability">
             <input type="hidden" name="value" value="{{ state }}">

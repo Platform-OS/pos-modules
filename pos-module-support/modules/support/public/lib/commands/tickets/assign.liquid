@@ -40,6 +40,8 @@
   endif
   assign values.assignment_reason = reason
   function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+  # live update right after the save, before the audit row and the event
+  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'assigned', message_id: null, profile_id: assignee_id, actor_id: actor.id
 
   if assignee_id != blank
     assign now = 'now' | to_time
@@ -55,8 +57,6 @@
   assign payload.actor_id = actor.id
   assign payload.assignee_id = assignee_id
   function _ = 'modules/core/commands/events/publish', type: 'support_ticket_assigned', object: payload, delay: null, max_attempts: null
-  # live update now, not from a background consumer, so open screens follow at once
-  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'assigned', message_id: null, profile_id: assignee_id, actor_id: actor.id
 
   assign result.valid = true
   assign result.ticket = saved

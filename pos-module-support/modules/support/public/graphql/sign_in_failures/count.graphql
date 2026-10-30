@@ -1,0 +1,12 @@
+query ($email_digest: String!, $since: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/support/sign_in_failure" }
+      properties: [{ name: "email_digest", value: $email_digest }]
+      created_at: { gte: $since }
+    }
+  ) {
+    total_entries
+  }
+}

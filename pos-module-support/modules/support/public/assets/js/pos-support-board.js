@@ -143,9 +143,15 @@ if (root) {
   const departments = (root.dataset.supportDepartments || '').split(',').filter(Boolean);
   if (departments.length && window.pos && window.pos.csrfToken) {
     const consumer = createConsumer(() => `/websocket?authenticity_token=${encodeURIComponent(window.pos.csrfToken)}`);
+    // several messages for one change are merged into one card fetch
+    const timers = new Map();
     const received = (data) => {
       if (!data.ticket_id || (filtered && !cardFor(data.ticket_id))) return;
-      refresh(data.ticket_id);
+      clearTimeout(timers.get(data.ticket_id));
+      timers.set(data.ticket_id, setTimeout(() => {
+        timers.delete(data.ticket_id);
+        refresh(data.ticket_id);
+      }, 500));
     };
     departments.forEach((id) => consumer.subscriptions.create({ channel: 'support', room_id: `queue-${id}` }, { received }));
   }

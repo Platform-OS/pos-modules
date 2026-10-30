@@ -1,7 +1,7 @@
 ---
 slug: support-desk/profile
 method: post
-layout: modules/support/support
+layout: ''
 metadata:
   permission: support.tickets.read
 ---
@@ -10,9 +10,11 @@ metadata:
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
+  # the switches post respond=json (the Accept header does not reach the page)
   assign wants_json = false
-  if context.headers.HTTP_ACCEPT contains 'application/json'
+  if context.params.respond == 'json'
     assign wants_json = true
+    response_headers '{"Content-Type": "application/json"}'
   endif
   unless context.csrf_request_valid
     response_status 422

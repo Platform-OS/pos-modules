@@ -1,0 +1,25 @@
+{% doc %}
+  Reads the named form fields as plain text. A field posted as an array or a
+  hash (name[]=x, name[a]=x) reads as blank, so it cannot reach string
+  filters or GraphQL String variables, which fail on them.
+  Returns a hash of the fields.
+  @param {object} params - context.params
+  @param {string} names - Comma-separated field names
+{% enddoc %}
+{% liquid
+  assign result = {}
+  assign keys = names | split: ','
+  for key in keys
+    assign value = params[key]
+    if value == null
+      continue
+    endif
+    assign text = value | append: ''
+    if text == value
+      assign result[key] = value
+    else
+      assign result[key] = null
+    endif
+  endfor
+  return result
+%}

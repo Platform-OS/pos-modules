@@ -6,19 +6,30 @@
   assign rotate_url = '/push_notifications/subscriptions/rotate' | url_encode
   assign worker_url = '/support-desk/sw.js?vapid=' | append: vapid | append: '&rotate_url=' | append: rotate_url
 
+  # Security headers. Scripts load only from the desk and the asset CDN; the
+  # inline scripts of common-styling and push need 'unsafe-inline'. Styles
+  # and images may come from any https origin (host theme, logos, customer
+  # email images in the sandboxed frame).
+  assign asset_probe = 'modules/support/style/pos-support.css' | asset_url
+  assign asset_parts = asset_probe | split: '/'
+  assign asset_origin = asset_parts[0] | append: '//' | append: asset_parts[2]
+  assign socket_origin = 'wss://' | append: context.location.host
+  assign csp = "default-src 'self'; script-src 'self' 'unsafe-inline' " | append: asset_origin | append: "; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' " | append: socket_origin | append: ' ' | append: asset_origin | append: "; frame-src 'self'; worker-src 'self'; manifest-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+  assign security_headers = { "Cache-Control": "private, no-store", "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()", "Referrer-Policy": "strict-origin-when-cross-origin", "X-Content-Type-Options": "nosniff" }
+  assign security_headers['Content-Security-Policy'] = csp
+  assign security_headers_json = security_headers | json
+  response_headers security_headers_json
+
   assign nav = context.exports.support_nav.nav
   if member and member.state == 'active'
     if nav == blank
       assign nav = { "view": null }
     endif
-    if nav.counts == blank
-      function counts = 'modules/support/queries/tickets/counts', member: member
-      assign nav.counts = counts
-    endif
-    if nav.departments == blank
+    if nav.counts == blank or nav.departments == blank
       assign no_filters = {}
-      function department_counts = 'modules/support/queries/tickets/department_counts', member: member, view: 'all_open', filters: no_filters, include_waiting: false
-      assign nav.departments = department_counts
+      function rail = 'modules/support/queries/tickets/rail_counts', member: member, view: 'all_open', filters: no_filters, include_waiting: false
+      assign nav.counts = rail.counts
+      assign nav.departments = rail.departments
     endif
     assign current_profile = context.exports.support.current_profile
   endif

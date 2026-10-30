@@ -1,13 +1,16 @@
 {% doc %}
   @param {boolean} [failed] - Whether the last attempt failed
   @param {string} [email] - The email to prefill
+  @param {boolean} [locked] - Too many failed attempts for this email
 {% enddoc %}
 <section class="pos-support-gate" aria-labelledby="pos-support-sign-in-title">
   <div>
     <h1 id="pos-support-sign-in-title" class="pos-support-title">{{ 'modules/support/sign_in.title' | t }}</h1>
     <p class="pos-support-page-lede">{{ 'modules/support/sign_in.lede' | t }}</p>
   </div>
-  {% if failed %}
+  {% if locked %}
+    <p class="pos-support-callout pos-support-callout-danger" role="alert">{% render 'modules/support/icon', name: 'triangle-alert', size: null %}{{ 'modules/support/sign_in.locked' | t }}</p>
+  {% elsif failed %}
     <p class="pos-support-callout pos-support-callout-danger" role="alert">{% render 'modules/support/icon', name: 'triangle-alert', size: null %}{{ 'modules/support/sign_in.invalid' | t }}</p>
   {% endif %}
   <form action="/support-desk/sign-in" method="post" class="pos-form">

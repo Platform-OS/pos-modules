@@ -1,7 +1,7 @@
 ---
 slug: support-desk/contacts/:id
 method: post
-layout: modules/support/support
+layout: ''
 metadata:
   permission: support.tickets.reply
 ---
@@ -22,7 +22,8 @@ metadata:
     render 'modules/support/forbidden'
     break
   endif
-  function result = 'modules/support/commands/contacts/update', contact: contact, params: context.params, member: context.exports.support.support_member
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'change,email,name,organization_id,phone,target_email'
+  function result = 'modules/support/commands/contacts/update', contact: contact, params: form, member: context.exports.support.support_member
   if result.valid
     function _ = 'modules/user/helpers/flash', notice: 'modules/support/settings.saved', error: null, info: null, force_clear: null
   else

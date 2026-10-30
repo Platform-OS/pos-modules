@@ -1,0 +1,4 @@
+name: sign_in_failure
+properties:
+  - name: email_digest
+    type: string

@@ -9,6 +9,19 @@
     if (!window.confirm(message.replace('%{count}', count))) event.preventDefault();
   });
 
+  // forms that wait on a slow call (data-support-pending="Working…") show it on
+  // the button and cannot be sent twice
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    const pending = form.dataset && form.dataset.supportPending;
+    if (!pending || event.defaultPrevented) return;
+    const button = event.submitter || form.querySelector('button[type="submit"], button:not([type])');
+    form.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-busy', 'true'); });
+    if (button) button.textContent = pending;
+    // disabled after the submission has started, so the clicked button's value is still sent
+    setTimeout(() => form.querySelectorAll('button').forEach((b) => { b.disabled = true; }), 0);
+  });
+
   // ticket page: j / k open the next / previous ticket of the queue it came from
   document.addEventListener('keydown', (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;

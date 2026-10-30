@@ -1,0 +1,17 @@
+{% doc %}
+  True when an email has had 5 failed desk sign-ins in the last 15 minutes.
+  Only a digest of the lower-cased address is stored.
+  @param {string} email - The address typed on the sign-in form
+{% enddoc %}
+{% liquid
+  if email == blank
+    return false
+  endif
+  assign digest = email | strip | downcase | digest: 'sha256'
+  assign since = 'now' | add_to_time: -15, 'minutes' | strftime: '%Y-%m-%dT%H:%M:%S%z'
+  graphql r = 'modules/support/sign_in_failures/count', email_digest: digest, since: since
+  if r.records.total_entries >= 5
+    return true
+  endif
+  return false
+%}

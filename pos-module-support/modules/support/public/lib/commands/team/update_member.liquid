@@ -44,8 +44,12 @@
     endif
   endif
   if losing_admin
-    graphql admins = 'modules/support/team_members/search', role: 'admin', state: 'active', limit: 2
-    if admins.records.total_entries <= 1
+    # only admins whose profile still exists count: a membership left behind by
+    # a deleted user cannot sign in
+    graphql admins = 'modules/support/team_members/search', role: 'admin', state: 'active', limit: 100
+    assign admin_profile_ids = admins.records.results | map: 'profile_id'
+    graphql real_admins = 'modules/user/profiles/search', ids: admin_profile_ids, limit: 100
+    if real_admins.records.total_entries <= 1
       assign result.error = 'modules/support/team.errors.last_admin'
       return result
     endif

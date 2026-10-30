@@ -12,23 +12,24 @@ metadata:
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'respond,ticket_id,priority,status_key'
   assign wants_json = false
-  if context.params.respond == 'json'
+  if form.respond == 'json'
     assign wants_json = true
   endif
   assign result = { "valid": false, "errors": { "status": "modules/support/board.move_error" } }
-  if context.csrf_request_valid and context.params.ticket_id != blank
+  if context.csrf_request_valid and form.ticket_id != blank
     assign member = context.exports.support.support_member
-    function ticket = 'modules/support/queries/tickets/find', id: context.params.ticket_id, number: null, member: member
+    function ticket = 'modules/support/queries/tickets/find', id: form.ticket_id, number: null, member: member
     if ticket
       assign actor = { "type": "user" }
       assign actor.id = member.profile_id
       assign actor.member = member
       # a priority column changes the priority, a status column the status
-      if context.params.priority != blank
-        function result = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: context.params.priority, actor: actor
+      if form.priority != blank
+        function result = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: form.priority, actor: actor
       else
-        function result = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: context.params.status_key, actor: actor
+        function result = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: form.status_key, actor: actor
       endif
     endif
   endif
@@ -54,11 +55,10 @@ metadata:
   # back to the board the form was on: the queue page in board layout or the /support-desk/board link
   assign back = '/support-desk/board'
   assign referer = context.headers.HTTP_REFERER | default: ''
-  assign from_queue = referer | matches: '^https?://[^/]+/support-desk(\?[^#]*)?$'
+  assign from_queue = referer | matches: '^https?://[^/]+/support-desk(/board)?(\?[^#]*)?$'
   if from_queue
     # only the path and query are kept, so the redirect stays on this site
-    assign parts = referer | split: '/support-desk'
-    assign back = '/support-desk' | append: parts[1]
+    assign back = referer | replace_regex: '^https?://[^/]+', ''
   endif
   redirect_to back
 %}

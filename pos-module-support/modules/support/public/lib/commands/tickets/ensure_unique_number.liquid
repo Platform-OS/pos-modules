@@ -1,0 +1,42 @@
+{% doc %}
+  Gives a ticket a new number when an older ticket already has its number.
+  The counter's increment is atomic, but two tickets created at the same
+  moment can read back the same value; the older ticket keeps the number.
+  Called right after creation and again before the acknowledgement email,
+  when every ticket created at the same moment exists.
+  Returns the ticket's number.
+  @param {string} ticket_id - The ticket to check
+{% enddoc %}
+{% liquid
+  graphql own = 'modules/support/tickets/search', id: ticket_id, limit: 1
+  assign ticket = own.records.results.first
+  if ticket == blank
+    return null
+  endif
+  assign number = ticket.number
+  assign own_id = ticket.id | plus: 0
+  # at most 3 rounds, and only while the number is taken
+  # platformos-check-disable NestedGraphQLQuery
+  for attempt in (1..3)
+    graphql same = 'modules/support/tickets/search', number: number, limit: 10
+    assign taken = false
+    for other in same.records.results
+      assign other_id = other.id | plus: 0
+      if other_id < own_id
+        assign taken = true
+      endif
+    endfor
+    unless taken
+      break
+    endunless
+    function fresh = 'modules/support/commands/counters/next', key: 'ticket_number'
+    assign values = { "number": null }
+    assign values.number = fresh
+    function props = 'modules/support/helpers/props', values: values
+    graphql _ = 'modules/support/records/update', id: ticket.id, properties: props
+    function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'renumbered', from_value: number, to_value: fresh, reason: 'duplicate number'
+    assign number = fresh
+  endfor
+  # platformos-check-enable NestedGraphQLQuery
+  return number
+%}

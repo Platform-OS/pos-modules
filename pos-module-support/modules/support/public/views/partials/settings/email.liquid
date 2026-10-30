@@ -25,7 +25,7 @@
       </p>
       {% for problem in status.problems %}<p class="pos-support-error">{{ problem }}</p>{% endfor %}
     {% endif %}
-    <form action="/support-desk/settings/email" method="post" class="pos-form">
+    <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}" class="pos-form">
       <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
       <input type="hidden" name="step" value="key">
       <fieldset>
@@ -48,7 +48,7 @@
       <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step1.save' | t }}</button>
     </form>
     {% if provider_set %}
-      <form action="/support-desk/settings/email" method="post">
+      <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="step" value="check">
         <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings_email.step1.check' | t }}</button>
@@ -59,7 +59,7 @@
   {% if status.key_ok %}
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step2">
       <h2 id="pos-support-email-step2" class="pos-heading-3">2. {{ 'modules/support/settings_email.step2.title' | t }}</h2>
-      <form action="/support-desk/settings/email" method="post" class="pos-form">
+      <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}" class="pos-form">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="step" value="domain">
         <fieldset>
@@ -94,7 +94,7 @@
         {% if status.rotation_pending_url %}
           <p class="pos-support-error">{{ 'modules/support/settings_email.rotation_manual' | t }} <code>{{ status.rotation_pending_url }}</code></p>
         {% endif %}
-        <form action="/support-desk/settings/email" method="post">
+        <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="step" value="rotate">
           <button type="submit" class="pos-button pos-button-danger" data-support-confirm="{{ 'modules/support/settings_email.rotate_confirm' | t }}">{{ 'modules/support/settings_email.rotate' | t }}</button>
@@ -103,7 +103,7 @@
       {% endif %}
       {% if status.inbound_created == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step3.created' | t }}</p>{% endif %}
       {% if status.inbound_error %}<p class="pos-support-error">{{ status.inbound_error }}</p>{% endif %}
-      <form action="/support-desk/settings/email" method="post" class="pos-form">
+      <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}" class="pos-form">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="step" value="inbound">
         <fieldset>
@@ -134,13 +134,13 @@
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-email-step5">
       <h2 id="pos-support-email-step5" class="pos-heading-3">5. {{ 'modules/support/settings_email.step5.title' | t }}</h2>
       {% if status.test_ok == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step5.sent' | t }}</p>{% elsif status.test_ok == false %}<p class="pos-support-error">{{ status.test_error }}</p>{% endif %}
-      <form action="/support-desk/settings/email" method="post">
+      <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="step" value="test">
         <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step5.send' | t }}</button>
       </form>
       {% if status.inbound_checked == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.step5.inbound_received' | t }} {% render 'modules/support/time', time: status.inbound_checked_at, style: 'relative' %}</p>{% elsif status.inbound_check_sent_at %}<p>{{ 'modules/support/settings_email.step5.inbound_waiting' | t }}</p>{% endif %}
-      <form action="/support-desk/settings/email" method="post">
+      <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="step" value="check_inbound">
         <button type="submit" class="pos-button">{{ 'modules/support/settings_email.step5.check_inbound' | t }}</button>
@@ -151,7 +151,7 @@
       <h2 id="pos-support-email-events" class="pos-heading-3">{{ 'modules/support/settings_email.events_title' | t }}</h2>
       <p class="pos-supplementary">{{ 'modules/support/settings_email.events_help' | t }}</p>
       {% if status.events_ok == true %}<p class="pos-support-ok">{{ 'modules/support/settings_email.ok' | t }}</p>{% elsif status.events_ok == false %}<p class="pos-support-error">{{ status.events_error }}</p>{% endif %}
-      <form action="/support-desk/settings/email" method="post">
+      <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="step" value="events">
         <button type="submit" class="pos-button">{% if settings.event_webhook_id %}{{ 'modules/support/settings_email.events_update' | t }}{% else %}{{ 'modules/support/settings_email.events_create' | t }}{% endif %}</button>
@@ -162,14 +162,14 @@
       <h2 id="pos-support-email-step6" class="pos-heading-3">6. {{ 'modules/support/settings_email.step6.title' | t }}</h2>
       {% if status.enabled %}
         <p class="pos-support-ok">{{ 'modules/support/settings_email.step6.on' | t }}</p>
-        <form action="/support-desk/settings/email" method="post">
+        <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="step" value="disable">
           <button type="submit" class="pos-button pos-button-danger" data-support-confirm="{{ 'modules/support/settings_email.step6.turn_off_confirm' | t }}">{{ 'modules/support/settings_email.step6.turn_off' | t }}</button>
         </form>
       {% else %}
         <p>{{ 'modules/support/settings_email.step6.off' | t }}</p>
-        <form action="/support-desk/settings/email" method="post">
+        <form action="/support-desk/settings/email" method="post" data-support-pending="{{ 'modules/support/settings_email.working' | t }}">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="step" value="enable">
           <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings_email.step6.turn_on' | t }}</button>

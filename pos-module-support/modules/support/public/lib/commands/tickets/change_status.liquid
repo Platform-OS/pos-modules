@@ -45,6 +45,9 @@
     assign values.closed_at = null
   endif
   function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+  # live update right after the save, before the audit row and the event, so
+  # open screens follow as soon as possible
+  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'updated', message_id: null, profile_id: null, actor_id: actor.id
 
   function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'status_changed', from_value: previous.key, to_value: status.key, reason: null
   assign payload = { "ticket_id": null, "actor_id": null, "from_value": null, "to_value": null }
@@ -53,8 +56,6 @@
   assign payload.from_value = previous.key
   assign payload.to_value = status.key
   function _ = 'modules/core/commands/events/publish', type: 'support_ticket_status_changed', object: payload, delay: null, max_attempts: null
-  # live update now, not from a background consumer, so open screens follow at once
-  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'updated', message_id: null, profile_id: null, actor_id: actor.id
 
   assign result.valid = true
   assign result.ticket = saved

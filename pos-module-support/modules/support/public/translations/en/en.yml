@@ -129,6 +129,7 @@ en:
     move_error: The ticket could not be moved.
     empty_column: Drop a ticket here
   sign_in:
+    locked: Too many failed attempts for this email. Wait 15 minutes, or reset your password.
     title: Sign in to Support
     lede: Use your work email and password.
     email: Email
@@ -148,6 +149,7 @@ en:
     body: Your support role doesn't include this page.
     back: Back to the queue
   team:
+    deleted_user: Deleted user (no profile)
     requests: Access requests
     approve: Approve
     decline: Decline
@@ -256,6 +258,7 @@ en:
     ticket_reference: "%{brand} · ticket #%{number}"
   settings_email:
     title: Email
+    working: Working… this can take a few seconds
     intro: Connect your email provider, receive email as tickets and send replies from your department addresses.
     ok: Working
     failed: Not working
@@ -457,6 +460,7 @@ en:
     bounced_warning: Email to this customer bounced before. Check the address before replying.
   activity:
     created: "created the ticket (#%{to})"
+    renumbered: "renumbered the ticket from #%{from} to #%{to} (the number was taken)"
     status_changed: "changed status from %{from} to %{to}"
     assigned: assigned the ticket
     priority_changed: "changed priority from %{from} to %{to}"
@@ -538,6 +542,7 @@ en:
     "off": "Off"
   profile:
     title: My profile
+    agent_title: "Alerts for %{name}"
     availability: Availability
     effective: "Right now you are:"
     pause: Pause all alerts

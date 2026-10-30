@@ -49,8 +49,21 @@ if (root && window.pos && window.pos.csrfToken) {
     if (head) head.after(row);
     else lane.prepend(row);
   };
+  // one change often arrives as several messages (the command, then its
+  // consumers): fetch the row once per ticket within half a second
+  const pending = new Map();
+  const queueRefresh = (ticketId, kind) => {
+    const previous = pending.get(ticketId);
+    if (previous) clearTimeout(previous.timer);
+    const created = kind === 'created' || (previous && previous.kind === 'created');
+    const timer = setTimeout(() => {
+      pending.delete(ticketId);
+      refreshRow(ticketId, created ? 'created' : kind);
+    }, 500);
+    pending.set(ticketId, { timer, kind: created ? 'created' : kind });
+  };
   if (tbody) {
-    departments.forEach((id) => subscribe(`queue-${id}`, (data) => refreshRow(data.ticket_id, data.kind)));
+    departments.forEach((id) => subscribe(`queue-${id}`, (data) => queueRefresh(data.ticket_id, data.kind)));
   }
 
   // Ticket page: presence and the new-message guard.

@@ -1714,6 +1714,12 @@
     font-size: var(--pos-support-text-meta);
   }
 
+  .pos-support-lane-pager {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
   .pos-support-column-title {
     display: inline-flex;
     align-items: center;
@@ -3004,7 +3010,7 @@
       inline-size: min(18rem, 85vw);
       block-size: 100dvh;
       transform: translateX(-102%);
-      transition: transform 200ms var(--pos-support-ease);
+      transition: transform 100ms var(--pos-support-ease);
       box-shadow: var(--pos-support-shadow-lg);
     }
 

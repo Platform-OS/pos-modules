@@ -1,0 +1,12 @@
+{% doc %}
+  Records a failed desk sign-in for an address (digest only).
+  @param {string} email - The address typed on the sign-in form
+{% enddoc %}
+{% liquid
+  if email == blank
+    return null
+  endif
+  assign digest = email | strip | downcase | digest: 'sha256'
+  graphql r = 'modules/support/sign_in_failures/create', email_digest: digest
+  return r.record.id
+%}

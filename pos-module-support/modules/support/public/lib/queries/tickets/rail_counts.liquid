@@ -1,0 +1,33 @@
+{% doc %}
+  Counts for the rail and the attention strip (queries/tickets/counts) and
+  per department (queries/tickets/department_counts), cached for a minute.
+  The cache key includes the time of the last change to any ticket, so any
+  ticket write shows up on the next page; the minute bounds other changes
+  (departments, membership).
+  Returns { counts, departments }.
+  @param {object} member - The acting team_member
+  @param {string} view - Queue view key
+  @param {object} filters - Current filters; department_id is ignored
+  @param {boolean} include_waiting - Same meaning as in queries/tickets/search
+{% enddoc %}
+{% liquid
+  graphql last = 'modules/support/tickets/last_change'
+  assign stamp = last.records.results.first.updated_at | append: '/' | append: last.records.total_entries
+  assign scope = member.department_ids | default: [] | join: ','
+  assign filter_key = filters | json
+  assign raw_key = member.id | append: '|' | append: member.role | append: '|' | append: scope | append: '|' | append: view | append: '|' | append: filter_key | append: '|' | append: include_waiting | append: '|' | append: stamp
+  assign key = raw_key | digest: 'md5' | prepend: 'support-rail-'
+
+  capture cached
+    cache key, expire: 60
+      function counts = 'modules/support/queries/tickets/counts', member: member
+      function departments = 'modules/support/queries/tickets/department_counts', member: member, view: view, filters: filters, include_waiting: include_waiting
+      assign both = { "counts": null, "departments": null }
+      assign both.counts = counts
+      assign both.departments = departments
+      echo both | json | html_safe
+    endcache
+  endcapture
+  assign result = cached | parse_json
+  return result
+%}

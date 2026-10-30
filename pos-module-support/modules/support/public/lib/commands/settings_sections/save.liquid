@@ -16,17 +16,27 @@
   when 'saved_replies'
     function result = 'modules/support/commands/settings_sections/saved_reply', params: params
   when 'assignment'
+    # every value is checked first, then only the ones that changed are written
+    function current = 'modules/support/helpers/settings'
     assign integers = "unassigned_alert_minutes,unassigned_alert_minutes_p0,escalate_after_minutes" | split: ','
+    assign changes = {}
     for key in integers
       assign value = params[key] | plus: 0
       if value < 1 or value > 10080
         assign result.error = 'modules/support/settings.errors.number'
         return result
       endif
-      function _ = 'modules/support/commands/settings/set', key: key, value: value
+      if current[key] != value
+        assign changes[key] = value
+      endif
     endfor
     assign threshold = params.spam_threshold | plus: 0.0
-    function _ = 'modules/support/commands/settings/set', key: 'spam_threshold', value: threshold
+    if current.spam_threshold != threshold
+      assign changes.spam_threshold = threshold
+    endif
+    for change in changes
+      function _ = 'modules/support/commands/settings/set', key: change[0], value: change[1]
+    endfor
     assign result.valid = true
   when 'confirmation'
     assign modes = ["auto_close", "keep_open"]

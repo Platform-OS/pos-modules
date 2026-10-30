@@ -6,15 +6,31 @@ layout: modules/support/support
 {% liquid
   unless context.csrf_request_valid
     response_status 422
-    render 'modules/support/auth/sign_in', failed: true, email: null
+    render 'modules/support/auth/sign_in', failed: true, email: null, locked: false
     break
   endunless
+
+  # 5 failed attempts for an email within 15 minutes lock it for the rest of
+  # that window; a locked email is refused without checking the password
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'email,password'
+  function locked = 'modules/support/queries/sign_in/locked', email: form.email
+  if locked
+    response_status 429
+    render 'modules/support/auth/sign_in', failed: true, email: form.email, locked: true
+    break
+  endif
+  if form.email == blank or form.password == blank
+    function _ = 'modules/support/commands/sign_in/record_failure', email: form.email
+    response_status 422
+    render 'modules/support/auth/sign_in', failed: true, email: form.email, locked: false
+    break
+  endif
 
   if context.session.return_to == blank
     session return_to = '/support-desk'
   endif
 
-  function res = 'modules/user/commands/session/create', email: context.params.email, password: context.params.password, hook_params: context.params, validate_password: true, skip_otp: null, user_id: null
+  function res = 'modules/user/commands/session/create', email: form.email, password: form.password, hook_params: context.params, validate_password: true, skip_otp: null, user_id: null
   if res.valid and res.otp_required
     render 'modules/user/2fa/verify', object: context.params
   elsif res.valid and res.email_verification_required
@@ -23,15 +39,18 @@ layout: modules/support/support
     assign target = '/users/check-email?email=' | append: encoded_email
     redirect_to target
   elsif res.valid
+    # only a path inside the desk; no protocol-relative or backslash tricks
     assign target = context.session.return_to | default: '/support-desk'
-    assign internal = target | matches: '^/(?!/)'
-    unless internal
+    assign internal = target | matches: '^/support-desk(?:[/?#]|$)'
+    assign backslash = '%5C' | url_decode
+    if internal == false or target contains backslash
       assign target = '/support-desk'
-    endunless
+    endif
     session return_to = null
     redirect_to target
   else
+    function _ = 'modules/support/commands/sign_in/record_failure', email: form.email
     response_status 422
-    render 'modules/support/auth/sign_in', failed: true, email: context.params.email
+    render 'modules/support/auth/sign_in', failed: true, email: form.email, locked: false
   endif
 %}

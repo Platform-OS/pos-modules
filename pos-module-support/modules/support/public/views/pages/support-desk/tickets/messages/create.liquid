@@ -27,20 +27,21 @@ metadata:
   assign actor = { "type": "user" }
   assign actor.id = member.profile_id
   assign actor.member = member
-  function body_html = 'modules/support/helpers/text_to_html', text: context.params.body
-  if context.params.mode == 'note'
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'body,mode,cc,then_status'
+  function body_html = 'modules/support/helpers/text_to_html', text: form.body
+  if form.mode == 'note'
     function result = 'modules/support/commands/messages/create_note', ticket: ticket, body_html: body_html, mentioned_ids: null, actor: actor
   else
-    assign cc_emails = context.params.cc | split: ','
+    assign cc_emails = form.cc | split: ','
     assign attachments = []
+    # each attachment is a hash of three text fields; anything else is skipped
     for item in context.params.attachments
-      assign file = { "filename": null, "content_type": null, "content_base64": null }
-      assign file.filename = item.filename
-      assign file.content_type = item.content_type
-      assign file.content_base64 = item.content_base64
-      assign attachments << file
+      function file = 'modules/support/helpers/text_params', params: item, names: 'filename,content_type,content_base64'
+      if file.filename != blank and file.content_base64 != blank
+        assign attachments << file
+      endif
     endfor
-    function result = 'modules/support/commands/messages/create_reply', ticket: ticket, body_html: body_html, cc_emails: cc_emails, then_status_key: context.params.then_status, attachments: attachments, actor: actor
+    function result = 'modules/support/commands/messages/create_reply', ticket: ticket, body_html: body_html, cc_emails: cc_emails, then_status_key: form.then_status, attachments: attachments, actor: actor
   endif
 
   if result.valid

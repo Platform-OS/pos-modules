@@ -1,0 +1,18 @@
+{% doc %}
+  Background job for a large inbound email: stores it (with the blocklist
+  check of commands/inbound/store) and processes it, so the webhook can
+  answer the provider at once instead of after saving megabytes.
+  @param {string} email - The raw MIME message
+  @param {string} [envelope] - Provider envelope JSON
+  @param {string} [spf] - SPF result
+  @param {string} [dkim] - DKIM result
+  @param {string} [spam_score] - Provider spam score
+  @param {string} [charsets] - Provider charsets JSON
+{% enddoc %}
+{% liquid
+  function stored = 'modules/support/commands/inbound/store', email: email, envelope: envelope, spf: spf, dkim: dkim, spam_score: spam_score, charsets: charsets
+  if stored.valid
+    function _ = 'modules/support/commands/inbound/process', inbound_email_id: stored.id
+  endif
+  return stored
+%}

@@ -13,6 +13,18 @@ mutation ($department_id: String!) {
   ) {
     count
   }
+  resolver_members: records_delete_all(
+    table: "modules/support/team_member"
+    sync: true
+    filter: {
+      or: [
+        { properties: [{ name: "profile_id", starts_with: "sa-" }] }
+        { properties: [{ name: "profile_id", starts_with: "rm-" }] }
+      ]
+    }
+  ) {
+    count
+  }
   delivery: records_delete_all(
     table: "modules/support/ticket"
     sync: true

@@ -1,0 +1,12 @@
+query {
+  records(
+    per_page: 1
+    filter: { table: { value: "modules/support/ticket" } }
+    sort: [{ updated_at: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      updated_at
+    }
+  }
+}

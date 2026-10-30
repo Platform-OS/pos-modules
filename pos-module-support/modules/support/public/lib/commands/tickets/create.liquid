@@ -53,6 +53,11 @@
   assign ticket = values
   assign ticket.id = r.record.id
   assign ticket.valid = true
+  function checked = 'modules/support/commands/tickets/ensure_unique_number', ticket_id: ticket.id
+  if checked != blank and checked != number
+    assign number = checked
+    assign ticket.number = checked
+  endif
 
   function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: object.actor_type, actor_id: object.actor_id, event_type: 'created', from_value: null, to_value: number, reason: object.channel
   assign payload = { "ticket_id": null, "actor_id": null }

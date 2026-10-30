@@ -14,18 +14,32 @@ metadata:
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'respond,return_to,bulk_assignee,bulk_status,bulk_priority,bulk_spam'
   assign wants_json = false
-  if context.params.respond == 'json'
+  if form.respond == 'json'
     assign wants_json = true
   endif
-  assign target = context.params.return_to | default: '/support-desk'
-  assign internal = target | matches: '^/support-desk(?:[/?]|$)'
-  unless internal
+  assign target = form.return_to | default: '/support-desk'
+  assign internal = target | matches: '^/support-desk(?:[/?#]|$)'
+  assign backslash = '%5C' | url_decode
+  if internal == false or target contains backslash
     assign target = '/support-desk'
-  endunless
+  endif
 
+  # ids: only numeric record ids from an ids[] list
   assign error = null
-  assign ids = context.params.ids | default: [] | uniq
+  assign ids = []
+  assign posted_ids = context.params.ids
+  if posted_ids.first != null
+    for id in posted_ids
+      assign text = id | append: ''
+      assign numeric = text | matches: '^[0-9]+$'
+      if text == id and numeric
+        assign ids << id
+      endif
+    endfor
+  endif
+  assign ids = ids | uniq
   unless context.csrf_request_valid
     assign error = 'modules/support/queue.bulk_expired'
   endunless
@@ -37,10 +51,10 @@ metadata:
   if error == blank and ids.size > 0
     assign member = context.exports.support.support_member
     assign spam = false
-    assign assignee = context.params.bulk_assignee
-    assign status_key = context.params.bulk_status
-    assign priority = context.params.bulk_priority
-    if context.params.bulk_spam == '1'
+    assign assignee = form.bulk_assignee
+    assign status_key = form.bulk_status
+    assign priority = form.bulk_priority
+    if form.bulk_spam == '1'
       assign spam = true
       assign assignee = null
       assign status_key = null

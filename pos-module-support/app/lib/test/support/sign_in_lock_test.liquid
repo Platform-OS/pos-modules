@@ -1,0 +1,21 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # 5 failed sign-ins for an email within 15 minutes lock it; other emails
+  # and the case of the address do not matter
+  assign suffix = 8 | random_string | downcase
+  assign email = 'lock-' | append: suffix | append: '@example.com'
+  assign other = 'other-' | append: suffix | append: '@example.com'
+  for i in (1..4)
+    function _ = 'modules/support/commands/sign_in/record_failure', email: email
+  endfor
+  function locked = 'modules/support/queries/sign_in/locked', email: email
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: locked, expected: false, field_name: '4 failures do not lock'
+  assign upper = email | upcase
+  function _ = 'modules/support/commands/sign_in/record_failure', email: upper
+  function locked = 'modules/support/queries/sign_in/locked', email: email
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: locked, expected: true, field_name: '5 failures lock'
+  function other_locked = 'modules/support/queries/sign_in/locked', email: other
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: other_locked, expected: false, field_name: 'other email not locked'
+%}

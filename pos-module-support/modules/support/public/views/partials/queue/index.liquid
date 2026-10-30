@@ -106,9 +106,20 @@
               {% for ticket in group.tickets %}
                 {% render 'modules/support/queue/row', ticket: ticket, lookup: groups.lookup, link_query: link_query %}
               {% endfor %}
-              {% if group.total > group.tickets.size %}
+              {% if group.expanded and group.pages > 1 %}
+                {% assign lane_url = '/support-desk?' | append: page_data.query | append: '&expand=' | append: group.key | append: '&lane_page=' %}
                 <tr class="pos-support-lane-more">
-                  <td colspan="10"><a href="/support-desk?{{ page_data.query }}&expand={{ group.key }}">{{ 'modules/support/queue.show_all' | t: count: group.total }}</a></td>
+                  <td colspan="10">
+                    <nav class="pos-support-lane-pager" aria-label="{{ 'modules/support/queue.pages' | t }}">
+                      <span class="pos-support-tnum">{{ 'modules/support/queue.range' | t: first: group.first, last: group.last, total: group.total }}</span>
+                      {% if group.page > 1 %}<a href="{{ lane_url }}{{ group.page | minus: 1 }}" rel="prev">{{ 'modules/support/queue.previous' | t }}</a>{% endif %}
+                      {% if group.page < group.pages %}<a href="{{ lane_url }}{{ group.page | plus: 1 }}" rel="next">{{ 'modules/support/queue.next' | t }}</a>{% endif %}
+                    </nav>
+                  </td>
+                </tr>
+              {% elsif group.expanded == false and group.total > group.tickets.size %}
+                <tr class="pos-support-lane-more">
+                  <td colspan="10"><a href="/support-desk?{{ page_data.query }}&expand={{ group.key }}&lane_page=1">{{ 'modules/support/queue.show_all' | t: count: group.total }}</a></td>
                 </tr>
               {% endif %}
             </tbody>

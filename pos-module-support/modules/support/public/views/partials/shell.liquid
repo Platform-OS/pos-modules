@@ -94,6 +94,7 @@
         <form action="/sessions" method="post" class="pos-support-signout">
           <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
           <input type="hidden" name="_method" value="delete">
+          <input type="hidden" name="redirect_to" value="/support-desk/sign-in">
           <button type="submit" class="pos-button pos-button-icon pos-button-small" title="{{ 'modules/support/shell.sign_out' | t }}">
             {% render 'modules/support/icon', name: 'log-out', size: null %}
             <span class="pos-support-sr-only">{{ 'modules/support/shell.sign_out' | t }}</span>

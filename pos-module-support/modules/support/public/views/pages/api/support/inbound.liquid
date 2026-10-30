@@ -14,9 +14,18 @@ layout: ''
     break
   endunless
 
-  function stored = 'modules/support/commands/inbound/store', email: context.params.email, envelope: context.params.envelope, spf: context.params.SPF, dkim: context.params.dkim, spam_score: context.params.spam_score, charsets: context.params.charsets
+  # A large email (attachments) is stored by a background job: saving
+  # megabytes took seconds, and a slow answer makes the provider retry.
+  # A job carries 14 MB of arguments (checked); above that it is saved here.
+  assign raw = context.params.email
+  if raw.size > 1000000 and raw.size <= 14000000
+    background _ = 'modules/support/commands/inbound/store_and_process', email: raw, envelope: context.params.envelope, spf: context.params.SPF, dkim: context.params.dkim, spam_score: context.params.spam_score, charsets: context.params.charsets, max_attempts: 3, source_name: 'support_inbound', priority: 'high'
+    response_status 200
+    break
+  endif
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: context.params.envelope, spf: context.params.SPF, dkim: context.params.dkim, spam_score: context.params.spam_score, charsets: context.params.charsets
   if stored.valid
-    background _ = 'modules/support/commands/inbound/process', inbound_email_id: stored.id, max_attempts: 3, source_name: 'support_inbound'
+    background _ = 'modules/support/commands/inbound/process', inbound_email_id: stored.id, max_attempts: 3, source_name: 'support_inbound', priority: 'high'
   endif
   response_status 200
 %}

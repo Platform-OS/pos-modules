@@ -1,0 +1,26 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # Two tickets created at the same moment can read back the same counter
+  # value; the newer one gets a new number, the older one keeps it.
+  function first = 'support_test_helpers/ticket_fixture', label: 'num-a'
+  function second = 'support_test_helpers/ticket_fixture', label: 'num-b'
+  assign shared = first.ticket.number
+  assign values = { "number": null }
+  assign values.number = shared
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: second.ticket.id, properties: props
+
+  function kept = 'modules/support/commands/tickets/ensure_unique_number', ticket_id: first.ticket.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: kept, expected: shared, field_name: 'older ticket keeps its number'
+
+  function moved = 'modules/support/commands/tickets/ensure_unique_number', ticket_id: second.ticket.id
+  assign differs = false
+  if moved != shared and moved != blank
+    assign differs = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: differs, field_name: 'newer ticket renumbered', object: null
+  graphql same = 'modules/support/tickets/search', number: shared, limit: 10
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: same.records.total_entries, expected: 1, field_name: 'number unique again'
+%}

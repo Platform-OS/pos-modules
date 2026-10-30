@@ -1,0 +1,5 @@
+mutation ($email_digest: String!) {
+  record: record_create(record: { table: "modules/support/sign_in_failure", properties: [{ name: "email_digest", value: $email_digest }] }) {
+    id
+  }
+}

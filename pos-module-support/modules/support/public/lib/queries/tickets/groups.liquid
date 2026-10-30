@@ -8,7 +8,8 @@
   @param {object} filters - { department_id, priority, status_key, assignee_id, q, sort }
   @param {string} by - priority | status
   @param {string} layout - list | board (the board of All open also shows waiting tickets)
-  @param {string} [expand] - Group key that loads up to 200 tickets
+  @param {string} [expand] - Group key shown in pages of 100 tickets
+  @param {string} [expand_page] - Page of the expanded group, from 1
 {% enddoc %}
 {% liquid
   assign limit = 25
@@ -92,13 +93,29 @@
       assign group_filters.priority = spec.key
     endif
     assign group_limit = limit
+    assign group_page = 1
+    assign expanded = false
     if expand == spec.key
-      assign group_limit = 200
+      assign expanded = true
+      # the list pages through the lane; a board column shows up to 200 cards
+      assign group_limit = 100
+      if layout == 'board'
+        assign group_limit = 200
+      endif
+      assign group_page = expand_page | plus: 0
+      if group_page < 1
+        assign group_page = 1
+      endif
     endif
-    function page = 'modules/support/queries/tickets/search', member: member, view: view, filters: group_filters, page: 1, per_page: group_limit, skip_lookup: true, include_waiting: include_waiting
+    function page = 'modules/support/queries/tickets/search', member: member, view: view, filters: group_filters, page: group_page, per_page: group_limit, skip_lookup: true, include_waiting: include_waiting
     assign group = spec
     assign group.tickets = page.results
     assign group.total = page.total_entries
+    assign group.expanded = expanded
+    assign group.page = group_page
+    assign group.pages = page.total_entries | plus: group_limit | minus: 1 | divided_by: group_limit
+    assign group.first = group_page | minus: 1 | times: group_limit | plus: 1
+    assign group.last = group.first | plus: page.results.size | minus: 1
     assign result.groups << group
     assign result.total = result.total | plus: page.total_entries
     assign all_tickets = all_tickets | concat: page.results

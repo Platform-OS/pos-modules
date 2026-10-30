@@ -32,7 +32,8 @@ metadata:
     break
   endif
 
-  function result = 'modules/support/commands/tickets/apply_form', ticket: ticket, params: context.params, member: member
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'change,status_key,priority,assignee_id,department_id,tags,snooze_until,issue_url,target_number'
+  function result = 'modules/support/commands/tickets/apply_form', ticket: ticket, params: form, member: member
 
   if wants_json
     response_headers '{"Content-Type": "application/json"}'

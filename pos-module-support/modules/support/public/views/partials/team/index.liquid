@@ -45,6 +45,16 @@
               <td>{{ 'modules/support/team.sources.' | append: member.source | t }}</td>
               <td><a href="/support-desk/settings/team?edit={{ member.id }}">{{ 'modules/support/settings.edit' | t }}</a> · <a href="/support-desk/settings/agents/{{ member.profile_id }}">{{ 'modules/support/team.alerts' | t }}</a></td>
             </tr>
+          {% else %}
+            {% comment %} the user behind this membership was deleted: listed so it can be disabled {% endcomment %}
+            <tr>
+              <td><span class="pos-support-muted">{{ 'modules/support/team.deleted_user' | t }}</span></td>
+              <td>{{ 'modules/support/team.roles.' | append: member.role | t }}</td>
+              <td></td>
+              <td>{{ 'modules/support/team.states.' | append: member.state | t }}</td>
+              <td>{{ 'modules/support/team.sources.' | append: member.source | t }}</td>
+              <td><a href="/support-desk/settings/team?edit={{ member.id }}">{{ 'modules/support/settings.edit' | t }}</a></td>
+            </tr>
           {% endif %}
         {% endfor %}
       </tbody>
