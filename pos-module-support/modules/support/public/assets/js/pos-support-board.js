@@ -1,8 +1,8 @@
 // Board (D-26): drag a card to another column, or use its "Move to" form.
 // Both post to /support-desk/board/move; with respond=json the server answers
-// with JSON instead of a redirect, and the card is re-fetched so it lands in its sorted place (or back
-// where it was when the move is refused). Changes from the queue rooms
-// refresh cards the same way.
+// with JSON instead of a redirect. The card moves before the answer arrives
+// and goes back when the move is refused; it is re-fetched afterwards. Changes
+// from the queue rooms refresh cards the same way.
 import { createConsumer } from './vendor/actioncable-8.0.100.esm.js';
 
 const root = document.querySelector('[data-support-board]');
@@ -63,6 +63,8 @@ if (root) {
     }
   };
 
+  // The card moves at once; it goes back to where it was if the server
+  // refuses, and is re-fetched afterwards for its final content and place.
   const move = async (card, key) => {
     const form = card.querySelector('form.pos-support-move');
     const data = new FormData(form);
@@ -70,6 +72,18 @@ if (root) {
     data.delete('priority');
     data.set(byPriority ? 'priority' : 'status_key', key);
     data.set('respond', 'json');
+
+    const from = card.closest('.pos-support-column');
+    const nextSibling = card.nextElementSibling;
+    const target = column(key);
+    const field = byPriority ? 'priority' : 'statusKey';
+    const previousKey = card.dataset[field];
+    if (target && target !== from) {
+      card.dataset[field] = key;
+      place(card, target);
+      adjustCount(from, -1);
+      adjustCount(target, 1);
+    }
     card.setAttribute('aria-busy', 'true');
     let error = null;
     try {
@@ -80,8 +94,19 @@ if (root) {
       error = root.dataset.supportMoveError;
     }
     card.removeAttribute('aria-busy');
-    if (error) toast('error', error);
-    await refresh(card.dataset.ticketId);
+    if (error) {
+      if (target && target !== from) {
+        card.dataset[field] = previousKey;
+        const cards = from.querySelector('[data-cards]');
+        cards.insertBefore(card, nextSibling && nextSibling.parentNode === cards ? nextSibling : null);
+        adjustCount(target, -1);
+        adjustCount(from, 1);
+      }
+      toast('error', error);
+    } else {
+      toast('success', root.dataset.supportMoved);
+    }
+    refresh(card.dataset.ticketId);
   };
 
   const bind = (card) => {

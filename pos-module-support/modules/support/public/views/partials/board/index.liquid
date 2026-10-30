@@ -12,7 +12,7 @@
     assign filtered = true
   endif
 %}
-<div class="pos-support-queue" data-support-board data-support-group="{{ page_data.group }}" data-support-filtered="{{ filtered }}" data-support-departments="{{ page_data.live_departments }}" data-support-move-error="{{ 'modules/support/board.move_error' | t }}">
+<div class="pos-support-queue" data-support-board data-support-group="{{ page_data.group }}" data-support-filtered="{{ filtered }}" data-support-departments="{{ page_data.live_departments }}" data-support-move-error="{{ 'modules/support/board.move_error' | t }}" data-support-moved="{{ 'modules/support/board.moved' | t }}">
   {% render 'modules/support/queue/head', page_data: page_data, member: member %}
 
   <div class="pos-support-board">
