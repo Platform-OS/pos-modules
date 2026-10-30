@@ -1,6 +1,7 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './page';
 import { UppyUploader } from './components/uppyUploader';
+import path from 'path';
 
 export class PeoplePage extends BasePage {
   readonly page: Page;
@@ -113,6 +114,14 @@ export class InboxPage extends BasePage {
     return isAuthorHeaderVisible;
   }
 
+  // A conversation is only created with its first message or attachment (opening the inbox
+  // only reads) - this starts it the same way, without sending anything, for tests that need
+  // its id or its connected channel first. Returns the conversation id.
+  async startConversation(): Promise<string> {
+    await this.chat.messageInputFieldEnabled.waitFor();
+    return await this.page.evaluate(() => (window as any).pos.modules.active.chat.startConversation());
+  }
+
   // The id of the currently open conversation (the `conversate` channel's room id),
   // exposed by the inbox as #pos-chat-inbox[data-conversation-id].
   async currentConversationId() {
@@ -136,7 +145,8 @@ class Search {
     return this.results.locator('.pos-chat-conversationCard-name').getByText(fullName, { exact: true });
   }
 
-  // fill() fires a single input event, so only one search request is made
+  // fill() fires a single input event, so only one search request is made. It doesn't wait
+  // for pos-chat.js to start: a query typed before that is searched for once it does.
   async searchFor(query: string) {
     await this.input.fill(query);
   }
@@ -233,9 +243,9 @@ class MessageBox {
     return this.getMessage(type).getByText(text);
   }
 
-  //getMessageDate(text: string): Promise<string> {
-  //  return this.getMessageByText(text).locator('..').locator('time').innerText();
-  //}
+  getMessageDate(text: string): Locator {
+    return this.page.locator('li.pos-chat-message').filter({ has: this.page.getByText(text, { exact: true }) }).locator('time');
+  }
 
   countMessages(type?: string) {
     if (type === "sent") return this.countSentMessageBox();
@@ -308,7 +318,7 @@ class Chat {
   readonly messageBox: MessageBox;
   readonly messageInputField: Locator;
   readonly messageInputFieldEnabled: Locator;
-  readonly uploadButton: Locator;
+  readonly uploadInput: Locator;
   readonly uploader: UppyUploader;
   private buttonWithText: (text: string) => Locator;
 
@@ -318,20 +328,27 @@ class Chat {
     this.messageInputField = this.chatLocator.locator('#chat-messageInput');
     this.messageInputFieldEnabled = this.chatLocator.locator('#chat-messageInput:not([disabled])');
     this.buttonWithText = (text: string) => this.page.getByRole('button', { name: text, exact: true });
-    this.uploadButton = this.chatLocator.locator('#chat-uploadButton');
+    this.uploadInput = this.chatLocator.locator('#chat-uploadInput');
     this.uploader = new UppyUploader(this.page);
   }
 
-  async showUploader() {
-    await this.messageInputFieldEnabled.waitFor();
-    await this.uploadButton.click();
-    await this.uploader.section().dashboard().waitFor({ state: 'visible' });
-    return this.uploader.isVisible();
-  }
-
+  // the upload button opens the system file picker, so files are set on its input instead
   async attachFiles(fileNames: string[]) {
+    await this.messageInputFieldEnabled.waitFor();
+
     for (const fileName of fileNames) {
-      await this.uploader.uploadFile(fileName);
+      // the file goes to S3 first, then its record is saved - a failure there only shows
+      // as a generic toast, so the response is checked here to report why
+      const recordSaved = this.page.waitForResponse(response => response.url().includes('/api/chat/uploads') && response.request().method() === 'POST');
+      await this.uploadInput.setInputFiles(path.join(__dirname, '..', 'data', 'files', fileName));
+      await this.uploader.waitForUploadComplete(fileName);
+
+      const response = await recordSaved;
+      // the presign the file was uploaded with, rendered on the uploader by common-styling
+      const presign = await this.page.locator('#chat-upload').evaluate(element => ({ url: element.getAttribute('data-upload-url'), key: element.getAttribute('data-request-key') }));
+      // an error page's HTML says nothing useful, only its status is worth reporting
+      const body = (await response.text()).startsWith('<') ? '(error page)' : await response.text();
+      expect(response.ok(), `saving the upload record for ${fileName} failed: ${response.status()} ${body} (request: ${response.request().postData()}, presign: ${JSON.stringify(presign)})`).toBe(true);
     }
   }
 

@@ -11,6 +11,7 @@ mutation create($conversation_id: String!, $message: String!, $autor_id: String!
     }
   ) {
     id
+    created_at
     properties
   }
 }

@@ -33,8 +33,10 @@ query search(
         join_on_property: "id"
         foreign_property: "conversation_id"
         limit: $messages_limit
-        sort: { created_at: { order: DESC } }
+        # by id, like api/chat/messages, which loads the older ones by id
+        sort: { id: { order: DESC } }
       ) @include(if: $include_messages) {
+        id
         created_at
         message: property(name: "message")
         autor_id: property(name: "autor_id")

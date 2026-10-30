@@ -4,7 +4,19 @@
     return null
   endif
 
-  graphql r = 'modules/chat/messages/search', limit: limit, page: page, participant_id: participant_id, conversation_id: conversation_id
+  # the limit comes from the request (api/messages per_page) - capped, as the database
+  # takes any page size and each message's media is resolved too
+  assign limit = limit | to_positive_integer: 30 | at_most: 50
+  assign page = page | to_positive_integer: 1
+
+  # before_id pages by cursor: the messages older than that one, so messages that arrived
+  # meanwhile don't shift the page (as they do with page numbers). Not a number finds nothing.
+  if before_id != blank
+    assign before_id = before_id | to_positive_integer: 1
+    assign page = 1
+  endif
+
+  graphql r = 'modules/chat/messages/search', limit: limit, page: page, before_id: before_id, participant_id: participant_id, conversation_id: conversation_id
 
   assign result = r.messages
   function resolved_results = 'modules/chat/queries/messages/with_media', messages: result.results, conversation_id: conversation_id

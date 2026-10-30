@@ -13,7 +13,7 @@ format: json
 {%- liquid
   assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
   if test_gate == '1' or test_gate == 'true'
-    function body = 'modules/mcp/helpers/rpc/error', id: 1, code: -32022, message: 'Unsupported protocol version'
+    function body = 'modules/mcp/helpers/rpc/error', id: context.params.id, code: -32022, message: 'Unsupported protocol version'
     function summary = 'modules/mcp/helpers/rpc/request_summary', params: context.params, headers: context.headers, status: 400, body: body
     echo summary
   else

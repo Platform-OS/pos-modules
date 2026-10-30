@@ -5,3 +5,7 @@ properties:
     type: array
   - name: participant_read_ids
     type: array
+  # when the last message was sent - the conversations list is sorted by it, and a
+  # conversation without it (no message yet) isn't listed
+  - name: last_message_at
+    type: datetime

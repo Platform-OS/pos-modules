@@ -1,0 +1,4 @@
+platformos-tools.log
+/playwright-report/
+.env
+test-results/

@@ -4,7 +4,8 @@
   @param {string} name - display name of the participant
   @param {string} [image_src] - avatar image URL
   @param {string} [last_message] - last message text
-  @param {string} [timezone] - timezone for date formatting
+  @param {string} [last_message_at] - when the last message was sent
+  @param {string} [timezone] - timezone of the date shown until the browser formats it
   @param {boolean} [unread] - whether this conversation has unread messages
 {% enddoc %}
 
@@ -19,12 +20,9 @@
         </span>
         {% if last_message %}
           <div class="pos-chat-conversationCard-lastMessage">
-            {% if last_message %}
-              <small>{{ last_message }}</small>
-              <time datetime="{{ last_message.created_at }}">
-                {{ last_message.created_at | strftime: "%b %d", timezone }}
-              </time>
-            {% endif %}
+            <small>{{ last_message }}</small>
+            {% comment %} "5 minutes ago", only the date once it's older than 2 days {% endcomment %}
+            {% render 'modules/common-styling/time', date: last_message_at, format: 'relative', time_style: 'none', timezone: timezone %}
           </div>
         {% endif %}
     </div>

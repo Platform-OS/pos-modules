@@ -282,10 +282,9 @@
     content: '';
   }
 
-/* load more button */
+/* load more button - shown, as a list that fits on the screen can't be scrolled to load more */
 .pos-chat-conversations-more {
   padding-block-start: var(--pos-padding-card);
-  display: none;
 
   text-align: center;
 }
@@ -332,6 +331,7 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   overflow: auto;
+  position: relative;
 }
 
   /* hide current conversation on mobile */
@@ -453,33 +453,255 @@
 .pos-chat-conversation-new {
   padding: var(--pos-padding-cell) var(--pos-padding-cell) var(--pos-padding-cell);
   display: grid;
-  grid-template-columns: min-content 1fr auto;
-  gap: var(--pos-gap-button-button);
+  grid-template-areas:
+    "tools input send";
+  grid-template-columns: min-content 1fr min-content;
+  gap: 0 var(--pos-gap-button-button);
+}
+
+/* shown instead of the message input when the person can't be messaged */
+.pos-chat-conversation-unavailable {
+  padding: var(--pos-padding-cell);
+  text-align: center;
+  color: var(--pos-color-content-text-supplementary);
 }
 
 @media (max-width: 768px) {
   .pos-chat-conversation-new {
-    grid-template-columns: 1fr;
+    grid-template-areas:
+      "tools ."
+      "input send";
+    grid-template-columns: 1fr min-content;
+    row-gap: var(--pos-gap-button-button-small)
   }
 }
 
-  .pos-chat-conversation-new-input-container {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--pos-gap-button-button);
+
+
+/* conversation tools
+============================================================================ */
+.pos-chat-conversation-new-tools {
+  grid-area: tools;
+}
+
+
+
+/* conversation input
+============================================================================ */
+.pos-chat-conversation-new-input-container {
+  height: auto;
+  padding: 0;
+  grid-area: input;
+}
+
+  .pos-chat-conversation-new-input-container:hover{
+    border-color: var(--pos-color-input-hover-frame);
+    background-color: var(--pos-color-input-hover-background);
+
+    color: var(--pos-color-input-hover-text);
+  }
+
+  .pos-chat-conversation-new-input-container:has(.pos-chat-conversation-input:focus-visible){
+    border-color: var(--pos-color-input-active-frame);
+    background-color: var(--pos-color-input-active-background);
+    outline: 2px solid var(--pos-color-focused);
+
+    color: var(--pos-color-input-active-text);
   }
 
 .pos-chat-conversation-input {
+  all: unset;
+
+  width: 100%;
   padding: calc(var(--pos-padding-input) / 2) calc(var(--pos-padding-input) / 1.5);
-
-  border-radius: var(--pos-radius-input);
-  background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 20%, transparent 80%);
-
-  transition: background-color .1s linear
+  grid-area: input;
 }
 
-.pos-chat-conversation-input:focus {
-  background-color: color-mix(in srgb, var(--pos-color-content-text-supplementary) 10%, transparent 90%);
+
+
+/* new file uploader
+============================================================================ */
+.pos-chat-uploader-list {
+  width: 100%;
+  padding: calc(var(--pos-padding-input) / 1.5) calc(var(--pos-padding-input) / 1.5) calc(var(--pos-padding-input) / 2);
+  display: inline-flex;
+  gap: var(--pos-gap-button-button);
+  overflow: auto;
+}
+
+  .pos-chat-uploader-list:empty {
+    display: none;
+  }
+
+.pos-chat-uploader-list-item {
+  height: 48px;
+  padding: .2em .5em .2em .2em;
+  display: flex;
+  align-items: center;
+  gap: var(--pos-gap-button-button-small);
+  position: relative;
+  flex-shrink: 0;
+
+  border-radius: var(--pos-radius-panel);
+  background-color: var(--pos-color-button-secondary-background);
+  border-color: var(--pos-color-button-secondary-frame);
+}
+
+  /* the content is dimmed until the file is uploaded, the progress border and the remove button are not */
+  .pos-chat-uploader-list-item > :not(.pos-chat-uploader-list-item-progress, .pos-chat-uploader-list-item-remove) {
+    opacity: .5;
+
+    transition: opacity .2s linear;
+  }
+
+  .pos-chat-uploader-list-item-uploaded > :not(.pos-chat-uploader-list-item-progress, .pos-chat-uploader-list-item-remove) {
+    opacity: 1;
+  }
+
+  /* upload progress border, drawn around the item clockwise from the top left corner */
+  .pos-chat-uploader-list-item-progress {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: visible;
+
+    pointer-events: none;
+
+    /* the delay lets the border finish filling up before it fades away */
+    transition: opacity .6s var(--pos-transition-ui-detail) .2s;
+  }
+
+  .pos-chat-uploader-list-item-uploaded .pos-chat-uploader-list-item-progress {
+    opacity: 0;
+  }
+
+  .pos-chat-uploader-list-item-progress rect {
+    rx: var(--pos-radius-panel);
+
+    fill: none;
+    stroke: var(--pos-color-interactive-active);
+    stroke-width: 2px;
+    /* pathLength="100" on the rect makes the dash length a percentage of the whole border */
+    stroke-dasharray: var(--pos-chat-upload-progress, 0) 100;
+
+    transition: stroke-dasharray .2s linear;
+  }
+
+  /* failed upload, the border goes all the way around in the error color */
+  .pos-chat-uploader-list-item-failed .pos-chat-uploader-list-item-progress rect {
+    stroke: var(--pos-color-important);
+    stroke-dasharray: 100 100;
+  }
+
+.pos-chat-uploader-list-item img {
+  width: 48px;
+  height: 48px;
+
+  border-radius: var(--pos-radius-panel);
+}
+
+  .pos-chat-uploader-list-file-type {
+    width: 32px;
+    height: 32px;
+    padding: 5px 0 5px 5px;
+  }
+
+  .pos-chat-uploader-list-item-name {
+    max-width: 150px;
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* image files */
+  .pos-chat-uploader-list-item-image {
+    padding: 0;
+  }
+
+    .pos-chat-uploader-list-item-image img {
+      object-fit: cover;
+    }
+
+  .pos-chat-uploader-list-item-image .pos-chat-uploader-list-item-name {
+    display: none;
+  }
+
+.pos-chat-uploader-list-item-remove {
+  width: 1.5rem;
+  height: 1.5rem;
+  position: absolute;
+  z-index: 2;
+  inset-block-start: -.5rem;
+  inset-inline-end: -.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-color: var(--pos-color-button-secondary-background);
+  border-radius: 50%;
+
+  color: var(--pos-color-button-secondary-text);
+
+  transition-property: background-color, color, scale;
+  transition-duration: .1s .1s .3s;
+  transition-timing-function: linear, linear, var(--pos-transition-ui-detail);
+}
+
+  .pos-chat-uploader-list-item-remove:hover {
+    background-color: var(--pos-color-button-secondary-hover-background);
+
+    color: var(--pos-color-button-secondary-hover-text);
+
+    scale: 1.1;
+  }
+
+  .pos-chat-uploader-list-item-remove:active {
+    scale: .95;
+  }
+
+  .pos-chat-uploader-list-item-remove .pos-label {
+    position: absolute;
+    inset-inline-start: -200vw;
+  }
+
+  .pos-chat-uploader-list-item-remove svg {
+    width: 50%;
+    height: 50%;
+
+    fill: currentColor;
+    color: inherit;
+  }
+
+/* drag & drop overlay */
+.pos-chat-conversation-upload-overlay {
+  padding: calc(var(--pos-padding-page));
+  position: absolute;
+  inset: calc(var(--pos-padding-page) / 3);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--pos-radius-panel);
+  background-color: color-mix(var(--pos-color-highlight-text), transparent 20%);
+
+  text-align: center;
+  color: var(--pos-color-highlight-background);
+}
+
+  .pos-chat-conversation-upload-overlay[hidden] {
+    display: none;
+  }
+
+
+
+/* send button
+============================================================================ */
+.pos-chat-conversation-new-send {
+  grid-area: send;
 }
 
 
@@ -531,50 +753,5 @@
   @media (max-width: 768px) {
     .pos-chat-conversation-messages-blank {
       display: none;
-    }
-  }
-
-
-
-/* uploader
-============================================================================ */
-.pos-chat-uploader {
-  padding-block-start: var(--pos-padding-page);
-  padding-inline: var(--pos-padding-page);
-  position: relative;
-
-  display: none;
-}
-
-  .pos-chat-uploader:has(#chat-uploaderToggle:checked) {
-    display: block;
-  }
-
-  #chat-uploaderToggle {
-    position: absolute;
-    left: -200%;
-  }
-
-  /* cancel button */
-  .pos-chat-uploader .pos-button[for="chat-uploaderToggle"] {
-    width: 1.4rem;
-    height: 1.4rem;
-    padding: 0;
-    position: absolute;
-    z-index: 1010;
-    inset-block-start: .4rem;
-    inset-inline-start: .4rem; 
-  }
-
-  .pos-chat-uploader .pos-button[for="chat-uploaderToggle"] svg {
-    width: .69rem;
-    height: .69rem;
-  }
-
-  /* smaller uppy height for mobile */
-  @media (max-width: 768px) {
-    .uppy-Dashboard-inner {
-      height: 200px !important; /* Ensure it takes 100% of its parent container's height */
-      min-height: unset !important; /* Remove the default min-height */
     }
   }

@@ -1,0 +1,11 @@
+{% comment %}
+  Creates the row commands/conversations/lock locks when a conversation is created.
+  commands/conversations/find_or_create creates it too when it's missing (e.g. after a
+  data import) - this saves the first conversations of an instance from doing it.
+{% endcomment %}
+{% liquid
+  graphql r = 'modules/chat/conversation_lock/find'
+  if r.locks.results.size == 0
+    graphql _ = 'modules/chat/conversation_lock/create'
+  endif
+%}

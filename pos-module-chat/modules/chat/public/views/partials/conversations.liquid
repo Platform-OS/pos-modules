@@ -20,7 +20,8 @@
     else
       assign conversation['current'] = false
     endif
-    assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | default: from_profile.name
+    # without first and last name this is a single space, which `default` doesn't replace
+    assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | strip | default: from_profile.name
     assign image_src = from_profile.avatar.photo.versions.sm
     assign last_message = conversation.last_message.message
 
@@ -37,20 +38,21 @@
       endif
     endif
 
+    # the open conversation is marked read over the WebSocket once the page has loaded
+    # (see pos-chat.js), so it isn't read yet while the page is rendered
     assign unread = true
-    if conversation.participant_read_ids contains current_profile.id
+    if conversation.participant_read_ids contains current_profile.id or conversation['current']
       assign unread = false
     endif
   %}
-  {% if conversation.last_message or conversation['current'] %}
-    <li>
-      {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, timezone: current_profile.properties.timezone, unread: unread %}
-    </li>
-  {% endif %}
+  <li>
+    {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, last_message_at: conversation.last_message_at, timezone: current_profile.properties.timezone, unread: unread %}
+  </li>
 {% endfor %}
 
+{% comment %} the cursor the next page is loaded from, see queries/conversations/search_by_participant {% endcomment %}
 {% if conversations.has_next_page %}
   <li class="pos-chat-conversations-more">
-    <button class="pos-button pos-button-small" data-page="{{ conversations.current_page | plus: 1 }}">Load more</button>
+    <button type="button" class="pos-button pos-button-small" data-read="{{ conversations.next_read }}" data-before="{{ conversations.next_before }}">{{ 'modules/chat/load_more' | t }}</button>
   </li>
 {% endif %}

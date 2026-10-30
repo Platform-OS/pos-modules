@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { StyleGuidePage } from './pages/styleGuide';
 
 test('Articles test', async ({ page }) => {
@@ -238,3 +238,96 @@ test('Toast tests', async({ page }) => {
     expect(errorToast.getByText('Test error toast')).not.toBeVisible();
   });
 })
+test.describe('Dates and times', () => {
+  // a timezone far from the server's UTC, so a date formatted by the server would show
+  test.use({ timezoneId: 'Asia/Tokyo' });
+
+  test('dates are formatted in the browser', async ({ page }) => {
+    const styleGuidePage = new StyleGuidePage(page);
+    await styleGuidePage.goto();
+
+    await test.step('relative dates', async () => {
+      for(const label of ['now', '5 minutes ago', '3 hours ago', '1 day ago', '2 days ago']){
+        await expect(styleGuidePage.timeExample(label, 'relative')).toHaveText(label);
+      }
+    });
+
+    await test.step('a relative date older than 2 days is a full date, shown on hover too', async () => {
+      const relative = styleGuidePage.timeExample('10 days ago', 'relative');
+      await expect(relative).toHaveText(/^[A-Z][a-z]{2} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s[AP]M$/);
+      await expect(relative).toHaveAttribute('title', (await relative.textContent()) ?? '');
+    });
+
+    await test.step('full dates are in the visitor\'s timezone', async () => {
+      const full = styleGuidePage.timeExample('3 hours ago', 'full');
+      const datetime = await full.getAttribute('datetime');
+      // formatted by the browser's own Intl, the timezone given explicitly
+      const expected = await page.evaluate(datetime => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Tokyo' }).format(new Date(datetime)), datetime ?? '');
+      await expect(full).toHaveText(expected);
+    });
+
+    await test.step('a date added to the page later is formatted too', async () => {
+      await page.evaluate(() => {
+        const time = document.createElement('time');
+        time.className = 'pos-time';
+        time.id = 'styleguide-time-added';
+        time.dataset.format = 'relative';
+        time.setAttribute('datetime', new Date(Date.now() - 2 * 60 * 1000).toISOString());
+        document.querySelector('#time')?.append(time);
+      });
+      await expect(page.locator('#styleguide-time-added')).toHaveText('2 minutes ago');
+    });
+  });
+});
+
+test.describe('Dates and times in a chosen timezone', () => {
+  // the visitor's own timezone, which a chosen one overrides
+  test.use({ timezoneId: 'Asia/Tokyo' });
+
+  // the test page's date, 2026-01-15 12:00 UTC, formatted by the browser in the given timezone
+  const expected = (page: Page, timeZone: string) => page.evaluate(timeZone => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(new Date('2026-01-15T12:00:00Z')), timeZone);
+
+  test('a platformOS timezone name is shown in its IANA timezone', async ({ page }) => {
+    await page.goto('/test/time?timezone=Warsaw');
+    await expect(page.locator('#date time')).toHaveText(await expected(page, 'Europe/Warsaw'));
+  });
+
+  test('a platformOS timezone name of a three-part IANA one', async ({ page }) => {
+    await page.goto('/test/time?timezone=' + encodeURIComponent('Indiana (East)'));
+    await expect(page.locator('#date time')).toHaveText(await expected(page, 'America/Indiana/Indianapolis'));
+  });
+
+  test('an IANA timezone name', async ({ page }) => {
+    await page.goto('/test/time?timezone=America/New_York');
+    await expect(page.locator('#date time')).toHaveText(await expected(page, 'America/New_York'));
+  });
+
+  test('an unknown timezone falls back to the visitor\'s own', async ({ page }) => {
+    await page.goto('/test/time?timezone=Mars/Olympus_Mons');
+    await expect(page.locator('#date time')).toHaveText(await expected(page, 'Asia/Tokyo'));
+  });
+
+  test('the server formats the date in the timezone too, until the script runs', async ({ page }) => {
+    const html = await (await page.request.get('/test/time?server_timezone=Warsaw')).text();
+    // 12:00 UTC is 13:00 in Warsaw in January
+    expect(html).toMatch(/<time[^>]*>[^<]*13:00<\/time>/);
+  });
+
+  test('the dates are watched once, even if init is rendered twice', async ({ page }) => {
+    // counts the MutationObservers watching the whole page
+    await page.addInitScript(() => {
+      (window as any).pageObservers = 0;
+      const observe = MutationObserver.prototype.observe;
+      MutationObserver.prototype.observe = function(target, options){
+        if(target === document.body && options?.subtree){
+          (window as any).pageObservers++;
+        }
+        return observe.call(this, target, options);
+      };
+    });
+    await page.goto('/test/time?timezone=Warsaw');
+    await expect(page.locator('#date time')).toHaveText(await expected(page, 'Europe/Warsaw'));
+
+    expect(await page.evaluate(() => (window as any).pageObservers)).toBe(1);
+  });
+});

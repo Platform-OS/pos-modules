@@ -1,18 +1,3 @@
-{% # platformos-check-disable MissingAsset %}
-<script type="importmap">
-  {
-    "imports": {
-      "/": "{{ 'modules/chat/js/' | asset_url }}",
-      "pos-chat.js": "{{ 'modules/chat/js/pos-chat.js' | asset_url }}",
-      "pos-chat-consumer.js": "{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}",
-      "pos-chat-csrfToken.js": "{{ 'modules/chat/js/pos-chat-csrfToken.js' | asset_url }}",
-      "pos-chat-notifications.js": "{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}",
-      "./": "./"
-    }
-  }
-</script>
-{% # platformos-check-enable MissingAsset %}
-
 <script>
   /* namespace */
   if(typeof window.pos !== 'object'){
@@ -27,28 +12,53 @@
 
   /* profile namespace */
   if(typeof window.pos.profile !== 'object'){
-    window.pos.profile = {{ current_profile }};
+    window.pos.profile = { id: {% print current_profile.id | json %} };
   }
-
-  window.pos.profile.timezone = {% if current_profile.properties.timezone %} '{{ current_profile.properties.timezone }}' {% else %} null {% endif %};
 
   /* translations used in module */
   window.pos.translations = {
     ...window.pos.translations,
     chat: {
-      connectionError: '{{ 'modules/chat/error_connection' | t }}'
+      connectionError: '{{ 'modules/chat/error_connection' | t }}',
+      startFailed: '{{ 'modules/chat/error_start_conversation' | t }}',
+      fileTooLarge: {
+        single: '{{ 'modules/chat/error_file_too_large.single' | t }}',
+        multiple: '{{ 'modules/chat/error_file_too_large.multiple' | t }}'
+      },
+      tooManyFiles: '{{ 'modules/chat/error_too_many_files' | t }}',
+      uploadFailed: '{{ 'modules/chat/error_upload_failed' | t }}'
     }
   }
 </script>
-<script type="module" defer src="{{ 'modules/chat/js/pos-chat.js' | asset_url }}"></script>
+<script>
+  /* loads and starts the chat the same way common-styling's init loads its modules - every url
+     comes from asset_url, so a deploy reaches browsers despite the long asset caching */
+  document.addEventListener('DOMContentLoaded', () => {
+    const inbox = document.querySelector('#pos-chat-inbox');
+
+    if(!inbox){
+      return;
+    }
+
+    Promise.all([
+      import('{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}'),
+      import('{{ 'modules/chat/js/pos-chat.js' | asset_url }}')
+    ]).then(([consumer]) => {
+      window.pos.modules.active.chat = new window.pos.modules.chat({
+        inbox: inbox,
+        consumer: consumer.default
+      });
+    });
+  });
+</script>
 
 <!-- message templates -->
 {% assign dummy_message = { "message": "", "created_at": null } %}
 <template id="pos-chat-template-message-received">
-  {% render 'modules/chat/message', message: dummy_message, authored: false, timezone: null, as_template: true %}
+  {% render 'modules/chat/message', message: dummy_message, authored: false, as_template: true %}
 </template>
 <template id="pos-chat-template-message-sent">
-  {% render 'modules/chat/message', message: dummy_message, authored: true, timezone: null, as_template: true %}
+  {% render 'modules/chat/message', message: dummy_message, authored: true, as_template: true %}
 </template>
 <!-- end message templates -->
 
@@ -56,6 +66,7 @@
 <div
   id="pos-chat-inbox"
   data-conversation-id="{{ current_conversation.id }}"
+  data-to-uuid="{{ current_conversation.to_uuid }}"
   class="pos-app {% if current_conversation %} pos-chat-inbox-conversation-active {% endif %}"
 >
 
@@ -63,7 +74,7 @@
     {% render 'modules/chat/search' %}
 
     <ul class="pos-chat-conversations" id="pos-chat-conversations">
-      {% if conversations.total_entries > 0 %}
+      {% if conversations.results.size > 0 %}
         {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
       {% else %}
         <div class="pos-chat-conversations-blank-desktop">
@@ -74,7 +85,7 @@
         </div>
       {% endif %}
     </ul>
-    {% if conversations.total_entries == 0 %}
+    {% if conversations.results.size == 0 %}
       <div class="pos-chat-conversations-blank-mobile">
         {% render 'modules/common-styling/icon', icon: 'messageBubblesDouble', class: null %}
         <h2 class="pos-heading-2">{{ 'modules/chat/blank.title' | t }}</h2>
@@ -141,65 +152,113 @@
               endif
               assign previous_created_at = message.created_at
 
-              render 'modules/chat/message', message: message, authored: authored, timezone: current_profile.properties.timezone, show_time: show_time
+              render 'modules/chat/message', message: message, authored: authored, show_time: show_time, timezone: current_profile.properties.timezone
             endfor
           %}
         </ul>
       </div>
-      <div class="pos-chat-uploader" id="chat-uploader">
-        <input type="checkbox" id="chat-uploaderToggle">
-        <label for="chat-uploaderToggle" class="pos-button pos-button-small" title="{{ 'modules/chat/upload_cancel' | t }}">
-          <span class="pos-label">{{ 'modules/chat/upload_cancel' | t }}</span>
-          {% render 'modules/common-styling/icon', icon: 'x' %}
-        </label>
-        {% render 'modules/common-styling/forms/upload',
-          id: 'chat-upload',
-          presigned_upload: context.presigned_upload,
-          name: 'chat-upload',
-          max_number_of_files: 5
-        %}
+      {% if current_conversation.unavailable %}
+      {% comment %}
+        a conversation can't be started with this person (see
+        commands/conversations/find_or_create/check), so there is nothing to type into
+      {% endcomment %}
+      <footer class="pos-chat-conversation-unavailable" id="chat-unavailable">
+        {{ 'modules/chat/recipient_unavailable' | t }}
+      </footer>
+      {% else %}
+      <div class="pos-chat-uploader" id="chat-uploader" hidden>
+        {% comment %}
+          kept in a template so common-styling doesn't load uppy on page load - pos-chat.js
+          adds it to the page and loads uppy only once the user is about to attach a file
+        {% endcomment %}
+        {% # platformos-check-disable MissingAsset %}
+        <template
+          id="pos-chat-template-uploader"
+          data-uppy-url="{{ 'modules/common-styling/js/dependency-uppy.js' | asset_url }}"
+          data-upload-url="{{ 'modules/common-styling/js/pos-upload.js' | asset_url }}"
+        >
+          {% render 'modules/common-styling/forms/upload',
+            id: 'chat-upload',
+            presigned_upload: context.presigned_upload,
+            name: 'chat-upload',
+            max_number_of_files: 5,
+            show_dashboard: false
+          %}
+        </template>
+        {% # platformos-check-enable MissingAsset %}
       </div>
       <footer class="pos-form pos-chat-conversation-new">
+
         <div class="pos-chat-conversation-new-tools">
-          <label for="chat-uploaderToggle" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
+          <button type="button" title="{{ 'modules/chat/upload' | t }}" id="chat-uploadButton" class="pos-button">
             <span class="pos-label">{{ 'modules/chat/upload' | t }}</span>
             {% render 'modules/common-styling/icon', icon: 'imageFileUpload' %}
-          </label>
+          </button>
+          <input type="file" id="chat-uploadInput" multiple hidden>
         </div>
-        <div class="pos-chat-conversation-new-input-container">
+
+        <label for="chat-messageInput" class="pos-chat-conversation-new-input-container pos-form-input">
+          <template id="pos-chat-template-uploader-list-item">
+            <li class="pos-chat-uploader-list-item">
+              <svg class="pos-chat-uploader-list-item-progress" aria-hidden="true">
+                <rect width="100%" height="100%" rx="8" pathLength="100" />
+              </svg>
+              <img src="" alt="" width="48" height="48">
+              {% render 'modules/common-styling/icon', icon: 'fileEmpty', class: 'pos-chat-uploader-list-file-type' %}
+              <span class="pos-chat-uploader-list-item-name"></span>
+              <button type="button" class="pos-chat-uploader-list-item-remove" title="{{ 'modules/chat/remove_file' | t }}">
+                <span class="pos-label">{{ 'modules/chat/remove_file' | t }}</span>
+                {% render 'modules/common-styling/icon', icon: 'x' %}
+              </button>
+            </li>
+          </template>
+          <ul class="pos-chat-uploader-list" id="chat-uploaderList"></ul>
+
           <textarea
           placeholder="{{ 'modules/chat/message_input_placeholder' | t }}"
             class="pos-chat-conversation-input"
             id="chat-messageInput"
+            maxlength="10000"
             disabled
           ></textarea>
-          <button type="submit" id="chat-sendButton" class="pos-button">{{ 'modules/chat/send' | t }}</button>
-        </div>
+        </label>
+
+        <button type="submit" id="chat-sendButton" class="pos-button pos-chat-conversation-new-send">{{ 'modules/chat/send' | t }}</button>
+
       </footer>
+
+      <div class="pos-chat-conversation-upload-overlay" hidden>
+        {{ 'modules/chat/upload_drop.title' | t }}<br>
+        {{ 'modules/chat/upload_drop.max_size' | t }}
+      </div>
+      {% endif %}
     </div>
   {% else %}
-    {% if conversations.total_entries > 0 %}
+    {% if conversations.results.size > 0 %}
       <div class="pos-chat-conversation-messages-blank">
         {{ 'modules/chat/blank.pick_conversation' | t }}
       </div>
     {% endif %}
 
-    {% if conversations.total_entries == 0 %}
+    {% if conversations.results.size == 0 %}
       <div class="pos-chat-conversation" id="pos-chat-conversation">
         <div class="pos-chat-conversation-messagesContainer" id="chat-messagesList-container">
           <ul class="pos-chat-messages" id="chat-messagesList">
-            {% if conversations.total_entries == 0 %}
+            {% if conversations.results.size == 0 %}
               {% liquid
                 assign title = 'modules/chat/blank.title' | t
                 assign description = 'modules/chat/blank.description.desktop' | t
+                # the time itself, not "{{ 'now' | to_time }}" - that string is "2026-10-28 19:23:00 UTC",
+                # not a valid datetime attribute
+                assign now = 'now' | to_time
                 assign messages = [
                   {
                     "message": title,
-                    "created_at": "{{ 'now' | to_time }}"
+                    "created_at": now
                   },
                   {
                     "message": description,
-                    "created_at": "{{ 'now' | to_time }}"
+                    "created_at": now
                   }
                 ]
               %}

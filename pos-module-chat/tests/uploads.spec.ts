@@ -18,15 +18,10 @@ test.describe('Testing uploads', () => {
     const peoplePage = new PeoplePage(page);
     const inboxPage = new InboxPage(page);
 
-    await test.step(`${sender.fullName} shows the uploader in the chat with ${receiver.fullName}`, async () => {
+    await test.step(`${sender.fullName} uploads and sends an image to ${receiver.fullName}`, async () => {
       await peoplePage.goto();
       await peoplePage.openChat(receiver.fullName);
 
-      const isUploaderVisible = await inboxPage.chat.showUploader();
-      expect(isUploaderVisible).toBe(true);
-    });
-
-    await test.step(`${sender.fullName} uploads and sends an image`, async () => {
       await inboxPage.chat.attachFiles([imageFile]);
       await inboxPage.chat.sendAttachments();
 
@@ -60,9 +55,6 @@ test.describe('Testing uploads', () => {
       await peoplePage.goto();
       await peoplePage.openChat(receiver.fullName);
 
-      const isUploaderVisible = await inboxPage.chat.showUploader();
-      expect(isUploaderVisible).toBe(true);
-
       await inboxPage.chat.attachFiles([textFile]);
       await inboxPage.chat.sendAttachments();
     });
@@ -92,9 +84,6 @@ test.describe('Testing uploads', () => {
       await peoplePage.goto();
       await peoplePage.openChat(receiver.fullName);
 
-      const isUploaderVisible = await inboxPage.chat.showUploader();
-      expect(isUploaderVisible).toBe(true);
-
       await inboxPage.chat.attachFiles([imageFile, textFile]);
       await inboxPage.chat.sendAttachments();
     });
@@ -106,6 +95,49 @@ test.describe('Testing uploads', () => {
       const fileLink = inboxPage.message.getLastSentFileLink(textFile);
       await expect(fileLink).toBeVisible();
       await expect(fileLink).toHaveAttribute('href', /^https?:\/\/.+/);
+    });
+
+    await context?.close();
+  });
+
+  test('upload records are only created for files uploaded through the chat', async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const sender = users.test1;
+    const receiver = users.test4;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
+    const peoplePage = new PeoplePage(page);
+    const inboxPage = new InboxPage(page);
+
+    await peoplePage.goto();
+    await peoplePage.openChat(receiver.fullName);
+    const conversationId = await inboxPage.startConversation();
+
+    // posts to the upload record endpoint the same way pos-chat.js does
+    const createUpload = (upload: string, metadata: object) => page.evaluate(async ({ conversationId, upload, metadata }) => {
+      const response = await fetch('/api/chat/uploads', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (window as any).pos.csrfToken },
+        body: JSON.stringify({ conversation_id: conversationId, upload: upload, metadata: metadata })
+      });
+      return { status: response.status, body: await response.json() };
+    }, { conversationId, upload, metadata });
+
+    const metadata = { type: 'image/png', name: 'cat.png', size: 1024 };
+
+    await test.step('a url that does not come from the chat presign is rejected', async () => {
+      const result = await createUpload('https://example.com/cat.png', metadata);
+      expect(result.status).toBe(422);
+      expect(result.body.errors.upload).toBeTruthy();
+    });
+
+    await test.step('a file larger than the limit is rejected', async () => {
+      const result = await createUpload('https://example.com/cat.png', { ...metadata, size: 50 * 1024 * 1024 });
+      expect(result.status).toBe(422);
+      expect(result.body.errors.size).toBeTruthy();
     });
 
     await context?.close();

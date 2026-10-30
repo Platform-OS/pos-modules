@@ -22,7 +22,7 @@ test.describe('Missing Stripe API Key Handling', () => {
 
       // If API key IS set: should redirect to Stripe (success)
       // If API key is NOT set: should handle error gracefully
-      const isStripeCheckout = url.includes('checkout.stripe.com');
+      const isStripeCheckout = new URL(url).hostname === 'checkout.stripe.com';
       const is500Error = await page.locator('text=/500|Internal Server Error/i').count() > 0;
       const isPaymentPage = url.includes('test-stripe-payment');
       const hasFailureParam = url.includes('failure=true');

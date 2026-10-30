@@ -1,0 +1,27 @@
+{% doc %}
+  Whether a conversation participant may use the chat (has the `chat.inbox` permission),
+  for code that runs without them being signed in - the event consumers delivering a
+  message to the other participants. Revoking `chat.inbox` has to stop the deliveries
+  too, not only the inbox and the channel subscriptions.
+
+  @param {object} profile - the participant's profile, as returned by modules/user/queries/profiles/find
+{% enddoc %}
+{% liquid
+  if profile == blank or profile.user_id == blank
+    return false
+  endif
+
+  # `authenticated` isn't stored on the profile, modules/user/helpers/current_profile adds
+  # it for the signed-in user - so it's added here too, as the participant has it whenever
+  # they use the chat. A separate object, so the given profile isn't changed.
+  assign roles = profile.roles
+  if roles == null
+    assign roles = []
+  endif
+  assign roles = roles | concat: ["authenticated"]
+  assign requester = { "id": profile.id, "user_id": profile.user_id, "roles": roles }
+
+  function can = 'modules/user/helpers/can_do', requester: requester, do: 'chat.inbox', entity: null, access_callback: null
+
+  return can
+%}

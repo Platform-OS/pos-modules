@@ -20,7 +20,7 @@ window.pos.modules.upload = function(settings){
   // unique id for the module
   module.settings.id = module.settings.container.id || 'pos-upload'
   // if you want to show the uppy dashboard with image editor and thumbnails (bool)
-  module.settings.showDashboard = settings.showDashboard || true;
+  module.settings.showDashboard = settings.showDashboard !== false;
   // maximum file size in bytes for each individual file (int)
   module.settings.maxFileSize = settings.maxFileSize || 10485760;
   // total number of files that can be selected (int)
@@ -31,14 +31,15 @@ window.pos.modules.upload = function(settings){
   module.settings.addedFileTemplate = module.settings.container.querySelector('.pos-upload-added-file-input');
   // template to add to DOM for each removed file
   module.settings.removedFileTemplate = module.settings.container.querySelector('.pos-upload-removed-file-input');
-  // if you want the photo editor (bool)
-  module.settings.imageEditorEnabled = settings.imageEditorEnabled || false;
+  // if you want the photo editor, it is rendered inside the dashboard so it requires one (bool)
+  module.settings.imageEditorEnabled = (settings.imageEditorEnabled && module.settings.showDashboard) || false;
   // aspect ration for cropping the image (float)
   module.settings.aspectRatio = settings.aspectRatio || null;
   // width of the dashboard (string)
   module.settings.width = settings.width || '100%';
   // height of the dashboard (string)
   module.settings.height = settings.height || '400px';
+
   // debug mode enabled (bool)
   module.settings.debug = settings.debug || false;
 
@@ -271,28 +272,52 @@ window.pos.modules.upload = function(settings){
 
   // purpose:		gets image dimensions
   // arguments: file object (file data)
+  // returns:   promise resolved with { width, height }, both false when they can't be read (promise)
   // ------------------------------------------------------------------------
-  module.getImageDimenstions = file => {
+  module.getImageDimenstions = async file => {
+    const dimensions = {
+      width: false,
+      height: false
+    };
+
+    // decodes the image straight from the file, without turning it into a base64 data url first,
+    // rotated by its EXIF orientation like the browser shows it in an <img>
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      dimensions.width = bitmap.width;
+      dimensions.height = bitmap.height;
+      bitmap.close();
+    } catch(error) {
+      // createImageBitmap can't read some images, e.g. SVG, the <img> element can
+      Object.assign(dimensions, await module.getImageDimenstionsFromImg(file));
+    }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, `Read image dimenstions`, { file, dimensions });
+
+    return dimensions;
+  };
+
+
+  // purpose:		gets image dimensions by loading it into an <img> from an object url
+  // arguments: file object (file data)
+  // returns:   promise resolved with { width, height }, both false when the image can't be loaded (promise)
+  // ------------------------------------------------------------------------
+  module.getImageDimenstionsFromImg = file => {
     return new Promise((resolve) => {
-      const fr = new FileReader;
-      const dimensions = {
-        width: false,
-        height: false
+      const url = URL.createObjectURL(file);
+      const img = new Image;
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
       };
 
-      fr.onload = function() {
-        const img = new Image;
-        img.onload = function() {
-          dimensions.width = img.width;
-          dimensions.height = img.height;
-          resolve(dimensions);
-        };
-        img.src = fr.result;
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: false, height: false });
       };
 
-      fr.readAsDataURL(file);
-
-      pos.modules.debug(module.settings.debug, module.settings.id, `Read image dimenstions`, { file, dimensions });
+      img.src = url;
     });
   };
 

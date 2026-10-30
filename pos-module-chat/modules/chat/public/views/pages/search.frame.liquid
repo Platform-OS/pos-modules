@@ -14,7 +14,7 @@ layout: ''
   include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
 
-  function profiles = 'modules/user/queries/profiles/search', limit: 7, page: 1, not_ids: current_profile.id, uuid: null, id: null, ids: null, first_name: null, last_name: null, user_id: null, query: context.params.q, emails: null, sort: null
+  function profiles = 'modules/chat/queries/participants/search', query: context.params.q, not_id: current_profile.id, limit: 7
 
   render 'modules/chat/users', users: profiles
 %}

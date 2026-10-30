@@ -1,6 +1,28 @@
 {% doc %}
   @param {boolean} reset - whether to include the CSS reset stylesheet
+  @param {string} [timezone] - timezone the dates are shown in, like the current profile's - an IANA name ('Europe/Warsaw') or a platformOS one ('Warsaw'); the visitor's own by default
 {% enddoc %}
+{% liquid
+  # the browser only knows IANA names - a platformOS one is looked up in the platform's list, whose
+  # friendly_name_with_region is the IANA name written as "Europe - Warsaw", or "America - Indianapolis, Indiana"
+  # for America/Indiana/Indianapolis
+  assign time_zone = null
+  if timezone contains '/'
+    assign time_zone = timezone
+  elsif timezone != blank
+    assign time_zones = context.globals.time_zones.all | parse_json
+    assign found_time_zone = time_zones | array_detect: name: timezone
+    if found_time_zone
+      assign time_zone_parts = found_time_zone.friendly_name_with_region | split: ' - '
+      assign time_zone_place = time_zone_parts.last
+      if time_zone_place contains ', '
+        assign time_zone_place_parts = time_zone_place | split: ', '
+        assign time_zone_place = time_zone_place_parts.last | append: '/' | append: time_zone_place_parts.first
+      endif
+      assign time_zone = time_zone_parts.first | append: '/' | append: time_zone_place | replace: ' ', '_'
+    endif
+  endif
+%}
 {% if reset %}
   <link rel="stylesheet" href="{{ 'modules/common-styling/style/pos-reset.css' | asset_url }}">
 {% endif %}
@@ -135,6 +157,12 @@
       });
     });
 
+    /* dates formatted in the visitor's timezone and language - on every page, as other modules can add dates later */
+    import('{{ 'modules/common-styling/js/pos-time.js' | asset_url }}').then(module => {
+      /* one for the page, even if init is rendered twice - each would watch the whole page */
+      window.pos.modules.active.time ??= new window.pos.modules.time({ timeZone: {% print time_zone | json %} });
+    });
+
 
     /* file upload */
     if(document.querySelector('.pos-upload')){
@@ -149,7 +177,8 @@
               allowedFileTypes: element.dataset.allowedFileTypes,
               aspectRatio: element.dataset.aspectRatio,
               maxNumberOfFiles: element.dataset.maxNumberOfFiles,
-              maxFileSize: element.dataset.maxFileSize
+              maxFileSize: element.dataset.maxFileSize,
+              showDashboard: element.dataset.showDashboard !== 'false'
             });
           });
         });

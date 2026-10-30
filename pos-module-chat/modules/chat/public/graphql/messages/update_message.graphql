@@ -1,0 +1,12 @@
+mutation update_message($id: ID!, $message: String!) {
+  record_update(
+    id: $id
+    record: {
+      properties: [
+        { name: "message", value: $message }
+      ]
+    }
+  ) {
+    id
+  }
+}

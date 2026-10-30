@@ -1,0 +1,24 @@
+{% doc %}
+  The roles that grant `chat.inbox`, to find the people who can use the chat in the
+  database - a profile with one of these roles. The same rule modules/user/helpers/can_do
+  applies to a single profile (see queries/participants/can_use_chat). Returns null when
+  every signed-in user can use the chat (`authenticated` grants it), as nobody has to be
+  left out then.
+{% enddoc %}
+{% liquid
+  function permissions = 'modules/user/queries/role_permissions/permissions'
+
+  # superadmin is granted everything by can_do
+  assign roles = ["superadmin"]
+  for role_permissions in permissions
+    assign role = role_permissions[0]
+    if role_permissions[1] contains 'chat.inbox'
+      if role == 'authenticated' or role == 'anonymous'
+        return null
+      endif
+      assign roles << role
+    endif
+  endfor
+
+  return roles
+%}

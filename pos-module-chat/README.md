@@ -47,27 +47,15 @@ cp modules/user/public/lib/queries/role_permissions/permissions.liquid app/modul
 4. Add the following to the `<head>` section of your application layout to get the basic styling provided with the module. To overwrite the colors and spacings you can overwrite the CSS variables in `pos-config.css`.
 
 ```
-{% render 'modules/common-styling/init' %}
+{% function current_profile = 'modules/user/helpers/current_profile' %}
+{% render 'modules/common-styling/init', timezone: current_profile.properties.timezone %}
 <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
 <link rel="stylesheet" href="{{ 'modules/chat/style/pos-chat-inbox.css' | asset_url }}">
 ```
 
-5. Add the following to the `<head>` section of your application layout **before any other `<script>` tag on the page**. Or - if you already using an import map, just extend it with the following:
+The `init` partial also formats the dates in the chat (and any others shown with common-styling's `time` partial) in the visitor's language and timezone. If your profiles have a `timezone` property, like the one above, the dates are shown in it instead - the chat passes it to the dates it renders too. Without one, leave the `timezone` out.
 
-```
-<script type="importmap">
-  {
-    "imports": {
-      "/": "{{ 'modules/chat/js/' | asset_url }}",
-      "pos-chat.js": "{{ 'modules/chat/js/pos-chat.js' | asset_url }}",
-      "pos-chat-consumer.js": "{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}",
-      "pos-chat-csrfToken.js": "{{ 'modules/chat/js/pos-chat-csrfToken.js' | asset_url }}",
-      "pos-chat-notifications.js": "{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}",
-      "./": "./"
-    }
-  }
-</script>
-```
+The chat's scripts load each other without an import map, so none is needed. If your layout still has the `<script type="importmap">` block with the `pos-chat*.js` entries from an earlier version of this module, remove those entries. Its `"/"` entry could break your app's own module imports.
 
 ### Managing Module Files
 
@@ -107,7 +95,12 @@ The table below outlines the [resourceful routes](https://documentation.platform
 
 | HTTP method   | slug  | page file path |  description |
 |---|---|---|---|
-| GET  | /inbox | `modules/chat/public/views/pages/inbox.liquid` | Renders a chat | 
+| GET  | /inbox | `modules/chat/public/views/pages/inbox.liquid` | Renders a chat. `?to_uuid=<profile uuid>` opens the chat with that profile - the conversation is created when its first message is sent, so linking to it is safe | 
+| POST | /api/chat/conversations | `modules/chat/public/views/pages/api/conversations/create.json.liquid` | Starts the conversation with `to_uuid`, used by the chat itself | 
+
+#### Who can be found and messaged
+
+The search in the inbox finds people by their name (not their email) and only lists people who can use the chat - those whose roles grant the `chat.inbox` permission. A conversation can only be started with someone who can use the chat. To add your own rules on who may contact whom, overwrite `modules/chat/public/lib/commands/conversations/find_or_create/check.liquid`: it gets the `participant_ids` of the conversation about to be started and the `current_profile`, and returns the object with `valid` and `errors` (see the default implementation).
 
 #### CRUD commands 
 

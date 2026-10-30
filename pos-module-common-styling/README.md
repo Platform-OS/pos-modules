@@ -357,6 +357,54 @@ On the server-side:
 [TO DO]
 
 
+### Dates and times
+
+Dates are formatted in the browser, in the visitor's timezone and in the language of the page (`<html lang>`, the browser's language if it's not set), using `Intl.DateTimeFormat` and `Intl.RelativeTimeFormat`. Until the script runs, the date formatted by the server is shown.
+
+```liquid
+{% render 'modules/common-styling/time', date: message.created_at %}
+{% render 'modules/common-styling/time', date: message.created_at, format: 'relative' %}
+{% render 'modules/common-styling/time', date: message.created_at, date_style: 'short', time_style: 'none' %}
+```
+
+| parameter  | description |
+|------------|-------------|
+| date       | The date, anything `to_time` understands |
+| format     | `full` (default) or `relative` |
+| date_style | Date part of the full date: `full`, `long`, `medium` (default), `short` or `none` |
+| time_style | Time part of the full date: `full`, `long`, `medium`, `short` (default) or `none` |
+| class      | Additional CSS classes |
+| timezone   | Timezone of the date formatted by the server, until the script runs - pass the same one as to `init`. It has to be a valid one, as for the `l` filter, or the page fails to render |
+
+When the users can choose their timezone, for example in their profile, pass it to `init`, so that the dates are shown in it instead of the visitor's computer's one. Either an IANA name (`Europe/Warsaw`) or a platformOS one (`Warsaw`, as listed in `context.globals.time_zones.all`) works:
+
+```liquid
+{% render 'modules/common-styling/init', timezone: current_profile.properties.timezone %}
+{% render 'modules/common-styling/time', date: message.created_at, timezone: current_profile.properties.timezone %}
+```
+
+An unknown timezone passed to `init` is ignored and the visitor's own is used.
+
+A relative date shows:
+
+| age                     | shown as       |
+|-------------------------|----------------|
+| less than a minute      | now            |
+| less than an hour       | 5 minutes ago  |
+| less than 24 hours      | 3 hours ago    |
+| 24 to 48 hours          | 1 day ago      |
+| 48 to 72 hours          | 2 days ago     |
+| older, or in the future | the full date  |
+
+Relative dates are refreshed every 30 seconds and show the full date on hover.
+
+The partial renders `<time class="pos-time" datetime="...">`, with the options as `data-format`, `data-date-style` and `data-time-style`. Any such element is formatted, including ones added to the page later (for example rendered from JavaScript or loaded from an endpoint), so you can also build it yourself. The module is started by `init`, once per page even if `init` is rendered more than once. To format a date in JavaScript:
+
+```js
+pos.modules.active.time.format(date, 'relative');
+```
+
+
 ### Loading HTML endpoint and placing it in a container
 
 A pre-defined method of loading HTML content into a container:

@@ -1,11 +1,9 @@
 {% if current_profile.id %}
 
-  {% if profiles.results.size > 1 %}
+  {% if profiles.results.size > 0 %}
     <section class="pos-chat-people">
       <ul>
         {% for profile in profiles.results %}
-          {% if profile.id == current_profile.id %}{% continue %}{% endif %}
-
           {% assign chat_url = '/inbox/?to_uuid=' | append: profile.uuid %}
           <li><a href="{{ chat_url }}">{{ profile.name }}</a></li>
         {% endfor %}

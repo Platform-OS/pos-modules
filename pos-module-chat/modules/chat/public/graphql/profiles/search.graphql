@@ -1,0 +1,28 @@
+query search(
+  $query: String
+  $not_ids: [ID!]
+  $roles: [String!]
+  $limit: Int = 7
+) {
+  profiles: records(
+    per_page: $limit
+    filter: {
+      table: { exact: "modules/user/profile" }
+      id: { not_value_in: $not_ids }
+      properties: [
+        { name: "name", contains: $query }
+        { name: "roles", array_overlaps: $roles }
+      ]
+    }
+    sort: { created_at: { order: DESC } }
+  ) {
+    total_entries
+    results {
+      id
+      uuid: property(name: "uuid")
+      name: property(name: "name")
+      first_name: property(name: "first_name")
+      last_name: property(name: "last_name")
+    }
+  }
+}

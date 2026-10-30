@@ -1,12 +1,21 @@
 {% liquid
   # Authorization gate for the `notifications` Action Cable channel.
   #
-  # The room id is `notifications-<profile id>` (see assets/js/pos-chat-notifications.js).
+  # The room id is `notifications-<profile id>`. The module has no client for it - the
+  # host app subscribes, see lib/consumers/chat_message_created/broadcast_new_message.
   # Without this partial the platform falls back to a permissive default for
   # same-origin connections, which would let any authenticated user subscribe to
   # another user's notification stream (IDOR / CWE-639). Tie the requested room
   # back to the authenticated profile and reject anything else.
   function current_profile = 'modules/user/helpers/current_profile'
+
+  # the same permission the inbox and the conversate channel require - the notifications
+  # carry the messages' text, so revoking chat.inbox has to cut this stream off too
+  function can = 'modules/user/helpers/can_do', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null
+  unless can
+    echo 'false'
+    break
+  endunless
 
   assign room_id = context.params.room_id
   assign expected_room_id = 'notifications-' | append: current_profile.id

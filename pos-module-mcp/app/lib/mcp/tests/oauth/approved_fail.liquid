@@ -4,6 +4,8 @@
   sign-in must still complete.
 {%- endcomment -%}
 {%- liquid
+  # The parse must fail, so the JSON cannot be written as a literal.
+  # platformos-check-disable-next-line DeprecatedFilter
   assign broken = 'not json' | parse_json
   return broken
 -%}

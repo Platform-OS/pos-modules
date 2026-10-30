@@ -1,5 +1,24 @@
 {% liquid
-  assign data = { "conversation_id": object.conversation_id, "uploader_id": object.uploader_id, "upload": object.upload, "metadata": object.metadata }
+  # metadata comes from the client - only the known fields are kept, each coerced to
+  # its type, so whatever else is sent never reaches the record
+  assign client_metadata = object.metadata
+  assign client_metadata_type = client_metadata | type_of
+  unless client_metadata_type == 'Hash'
+    assign client_metadata = {}
+  endunless
+
+  # the browser reports an empty type for files it doesn't recognize
+  assign type = client_metadata.type | append: '' | strip | downcase | default: 'application/octet-stream'
+  assign name = client_metadata.name | append: '' | strip | truncate: 255, ''
+  assign size = client_metadata.size | to_positive_integer: 0
+
+  assign metadata = { "type": type, "name": name, "size": size }
+  if type contains 'image/'
+    assign metadata.width = client_metadata.width | to_positive_integer: 0
+    assign metadata.height = client_metadata.height | to_positive_integer: 0
+  endif
+
+  assign data = { "conversation_id": object.conversation_id, "uploader_id": object.uploader_id, "upload": object.upload, "metadata": metadata }
 
   return data
  %}

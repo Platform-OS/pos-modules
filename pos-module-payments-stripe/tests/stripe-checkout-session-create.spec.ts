@@ -25,7 +25,7 @@ test.describe('Stripe Checkout Session Creation', () => {
       // We verify that either:
       // 1. We got to Stripe checkout (real environment)
       // 2. We got an error/failure response (test environment without keys)
-      const isStripeUrl = currentUrl.includes('checkout.stripe.com');
+      const isStripeUrl = new URL(currentUrl).hostname === 'checkout.stripe.com';
       const isTestUrl = currentUrl.includes('test-stripe-payment');
 
       expect(isStripeUrl || isTestUrl).toBeTruthy();

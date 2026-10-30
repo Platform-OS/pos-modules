@@ -4,13 +4,10 @@
 
   https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API
   https://www.npmjs.com/package/actioncable
+
+  usage (loaded and started by views/partials/inbox, the same way common-styling loads its modules):
+    new window.pos.modules.chat({ inbox: domNode, consumer: actionCableConsumer });
 */
-
-
-
-// imports
-// ------------------------------------------------------------------------
-import consumer from 'pos-chat-consumer.js';
 
 
 
@@ -33,27 +30,16 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.messageInput = document.querySelector('#chat-messageInput');
   // the send button for new message (dom node)
   module.settings.sendButton = document.querySelector('#chat-sendButton');
+  // if a message is being sent right now, waiting for its attachments to finish uploading (bool)
+  module.settings.sending = false;
   // the box that contains the messages list and that can scroll (dom node)
   module.settings.messagesListContainer = document.querySelector('#chat-messagesList-container');
   // the box with all the messages stored (dom node)
   module.settings.messagesList = document.querySelector('#chat-messagesList');
-  // tries to parse the date with toLocaleString (function that gets Date object and returns parsed date or empty string if fails)
-  module.settings.timezonedDate = date => {
-    let timezonedDate;
-
-    try {
-      // the back-end returns the timezone formatted not according to tz identifier, so I'm going to risk the 'replace' here to make it work with .toLocaleString automatically
-      timezonedDate = date.toLocaleString('en-US', { day: 'numeric', weekday: 'short', year: 'numeric', month: 'short', hour: 'numeric', minute: 'numeric', hour12: true });
-    } catch {
-      if(typeof Intl == 'object' && typeof Intl.NumberFormat == 'function'){
-        timezonedDate = date.toLocaleString('en-US', { day: 'numeric', weekday: 'short', year: 'numeric', month: 'short', hour: 'numeric', minute: 'numeric', hour12: true });
-      } else {
-        timezonedDate = '';
-      }
-    }
-
-    return timezonedDate;
-  }
+  // if the messages list is scrolled to the newest messages, the chat opens scrolled there (bool)
+  module.settings.atBottom = true;
+  // how close to the bottom, in pixels, still counts as being at the bottom (int)
+  module.settings.atBottomThreshold = 80;
   // html template for the single message
   module.settings.messageTemplate = {
     // whole html template for sent message (dom node)
@@ -71,13 +57,9 @@ window.pos.modules.chat = function(userSettings = {}){
   };
   // the id of the currently logged user (string)
   module.settings.currentUserId = window.pos.profile.id;
-  // current user name
-  module.settings.currentUserName = window.pos.profile.name;
   // the loading indicator when loading messages (dom node)
   module.settings.loadingIndicator = document.querySelector('#pos-chat-loadingIndicator');
-  // current page of messages (int)
-  module.settings.currentPage = 1;
-  // are there more pages (bool)
+  // are there older messages to load (bool)
   module.settings.morePages = true;
 
   // gap (ms) since the previous message after which a timestamp is shown again (number)
@@ -89,8 +71,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.conversations.container = document.querySelector('#pos-chat-conversations');
   // selctor for the button to load more conversations (string)
   module.settings.conversations.loadMoreButtonSelector = '.pos-chat-conversations-more';
-  // current page of conversations (int)
-  module.settings.conversations.currentPage = 1;
+  // if the next page of conversations is being loaded right now (bool)
+  module.settings.conversations.loading = false;
   // are there more pages of conversations (bool)
   module.settings.conversations.morePages = document.querySelector(module.settings.conversations.loadMoreButtonSelector) ? true : false;
 
@@ -114,16 +96,66 @@ window.pos.modules.chat = function(userSettings = {}){
   // back its id + signed URL) is a round-trip, so a Send triggered before it resolves has
   // to wait for these rather than silently going out without the attachment
   module.settings.upload.pendingSaves = [];
-  // button that clears the staged uploads (dom node)
-  module.settings.upload.clear = document.querySelector('#chat-uploaderToggle');
+  // id of the uploader module instance (string)
+  module.settings.upload.uploaderId = 'chat-upload';
+  // template holding the uploader markup and the urls to load uppy from, added to the page on demand (dom node)
+  module.settings.upload.uploaderTemplate = document.querySelector('#pos-chat-template-uploader');
+  // where the uploader markup is added to (dom node)
+  module.settings.upload.uploaderContainer = document.querySelector('#chat-uploader');
+  // loading of the uploader, so it's only done once (promise)
+  module.settings.upload.loading = null;
+  // list showing the files added to the uploader (dom node)
+  module.settings.upload.list = document.querySelector('#chat-uploaderList');
+  // html template for a single item on the files list (dom node)
+  module.settings.upload.listItemTemplate = document.querySelector('#pos-chat-template-uploader-list-item');
+  // class added to the files list items that are images (string)
+  module.settings.upload.listItemImageClass = 'pos-chat-uploader-list-item-image';
+  // css custom property on the files list item holding its upload progress, 0-100 (string)
+  module.settings.upload.progressProperty = '--pos-chat-upload-progress';
+  // class added to the files list item once its file is uploaded, fades the progress border away (string)
+  module.settings.upload.listItemUploadedClass = 'pos-chat-uploader-list-item-uploaded';
+  // class added to the files list item when its file failed to upload, shows the progress border as an error (string)
+  module.settings.upload.listItemFailedClass = 'pos-chat-uploader-list-item-failed';
+  // the uppy instance the upload progress is already being listened to on (object)
+  module.settings.upload.watchedUppy = null;
+  // errors for the files currently being picked or dropped, waiting to be shown, keyed by
+  // the kind of error (Map of kind => { message, fileNames })
+  module.settings.upload.errors = new Map();
+  // the longest file name shown in an error message, longer ones are cut with an ellipsis (int)
+  module.settings.upload.maxFileNameLength = 15;
+  // object URLs created for image previews, keyed by the uppy file id, so they can be revoked (Map)
+  module.settings.upload.previews = new Map();
+  // button that opens the system file picker (dom node)
+  module.settings.upload.button = document.querySelector('#chat-uploadButton');
+  // hidden file input behind the upload button, the picked files are added to the uploader (dom node)
+  module.settings.upload.input = document.querySelector('#chat-uploadInput');
+  // overlay shown when dragging files over the page, files dropped on it are added to the uploader (dom node)
+  module.settings.upload.overlay = document.querySelector('.pos-chat-conversation-upload-overlay');
+  // counts nested dragenter/dragleave events so the overlay doesn't flicker when dragging over child elements (int)
+  module.settings.upload.dragCounter = 0;
 
   // the message that will appear when the connection is lost
   module.settings.lostConnection = pos.translations.connectionError;
 
+  // the Action Cable consumer the channel is created on, from pos-chat-consumer.js (object)
+  module.consumer = userSettings.consumer;
   // the channel to send messages through (Action Cable channel)
   module.channel = null;
-  // the id for the conversation (string)
+  // the id for the conversation, empty until a new conversation is started (string)
   module.conversationId = module.settings.inbox.getAttribute('data-conversation-id');
+  // uuid of the profile a new conversation is opened with - the conversation is only created
+  // once its first message or attachment is sent (string)
+  module.toUuid = module.settings.inbox.getAttribute('data-to-uuid');
+  // url to start a new conversation (string)
+  module.settings.createConversationUrl = '/api/chat/conversations';
+  // starting of the new conversation, so it's only done once (promise)
+  module.settings.starting = null;
+  // subscription to the conversation's channel, resolved once connected (promise)
+  module.settings.subscribed = null;
+  // if the channel is connected right now (bool)
+  module.settings.connected = false;
+  // if a message arrived while the tab was hidden and the conversation still has to be marked read (bool)
+  module.settings.unseen = false;
   // instance of the toast notification shown when something fails
   module.errorNotification = null;
 
@@ -137,19 +169,25 @@ window.pos.modules.chat = function(userSettings = {}){
   module.init = () => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing chat', module.settings.inbox);
 
-    // create subscription for the channel
+    // create subscription for the channel, a failed one is already shown by module.blocked
     if(module.conversationId){
-      module.createSubscription();
+      module.createSubscription().catch(() => {});
+    } else if(module.toUuid && module.settings.messageInput){
+      // a conversation not started yet has no channel to connect to, it can be typed in right away
+      module.settings.messageInput.disabled = false;
+      module.settings.messageInput.focus();
     }
+
+    // mark the conversation read when the user comes back to a tab that got messages while hidden
+    document.addEventListener('visibilitychange', () => {
+      if(module.settings.unseen){
+        module.markRead();
+      }
+    });
 
     // scroll to bottom after loading the messages
     if(module.conversationId){
       scrollBottom();
-    }
-
-    // parse dates from BE to be in the same format as browser locale
-    if(module.conversationId){
-      module.parseDates();
     }
 
     let is_desktop = true;
@@ -160,7 +198,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling what will happen on pressing enter in the input
     module.settings.messageInput?.addEventListener('keypress', (event) => {
-      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length)){
+      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length || module.upload.getUnfinished().length)){
         event.preventDefault();
 
         module.triggerSend();
@@ -169,14 +207,22 @@ window.pos.modules.chat = function(userSettings = {}){
 
     // handling send button click
     module.settings.sendButton?.addEventListener('click', () => {
-      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length) {
+      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length || module.upload.getUnfinished().length) {
         module.triggerSend();
       }
     });
 
-    // scroll to bottom after a new image loads in the chat
+    // remember if the user is reading the newest messages, so loading images can keep them in view
+    module.settings.messagesListContainer?.addEventListener('scroll', () => {
+      const container = module.settings.messagesListContainer;
+      module.settings.atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= module.settings.atBottomThreshold;
+    }, { passive: true });
+
+    // scroll to bottom after a new image loads in the chat - only when the user is at the bottom
+    // already, images load lazily, so the ones higher up load while the user scrolls through
+    // the history and must not pull them back down
     module.settings.messagesList?.addEventListener('load', (event) => {
-      if(event.target.tagName === 'IMG'){
+      if(event.target.tagName === 'IMG' && module.settings.atBottom){
         scrollBottom('smooth');
       }
     }, true);
@@ -188,22 +234,29 @@ window.pos.modules.chat = function(userSettings = {}){
         clearTimeout(messagesListTimeout);
         messagesListTimeout = setTimeout(() => {
           if(module.settings.messagesListContainer.scrollTop === 0){
-            module.settings.currentPage = module.settings.currentPage + 1;
-            module.loadPage(module.settings.currentPage);
+            module.loadPage();
           }
         }, 300);
       }
     });
 
-    // load nex page of conversations when user scrolls to bottom
+    // load the next page of conversations with the 'load more' button
+    module.settings.conversations.container.addEventListener('click', event => {
+      if(event.target.closest(`${module.settings.conversations.loadMoreButtonSelector} button`)){
+        module.conversations.load();
+      }
+    });
+
+    // or when the user scrolls near the bottom of the list - not exactly to it, the scroll
+    // position can be fractional and never equal the bottom
     let conversationsListTimeout = '';
     module.settings.conversations.container.addEventListener('scroll', () => {
       if(module.settings.conversations.morePages === true){
         clearTimeout(conversationsListTimeout);
         conversationsListTimeout = setTimeout(() => {
-          if(module.settings.conversations.container.scrollTop === module.settings.conversations.container.scrollHeight - module.settings.conversations.container.clientHeight){
-            module.settings.conversations.currentPage = module.settings.conversations.currentPage + 1;
-            module.conversations.load(module.settings.conversations.currentPage);
+          const container = module.settings.conversations.container;
+          if(container.scrollHeight - container.clientHeight - container.scrollTop < 50){
+            module.conversations.load();
           }
         }, 300);
       }
@@ -228,6 +281,13 @@ window.pos.modules.chat = function(userSettings = {}){
       }, 300);
     });
 
+    // pos-chat.js is imported on DOMContentLoaded, so the input can already hold a query typed
+    // before the listener above was attached (or one the browser restored on back/forward),
+    // its input events were missed - search for it now
+    if(module.settings.search.input?.value.trim()){
+      module.search.run(module.settings.search.input.value.trim());
+    }
+
     // clear search results
     module.settings.search.clear?.addEventListener('click', () => {
       module.search.clear();
@@ -239,7 +299,9 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.search.results?.addEventListener('keydown', module.search.keyboard);
 
     // store record for uploaded file, and stage its media info to go out with the next sent message
-    document.addEventListener('pos-upload-file-uploaded', event => {
+    // the uploader's events bubble up through its container, which only holds the chat's own
+    // uploader - listening there (and not on document) ignores any other uploader on the page
+    module.settings.upload.uploaderContainer?.addEventListener('pos-upload-file-uploaded', event => {
       const fileId = event.detail.file.id;
       const metadata = {
         type: event.detail.file.type,
@@ -258,14 +320,22 @@ window.pos.modules.chat = function(userSettings = {}){
       // the id and signed URL a Send needs (see receive.liquid/with_media, the upload's
       // ACL is private). Tracked in pendingSaves so triggerSend can wait for it instead of
       // sending before this attachment has actually landed in `pending`.
-      const savePromise = module.upload.save({ conversationId: module.conversationId, uploadUrl: event.detail.url, metadata: metadata })
+      const savePromise = module.upload.save({ uploadUrl: event.detail.url, metadata: metadata })
         .then(media => {
+          const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+          // without the record the file can't be sent, so it's shown as failed even though it was uploaded
           if(!media){
+            if(uppy?.getFile(fileId)){
+              uppy.setFileState(fileId, { error: 'Could not save the upload record' });
+              module.upload.markFailed(fileId);
+              module.upload.showError('uploadFailed', window.pos.translations.chat.uploadFailed, event.detail.file.name);
+            }
             return;
           }
 
           // the file could have been removed from the uploader while its record was being saved
-          if(!pos.modules.active['chat-upload']?.settings.uppy.getFile(fileId)){
+          if(!uppy?.getFile(fileId)){
             pos.modules.debug(module.settings.debug, module.settings.id, 'Skipped staging a file removed from the uploader before its record was saved', media);
             return;
           }
@@ -285,19 +355,73 @@ window.pos.modules.chat = function(userSettings = {}){
     });
 
     // unstage a file removed from the uploader so it doesn't go out with the next sent message
-    document.addEventListener('pos-upload-file-removed', event => {
+    module.settings.upload.uploaderContainer?.addEventListener('pos-upload-file-removed', event => {
       module.settings.upload.pending = module.settings.upload.pending.filter(item => item.fileId !== event.detail.file.id);
 
       pos.modules.debug(module.settings.debug, module.settings.id, 'Removed file from pending uploads', event.detail.file.id);
     });
 
-    // clear all staged uploads
-    module.settings.upload.clear?.addEventListener('change', () => {
-      module.settings.upload.pending = [];
-      pos.modules.active['chat-upload']?.settings.uppy.cancelAll();
-
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Cleared all pending uploads');
+    // keep the files list in sync with the files in the uploader
+    ['pos-upload-file-added', 'pos-upload-file-removed', 'pos-upload-cancel-all'].forEach(eventName => {
+      module.settings.upload.uploaderContainer?.addEventListener(eventName, () => {
+        module.upload.renderList();
+      });
     });
+
+    // let the user know when a file breaks the uploader's limits, as there is no dashboard
+    // to show uppy's own error
+    module.settings.upload.uploaderContainer?.addEventListener('pos-upload-restriction-failed', event => {
+      const uploader = pos.modules.active[module.settings.upload.uploaderId];
+
+      if(!uploader){
+        return;
+      }
+
+      // uppy checks the number of files before the file size
+      if(uploader.settings.maxNumberOfFiles && uploader.settings.uppy.getFiles().length >= uploader.settings.maxNumberOfFiles){
+        module.upload.showError('tooManyFiles', window.pos.translations.chat.tooManyFiles, event.detail.file?.name);
+      } else if(event.detail.file?.size > uploader.settings.maxFileSize){
+        module.upload.showError('fileTooLarge', window.pos.translations.chat.fileTooLarge, event.detail.file?.name);
+      }
+    });
+
+    // remove the file from the uploader when clicking the remove button on the files list
+    module.settings.upload.list?.addEventListener('click', event => {
+      const button = event.target.closest('.pos-chat-uploader-list-item-remove');
+
+      if(button){
+        pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy.removeFile(button.closest('li').dataset.fileId);
+      }
+    });
+
+    // open the system file picker, the uploader has no dashboard of its own
+    module.settings.upload.button?.addEventListener('click', () => {
+      module.settings.upload.input?.click();
+    });
+
+    // start loading the uploader as soon as the user is about to attach a file, so it's
+    // usually ready by the time they've picked one
+    ['pointerenter', 'focus', 'click'].forEach(eventName => {
+      module.settings.upload.button?.addEventListener(eventName, () => {
+        module.upload.load().catch(() => {});
+      });
+    });
+
+    // add the picked files to the uploader
+    module.settings.upload.input?.addEventListener('change', () => {
+      module.upload.addFiles(Array.from(module.settings.upload.input.files));
+
+      // reset so picking the same file again still fires 'change'
+      module.settings.upload.input.value = '';
+    });
+
+    // drag & drop files anywhere on the page to add them to the uploader
+    if(module.settings.upload.overlay){
+      document.addEventListener('dragenter', module.upload.dragEnter);
+      document.addEventListener('dragleave', module.upload.dragLeave);
+      document.addEventListener('dragover', module.upload.dragOver);
+      document.addEventListener('drop', module.upload.drop);
+    }
 
 
 
@@ -348,7 +472,10 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.settings.setMessageTime = (timeEl, date, show) => {
     timeEl.dateTime = date.toISOString();
-    timeEl.textContent = show ? module.settings.timezonedDate(date) : '';
+    // a shown one is formatted by common-styling's time module - right away, as the element may
+    // be on the page already, or once it's added to the page (or the module has started)
+    timeEl.classList.toggle('pos-time', show);
+    timeEl.textContent = (show && window.pos.modules.active.time) ? window.pos.modules.active.time.format(date) : '';
   };
 
 
@@ -461,15 +588,21 @@ window.pos.modules.chat = function(userSettings = {}){
   // returns:		triggers a 'message' event on document when new    message
   //				    appears on the channel (send or received), passess the message details
   // ------------------------------------------------------------------------
+  // returns:		resolves once connected, rejects when the server rejects the subscription (promise)
   module.createSubscription = () => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Creating subscription');
 
-    module.channel = consumer.subscriptions.create(
+    let resolveSubscribed;
+    let rejectSubscribed;
+    module.settings.subscribed = new Promise((resolve, reject) => {
+      resolveSubscribed = resolve;
+      rejectSubscribed = reject;
+    });
+
+    module.channel = module.consumer.subscriptions.create(
       {
         channel: 'conversate',
         room_id: module.conversationId,
-        sender_name: module.settings.messageInput.getAttribute('data-from-name'),
-        autor_id: module.settings.messageInput.getAttribute('data-current-profile-id'),
         authenticity_token: window.pos.csrfToken
       },
       {
@@ -482,12 +615,9 @@ window.pos.modules.chat = function(userSettings = {}){
 
           // We're actively rendering this message on screen right now - tell the
           // server so it doesn't count as unread and trigger a push notification.
-          // Skipped while the tab is hidden/backgrounded, since the message isn't
-          // actually being seen in that case. Uses .send (-> the `receive` action,
-          // the only one ActionCable dispatches to here), not .perform - a custom
-          // action name would be silently dropped server-side.
-          if(data.status === 'received' && document.visibilityState === 'visible'){
-            module.channel.send({ mark_read: true });
+          if(data.status === 'received'){
+            module.settings.unseen = true;
+            module.markRead();
           }
 
           if(module.settings.debug){
@@ -506,6 +636,13 @@ window.pos.modules.chat = function(userSettings = {}){
         connected: function(){
           pos.modules.debug(module.settings.debug, module.settings.id, `Connected to channel and joined the room ${module.conversationId}`);
 
+          module.settings.connected = true;
+          resolveSubscribed();
+
+          // opening the conversation (or coming back to it after losing the connection) reads it
+          module.settings.unseen = true;
+          module.markRead();
+
           module.settings.messageInput.disabled = false;
           module.settings.messageInput.focus();
           pos.modules.debug(module.settings.debug, module.settings.id, 'Unlocked message input');
@@ -517,37 +654,150 @@ window.pos.modules.chat = function(userSettings = {}){
         },
 
         rejected: function(){
+          module.settings.connected = false;
           module.blocked();
+          rejectSubscribed(Object.assign(new Error('The subscription was rejected'), { shown: true }));
 
           pos.modules.debug(module.settings.debug, module.settings.id, `The connection was rejected by the server`);
         },
 
         disconnected: function(){
+          module.settings.connected = false;
           module.blocked();
 
           pos.modules.debug(module.settings.debug, module.settings.id, `Disconnected from the server`);
         }
       }
     );
+
+    return module.settings.subscribed;
   };
 
 
-  // purpose:		waits for any attachments still being saved (see the
-  //				    pos-upload-file-uploaded listener/pendingSaves) before actually
-  //				    sending, so a Send that follows an attach too quickly doesn't go
-  //				    out with an empty/incomplete media list
+  // purpose:		marks the conversation read for the current user, unless the tab is hidden
+  //				    (then the messages aren't actually seen, it's done once the tab is shown) -
+  //				    the inbox page itself doesn't, as a GET can be triggered from another site.
+  //				    Uses .send (-> the `receive` action, the only one ActionCable dispatches to
+  //				    here), not .perform - a custom action name would be silently dropped server-side.
   // ------------------------------------------------------------------------
-  module.triggerSend = async () => {
-    if(module.settings.upload.pendingSaves.length){
-      await Promise.allSettled(module.settings.upload.pendingSaves);
+  module.markRead = () => {
+    if(!module.settings.connected || document.visibilityState !== 'visible'){
+      return;
     }
 
-    module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending.map(item => item.media));
-    setTimeout(() => {
-      module.settings.messageInput.value = '';
-    }, 100);
+    module.channel.send({ mark_read: true });
+    module.settings.unseen = false;
 
-    module.settings.upload.clear.checked = false;
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Marked the conversation read');
+  };
+
+
+  // purpose:		starts the conversation opened with module.toUuid if it doesn't exist yet -
+  //				    on its first message or attachment, not on opening the page - and connects to its channel
+  // returns:		resolves with the conversation id once connected (promise), rejects when that fails
+  // ------------------------------------------------------------------------
+  module.startConversation = () => {
+    if(module.conversationId && !module.settings.starting){
+      return Promise.resolve(module.conversationId);
+    }
+
+    if(!module.settings.starting){
+      module.settings.starting = (async () => {
+        const response = await fetch(module.settings.createConversationUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': window.pos.csrfToken
+          },
+          body: JSON.stringify({ to_uuid: module.toUuid })
+        });
+        const data = await response.json().catch(() => null);
+
+        if(!response.ok || !data?.id){
+          throw new Error(`Could not start the conversation (${response.status})`);
+        }
+
+        module.conversationId = String(data.id);
+        module.settings.inbox.setAttribute('data-conversation-id', module.conversationId);
+
+        // so reloading the page opens the conversation by its id
+        const url = new URL(window.location.href);
+        url.searchParams.delete('to_uuid');
+        url.searchParams.set('conversation_id', module.conversationId);
+        window.history.replaceState(window.history.state, '', url);
+
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Started the conversation', module.conversationId);
+
+        await module.createSubscription();
+
+        return module.conversationId;
+      })();
+
+      // a failed start can be retried with the next Send
+      module.settings.starting.catch(() => {
+        if(!module.conversationId){
+          module.settings.starting = null;
+        }
+      });
+    }
+
+    return module.settings.starting;
+  };
+
+
+  // purpose:		waits for any attachments still uploading and then still being saved
+  //				    (see the pos-upload-file-uploaded listener/pendingSaves) before actually
+  //				    sending, so a Send that follows an attach too quickly doesn't go out
+  //				    with an empty/incomplete media list - sendMessage() cancels everything
+  //				    left in the uploader, which would drop an upload still in progress
+  // ------------------------------------------------------------------------
+  module.triggerSend = async () => {
+    // a second Send while the first one is still waiting would send the same attachments again
+    if(module.settings.sending){
+      return;
+    }
+
+    module.settings.sending = true;
+    if(module.settings.sendButton){
+      module.settings.sendButton.disabled = true;
+    }
+
+    try {
+      await module.upload.waitForUploads();
+
+      // the record is saved after the upload finishes (on 'upload-success', which uppy
+      // emits before 'complete'), so these are all known by now
+      if(module.settings.upload.pendingSaves.length){
+        await Promise.allSettled(module.settings.upload.pendingSaves);
+      }
+
+      // nothing left to send when the only attachments failed and there is no text
+      if(!module.settings.messageInput.value.trim() && !module.settings.upload.pending.length){
+        return;
+      }
+
+      // the first message of a new conversation starts it - the message stays in the input when that fails
+      try {
+        await module.startConversation();
+      } catch(error) {
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Could not start the conversation', error);
+
+        if(!error.shown){
+          module.errorNotification = new window.pos.modules.toast('error', window.pos.translations.chat.startFailed);
+        }
+        return;
+      }
+
+      module.sendMessage(module.settings.messageInput.value.trim(), module.settings.upload.pending.map(item => item.media));
+      // cleared right away, so nothing typed after the message was sent gets wiped
+      module.settings.messageInput.value = '';
+    } finally {
+      module.settings.sending = false;
+      if(module.settings.sendButton){
+        module.settings.sendButton.disabled = false;
+      }
+    }
   };
 
 
@@ -557,12 +807,9 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.sendMessage = (message, media = null) => {
     let messageData = {
-      // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement),
-      // not here, so the raw text round-trips correctly through the server (raw_escape_string)
-      // and the markdown filter used by the server-rendered message.liquid partial
+      // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement,
+      // and the same plain text + <br> in the server-rendered message.liquid partial), not here
       message: message,
-      autor_id: module.settings.currentUserId,
-      sender_name: module.settings.currentUserName,
       created_at: new Date()
     };
 
@@ -630,12 +877,23 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		loads messages from given page
-  // arguments:	the page number (int, default: 1)
-  //            items per page to get (int, default: 30)
+  // purpose:		loads the messages older than the oldest one shown - by its id and not
+  //            by page number, as the messages that arrived since the page loaded would
+  //            shift the pages and show some messages twice
+  // arguments:	items per page to get (int, default: 30)
   // ------------------------------------------------------------------------
-  module.loadPage = (page = 1, perPage = 30) => {
+  module.loadPage = (perPage = 30) => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load previous messages');
+
+    // live messages are added at the bottom, so the first message with an id is the oldest
+    // one loaded from the server - with none, the conversation started on this page and
+    // there is nothing older
+    const oldestId = module.settings.messagesList.querySelector('li[data-id]')?.dataset.id;
+    if(!oldestId){
+      module.settings.morePages = false;
+
+      return;
+    }
 
     let secondOldestMessage = module.settings.messagesList.querySelector('li:nth-of-type(2)');
 
@@ -643,7 +901,7 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.loadingIndicator.classList.add('active');
 
     // get the data
-    fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&page=${page}&per_page=${perPage}`)
+    fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&before=${oldestId}&per_page=${perPage}`)
     .then(response => {
       // parse it to JSON if valid
       if(response.ok){
@@ -664,6 +922,8 @@ window.pos.modules.chat = function(userSettings = {}){
 
         // build the message's <li> (text + attachments) - shared with showMessage()
         const li = module.settings.buildMessageElement(messageData);
+        // the next batch is loaded from the oldest one's id
+        li.dataset.id = messageData.id;
         const messageDate = new Date(messageData.created_at);
         module.settings.setMessageTime(li.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
 
@@ -720,30 +980,6 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		parses the dates outputted from BE with JS so that everyting uses browser locale
-  // ------------------------------------------------------------------------
-  module.parseDates = () => {
-    document.querySelectorAll('.pos-chat-message time').forEach(time => {
-      // the back-end already decided whether this timestamp should be visible (grouping
-      // messages less than 7 minutes apart) - an empty one means it decided to hide it,
-      // so leave it alone instead of reinstating it here
-      if(!time.dateTime || !time.textContent.trim()){
-        return;
-      }
-
-      let currentDate = new Date(time.dateTime);
-      time.innerText = module.settings.timezonedDate(currentDate);
-    });
-  };
-
-
-  // purpose:		adds file to uploader
-  // ------------------------------------------------------------------------
-  module.addFile = () => {
-    pos.modules.active['chat-upload'];
-  };
-
-
   // conversations
   // ------------------------------------------------------------------------
   module.conversations = {};
@@ -751,11 +987,21 @@ window.pos.modules.chat = function(userSettings = {}){
 
   // purpose:   loads next page of conversations
   // ------------------------------------------------------------------------
-  module.conversations.load = (page = 1) => {
+  module.conversations.load = () => {
+    // the 'load more' button carries the cursor of the next page
+    const button = module.settings.conversations.container.querySelector(`${module.settings.conversations.loadMoreButtonSelector} button`);
+    if(!button || module.settings.conversations.loading){
+      return;
+    }
+    module.settings.conversations.loading = true;
+    button.disabled = true;
+
     pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load next page of conversations');
 
+    const params = new URLSearchParams({ read: button.dataset.read, before: button.dataset.before });
+
     // get the data
-    fetch(`/conversations.frame?page=${page}`)
+    fetch(`/conversations.frame?${params}`)
     .then(response => {
       if(response.ok){
         return response.text();
@@ -769,7 +1015,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
       module.settings.conversations.container.insertAdjacentHTML('beforeend', data);
 
-      pos.modules.debug(module.settings.debug, module.settings.id, `Conversations page ${page} loaded`, { data });
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Next page of conversations loaded', { data });
 
       // disable loading next pages if there is nothing left
       if(!document.querySelector(module.settings.conversations.loadMoreButtonSelector)){
@@ -779,9 +1025,11 @@ window.pos.modules.chat = function(userSettings = {}){
     })
     .catch((error) => {
       console.log(error);
-      error.json().then(data => console.log(data));
+      // the button stays, so it can be tried again
+      button.disabled = false;
     })
     .finally(() => {
+      module.settings.conversations.loading = false;
       pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous conversations');
     });
   };
@@ -934,27 +1182,40 @@ window.pos.modules.chat = function(userSettings = {}){
   //            the next sent message - including the freshly-signed, time-limited
   //            URL the server hands back (the upload's ACL is private, so a client
   //            can't just keep using the URL it uploaded to)
-  // returns:		{ id, type, name, size, width, height, url } (object), or null on failure
+  // returns:		{ id, type, name, size, width, height, url } (object), or null on failure -
+  //				    never throws, a network error or a non-JSON response is a failure too
   // ------------------------------------------------------------------------
-  module.upload.save = async ({ conversationId, uploadUrl, metadata }) => {
-    const response = await fetch(module.settings.upload.createUrl, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': window.pos.csrfToken
-      },
-      body: JSON.stringify({
-        conversation_id: conversationId,
-        upload: uploadUrl,
-        metadata: metadata
-      })
-    });
+  module.upload.save = async ({ uploadUrl, metadata }) => {
+    let response;
+    let data = null;
 
-    const data = await response.json();
+    try {
+      // an attachment belongs to a conversation, so the first one starts a new conversation
+      const conversationId = await module.startConversation();
 
-    if(!response.ok){
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Failed to save uploaded file record in the database', data);
+      response = await fetch(module.settings.upload.createUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': window.pos.csrfToken
+        },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          upload: uploadUrl,
+          metadata: metadata
+        })
+      });
+
+      // an error page (e.g. HTML from a proxy) isn't JSON
+      data = await response.json().catch(() => null);
+    } catch(error) {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Could not reach the server to save uploaded file record in the database', error);
+      return null;
+    }
+
+    if(!response.ok || !data?.id){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Failed to save uploaded file record in the database', { status: response.status, data: data });
       return null;
     }
 
@@ -972,15 +1233,490 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
+  // purpose:		builds a single item for the files list from the uppy file
+  // arguments:	the file from the uppy uploader (object)
+  // returns:		the file's <li> element, detached from any list (dom node)
+  // ------------------------------------------------------------------------
+  module.upload.buildListItem = (file) => {
+    const li = module.settings.upload.listItemTemplate.content.cloneNode(true).querySelector('li');
+    const img = li.querySelector('img');
+    const icon = li.querySelector('.pos-chat-uploader-list-file-type');
+
+    li.dataset.fileId = file.id;
+    li.querySelector('.pos-chat-uploader-list-item-name').textContent = file.name;
+
+    // the template carries both the image preview and the generic file icon, keep only the one that fits
+    if(file.type && file.type.startsWith('image/') && file.data instanceof Blob){
+      const previewUrl = URL.createObjectURL(file.data);
+      module.settings.upload.previews.set(file.id, previewUrl);
+
+      li.classList.add(module.settings.upload.listItemImageClass);
+      img.src = previewUrl;
+      img.alt = file.name;
+      icon?.remove();
+    } else {
+      img.remove();
+    }
+
+    li.style.setProperty(module.settings.upload.progressProperty, file.progress?.percentage || 0);
+
+    // an uploaded file whose record couldn't be saved has both, and counts as failed
+    if(file.error){
+      li.classList.add(module.settings.upload.listItemFailedClass);
+    } else if(file.progress?.uploadComplete){
+      li.classList.add(module.settings.upload.listItemUploadedClass);
+    }
+
+    return li;
+  };
+
+
+  // purpose:		listens to the uppy upload progress and shows it on the files list items,
+  //				    only once per uppy instance
+  // ------------------------------------------------------------------------
+  module.upload.watchProgress = () => {
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    if(!uppy || uppy === module.settings.upload.watchedUppy){
+      return;
+    }
+
+    module.settings.upload.watchedUppy = uppy;
+
+    uppy.on('upload-progress', (file, progress) => {
+      if(file && progress?.bytesTotal){
+        // a retried upload is no longer failed
+        module.upload.getListItem(file.id)?.classList.remove(module.settings.upload.listItemFailedClass);
+        module.upload.setProgress(file.id, Math.round(progress.bytesUploaded / progress.bytesTotal * 100));
+      }
+    });
+
+    uppy.on('upload-success', file => {
+      if(file){
+        module.upload.setProgress(file.id, 100);
+        module.upload.getListItem(file.id)?.classList.add(module.settings.upload.listItemUploadedClass);
+      }
+    });
+
+    // the progress border goes all the way around in the error color, the content stays faded
+    uppy.on('upload-error', file => {
+      if(file){
+        module.upload.markFailed(file.id);
+      }
+    });
+
+    // files uploaded together finish at different times, so the toast waits until the whole
+    // batch is done to list all the failed ones at once
+    uppy.on('complete', result => {
+      result?.failed?.forEach(file => {
+        module.upload.showError('uploadFailed', window.pos.translations.chat.uploadFailed, file.name);
+      });
+    });
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Listening to the upload progress', module.settings.upload.uploaderId);
+  };
+
+
+  // purpose:		shows an error toast about files that couldn't be added to the uploader,
+  //				    one per kind of error for each pick or drop, listing the files' names -
+  //				    picking or dropping several files fails for each of them separately,
+  //				    but in the same tick, so they are collected and shown together after it
+  // arguments:	kind of the error (string)
+  //				    the message to show, followed by the files' names (string), or messages
+  //				    for one and for more files with the names in place of {files} (object: { single, multiple })
+  //				    name of the file that couldn't be added (string)
+  // ------------------------------------------------------------------------
+  module.upload.showError = (kind, message, fileName) => {
+    const errors = module.settings.upload.errors;
+
+    if(!errors.size){
+      queueMicrotask(() => {
+        errors.forEach(({ message, fileNames }) => {
+          const names = fileNames.map(name => `<strong title="${encodeHtml(name).replaceAll('"', '&quot;')}">${encodeHtml(module.upload.shortenFileName(name))}</strong>`).join(', ');
+
+          const text = (typeof message === 'string') ? message : (fileNames.length === 1) ? message.single : message.multiple;
+
+          if(text.includes('{files}')){
+            // a function as the replacement, so '$' in the file names isn't treated as a special pattern
+            new window.pos.modules.toast('error', text.replace('{files}', () => names));
+          } else {
+            new window.pos.modules.toast('error', `${text}<br>${names}`);
+          }
+        });
+
+        // the next pick or drop can show the same errors again
+        errors.clear();
+      });
+    }
+
+    if(!errors.has(kind)){
+      errors.set(kind, { message: message, fileNames: [] });
+    }
+
+    errors.get(kind).fileNames.push(fileName);
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add file to the uploader', { kind: kind, file: fileName });
+  };
+
+
+  // purpose:		shortens the file name to show in a message, cutting the name before the
+  //				    extension with an ellipsis, so the extension stays visible
+  // arguments:	the file name (string)
+  // returns:		the file name, at most module.settings.upload.maxFileNameLength characters long (string)
+  // ------------------------------------------------------------------------
+  module.upload.shortenFileName = (name = '') => {
+    // split into characters, not UTF-16 code units, so emoji and such aren't cut in half
+    const characters = Array.from(name);
+    const maxLength = module.settings.upload.maxFileNameLength;
+
+    if(characters.length <= maxLength){
+      return name;
+    }
+
+    // a dot at the very start marks a hidden file, not an extension
+    const dotIndex = characters.lastIndexOf('.');
+    const extension = (dotIndex > 0) ? characters.slice(dotIndex) : [];
+
+    // keep at least one character of the name before the ellipsis, otherwise cut the whole thing at the end
+    if(!extension.length || extension.length > maxLength - 2){
+      return characters.slice(0, maxLength - 1).join('') + '…';
+    }
+
+    return characters.slice(0, maxLength - 1 - extension.length).join('') + '…' + extension.join('');
+  };
+
+
+  // purpose:		sets the upload progress on the files list item of the given file
+  // arguments:	uppy file id (string)
+  //				    progress in percents, 0-100 (int)
+  // ------------------------------------------------------------------------
+  module.upload.setProgress = (fileId, percentage) => {
+    module.upload.getListItem(fileId)?.style.setProperty(module.settings.upload.progressProperty, percentage);
+  };
+
+
+  // purpose:		lists the files in the uploader that are neither uploaded nor failed yet,
+  //				    including the ones added but not started (uppy starts them shortly after)
+  // returns:		the unfinished uppy files (array)
+  // ------------------------------------------------------------------------
+  module.upload.getUnfinished = () => {
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    return uppy ? uppy.getFiles().filter(file => !file.progress?.uploadComplete && !file.error) : [];
+  };
+
+
+  // purpose:		waits until every file in the uploader is either uploaded or failed
+  // returns:		promise resolved once nothing is uploading (promise)
+  // ------------------------------------------------------------------------
+  module.upload.waitForUploads = async () => {
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    // 'complete' ends an upload batch, but files added during it start a batch of their own,
+    // and a file removed or cancelled mid-upload doesn't necessarily end one - so check again
+    // after any of these until nothing unfinished is left
+    const events = ['complete', 'upload-error', 'file-removed', 'cancel-all'];
+
+    while(uppy && module.upload.getUnfinished().length){
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Waiting for the uploads to finish before sending', module.upload.getUnfinished().map(file => file.name));
+
+      await new Promise(resolve => {
+        const done = () => {
+          events.forEach(eventName => uppy.off(eventName, done));
+          resolve();
+        };
+
+        events.forEach(eventName => uppy.on(eventName, done));
+      });
+    }
+  };
+
+
+  // purpose:		shows the files list item of the given file as failed - the progress
+  //				    border all the way around in the error color, the content faded
+  // arguments:	uppy file id (string)
+  // ------------------------------------------------------------------------
+  module.upload.markFailed = (fileId) => {
+    const li = module.upload.getListItem(fileId);
+
+    module.upload.setProgress(fileId, 100);
+    // the file could have been shown as uploaded already, when it's its record that failed
+    li?.classList.remove(module.settings.upload.listItemUploadedClass);
+    li?.classList.add(module.settings.upload.listItemFailedClass);
+  };
+
+
+  // purpose:		finds the files list item of the given file
+  // arguments:	uppy file id (string)
+  // returns:		the file's <li> element, or null when it's not on the list (dom node)
+  // ------------------------------------------------------------------------
+  module.upload.getListItem = (fileId) => {
+    return module.settings.upload.list?.querySelector(`:scope > li[data-file-id="${CSS.escape(fileId)}"]`) || null;
+  };
+
+
+  // purpose:		scrolls the files list horizontally so the item is fully visible, without
+  //				    scrolling the page or the messages like scrollIntoView() could
+  // arguments:	the files list item (dom node)
+  // ------------------------------------------------------------------------
+  module.upload.scrollToListItem = (li) => {
+    const list = module.settings.upload.list;
+    const listRect = list.getBoundingClientRect();
+    const itemRect = li.getBoundingClientRect();
+    const listStyle = getComputedStyle(list);
+
+    if(itemRect.right > listRect.right){
+      list.scrollBy({ left: itemRect.right - listRect.right + parseFloat(listStyle.paddingRight), behavior: 'smooth' });
+    } else if(itemRect.left < listRect.left){
+      list.scrollBy({ left: itemRect.left - listRect.left - parseFloat(listStyle.paddingLeft), behavior: 'smooth' });
+    }
+  };
+
+
+  // purpose:		syncs the files list with the files currently added to the uploader,
+  //				    keeping the same order, reusing items that are already shown
+  // ------------------------------------------------------------------------
+  module.upload.renderList = () => {
+    const list = module.settings.upload.list;
+    const uppy = pos.modules.active[module.settings.upload.uploaderId]?.settings.uppy;
+
+    if(!list || !module.settings.upload.listItemTemplate){
+      return;
+    }
+
+    const files = uppy ? uppy.getFiles() : [];
+    const fileIds = files.map(file => file.id);
+
+    // remove the items for files that are no longer in the uploader
+    list.querySelectorAll(':scope > li').forEach(li => {
+      if(!fileIds.includes(li.dataset.fileId)){
+        const previewUrl = module.settings.upload.previews.get(li.dataset.fileId);
+
+        if(previewUrl){
+          URL.revokeObjectURL(previewUrl);
+          module.settings.upload.previews.delete(li.dataset.fileId);
+        }
+
+        li.remove();
+      }
+    });
+
+    // the last of the newly added items, scrolled to so its upload progress is visible (dom node)
+    let addedItem = null;
+
+    // add the missing items and keep them in the uploader's order
+    files.forEach((file, index) => {
+      let li = list.querySelector(`:scope > li[data-file-id="${CSS.escape(file.id)}"]`);
+
+      if(!li){
+        li = module.upload.buildListItem(file);
+        addedItem = li;
+      }
+
+      if(list.children[index] !== li){
+        list.insertBefore(li, list.children[index] || null);
+      }
+    });
+
+    if(addedItem){
+      module.upload.scrollToListItem(addedItem);
+    }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Synced the uploaded files list with the uploader', fileIds);
+  };
+
+
+  // purpose:		checks if the dragged content contains files (and not e.g. selected text or a link)
+  // arguments:	drag event (event)
+  // returns:		true if files are being dragged (bool)
+  // ------------------------------------------------------------------------
+  module.upload.isDraggingFiles = (event) => {
+    return Boolean(event.dataTransfer?.types?.includes('Files'));
+  };
+
+
+  // purpose:		shows the drag & drop overlay
+  // ------------------------------------------------------------------------
+  module.upload.showOverlay = () => {
+    module.settings.upload.overlay.hidden = false;
+  };
+
+
+  // purpose:		hides the drag & drop overlay
+  // ------------------------------------------------------------------------
+  module.upload.hideOverlay = () => {
+    module.settings.upload.dragCounter = 0;
+    module.settings.upload.overlay.hidden = true;
+  };
+
+
+  // purpose:		shows the overlay when files are dragged into the page
+  // arguments:	dragenter event (event)
+  // ------------------------------------------------------------------------
+  module.upload.dragEnter = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    event.preventDefault();
+
+    module.settings.upload.dragCounter++;
+    module.upload.showOverlay();
+
+    // files are about to be dropped, get the uploader ready
+    module.upload.load().catch(() => {});
+  };
+
+
+  // purpose:		hides the overlay when files are dragged out of the page
+  //            (dragleave fires for every element left, hence the counter)
+  // arguments:	dragleave event (event)
+  // ------------------------------------------------------------------------
+  module.upload.dragLeave = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    module.settings.upload.dragCounter--;
+
+    if(module.settings.upload.dragCounter <= 0){
+      module.upload.hideOverlay();
+    }
+  };
+
+
+  // purpose:		allows dropping on the overlay and prevents the browser from opening
+  //            the file when it's dropped anywhere else on the page
+  // arguments:	dragover event (event)
+  // ------------------------------------------------------------------------
+  module.upload.dragOver = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = module.settings.upload.overlay.contains(event.target) ? 'copy' : 'none';
+  };
+
+
+  // purpose:		adds the files dropped on the overlay to the uploader
+  // arguments:	drop event (event)
+  // ------------------------------------------------------------------------
+  module.upload.drop = (event) => {
+    if(!module.upload.isDraggingFiles(event)){
+      return;
+    }
+
+    event.preventDefault();
+    module.upload.hideOverlay();
+
+    if(!module.settings.upload.overlay.contains(event.target)){
+      return;
+    }
+
+    module.upload.addFiles(Array.from(event.dataTransfer.files));
+  };
+
+
+  // purpose:		loads uppy and the uploader on demand - adds the uploader markup from its
+  //				    template to the page, imports uppy and common-styling's pos-upload.js
+  //				    (unless something else on the page already did) and starts the uploader,
+  //				    the same way common-styling's init does for uploaders present on page load
+  // returns:		promise resolved with the uploader once it's ready, the same one on
+  //				    every call, a failed load can be tried again (promise)
+  // ------------------------------------------------------------------------
+  module.upload.load = () => {
+    if(pos.modules.active[module.settings.upload.uploaderId]){
+      return Promise.resolve(pos.modules.active[module.settings.upload.uploaderId]);
+    }
+
+    const template = module.settings.upload.uploaderTemplate;
+
+    if(!template || !module.settings.upload.uploaderContainer){
+      return Promise.reject(new Error('The uploader template is missing'));
+    }
+
+    module.settings.upload.loading ??= (async () => {
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Loading the uploader', module.settings.upload.uploaderId);
+
+      if(!pos.modules.uppy){
+        pos.modules.uppy = await import(template.dataset.uppyUrl);
+      }
+
+      if(!pos.modules.upload){
+        await import(template.dataset.uploadUrl);
+      }
+
+      // added only once the scripts are here, so a failed load leaves the template untouched for a retry
+      let element = document.getElementById(module.settings.upload.uploaderId);
+      if(!element){
+        module.settings.upload.uploaderContainer.appendChild(template.content.cloneNode(true));
+        element = document.getElementById(module.settings.upload.uploaderId);
+      }
+
+      const uploader = new pos.modules.upload({
+        container: element,
+        imageEditorEnabled: element.dataset.imageEditorEnabled === 'true',
+        allowedFileTypes: element.dataset.allowedFileTypes,
+        aspectRatio: element.dataset.aspectRatio,
+        maxNumberOfFiles: element.dataset.maxNumberOfFiles,
+        maxFileSize: element.dataset.maxFileSize,
+        showDashboard: element.dataset.showDashboard !== 'false'
+      });
+      pos.modules.active[module.settings.upload.uploaderId] = uploader;
+
+      module.upload.watchProgress();
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Loaded the uploader', module.settings.upload.uploaderId);
+
+      return uploader;
+    })().catch(error => {
+      module.settings.upload.loading = null;
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Could not load the uploader', error);
+      throw error;
+    });
+
+    return module.settings.upload.loading;
+  };
+
+
+  // purpose:		adds files to the uppy uploader (which uploads them right away), loading
+  //				    the uploader first when the user was quicker than it
+  // arguments:	files to add (array of File)
+  // ------------------------------------------------------------------------
+  module.upload.addFiles = async (files) => {
+    let uppy;
+
+    try {
+      uppy = (await module.upload.load()).settings.uppy;
+    } catch(error) {
+      files.forEach(file => module.upload.showError('uploadFailed', window.pos.translations.chat.uploadFailed, file.name));
+      return;
+    }
+
+    files.forEach(file => {
+      // uppy throws when a file breaks the restrictions (size, type, number of files),
+      // it also emits 'restriction-failed' which shows the error as a toast, so just skip the file
+      try {
+        uppy.addFile({
+          source: module.settings.id,
+          name: file.name,
+          type: file.type,
+          data: file
+        });
+
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Added file to the uploader', file.name);
+      } catch(error) {
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Could not add file to the uploader', { file: file.name, error: error });
+      }
+    });
+
+    // let the user write a message to go with the files right away
+    module.settings.messageInput?.focus();
+  };
+
+
 
   module.init();
 
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-  if(document.querySelector('#pos-chat-inbox')){
-    window.pos.modules.active.chat = new window.pos.modules.chat({
-      inbox: document.querySelector('#pos-chat-inbox'),
-    });
-  }
-});

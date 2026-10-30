@@ -16,6 +16,12 @@ on:
   repository_dispatch:
     types: [ platform-build ]
 
+# Least privilege for GITHUB_TOKEN: checkout and paths-filter read the repo,
+# skip-duplicate-actions reads workflow runs. Nothing here writes to GitHub.
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   pre_job:
     runs-on: ubuntu-latest
@@ -281,6 +287,13 @@ jobs:
           repository-url: ${{ vars.CI_PS_REPOSITORY_URL }}
           pos-ci-repo-token: ${{ secrets.POS_CI_PS_REPO_ACCESS_TOKEN }}
 
+      - name: Export instance credentials
+        shell: sh
+        env:
+          URL: ${{ steps.reserve.outputs.mpkit-url }}
+          TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
+        run: printf 'MPKIT_URL=%s\nMPKIT_TOKEN=%s\n' "$URL" "$TOKEN" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref_name }}
@@ -289,40 +302,39 @@ jobs:
         with:
           node-version: 20.x
 
-      # Shows why the instance refuses the token, which pos-cli's generic "unauthorized"
-      # message hides: 404 "Job can not be found" = token accepted; 401 two_factor_required
-      # = the account's Partner requires 2FA; 401 "HTTP Token: Access denied." = token not
-      # valid for this instance; 503 partner_portal_unavailable = Portal down. Never fails.
-      - name: Diagnose instance auth
-        shell: sh
-        env:
-          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
-          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
-        run: |
-          echo "::add-mask::$MPKIT_TOKEN"
-          pos-cli --version || true
-          curl -sS -m 30 -w '\nHTTP %{http_code}\n' -H "Authorization: Token $MPKIT_TOKEN" "$MPKIT_URL/api/app_builder/data_clean/diagnostic" || true
-
       - name: Deploy module
         timeout-minutes: 10
         shell: sh
-        env:
-          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
-          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
         working-directory: ${{ matrix.path }}
         run: |
           set -eu
           ${{ matrix.deploy-script }}
 
+      - name: Diagnose instance auth
+        if: failure()
+        shell: sh
+        run: |
+          pos-cli --version || true
+          curl -sS -m 30 -w '\nHTTP %{http_code}\n' -H "Authorization: Token $MPKIT_TOKEN" "$MPKIT_URL/api/app_builder/data_clean/diagnostic" || true
+
       - name: Run tests
         shell: sh
-        env:
-          MPKIT_URL: ${{ steps.reserve.outputs.mpkit-url }}
-          MPKIT_TOKEN: ${{ steps.get-token.outputs.mpkit-token }}
         working-directory: ${{ matrix.path }}
         run: |
           set -eu
           ${{ matrix.test-commands }}
+
+      - name: Upload test failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures-${{ matrix.module }}
+          path: |
+            ${{ matrix.path }}/test-results/**/*.png
+            ${{ matrix.path }}/test-results/**/error-context.md
+            ${{ matrix.path }}/test-results/**/trace.zip
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Release CI instance
         if: always()

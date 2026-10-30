@@ -1,0 +1,19 @@
+query search_for_last_message_at($page: Int = 1, $limit: Int = 100) {
+  conversations: records(
+    per_page: $limit
+    page: $page
+    sort: { id: { order: ASC } }
+    filter: {
+      table: { exact: "modules/chat/conversation" }
+    }
+  ) {
+    total_pages
+    results {
+      id
+      last_message_at: property(name: "last_message_at")
+      last_message: related_records(table: "modules/chat/message" join_on_property: "id" foreign_property: "conversation_id" sort: { id: { order: DESC } } limit: 1) {
+        created_at
+      }
+    }
+  }
+}

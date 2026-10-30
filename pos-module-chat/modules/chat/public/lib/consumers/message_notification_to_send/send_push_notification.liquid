@@ -30,7 +30,9 @@
         unless participant_id == message.autor_id
           unless message.conversation.participant_read_ids contains participant_id
             function recipient = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
-            if recipient.user_id
+            # the push carries the message's text, so not to anyone who can't use the chat
+            function can_use_chat = 'modules/chat/queries/participants/can_use_chat', profile: recipient
+            if can_use_chat
               assign recipient_user_ids << recipient.user_id
             endif
           endunless

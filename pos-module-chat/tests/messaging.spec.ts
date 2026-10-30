@@ -14,6 +14,8 @@ test.describe('Testing messaging', () => {
     const sender = users.test2;
     const senderMessage = messages.test2.message1;
     const receiver = users.test4;
+    // the time of the message as shown live, right after it was sent
+    let liveDate: string | null = null;
 
     await test.step(`${sender.fullName} sends message to ${receiver.fullName} via profile`, async () => {
       ({ context, page } = await switchContext(context, browser, `tests/.auth/${users.test2.email}.json`));
@@ -24,6 +26,11 @@ test.describe('Testing messaging', () => {
 
       const isMessageSent = await inboxPage.sendMessage(receiver.fullName, senderMessage);
       expect(isMessageSent).toBe(true);
+
+      // the first message always shows its time, formatted by common-styling, e.g. "Oct 29, 2026, 3:14 PM"
+      const date = inboxPage.message.getMessageDate(senderMessage);
+      await expect(date).toHaveText(/\d{4}, \d{1,2}:\d{2}/);
+      liveDate = await date.textContent();
     });
 
     await test.step(`verify chatCard was created and is visible after page refresh`, async () => {
@@ -34,6 +41,13 @@ test.describe('Testing messaging', () => {
 
       const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(receiver.fullName);
       expect(isChatCardVisible).toBe(true);
+
+      // when the last message was sent, relative to now and formatted by common-styling
+      const lastMessageDate = inboxPage.chatList.getCardLastMessageDate(receiver.fullName);
+      await expect(lastMessageDate).toHaveText(/^(now|\d+ minutes? ago)$/);
+      await expect(lastMessageDate).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
+      // the exact date on hover
+      await expect(lastMessageDate).toHaveAttribute('title', /\d{4}/);
     });
 
     await test.step(`${receiver.fullName} received the message`, async () => {
@@ -51,6 +65,9 @@ test.describe('Testing messaging', () => {
 
       const isMessageVisible = await inboxPage.message.isMessageReceived(senderMessage);
       expect(isMessageVisible).toBe(true);
+
+      // rendered by the server this time, but shown the same way as live
+      await expect(inboxPage.message.getMessageDate(senderMessage)).toHaveText(liveDate ?? '');
     });
   });
 
@@ -120,8 +137,12 @@ test.describe('Testing messaging', () => {
 
       await inboxPage.goto();
 
-      const countCards = await inboxPage.chatList.countCards();
-      expect(countCards).toBe(0);
+      // opening the chat didn't even create the conversation, so the inbox shows its empty
+      // state - which renders a placeholder card of its own, so the cards aren't counted
+      const isChatCardVisible = await inboxPage.chatList.isChatCardVisible(sender.fullName);
+      expect(isChatCardVisible).toBe(false);
+      // (attached, not visible - which of the desktop/mobile empty states shows depends on the viewport)
+      await expect(page.locator('.pos-chat-conversations-blank-desktop')).toBeAttached();
     });
   });
 
@@ -149,6 +170,195 @@ test.describe('Testing messaging', () => {
 
 
     await expect(page.locator('header').getByText(users.test7.fullName)).not.toBeVisible();
+  });
+
+  test(`opening a chat changes nothing and a conversation can't be started without the CSRF token`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // no test sends anything to test7, so its conversations only change if this test changes them
+    const user = users.test7;
+    const other = users.test1;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+
+    // the chat with them renders the conversation's id when there is one, empty conversations too
+    const conversationId = async () => (await (await page.request.get(`/inbox?to_uuid=${toUuid}`)).text()).match(/data-conversation-id="([^"]*)"/)?.[1];
+
+    await new PeoplePage(page).goto();
+    const chatUrl = await page.getByRole('link', { name: other.fullName, exact: true }).getAttribute('href');
+    const toUuid = new URL(chatUrl ?? '', page.url()).searchParams.get('to_uuid');
+    expect(toUuid, 'the people list links to the chat by to_uuid').toBeTruthy();
+    expect(await conversationId(), 'there is no conversation with them yet').toBe('');
+
+    await test.step('a plain GET of the chat link, as a link or redirect from another site or a prefetch makes it, creates nothing', async () => {
+      const response = await page.request.get(`/inbox?to_uuid=${toUuid}`);
+      expect(response.ok()).toBe(true);
+      expect(await conversationId()).toBe('');
+    });
+
+    await test.step('starting the conversation without the CSRF token is refused', async () => {
+      const response = await page.request.post('/api/chat/conversations', { form: { to_uuid: toUuid! } });
+      expect(response.status()).toBe(403);
+      expect(await conversationId()).toBe('');
+    });
+
+    await context?.close();
+  });
+
+  test(`the conversations list shows every conversation once, unread first, newest first`, async ({ browser }) => {
+    test.setTimeout(120_000);
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // test6 has the 40 seeded conversations, and other tests send them messages meanwhile - so
+    // only what holds while the list changes is checked: conversations that change move to the
+    // top, above the page being loaded, and aren't shown again
+    const user = users.test6;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    await inboxPage.goto();
+    const profileId = await page.evaluate(() => String((window as any).pos.profile.id));
+
+    await test.step('the API pages through them by cursor, unread ones first, each group newest first', async () => {
+      const listed: { id: string, unread: boolean, at: string }[] = [];
+      let cursor = '';
+      for (let i = 0; i < 20; i++) {
+        const json = await (await page.request.get(`/api/chat/conversations?per_page=7${cursor}`)).json();
+        listed.push(...json.results.map((c: any) => ({ id: c.id, unread: !c.participant_read_ids.includes(profileId), at: c.last_message_at })));
+        if (!json.has_next_page) break;
+        cursor = `&read=${json.next_read}&before=${encodeURIComponent(json.next_before)}`;
+      }
+
+      expect(listed.length).toBeGreaterThanOrEqual(40);
+      expect(new Set(listed.map(c => c.id)).size, 'no conversation is listed twice').toBe(listed.length);
+      const firstRead = listed.findIndex(c => !c.unread);
+      expect(listed.slice(firstRead).every(c => !c.unread), 'unread ones come first').toBe(true);
+      for (const group of [listed.slice(0, firstRead), listed.slice(firstRead)]) {
+        const times = group.map(c => Date.parse(c.at));
+        expect(times, 'newest first').toEqual([...times].sort((a, b) => b - a));
+      }
+    });
+
+    await test.step('the inbox shows 30, scrolling down and the "Load more" button load the rest - each once', async () => {
+      const cards = page.locator('#pos-chat-conversations .pos-chat-conversationCard');
+      const loadMore = page.locator('.pos-chat-conversations-more button');
+      await expect(cards).toHaveCount(30);
+      await expect(loadMore).toBeVisible();
+
+      // near the bottom is enough, not exactly at it
+      await page.locator('#pos-chat-conversations').evaluate(list => list.scrollTop = list.scrollHeight - list.clientHeight - 20);
+      await expect.poll(() => cards.count()).toBeGreaterThan(30);
+
+      while (await loadMore.isVisible()) {
+        const shown = await cards.count();
+        await loadMore.click();
+        await expect.poll(() => cards.count()).toBeGreaterThan(shown);
+      }
+
+      const ids = await page.locator('#pos-chat-conversations a[href*="conversation_id="]').evaluateAll(links => links.map(link => new URL((link as HTMLAnchorElement).href).searchParams.get('conversation_id')));
+      expect(ids.length).toBeGreaterThanOrEqual(40);
+      expect(new Set(ids).size, 'no conversation is shown twice').toBe(ids.length);
+
+      const unread = await cards.evaluateAll(cards => cards.map(card => card.classList.contains('pos-chat-conversationCard-unread')));
+      expect(unread.slice(unread.indexOf(false)).every(u => !u), 'unread ones come first').toBe(true);
+    });
+
+    await context?.close();
+  });
+
+  test(`starting the same conversation twice at once creates it only once`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // no other test starts a conversation between these two, so on a freshly seeded instance
+    // both requests below really race to create it
+    const user = users.test3;
+    const otherName = 'Dummy40 User';
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    await inboxPage.goto();
+
+    await inboxPage.search.searchFor('dummy40');
+    await inboxPage.search.isResultVisible(otherName);
+    const chatUrl = await inboxPage.search.getResultByFullName(otherName).locator('xpath=ancestor::a').getAttribute('href');
+    const toUuid = new URL(chatUrl ?? '', page.url()).searchParams.get('to_uuid');
+    expect(toUuid, 'the search result links to the chat by to_uuid').toBeTruthy();
+
+    // what two tabs (or a double click) sending the first message at the same time do
+    const ids = await page.evaluate(async (toUuid) => {
+      const start = () => fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': (window as any).pos.csrfToken },
+        body: JSON.stringify({ to_uuid: toUuid })
+      }).then(response => response.json()).then(json => json.id);
+
+      const ids = await Promise.all([start(), start(), start()]);
+      // and later on - a duplicate left behind would usually be found instead
+      ids.push(await start());
+      return ids;
+    }, toUuid);
+
+    expect(ids[0]).toBeTruthy();
+    expect(new Set(ids).size, `all requests get the same conversation, got ${ids}`).toBe(1);
+
+    await context?.close();
+  });
+
+  test(`loading older messages doesn't repeat the ones already shown after new ones arrived`, async ({ browser }) => {
+    test.setTimeout(120_000);
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // no other test talks to Dummy39; texts are unique per run, as the instance may not be reseeded
+    const user = users.test5;
+    const otherName = 'Dummy39 User';
+    const run = Date.now();
+    const history = Array.from({ length: 33 }, (_, i) => `history ${run} ${i}`);
+    const live = Array.from({ length: 3 }, (_, i) => `live ${run} ${i}`);
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    const sendQuickly = async (text: string) => {
+      await inboxPage.chat.messageInputField.fill(text);
+      await inboxPage.chat.buttonWithText('Send').click();
+      await inboxPage.chat.messageBox.getMessageByText(text, 'sent').waitFor();
+    };
+    const countOnPage = (text: string) => page.locator('#chat-messagesList .pos-chat-message-text').getByText(text, { exact: true }).count();
+
+    await test.step(`${history.length} messages are sent to ${otherName}`, async () => {
+      await inboxPage.goto();
+      await inboxPage.isChatOpenedFromSearch('dummy39', otherName);
+      await inboxPage.chat.messageInputFieldEnabled.waitFor();
+      for (const text of history) {
+        await sendQuickly(text);
+      }
+    });
+
+    await test.step(`after a reload, ${live.length} more are sent - the page shows the newest 30 and those`, async () => {
+      await page.reload();
+      await inboxPage.chat.messageInputFieldEnabled.waitFor();
+      expect(await countOnPage(history[history.length - 30])).toBe(1);
+      expect(await countOnPage(history[history.length - 31])).toBe(0);
+      for (const text of live) {
+        await sendQuickly(text);
+      }
+    });
+
+    await test.step(`scrolling to the top loads the older ones, each shown once`, async () => {
+      const response = page.waitForResponse(response => response.url().includes('/api/chat/messages.json'));
+      await page.locator('#chat-messagesList-container').evaluate(container => container.scrollTop = 0);
+      await response;
+
+      await expect(page.locator('#chat-messagesList .pos-chat-message-text').getByText(history[0], { exact: true })).toHaveCount(1);
+      for (const text of [...history, ...live]) {
+        expect(await countOnPage(text), text).toBe(1);
+      }
+    });
+
+    await context?.close();
   });
 
   test(`regression: old conversation opens correct chat from people list`, async ({ browser }) => {
@@ -379,6 +589,71 @@ test.describe('Testing messaging', () => {
     await context?.close();
   })
 
+  test(`people are found by their name, not by their email`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const user = users.test6;
+    const searched = users.test1;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+
+    await inboxPage.goto();
+
+    // no results show nothing on the page, so the search's own response is waited for
+    const search = async (query: string) => {
+      const response = page.waitForResponse(response => response.url().includes('/search.frame') && new URL(response.url()).searchParams.get('q') === query);
+      await inboxPage.search.searchFor(query);
+      return await (await response).text();
+    };
+
+    await test.step(`a part of ${searched.fullName}'s email finds nobody`, async () => {
+      // "test1@example" - also tells whether that address is registered, if it matched
+      const html = await search(searched.email.split('.')[0]);
+      expect(html).not.toContain(searched.fullName);
+      await expect(inboxPage.search.getResultByFullName(searched.fullName)).toHaveCount(0);
+    });
+
+    await test.step(`a part of their name finds them`, async () => {
+      await search(searched.lastName.slice(0, 4).toLowerCase());
+      expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+    });
+
+    await context?.close();
+  });
+
+  test(`a search typed before the chat started is run once it starts`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const user = users.test6;
+    const searched = users.test1;
+    const query = searched.lastName.slice(0, 4).toLowerCase();
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+
+    // pos-chat.js is held back until the query is typed, so its input listener isn't there yet
+    let release = () => {};
+    const released = new Promise<void>(resolve => release = resolve);
+    await page.route(/\/pos-chat\.js(\?|$)/, async route => {
+      await released;
+      await route.continue();
+    });
+
+    // the load event would wait for the held back script
+    await page.goto(inboxPage.path, { waitUntil: 'domcontentloaded' });
+    await inboxPage.search.searchFor(query);
+    expect(await page.evaluate(() => !!(window as any).pos?.modules?.active?.chat)).toBe(false);
+
+    release();
+
+    expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+
+    await context?.close();
+  });
+
   test(`clearing the search brings back the conversations list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
@@ -416,4 +691,52 @@ test.describe('Testing messaging', () => {
 
     await context?.close();
   })
+
+  test('messages that are not text, too long or with malformed attachments are not stored', async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // a pair no other test uses, so nothing here shows up in their conversations
+    const sender = users.test2;
+    const receiver = users.test3;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
+    const peoplePage = new PeoplePage(page);
+    const inboxPage = new InboxPage(page);
+
+    await peoplePage.goto();
+    await peoplePage.openChat(receiver.fullName);
+    // the messages below go straight over the channel, which a new conversation only has once started
+    const conversationId = await inboxPage.startConversation();
+
+    const marker = `message validation ${Date.now()}`;
+
+    await test.step('the message input is limited to the length the server accepts', async () => {
+      await expect(inboxPage.chat.messageInputField).toHaveAttribute('maxlength', '10000');
+    });
+
+    await test.step('malformed messages sent straight over the channel are dropped', async () => {
+      // bypasses the input, the same way a modified client could
+      await page.evaluate((marker) => {
+        const channel = (window as any).pos.modules.active.chat.channel;
+        channel.send({ message: `${marker} too long ` + 'x'.repeat(10000) });
+        channel.send({ message: { text: `${marker} not text` } });
+        channel.send({ message: `${marker} media not a list`, media: 'not-a-list' });
+      }, marker);
+
+      // sent after the malformed ones, so they've been handled by the time it shows up
+      const validMessage = `${marker} valid`;
+      expect(await inboxPage.chat.sendMessage(validMessage)).toBe(true);
+
+      const stored = await page.evaluate(async (conversationId) => {
+        const response = await fetch(`/api/chat/messages.json?conversation_id=${conversationId}&page=1&per_page=20`);
+        return (await response.json()).results.map((message: any) => String(message.message));
+      }, conversationId);
+
+      const fromThisTest = stored.filter((text: string) => text.includes(marker));
+      expect(fromThisTest).toEqual([validMessage]);
+    });
+
+    await context?.close();
+  });
 });
