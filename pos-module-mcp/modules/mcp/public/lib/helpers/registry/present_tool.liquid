@@ -2,8 +2,10 @@
   One registered tool in the MCP wire shape (spec §13.1, §14.3), shared by tools/list
   and queries/registry/for_agent: name, title (when declared), description, inputSchema
   (from input_schema), outputSchema (from output_schema, when declared), annotations
-  (when declared), and _meta { version, deprecated }. A deprecated tool's description
-  ends with a sunset notice, so a model reading it sees it.
+  (when declared), and _meta { version, deprecated }, plus _meta.ui { resourceUri?,
+  visibility? } for a tool with an MCP Apps declaration (manifest `ui`, docs/mcp-apps.md).
+  A deprecated tool's description ends with a sunset notice, so a model reading it sees
+  it.
 
   @param {object} manifest - a validated manifest from queries/registry/load
   @return {object} the tool
@@ -32,6 +34,16 @@
     assign is_dep = true
   endif
   assign meta['deprecated'] = is_dep
+  unless manifest.ui == blank
+    assign ui_meta = {}
+    unless manifest.ui.resource_uri == blank
+      assign ui_meta['resourceUri'] = manifest.ui.resource_uri
+    endunless
+    unless manifest.ui.visibility == blank
+      assign ui_meta['visibility'] = manifest.ui.visibility
+    endunless
+    assign meta['ui'] = ui_meta
+  endunless
   assign t['_meta'] = meta
   return t
 %}

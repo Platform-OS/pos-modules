@@ -18,6 +18,7 @@ query find_by_digest($token_digest: String!) {
       scope: property(name: "scope")
       resource: property(name: "resource")
       expires_at: property(name: "expires_at")
+      ui_apps: property_boolean(name: "ui_apps")
     }
   }
 }

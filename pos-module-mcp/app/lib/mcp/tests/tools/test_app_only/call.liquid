@@ -1,0 +1,15 @@
+{%- comment -%}
+  Handler — test_app_only (TEST FIXTURE). Read-only. Returns a constant marker and the
+  resolved principal id so the suite can see who reached it.
+{%- endcomment -%}
+{% liquid
+  assign result = {
+    "tier": "app_only",
+    "principal": principal.id
+  }
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

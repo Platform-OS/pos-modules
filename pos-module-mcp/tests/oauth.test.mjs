@@ -127,6 +127,19 @@ async function decide(web, html, decision) {
   return { status: res.status, location, loc };
 }
 
+/** Like decide(), with extra form fields (the app's consent fields). */
+async function decideWith(web, html, decision, extra) {
+  const res = await web.post('oauth/authorize', { authenticity_token: web.formTok(html), rid: ridOf(html), decision, ...extra });
+  const location = res.headers.get('location');
+  let loc = null; try { loc = location ? new URL(location, base) : null; } catch {}
+  return { status: res.status, location, loc };
+}
+// Rows the test approved hook wrote for one client (label = "<client_id>|<ticked>|shown=…|extra=…").
+async function hookNotes(clientId) {
+  const r = await adm.gql(`{ records(per_page: 20, filter: { table: { value: "${T_NOTE}" } properties: [{ name: "source", value: "oauth_approved" }, { name: "label", starts_with: ${JSON.stringify(clientId + '|')} }] }) { results { id user_id: property(name: "user_id") label: property(name: "label") } } }`);
+  return r?.data?.records?.results || [];
+}
+
 /**
  * Full front-channel: authorize → consent → approve. Returns the code plus everything
  * the token request needs. opts: { web, clientId, redirectUri (null = omit), scope,
@@ -224,6 +237,7 @@ describe('oauth · built-in OAuth 2.1 authorization server', () => {
       const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_NOTE}" } properties: [{ name: "user_id", value: "${mem.userId}" }] }) { results { id label: property(name: "label") } } }`);
       for (const row of r?.data?.records?.results || []) if (String(row.label || '').startsWith('oauth-')) await adm.recordDelete(T_NOTE, row.id);
     } catch {}
+    try { await deleteWhere(T_NOTE, 'source', 'oauth_approved'); } catch {}
     try { await pruneOauthRate(); } catch {}
     for (const h of [mem, out, val]) { if (h) { try { await pruneRate(adm, h.principal); } catch {} } }
     try { await applyReset(adm.gql); } catch {} // restores validator's role if a test died mid-way
@@ -390,6 +404,55 @@ describe('oauth · built-in OAuth 2.1 authorization server', () => {
     ok('consent POST with a forged authenticity_token issues no code', !/[?&]code=/.test(forged.headers.get('location') || ''), `status=${forged.status} location=${forged.headers.get('location')}`);
   });
 
+  // The app's consent hooks (oauth_consent_partial / oauth_approved_partial). They
+  // exchange DATA only: the engine renders and escapes the fields (a self-registered
+  // client chooses its own name), passes the approved hook only the fields it showed,
+  // and runs it only after Approve. Without them the page and the flow are unchanged
+  // (every other test in this suite).
+  it('Authorize — app consent hooks: escaped fields, approved hook runs only on Approve', async () => {
+    const hooks = { oauth: BASE_OAUTH, oauth_consent_partial: 'mcp/tests/oauth/consent', oauth_approved_partial: 'mcp/tests/oauth/approved' };
+    const plain = await authorizeGet(webMember);
+    ok('no hook configured → no app fields on the consent page', plain.status === 200 && !/<fieldset/.test(plain.html), 'status=' + plain.status);
+
+    await setConstant('MCP_CONFIG', JSON.stringify(hooks));
+    const a = await authorizeGet(webMember);
+    const form = (a.html.match(/<form[^]*?<\/form>/) || [])[0] || '';
+    ok('app fields are inside the approval form, before the buttons', /<fieldset[^]*name="consent\[labels\]\[\]"[^]*name="decision"/.test(form), form.slice(0, 300));
+    const legend = (form.match(/<legend>([^<]*)<\/legend>/) || [])[1] || '';
+    ok('title shows the client name, kind, redirect host and user', legend === `Test consent for CI OAuth A (dcr, client-a.example.test) as user ${mem.userId}`, legend);
+    ok('hook text is escaped, never markup', form.includes('Option &lt;b&gt;A&lt;/b&gt;') && !form.includes('<b>A</b>'));
+    ok('a ticked option is pre-checked', /value="a" checked/.test(form) && !/value="b" checked/.test(form));
+    ok('unsupported field types and invalid names are dropped', !form.includes('ignored_text') && !form.includes('Bad-Name'));
+
+    const d = await decideWith(webMember, a.html, 'approve', { 'consent[labels][]': 'x', 'consent[extra][]': 'z', client_id: clientC });
+    ok('approve with hooks → code issued', /^mcp_ac_/.test(d.loc?.searchParams.get('code') || ''), `status=${d.status} location=${d.location}`);
+    let rows = await hookNotes(clientA);
+    ok('approved hook ran once', rows.length === 1, JSON.stringify(rows));
+    ok('approved hook got the user, the client from the session, and only the shown fields', rows[0]?.user_id === String(mem.userId) && rows[0]?.label === `${clientA}|x|shown=true|extra=null`, JSON.stringify(rows[0]));
+
+    const a2 = await authorizeGet(webMember);
+    const deny = await decideWith(webMember, a2.html, 'deny', { 'consent[labels][]': 'x' });
+    ok('deny → access_denied', deny.loc?.searchParams.get('error') === 'access_denied', deny.location);
+    const webForge = makeWeb(base);
+    ok('throwaway member session', await webForge.sessionLogin(mem));
+    const a3 = await authorizeGet(webForge);
+    await webForge.post('oauth/authorize', { authenticity_token: 'forged', rid: ridOf(a3.html), decision: 'approve', 'consent[labels][]': 'x' });
+    ok('approved hook never runs on Deny or on a forged consent POST', (await hookNotes(clientA)).length === 1);
+
+    await setConstant('MCP_CONFIG', JSON.stringify({ ...hooks, oauth_consent_partial: 'mcp/tests/oauth/approved_fail' }));
+    const a4 = await authorizeGet(webMember);
+    ok('a consent hook that raises shows no fields', a4.status === 200 && !/<fieldset/.test(a4.html), 'status=' + a4.status);
+    await decideWith(webMember, a4.html, 'approve', { 'consent[labels][]': 'x' });
+    rows = await hookNotes(clientA);
+    ok('fields not shown → the approved hook gets shown=false and no values', rows.some(r => r.label === `${clientA}||shown=false|extra=null`), JSON.stringify(rows));
+
+    await setConstant('MCP_CONFIG', JSON.stringify({ ...hooks, oauth_approved_partial: 'mcp/tests/oauth/approved_fail' }));
+    const a5 = await authorizeGet(webMember);
+    const failing = await decideWith(webMember, a5.html, 'approve', { 'consent[labels][]': 'x' });
+    ok('an approved hook that raises does not block sign-in (code issued)', /^mcp_ac_/.test(failing.loc?.searchParams.get('code') || ''), `status=${failing.status} location=${failing.location}`);
+    await setOauthConfig();
+  });
+
   // The parked request is stored as JSON in the session; platformOS parse_json decodes
   // HTML entities unless raw_text: true, so "&quot;" in state broke the decision page.
   it('Authorize — a state with HTML entities comes back unchanged', async () => {
@@ -496,6 +559,25 @@ describe('oauth · built-in OAuth 2.1 authorization server', () => {
     const r = row ? await adm.gql(`{ records(per_page: 1, filter: { id: { value: "${row.id}" } table: { value: "${T_TOKEN}" } }) { results { label: property(name: "label") } } }`) : null;
     const label = r?.data?.records?.results?.[0]?.label;
     ok('grant stores the client name exactly', label === CIMD_NAME, label);
+  });
+
+  // ChatGPT's document (https://chatgpt.com/oauth/client.json) prefers private_key_jwt in
+  // token_endpoint_auth_method but lists "none" in token_endpoint_auth_methods_supported;
+  // it then authenticates as a public client because this server advertises only "none".
+  it('CIMD — a document that prefers private_key_jwt but supports "none" is a public client', async () => {
+    const preferred = ORIGIN + '/test/mcp-client-metadata-prefers-jwt.json';
+    const jwtOnly = ORIGIN + '/test/mcp-client-metadata-jwt-only.json';
+    createdClients.add(preferred);
+    const { verifier, challenge } = pkce();
+    const a = await authorizeGet(webMember, { client_id: preferred, redirect_uri: CIMD_REDIRECT, code_challenge: challenge });
+    ok('consent page 200', a.status === 200 && !!ridOf(a.html), `${a.status} ${a.html.match(/class="err">([^<]*)/)?.[1] || ''}`);
+    const d = await decide(webMember, a.html, 'approve');
+    const code = d.loc?.searchParams.get('code');
+    ok('approve → 302 with a code', d.status === 302 && d.location?.startsWith(CIMD_REDIRECT + '?') && !!code, d.location);
+    const t = await token({ grant_type: 'authorization_code', code: code || '', code_verifier: verifier, client_id: preferred, redirect_uri: CIMD_REDIRECT });
+    ok('token issued without client authentication', t.status === 200 && /^mcp_at_/.test(t.json?.access_token || ''), t.text.slice(0, 160));
+    const refused = await authorizeGet(webMember, { client_id: jwtOnly, redirect_uri: CIMD_REDIRECT });
+    ok('a document without "none" is refused, not redirected', refused.status === 400 && !refused.location && /Only public clients/.test(refused.html), `${refused.status} ${refused.html.match(/class="err">([^<]*)/)?.[1] || ''}`);
   });
 
   // ==== /oauth/token — authorization_code ======================================

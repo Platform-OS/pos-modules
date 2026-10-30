@@ -44,6 +44,11 @@
   assign c['latest_protocol_version'] = '2026-07-28'
   assign c['supported_protocol_versions'] = '2026-07-28,2025-06-18' | split: ','
   assign c['modern_protocol_versions'] = '2026-07-28' | split: ','
+  # Other legacy revisions some clients keep sending in the MCP-Protocol-Version header
+  # after `initialize` agreed on `protocol_version` (OpenAI's client sends 2024-11-05).
+  # Such a request is answered as the default legacy revision instead of being refused.
+  # `initialize` never selects them and they are not listed as supported.
+  assign c['compatible_protocol_versions'] = '2025-11-25,2025-03-26,2024-11-05' | split: ','
   # Client-side cache hints (ttlMs/cacheScope) attached to cacheable results ONLY for a
   # modern request. The registry and server description are deploy-invariant → long
   # TTL; resources track page content → shorter. cacheScope is 'public' (same for every
@@ -79,6 +84,12 @@
   # the app applies its own access rules (queries/resources/provider). Absent = only
   # the opt-in markdown pages below.
   assign c['resources_partial'] = 'mcp/resources'
+  # App-provided OAuth consent hooks (docs/oauth.md, "App fields on the approval page").
+  # app/lib/mcp/oauth/consent.liquid returns checkbox fields for the approval page;
+  # app/lib/mcp/oauth/approved.liquid runs after Approve with the ticked values. Both
+  # exchange data only: the engine renders and escapes the page. Absent = no fields.
+  assign c['oauth_consent_partial'] = 'mcp/oauth/consent'
+  assign c['oauth_approved_partial'] = 'mcp/oauth/approved'
   # tools/list visibility (spec §14.2). 'open' (default) advertises every registered
   # tool to any caller — MCP discovery is a public method. 'principal' scopes the
   # advertised list to the CALLER: a tool appears only if its authorization policy
@@ -151,11 +162,14 @@
   assign o['dynamic_client_registration'] = true
   assign o['registration_rate_limit_per_min'] = 10
   assign o['token_rate_limit_per_min'] = 60
-  # When true, `initialize` (legacy) and `server/discover` (modern) WITHOUT a valid bearer
-  # answer 401 + WWW-Authenticate so MCP clients start the OAuth flow on connect (most
-  # clients only begin auth on a 401 at connect time). Off by default: discovery stays
-  # open for existing clients.
-  assign o['challenge_initialize'] = false
+  # When true, the connect methods (`initialize`, `server/discover`) and the discovery
+  # methods (tools/list, prompts/list, prompts/get, resources/list,
+  # resources/templates/list, resources/read) WITHOUT a valid bearer answer 401 +
+  # WWW-Authenticate so MCP clients start the OAuth flow (most clients only begin auth on
+  # a 401; Claude and Grok otherwise connect anonymously and find no tools). No tool runs
+  # without a token either way; false keeps the handshake and discovery open for clients
+  # that inspect the server without signing in.
+  assign o['challenge_initialize'] = true
   assign c['oauth'] = o
   # The OAuth resource identifier this instance defends (RFC 9728) = the /mcp URL. The
   # path is fixed: the endpoint page and the RFC 9728 metadata path are both `mcp`, and

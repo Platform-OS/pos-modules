@@ -1,0 +1,21 @@
+{%- comment -%}
+  Tool manifest — test_ui_card (TEST FIXTURE, app-owned). Registered ONLY when the
+  MCP_ENABLE_TEST_TOOLS constant is set (see registry). MCP Apps probe: declares the UI
+  resource ui://test/card (served by the test resource provider) for both the model and
+  the app, so tools/list must carry _meta.ui { resourceUri, visibility }.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_ui_card",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): shows a test card in hosts that render MCP Apps; returns a constant marker.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "ui": {"resource_uri":"ui://test/card","visibility":["model","app"]},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tests/tools/test_ui_card/call"
+  }
+  return m
+%}

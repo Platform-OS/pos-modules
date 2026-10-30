@@ -1,0 +1,85 @@
+{%- comment -%}
+  The app's fields for the OAuth approval page (config.oauth_consent_partial, default
+  'mcp/oauth/consent'; docs/oauth.md). The hook returns DATA, never HTML: the engine
+  renders and escapes it, so a name chosen by a self-registered client can never put
+  markup on the approval page.
+
+  Hook params: user_id (the signed-in person), client { client_id, client_name,
+  client_kind ('cimd' | 'dcr'), redirect_host }. client_name of a 'dcr' client is chosen
+  by the client and unverified.
+  Hook returns: { title?, fields: [{ type: 'checkboxes', name, label?, options:
+  [{ value, label?, checked? }] }] }. Only 'checkboxes' is supported. A field of another
+  type, with a name outside [a-z][a-z0-9_]{0,39}, a repeated name or no option is
+  dropped; at most 20 fields and 200 options per field are kept; text is cut to 200
+  characters.
+
+  An app without the hook has no fields (available: false). A hook that raises is
+  logged (mcp.oauth_consent_hook_failed) and shows no fields (failed: true).
+
+  @param {string} user_id
+  @param {object} client
+  @return {object} { available, failed, title, fields: [{ name, label, options: [{ value, label, checked }] }] }
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign partial = cfg.oauth_consent_partial | default: 'mcp/oauth/consent'
+  assign out = { "available": true, "failed": false, "title": "" }
+  assign fields = []
+  assign absent_message = 'find partial "' | append: partial | append: '"'
+  assign value = null
+  try
+    function value = partial, user_id: user_id, client: client
+  catch e
+    if e.message contains absent_message
+      assign out['available'] = false
+    else
+      assign out['failed'] = true
+      log e.message, type: 'mcp.oauth_consent_hook_failed'
+    endif
+  endtry
+
+  # The hook's return value is app data with dynamic keys.
+  # platformos-check-disable UnknownProperty
+  unless value == blank
+    assign title = value.title | append: '' | truncate: 200, ''
+    assign out['title'] = title
+    assign names = []
+    for f in value.fields limit: 20
+      if f.type != 'checkboxes'
+        continue
+      endif
+      assign name = f.name | append: ''
+      assign valid_name = name | matches: '\A[a-z][a-z0-9_]{0,39}\z'
+      if valid_name != true
+        continue
+      endif
+      if names contains name
+        continue
+      endif
+      assign options = []
+      for o in f.options limit: 200
+        assign option_value = o.value | append: '' | truncate: 200, ''
+        if option_value == blank
+          continue
+        endif
+        assign option_label = o.label | append: '' | truncate: 200, '' | default: option_value
+        assign option = { "value": option_value, "label": option_label, "checked": false }
+        if o.checked == true
+          assign option['checked'] = true
+        endif
+        assign options = options | array_add: option
+      endfor
+      if options.size == 0
+        continue
+      endif
+      assign field_label = f.label | append: '' | truncate: 200, ''
+      assign field = { "name": name, "label": field_label }
+      assign field['options'] = options
+      assign fields = fields | array_add: field
+      assign names = names | array_add: name
+    endfor
+  endunless
+  # platformos-check-enable UnknownProperty
+  assign out['fields'] = fields
+  return out
+%}

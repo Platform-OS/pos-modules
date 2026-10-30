@@ -1,0 +1,23 @@
+---
+slug: test/mcp-request-summary
+method: post
+format: json
+---
+{%- comment -%}
+  TEST FIXTURE (gated): returns modules/mcp/helpers/rpc/request_summary for this very
+  request, as the /mcp page logs it for a refused request (status 400 with a JSON-RPC
+  error), so tests/request-log.test.mjs can check the summary without waiting for the
+  instance log, which can arrive hours late. Served only when MCP_ENABLE_TEST_TOOLS is
+  '1'/'true' (CI + eval hosts).
+{%- endcomment -%}
+{%- liquid
+  assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+  if test_gate == '1' or test_gate == 'true'
+    function body = 'modules/mcp/helpers/rpc/error', id: context.params.id, code: -32022, message: 'Unsupported protocol version'
+    function summary = 'modules/mcp/helpers/rpc/request_summary', params: context.params, headers: context.headers, status: 400, body: body
+    echo summary
+  else
+    response_status 404
+    echo '{}'
+  endif
+-%}

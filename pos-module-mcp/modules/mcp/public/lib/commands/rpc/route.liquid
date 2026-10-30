@@ -25,11 +25,19 @@
   @param {object} identity - the caller resolved by dispatch (commands/identity/resolve_principal,
                              authenticated), or nil when the request carried no bearer. A
                              request whose bearer did not resolve never reaches the router.
+  MCP APPS. App-only tools exist only for a client that can show cards
+  (helpers/protocol/apps_client): tools/list gets that answer here, and tools/call, which
+  authenticates the caller itself, works it out from `proto` once it has. A legacy
+  client declares it once, so `initialize` from a signed-in caller records its
+  declaration on the token (helpers/protocol/declares_ui), replacing what an earlier
+  initialize recorded.
+
   @return {object} { http_status:int, headers?:object, body:object }
 {%- endcomment -%}
 {% liquid
   function cfg = 'modules/mcp/helpers/config'
   assign out = {}
+  function apps = 'modules/mcp/helpers/protocol/apps_client', proto: proto, identity: identity
 
   assign not_found_status = 200
   if proto.modern
@@ -45,7 +53,7 @@
 
   # ---- Authenticated methods return a full outcome (status/headers/body). ----
   if method == 'tools/call'
-    function oc = 'modules/mcp/commands/rpc/tools_call', params: params, headers: headers, id: id, tasks_extension: proto.tasks_extension
+    function oc = 'modules/mcp/commands/rpc/tools_call', params: params, headers: headers, id: id, tasks_extension: proto.tasks_extension, proto: proto
     return oc
   endif
 
@@ -62,33 +70,41 @@
       # Echo the NEGOTIATED legacy revision (not a hard pin).
       function result = 'modules/mcp/commands/rpc/initialize', protocol_version: proto.version, supported: proto.supported
       assign handled = true
+      if identity.authenticated == true
+        function declared_ui = 'modules/mcp/helpers/protocol/declares_ui', capabilities: params.params.capabilities
+        if declared_ui != identity.ui_apps
+          graphql _ = 'modules/mcp/tokens/set_ui_apps', id: identity.token_id, ui_apps: declared_ui
+        endif
+      endif
     when 'ping'
       function result = 'modules/mcp/commands/rpc/ping'
       assign handled = true
     when 'tools/list'
-      # Discovery stays OPEN for a caller without a bearer. A presented bearer was already
-      # verified by dispatch (an invalid one answered 401 there). When tools_list_scope is
+      # A caller without a bearer reaches here only while oauth.challenge_initialize is off
+      # (dispatch challenges it otherwise). A presented bearer was already verified by
+      # dispatch (an invalid one answered 401 there). When tools_list_scope is
       # 'principal', the list is filtered to what this caller may call; a caller without a
       # bearer is 'anonymous' and is advertised nothing. 'open' lists every tool.
       assign tl_scope = cfg.tools_list_scope | default: 'open'
-      # Cache hint (modern only): a principal-scoped list varies by identity, so it is
-      # 'private'; an open list is identical for everyone → 'public'.
+      # Cache hint (modern only): a principal-scoped list varies by identity, and a list
+      # with app-only tools by the client, so either is 'private'; an open list without
+      # them is identical for everyone → 'public'.
       assign tools_cache = null
       if proto.modern
         assign tcs = 'public'
-        if tl_scope == 'principal'
+        if tl_scope == 'principal' or apps
           assign tcs = 'private'
         endif
         function tools_cache = 'modules/mcp/helpers/protocol/cache_hint', kind: 'tools', scope: tcs
       endif
       if tl_scope == 'principal'
         if identity.authenticated == true
-          function result = 'modules/mcp/commands/rpc/tools_list', params: params.params, scope: 'principal', principal: identity.principal, agent: identity.agent, delegation_mode: identity.delegation_mode, cache: tools_cache
+          function result = 'modules/mcp/commands/rpc/tools_list', params: params.params, scope: 'principal', principal: identity.principal, agent: identity.agent, delegation_mode: identity.delegation_mode, cache: tools_cache, apps: apps
         else
-          function result = 'modules/mcp/commands/rpc/tools_list', params: params.params, scope: 'anonymous', cache: tools_cache
+          function result = 'modules/mcp/commands/rpc/tools_list', params: params.params, scope: 'anonymous', cache: tools_cache, apps: false
         endif
       else
-        function result = 'modules/mcp/commands/rpc/tools_list', params: params.params, cache: tools_cache
+        function result = 'modules/mcp/commands/rpc/tools_list', params: params.params, cache: tools_cache, apps: apps
       endif
       assign handled = true
     when 'resources/list', 'resources/templates/list'

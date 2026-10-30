@@ -264,6 +264,7 @@ curl -s -X POST https://<host>/mcp -H 'Content-Type: application/json' \
 | `audit_fields` | no | Argument keys recorded verbatim in the ledger (must be non-sensitive). |
 | `timeout_ms` | no | **Reserved.** Type-checked (integer) but not enforced: handlers run without a time limit. A later version may enforce it for tools that set it; tools that omit it will stay unlimited. |
 | `deprecated` | no | Still callable; flagged with a sunset note in `tools/list`. |
+| `ui` | no | MCP Apps declaration: `{ "resource_uri": "ui://…", "visibility": ["model", "app"] }`, served as `_meta.ui`. A tool with `visibility: ["app"]` is hidden from the model but still answers `tools/call`, so it is not a security boundary. Any other key or value makes the manifest invalid. See [docs/mcp-apps.md](./mcp-apps.md). |
 
 Breaking a schema? Bump **major** and publish as a **new tool name**
 (`search_events_v2`), mark the old `deprecated: true`, keep both for a window.

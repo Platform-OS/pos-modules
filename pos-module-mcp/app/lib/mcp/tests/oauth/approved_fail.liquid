@@ -1,0 +1,11 @@
+{%- comment -%}
+  Test-only OAuth hook that raises (tests/oauth.test.mjs): parse_json of text that is
+  not JSON raises. Used as a failing consent hook and as a failing approved hook; the
+  sign-in must still complete.
+{%- endcomment -%}
+{%- liquid
+  # The parse must fail, so the JSON cannot be written as a literal.
+  # platformos-check-disable-next-line DeprecatedFilter
+  assign broken = 'not json' | parse_json
+  return broken
+-%}

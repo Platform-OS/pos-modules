@@ -37,6 +37,10 @@ method: post
 
     if allowed and context.params.decision == 'approve'
       function url = 'modules/mcp/commands/oauth/issue_code', req: req, user_id: current_profile.user.id
+      unless url == blank
+        assign approver_id = current_profile.user.id | append: ''
+        function _ = 'modules/mcp/commands/oauth/run_approved_hook', req: req, user_id: approver_id, submitted: context.params.consent
+      endunless
     else
       assign p['error'] = 'access_denied'
       assign p['error_description'] = 'The user denied the request'

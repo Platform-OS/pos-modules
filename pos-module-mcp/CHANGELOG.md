@@ -5,6 +5,70 @@ All notable changes to **pos-module-mcp** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **App fields on the OAuth approval page** (`oauth_consent_partial`,
+  `oauth_approved_partial`; docs/oauth.md). An app can show checkbox fields on the
+  approval page (for example "Which vaults may this app use?") and act on the ticked
+  values after Approve. The hooks exchange data only: the engine renders and escapes the
+  fields, passes the approved hook only the fields it showed (with `shown`), takes the
+  person and the client from the session, and runs it only after Approve with a valid
+  CSRF token. A hook that raises is logged and never blocks the sign-in.
+- **MCP Apps declarations** (docs/mcp-apps.md). A manifest may declare
+  `ui: { resource_uri, visibility }`; `tools/list` serves it as `_meta.ui { resourceUri,
+  visibility }`, so hosts that support MCP Apps show the tool's card. An app-only tool
+  (`visibility: ["app"]`) is listed in `tools/list` and answers `tools/call` (under its
+  policy, scopes, rate limits and the ledger) only for a signed-in client that declared
+  the `io.modelcontextprotocol/ui` extension with `text/html;profile=mcp-app`: per request
+  for a modern client, and for an older one as recorded on its token at its last
+  `initialize` (new `mcp_token.ui_apps`, `helpers/protocol/apps_client`). For any other
+  client it is not listed and is an unknown tool. It is left out of
+  `queries/registry/for_agent`, and `commands/execute/invoke` answers it as an unknown
+  tool. Visibility is enforced by the host and is not a security boundary. A malformed `ui` (another key, a URI outside `ui://`, an empty or unknown
+  visibility) excludes the tool. Provider `resources/read` content items keep their
+  `_meta` when it is an object, so a card's `_meta.ui.csp` reaches the host. Tools without
+  `ui` are served exactly as before.
+
+### Changed
+
+- **Discovery without a token is challenged too** (`oauth.challenge_initialize`, on by
+  default). `tools/list`, `prompts/list`, `prompts/get`, `resources/list`,
+  `resources/templates/list` and `resources/read` without a bearer now answer `401` with
+  the `WWW-Authenticate` pointer, like `initialize` and `server/discover`, instead of an
+  empty or anonymous list that a client reports as "no tools". `ping` and notifications
+  stay open. With `challenge_initialize: false` discovery stays open as before.
+- **`oauth.challenge_initialize` is on by default.** `initialize` and `server/discover`
+  without a bearer now answer `401` with the `WWW-Authenticate` pointer to the OAuth
+  metadata, so clients that start sign-in only on a 401 at connect time (Claude, Grok)
+  sign in instead of connecting anonymously with no tools they can call. Clients that send
+  a token are unaffected, and no tool ever ran without one. Set
+  `MCP_CONFIG {"oauth":{"challenge_initialize":false}}` to keep the handshake open.
+
+### Fixed
+
+- **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
+  OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
+  agreed on `2025-06-18`, and every such request was refused with 400
+  "Unsupported protocol version" before authentication, so ChatGPT signed in but found no
+  tools. The header values in the new `compatible_protocol_versions` config key
+  (`2025-11-25`, `2025-03-26`, `2024-11-05`) are now answered as `2025-06-18`. `initialize`
+  still never selects them, and they are not listed as supported.
+- **Refused requests leave a trace.** The `/mcp` page logs every answer of HTTP 400 or
+  above as `mcp.request_refused`, and a `tools/list` with no tools as
+  `mcp.empty_tools_list`, with a log-safe summary (`helpers/rpc/request_summary`: method,
+  protocol versions, `Mcp-Method` / `Mcp-Name`, whether a bearer was sent, user agent and
+  the JSON-RPC error; never the token or the arguments). A client that was refused before
+  authentication used to leave nothing on the instance.
+- **ChatGPT can sign in through a Client ID Metadata Document.** ChatGPT's document
+  (`https://chatgpt.com/oauth/client.json`) prefers `private_key_jwt` in
+  `token_endpoint_auth_method` but lists `none` in `token_endpoint_auth_methods_supported`,
+  and authenticates as a public client when the server supports only `none`. The
+  authorization endpoint read only the preferred method and refused it with "Only public
+  clients … are supported". A document is now a public client when either field allows
+  `none`; a document that does not allow `none` is still refused.
+
 ## [0.2.0] - 2026-10-23
 
 Changes since 0.1.0. Entries marked **BREAKING** need action from apps upgrading from 0.1.0.
@@ -303,5 +367,6 @@ Hardening from the pre-release security review:
   (`GET /mcp-admin/ledger-export.json`, honors active filters, capped with an explicit
   `capped` flag).
 
+[Unreleased]: https://example.com/compare/v0.2.0...HEAD
 [0.2.0]: https://example.com/compare/v0.1.0...v0.2.0
 [0.1.0]: https://example.com/releases/tag/v0.1.0

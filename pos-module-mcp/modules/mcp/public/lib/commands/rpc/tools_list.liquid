@@ -11,8 +11,9 @@
   appended to its description so a model reading the list sees it. Excluded/invalid
   manifests never appear here (§8.1).
 
-  Open method (per MCP): listing tools does not require auth; EXECUTION does
-  (tools/call). Listing is not ledgered (pre-action discovery, §9.3).
+  Listing is not ledgered (pre-action discovery, §9.3). rpc/dispatch answers 401 to a
+  caller without a bearer first while MCP_CONFIG.oauth.challenge_initialize is on (the
+  default); with it off, listing needs no token and only EXECUTION does (tools/call).
 
   VISIBILITY SCOPE (config.tools_list_scope, resolved in dispatch):
     - absent / 'open'  → advertise every registered tool (default, legacy behavior).
@@ -27,17 +28,35 @@
                          nothing. Filtering happens BEFORE pagination so cursor offsets
                          index the visible set, not the full registry.
 
+  MCP APPS: an app-only tool (manifest ui.visibility without "model",
+  helpers/registry/model_visible) exists for an MCP Apps card. It is listed, in any scope
+  the caller passes, only for a client that can show cards (`apps`,
+  helpers/protocol/apps_client), with _meta.ui.visibility ["app"] so the host keeps it
+  from the model and lets the card call it; for any other client it is left out. A tool
+  with a `ui` declaration carries _meta.ui (helpers/registry/present_tool).
+
   @param {object} params          - MCP params; may contain `cursor` (opaque)
   @param {string} scope           - 'open' (default) | 'principal' | 'anonymous'
   @param {object} principal       - resolved principal (scope 'principal')
   @param {object} agent           - calling agent (scope 'principal')
   @param {string} delegation_mode - direct | on_behalf_of (scope 'principal')
+  @param {boolean} apps           - the client can show MCP Apps cards; false when omitted
   @return {object} { tools:[...], nextCursor? }
 {%- endcomment -%}
 {% liquid
   assign page_size = 50
+  assign with_app_only = false
+  if apps == true
+    assign with_app_only = true
+  endif
   function reg = 'modules/mcp/queries/registry/load'
-  assign all = reg.tools
+  assign all = []
+  for m in reg.tools
+    function model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: m
+    if model_visible or with_app_only
+      assign all = all | array_add: m
+    endif
+  endfor
 
   # ---- Visibility scope (§14.2). Build the visible set, then paginate it. --------
   # scope/principal/agent/delegation_mode are OPTIONAL inputs (only the 'principal'
