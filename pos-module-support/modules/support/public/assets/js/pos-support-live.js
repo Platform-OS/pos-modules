@@ -26,10 +26,16 @@ if (root && window.pos && window.pos.csrfToken) {
   document.addEventListener('submit', (event) => { if (!event.defaultPrevented) leaving = true; });
   window.addEventListener('pagehide', () => { leaving = true; });
   const rowOf = (ticketId) => document.querySelector(`.pos-support-row [value="${CSS.escape(ticketId)}"]`)?.closest('tr');
-  const refreshRow = async (ticketId, kind) => {
+  const refreshRow = async (ticketId, kind, attempt = 1) => {
     if (leaving) return;
     if (!rowOf(ticketId) && (kind !== 'created' || root.dataset.supportFirstPage !== 'true')) return;
-    const response = await fetch(`/support-desk/tickets/${encodeURIComponent(ticketId)}/row`, { credentials: 'same-origin' });
+    const response = await fetch(`/support-desk/tickets/${encodeURIComponent(ticketId)}/row`, { credentials: 'same-origin' }).catch(() => null);
+    // messages for one change are merged into this one fetch, so a failed
+    // fetch (busy server, rate limit) is tried again once
+    if (!response || (!response.ok && response.status !== 404)) {
+      if (attempt < 3) setTimeout(() => refreshRow(ticketId, kind, attempt + 1), 2000 * attempt);
+      return;
+    }
     if (!response.ok) return;
     const template = document.createElement('template');
     template.innerHTML = (await response.text()).trim();

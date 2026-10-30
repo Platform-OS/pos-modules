@@ -5,12 +5,10 @@ metadata:
   delay: 0.05
 ---
 {% doc %}
-  Waits a few seconds so a spam status set right after creation is seen, and
-  makes sure the number quoted to the customer is not shared with a ticket
-  created at the same moment.
+  Waits a few seconds so a spam status set right after creation is seen,
+  then acknowledges once the first message is stored (with a unique number).
   @param {object} event - support_ticket_created
 {% enddoc %}
 {% liquid
-  function _ = 'modules/support/commands/tickets/ensure_unique_number', ticket_id: event.ticket_id
-  function _ = 'modules/support/commands/messages/acknowledge', ticket_id: event.ticket_id
+  function _ = 'modules/support/commands/messages/acknowledge_when_ready', ticket_id: event.ticket_id, attempt: 1
 %}

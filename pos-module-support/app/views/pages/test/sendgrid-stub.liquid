@@ -8,7 +8,8 @@ format: json
   # Example-app test stub for the SendGrid Mail Send API (not distributed).
   # Answers 400 or 500 when the subject contains STUB400 / STUB500, else 202,
   # and keeps the last request body in the setting test_stub_last_body and
-  # the last 40 in test_stub_bodies (read by the E2E suite).
+  # the last 120 in test_stub_bodies (read by the E2E suite; a busy run sends
+  # dozens of alerts, which pushed earlier emails out of a shorter list).
   assign expected = context.constants['modules/support/EMAIL_API_KEY'] | prepend: 'Bearer '
   if context.headers.HTTP_AUTHORIZATION != expected
     response_status 401
@@ -20,9 +21,9 @@ format: json
   function _ = 'modules/support/commands/settings/set', key: 'test_stub_last_body', value: body
   function settings = 'modules/support/helpers/settings'
   assign bodies = settings.test_stub_bodies | default: []
-  if bodies.size > 39
-    assign start = bodies.size | minus: 39
-    assign bodies = bodies | slice: start, 39
+  if bodies.size > 119
+    assign start = bodies.size | minus: 119
+    assign bodies = bodies | slice: start, 119
   endif
   assign bodies << body
   function _ = 'modules/support/commands/settings/set', key: 'test_stub_bodies', value: bodies

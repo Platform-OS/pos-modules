@@ -39,8 +39,14 @@ if (root) {
 
   // Fetch the card again. It is dropped when the ticket left the member's
   // scope or moved to a column that is not shown.
-  const refresh = async (ticketId) => {
-    const response = await fetch(`/support-desk/tickets/${encodeURIComponent(ticketId)}/card?group=${byPriority ? 'priority' : 'status'}`, { credentials: 'same-origin' });
+  const refresh = async (ticketId, attempt = 1) => {
+    const response = await fetch(`/support-desk/tickets/${encodeURIComponent(ticketId)}/card?group=${byPriority ? 'priority' : 'status'}`, { credentials: 'same-origin' }).catch(() => null);
+    // a failed fetch (busy server, rate limit) keeps the card and tries again;
+    // only an answer without a card removes it
+    if (!response || (!response.ok && response.status !== 404)) {
+      if (attempt < 3) setTimeout(() => refresh(ticketId, attempt + 1), 2000 * attempt);
+      return;
+    }
     const existing = cardFor(ticketId);
     const from = existing && existing.closest('.pos-support-column');
     let card = null;

@@ -1,0 +1,21 @@
+{% doc %}
+  Sends the acknowledgement once the ticket's first message is stored: the
+  decision reads it (an auto-reply gets none), and inbound processing saves
+  the message after the ticket. Checks again every 6 seconds, 5 times at most.
+  Makes sure first that the number quoted to the customer is unique.
+  @param {string} ticket_id - The new ticket
+  @param {number} attempt - 1 for the first check
+{% enddoc %}
+{% liquid
+  graphql m = 'modules/support/messages/search', ticket_id: ticket_id, limit: 1
+  if m.records.results.size == 0
+    if attempt < 5
+      assign next_attempt = attempt | plus: 1
+      background _ = 'modules/support/commands/messages/acknowledge_when_ready', ticket_id: ticket_id, attempt: next_attempt, delay: 0.1, source_name: 'support_acknowledge'
+    endif
+    return 'waiting'
+  endif
+  function _ = 'modules/support/commands/tickets/ensure_unique_number', ticket_id: ticket_id
+  function result = 'modules/support/commands/messages/acknowledge', ticket_id: ticket_id
+  return result
+%}
