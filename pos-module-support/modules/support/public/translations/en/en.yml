@@ -87,6 +87,10 @@ en:
     bulk_apply: Apply to selected
     bulk_done: Selected tickets updated.
     bulk_partial: Some tickets could not be changed.
+    bulk_started: Updating the selected tickets… The list refreshes as they change.
+    bulk_too_many: Select at most 200 tickets at a time.
+    bulk_expired: The page has expired. Reload it and try again.
+    bulk_failed_request: The change could not be started. Try again.
     select: Select
     select_ticket: "Select ticket #%{number}"
     needs_reply: Needs reply
@@ -578,6 +582,8 @@ en:
     refresh: Show it
     acknowledge: I've seen the new message, send anyway
     assigned_to_you: Assigned to you
+    bulk_done: "{count} tickets updated."
+    bulk_failed: "{count} tickets could not be changed: {numbers}"
   categories:
     new: New
     open: Open

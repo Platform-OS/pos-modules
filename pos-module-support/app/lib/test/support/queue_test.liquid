@@ -60,4 +60,11 @@
   # bulk: agent assigning someone else fails, and a ticket outside scope fails
   function bulk = 'modules/support/commands/tickets/bulk_update', ids: ids, assignee: f.other_agent_id, status_key: null, priority: null, member: agent
   function contract = 'modules/tests/assertions/equal', contract: contract, given: bulk.failed, expected: 1, field_name: 'agent bulk assign others refused'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bulk.failed_numbers.first, expected: ticket.number, field_name: 'bulk names the refused ticket'
+
+  # a background chunk loads the member itself and applies the change
+  function job = 'modules/support/commands/tickets/bulk_job', ids: ids, assignee: null, status_key: null, ticket_priority: 'p2', spam: false, profile_id: agent.profile_id, batch: 'test', chunks: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: job.changed, expected: 1, field_name: 'bulk job changed one'
+  graphql t = 'modules/support/tickets/search', id: ticket.id, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: t.records.results.first.priority, expected: 'p2', field_name: 'bulk job priority'
 %}

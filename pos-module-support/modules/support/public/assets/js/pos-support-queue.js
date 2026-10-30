@@ -41,6 +41,39 @@
     if (countLabel) countLabel.textContent = n > 0 ? selectedText(n) : '';
   };
 
+  // Bulk changes run in the background on the server: post the form without
+  // leaving the page, so the live channel can report the result here.
+  const bulkForm = bar && bar.closest('form');
+  const notify = (kind, message) => {
+    if (window.pos && window.pos.modules && window.pos.modules.toast) new window.pos.modules.toast(kind, message);
+  };
+  if (bulkForm && window.fetch) {
+    document.addEventListener('submit', async (event) => {
+      if (event.target !== bulkForm || event.defaultPrevented) return;
+      event.preventDefault();
+      const data = new FormData(bulkForm, event.submitter);
+      data.set('respond', 'json');
+      const buttons = bulkForm.querySelectorAll('button');
+      buttons.forEach((button) => { button.disabled = true; });
+      try {
+        const response = await fetch(bulkForm.action, { method: 'POST', body: data, credentials: 'same-origin' });
+        const body = await response.json();
+        if (!body.ok) {
+          notify('error', body.error || bulkForm.dataset.failedText);
+          return;
+        }
+        notify('info', bulkForm.dataset.startedText);
+        document.querySelectorAll('.pos-support-select:checked').forEach((box) => { box.checked = false; });
+        bulkForm.querySelectorAll('select').forEach((select) => { select.selectedIndex = 0; });
+        updateBulk();
+      } catch (error) {
+        notify('error', bulkForm.dataset.failedText);
+      } finally {
+        buttons.forEach((button) => { button.disabled = false; });
+      }
+    });
+  }
+
   document.addEventListener('change', (event) => {
     if (event.target.matches('.pos-support-select')) updateBulk();
     if (event.target.matches('[data-support-autosubmit] select, [data-support-autosubmit] input[type="checkbox"]')) event.target.form.requestSubmit();

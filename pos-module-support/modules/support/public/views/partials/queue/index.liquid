@@ -15,7 +15,7 @@
     assign filtered = true
   endif
 %}
-<div class="pos-support-queue" data-support-live data-support-group="{{ page_data.group }}" data-support-departments="{{ page_data.live_departments }}" data-support-me="{{ member.profile_id }}" data-support-first-page="true" data-support-assigned-to-you="{{ 'modules/support/live.assigned_to_you' | t }}">
+<div class="pos-support-queue" data-support-live data-support-group="{{ page_data.group }}" data-support-departments="{{ page_data.live_departments }}" data-support-me="{{ member.profile_id }}" data-support-first-page="true" data-support-assigned-to-you="{{ 'modules/support/live.assigned_to_you' | t }}" data-support-bulk-done="{{ 'modules/support/live.bulk_done' | t }}" data-support-bulk-failed="{{ 'modules/support/live.bulk_failed' | t }}">
   {% render 'modules/support/queue/head', page_data: page_data, member: member %}
 
   {% if groups.total == 0 %}
@@ -38,7 +38,7 @@
       {% render 'modules/support/empty', icon: empty_icon, title: empty_title, text: empty_text, action_url: empty_url, action_label: empty_action %}
     </div>
   {% else %}
-    <form method="post" action="/support-desk/tickets/bulk" class="pos-support-bulk-form pos-form" data-selected-template="{{ 'modules/support/queue.selected_template' | t }}">
+    <form method="post" action="/support-desk/tickets/bulk" class="pos-support-bulk-form pos-form" data-selected-template="{{ 'modules/support/queue.selected_template' | t }}" data-started-text="{{ 'modules/support/queue.bulk_started' | t }}" data-failed-text="{{ 'modules/support/queue.bulk_failed_request' | t }}">
       <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
       <input type="hidden" name="return_to" value="{{ return_to }}">
       <div class="pos-support-bulk-bar" role="group" aria-label="{{ 'modules/support/queue.bulk' | t }}" data-support-bulk-bar>

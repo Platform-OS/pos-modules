@@ -1,0 +1,32 @@
+{% doc %}
+  One chunk of a bulk change, run as a background job by the bulk page. Loads
+  the member again (a disabled member changes nothing), applies the change
+  and reports the chunk's result to the member's profile room, where the
+  queue adds the chunks up and shows one toast when all have arrived.
+  @param {string[]} ids - Ticket ids of this chunk
+  @param {string} [assignee] - me | none | profile id
+  @param {string} [status_key] - Target status
+  @param {string} [ticket_priority] - Target priority (not `priority`: that is the job's own option)
+  @param {boolean} [spam] - Mark as spam instead
+  @param {string} profile_id - The acting member's profile
+  @param {string} batch - Id of the whole bulk change
+  @param {number} chunks - Number of chunks in the batch
+{% enddoc %}
+{% liquid
+  function member = 'modules/support/queries/team_members/find', profile_id: profile_id
+  assign result = { "changed": 0, "failed": 0, "failed_numbers": [] }
+  if member.state == 'active'
+    function result = 'modules/support/commands/tickets/bulk_update', ids: ids, assignee: assignee, status_key: status_key, priority: ticket_priority, member: member, spam: spam
+  else
+    assign result.failed = ids.size
+  endif
+  assign payload = { "kind": "bulk", "batch": null, "chunks": null, "changed": null, "failed": null, "failed_numbers": null }
+  assign payload.batch = batch
+  assign payload.chunks = chunks
+  assign payload.changed = result.changed
+  assign payload.failed = result.failed
+  assign payload.failed_numbers = result.failed_numbers
+  assign room = 'profile-' | append: profile_id
+  graphql _ = 'modules/support/channels/broadcast', room_id: room, payload: payload
+  return result
+%}

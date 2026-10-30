@@ -117,7 +117,9 @@ test.describe('queue and ticket', () => {
     for (const t of [one.ticket, two.ticket]) await page.locator(`.pos-support-row input[value="${t.id}"]`).check();
     await page.selectOption('#pos-support-bulk-priority', 'p1');
     await page.click('.pos-support-bulk-bar button:not([name])');
-    await expect(page.locator('body')).toContainText('Selected tickets updated.');
+    // the change runs in the background: the page answers at once, a toast follows
+    await expect(page.locator('body')).toContainText('Updating the selected tickets');
+    await expect(page.locator('body')).toContainText('2 tickets updated.', { timeout: 60000 });
     expect(ticketField(one.ticket.id, 'priority')).toBe('p1');
     expect(ticketField(two.ticket.id, 'priority')).toBe('p1');
 

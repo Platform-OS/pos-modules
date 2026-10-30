@@ -1,39 +1,83 @@
 ---
 slug: support-desk/tickets/bulk
 method: post
-layout: modules/support/support
+layout: ''
 metadata:
   permission: support.tickets.reply
 ---
 {% liquid
+  # Bulk change from the queue. The change runs in background jobs of 20
+  # tickets, so the page answers at once; the queue script posts with
+  # respond=json and stays on the page, where the member's profile room
+  # reports each chunk. Without JavaScript: a redirect with a flash message.
   # platformos-check-disable ConvertIncludeToRender, UnreachableCode
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
-  unless context.csrf_request_valid
-    response_status 422
-    render 'modules/support/forbidden'
-    break
-  endunless
-
-  assign member = context.exports.support.support_member
-  if context.params.bulk_spam == '1'
-    function result = 'modules/support/commands/tickets/bulk_update', ids: context.params.ids, assignee: null, status_key: null, priority: null, member: member, spam: true
-  else
-    function result = 'modules/support/commands/tickets/bulk_update', ids: context.params.ids, assignee: context.params.bulk_assignee, status_key: context.params.bulk_status, priority: context.params.bulk_priority, member: member, spam: false
+  assign wants_json = false
+  if context.params.respond == 'json'
+    assign wants_json = true
   endif
-
-  assign key = 'modules/support/queue.bulk_done'
-  if result.failed > 0
-    function _ = 'modules/user/helpers/flash', error: 'modules/support/queue.bulk_partial', notice: null, info: null, force_clear: null
-  else
-    function _ = 'modules/user/helpers/flash', notice: key, error: null, info: null, force_clear: null
-  endif
-
   assign target = context.params.return_to | default: '/support-desk'
   assign internal = target | matches: '^/support-desk(?:[/?]|$)'
   unless internal
     assign target = '/support-desk'
   endunless
+
+  assign error = null
+  assign ids = context.params.ids | default: [] | uniq
+  unless context.csrf_request_valid
+    assign error = 'modules/support/queue.bulk_expired'
+  endunless
+  if error == blank and ids.size > 200
+    assign error = 'modules/support/queue.bulk_too_many'
+  endif
+
+  assign body = { "ok": false, "error": null, "batch": null, "chunks": 0, "count": 0 }
+  if error == blank and ids.size > 0
+    assign member = context.exports.support.support_member
+    assign spam = false
+    assign assignee = context.params.bulk_assignee
+    assign status_key = context.params.bulk_status
+    assign priority = context.params.bulk_priority
+    if context.params.bulk_spam == '1'
+      assign spam = true
+      assign assignee = null
+      assign status_key = null
+      assign priority = null
+    endif
+    assign batch = 16 | random_string
+    assign chunks = ids.size | plus: 19 | divided_by: 20
+    assign last = chunks | minus: 1
+    for n in (0..last)
+      assign offset = n | times: 20
+      assign chunk = ids | slice: offset, 20
+      background _ = 'modules/support/commands/tickets/bulk_job', source_name: 'support_bulk', priority: 'high', ids: chunk, assignee: assignee, status_key: status_key, ticket_priority: priority, spam: spam, profile_id: member.profile_id, batch: batch, chunks: chunks
+    endfor
+    assign body.ok = true
+    assign body.batch = batch
+    assign body.chunks = chunks
+    assign body.count = ids.size
+  endif
+
+  if wants_json
+    response_headers '{"Content-Type": "application/json"}'
+    if error
+      response_status 422
+      assign body.error = error | t
+    endif
+    echo body | json | html_safe
+    break
+  endif
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+  if error
+    function _ = 'modules/user/helpers/flash', error: error, notice: null, info: null, force_clear: null
+  elsif body.ok
+    function _ = 'modules/user/helpers/flash', info: 'modules/support/queue.bulk_started', notice: null, error: null, force_clear: null
+  endif
   redirect_to target
 %}

@@ -1,9 +1,10 @@
 {% doc %}
   Applies assignee, status and priority to several tickets. Each ticket is
   loaded through the member's scope and changed with the same commands as
-  the ticket page, so the same rules and events apply.
-  Returns { changed, failed }.
-  @param {string[]} [ids] - Ticket ids, at most 100
+  the ticket page, so the same rules and events apply. The bulk page runs it
+  in background jobs (commands/tickets/bulk_job), a chunk of tickets each.
+  Returns { changed, failed, failed_numbers }.
+  @param {string[]} [ids] - Ticket ids
   @param {string} [assignee] - me | none | profile id
   @param {string} [status_key] - Target status
   @param {string} [priority] - Target priority
@@ -11,8 +12,8 @@
   @param {boolean} [spam] - Mark the tickets as spam instead (D-27)
 {% enddoc %}
 {% liquid
-  assign result = { "changed": 0, "failed": 0 }
-  assign ids = ids | default: [] | uniq | slice: 0, 100
+  assign result = { "changed": 0, "failed": 0, "failed_numbers": [] }
+  assign ids = ids | default: [] | uniq
   assign actor = { "type": "user" }
   assign actor.id = member.profile_id
   assign actor.member = member
@@ -33,39 +34,38 @@
     assign ok = true
     if spam
       function r = 'modules/support/commands/tickets/mark_spam', ticket: ticket, actor: actor
-      if r.valid
-        assign result.changed = result.changed | plus: 1
-      else
-        assign result.failed = result.failed | plus: 1
-      endif
-      continue
-    endif
-    if assignee != blank
-      function r = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: assignee_id, reason: 'manual', actor: actor
-      if r.valid
-        assign ticket = r.ticket
-      else
-        assign ok = false
-      endif
-    endif
-    if status_key != blank
-      function r = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: status_key, actor: actor
-      if r.valid
-        assign ticket = r.ticket
-      else
-        assign ok = false
-      endif
-    endif
-    if priority != blank
-      function r = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: priority, actor: actor
       unless r.valid
         assign ok = false
       endunless
+    else
+      if assignee != blank
+        function r = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: assignee_id, reason: 'manual', actor: actor
+        if r.valid
+          assign ticket = r.ticket
+        else
+          assign ok = false
+        endif
+      endif
+      if status_key != blank
+        function r = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: status_key, actor: actor
+        if r.valid
+          assign ticket = r.ticket
+        else
+          assign ok = false
+        endif
+      endif
+      if priority != blank
+        function r = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: priority, actor: actor
+        unless r.valid
+          assign ok = false
+        endunless
+      endif
     endif
     if ok
       assign result.changed = result.changed | plus: 1
     else
       assign result.failed = result.failed | plus: 1
+      assign result.failed_numbers << ticket.number
     endif
   endfor
   return result

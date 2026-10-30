@@ -95,12 +95,33 @@ if (root && window.pos && window.pos.csrfToken) {
     window.addEventListener('pagehide', () => room.send({ state: 'left' }));
   }
 
-  // Personal room: short in-app notice for assignments.
+  // Personal room: short in-app notice for assignments, and the result of a
+  // bulk change, which arrives in chunks and is reported once all are in.
   const profileId = root.dataset.supportMe;
+  const batches = new Map();
+  const toast = (kind, message) => {
+    if (window.pos.modules && window.pos.modules.toast) new window.pos.modules.toast(kind, message);
+  };
   if (profileId) {
     subscribe(`profile-${profileId}`, (data) => {
-      if (data.kind !== 'assigned' || !window.pos.modules || !window.pos.modules.toast) return;
-      new window.pos.modules.toast('info', `${text('supportAssignedToYou', 'Assigned to you')}: #${data.number}`);
+      if (data.kind === 'assigned') {
+        toast('info', `${text('supportAssignedToYou', 'Assigned to you')}: #${data.number}`);
+        return;
+      }
+      if (data.kind !== 'bulk') return;
+      const batch = batches.get(data.batch) || { seen: 0, changed: 0, failed: 0, numbers: [] };
+      batch.seen += 1;
+      batch.changed += data.changed;
+      batch.failed += data.failed;
+      batch.numbers.push(...(data.failed_numbers || []));
+      batches.set(data.batch, batch);
+      if (batch.seen < data.chunks) return;
+      batches.delete(data.batch);
+      if (batch.changed > 0) toast('success', text('supportBulkDone', '{count} tickets updated.').replace('{count}', batch.changed));
+      if (batch.failed > 0) {
+        const numbers = batch.numbers.map((n) => `#${n}`).join(', ');
+        toast('error', text('supportBulkFailed', '{count} tickets could not be changed: {numbers}').replace('{count}', batch.failed).replace('{numbers}', numbers));
+      }
     });
   }
 }
