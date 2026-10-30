@@ -1,0 +1,47 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # Escaped text in a stored message must stay text on the ticket page and in
+  # the outgoing email: a subject quoted by the acknowledgement, a note, a reply.
+  assign body = '<p>&lt;script&gt;alert(1)&lt;/script&gt;&lt;img src=x onerror=alert(2)&gt;</p>'
+  assign requester = { "id": "1", "name": "Ann", "emails": ["ann@example.com"] }
+  assign profiles = {}
+  assign no_attachments = []
+
+  assign kinds = 'system,agent,note' | split: ','
+  for kind in kinds
+    assign message = { "id": "1", "author_type": "agent", "visibility": "public", "delivery_state": "sent", "created_at": "2026-10-30T10:00:00Z" }
+    assign message.body_html = body
+    if kind == 'system'
+      assign message.author_type = 'system'
+    elsif kind == 'note'
+      assign message.visibility = 'internal'
+    endif
+    capture page
+      render 'modules/support/ticket/message', message: message, attachments: no_attachments, requester: requester, profiles: profiles
+    endcapture
+    assign live = false
+    if page contains '<script>' or page contains '<img src=x'
+      assign live = true
+    endif
+    assign field = kind | append: ' message body stays text'
+    function contract = 'modules/tests/assertions/equal', contract: contract, given: live, expected: false, field_name: field
+    assign kept = false
+    if page contains '&lt;script&gt;'
+      assign kept = true
+    endif
+    assign field = kind | append: ' message body shown escaped'
+    function contract = 'modules/tests/assertions/equal', contract: contract, given: kept, expected: true, field_name: field
+  endfor
+
+  assign ticket = { "number": 1, "subject": "S" }
+  capture email
+    render 'modules/support/emails/reply', body_html: body, signature_html: body, brand: null, delimiter: 'D', ticket: ticket
+  endcapture
+  assign live = false
+  if email contains '<script>' or email contains '<img src=x'
+    assign live = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: live, expected: false, field_name: 'reply email body stays text'
+%}

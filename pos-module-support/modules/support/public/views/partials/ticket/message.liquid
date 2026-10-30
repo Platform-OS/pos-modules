@@ -33,54 +33,17 @@
     assign css = css | append: ' pos-support-message-note'
   endif
 %}
-{% capture card %}
-  <div class="pos-support-message-card">
-    <header class="pos-support-message-head">
-      <strong id="message-{{ message.id }}-author">{{ author }}</strong>
-      {% if author_email != blank and author_email != author %}<span class="pos-support-muted">{{ author_email }}</span>{% endif %}
-      {% if is_note %}
-        <span class="pos-support-message-meta">{% render 'modules/support/icon', name: 'lock', size: 'sm' %}{{ 'modules/support/ticket.internal_note' | t }}</span>
-      {% elsif message.author_type == 'customer' %}
-        <span class="pos-support-message-meta">{% render 'modules/support/icon', name: 'arrow-down-left', size: 'sm' %}{{ 'modules/support/ticket.received' | t }}</span>
-      {% else %}
-        <span class="pos-support-message-meta pos-support-delivery pos-support-delivery-{{ message.delivery_state }}">{% render 'modules/support/icon', name: 'arrow-up-right', size: 'sm' %}{{ 'modules/support/ticket.delivery_' | append: message.delivery_state | t }}</span>
-      {% endif %}
-      {% render 'modules/support/time', time: message.created_at, style: 'datetime' %}
-    </header>
-    {% if message.author_type == 'customer' %}
-      <div class="pos-support-message-body">{{ message.body_stripped | default: message.body_text | escape | newline_to_br }}</div>
-      {% if message.body_html != blank %}
-        <details class="pos-support-original">
-          <summary>{{ 'modules/support/ticket.show_original' | t }}</summary>
-          <iframe class="pos-support-html-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="{{ 'modules/support/ticket.original_title' | t }}" srcdoc="<base target='_blank'>{{ message.body_html }}"></iframe>
-        </details>
-      {% endif %}
-    {% else %}
-      <div class="pos-support-message-body">{{ message.body_html | sanitize }}</div>
-    {% endif %}
-    {% if message.delivery_state == 'failed' %}
-      <p class="pos-support-error">{{ 'modules/support/ticket.not_delivered' | t }} {{ message.delivery_error }}</p>
-    {% endif %}
-    {% if attachments.size > 0 %}
-      <ul class="pos-support-attachments" aria-label="{{ 'modules/support/ticket.attachments' | t }}">
-        {% for attachment in attachments %}
-          <li><a href="/support-desk/attachments/{{ attachment.id }}" rel="noopener">{% render 'modules/support/icon', name: 'paperclip', size: 'sm' %}{{ attachment.filename }} <span class="pos-support-muted">{{ attachment.size | divided_by: 1024 }} KB</span></a></li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </div>
-{% endcapture %}
 {% if message.author_type == 'system' %}
   <article class="{{ css }}" id="message-{{ message.id }}" aria-labelledby="message-{{ message.id }}-summary">
     <span class="pos-support-avatar" aria-hidden="true">{% render 'modules/support/icon', name: 'mail', size: 'sm' %}</span>
     <details class="pos-support-system">
       <summary id="message-{{ message.id }}-summary"><strong>{{ author }}</strong> · {{ 'modules/support/ticket.delivery_' | append: message.delivery_state | t }} · {% render 'modules/support/time', time: message.created_at, style: 'relative' %} <span class="pos-support-muted">{{ 'modules/support/ticket.show' | t }}</span></summary>
-      {{ card | html_safe }}
+      {% render 'modules/support/ticket/message_card', message: message, attachments: attachments, author: author, author_email: author_email, is_note: is_note %}
     </details>
   </article>
 {% else %}
   <article class="{{ css }}" id="message-{{ message.id }}" aria-labelledby="message-{{ message.id }}-author">
     {% render 'modules/support/avatar', name: author, email: author_email, size: 'md', labelled: false %}
-    {{ card | html_safe }}
+    {% render 'modules/support/ticket/message_card', message: message, attachments: attachments, author: author, author_email: author_email, is_note: is_note %}
   </article>
 {% endif %}
