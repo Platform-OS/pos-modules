@@ -21,6 +21,10 @@
    - output_schema, when present, is an object schema checked in output mode: a
      field may list several types including "null", and its depth limit is
      max_output_depth.
+   - ui, when present, is the tool's MCP Apps declaration (docs/mcp-apps.md) and holds
+     only resource_uri (a ui:// URI) and visibility (a non-empty array of "model" and
+     "app"). Anything else excludes the tool: who may see a tool is never guessed, and
+     a host is never pointed at a page outside ui://.
    - every model-read text is linted (non-fatal, §12.3) for human attention: the
      description, the title, and each description and title in input_schema and
      output_schema. Hits are returned in `lint` and as `warnings` text.
@@ -157,6 +161,50 @@
       endfor
     else
       assign errors = errors | array_add: 'annotations: must be an object'
+    endif
+  endunless
+
+  # ---- ui (optional; the MCP Apps declaration) ----
+  unless manifest.ui == blank
+    assign ui_kind = manifest.ui | type_of | downcase
+    if ui_kind == 'hash'
+      assign ui_allowed_keys = 'resource_uri,visibility' | split: ','
+      assign ui_keys = manifest.ui | hash_keys
+      for ui_key in ui_keys
+        unless ui_allowed_keys contains ui_key
+          assign umsg = 'ui: unsupported key "' | append: ui_key | append: '"'
+          assign errors = errors | array_add: umsg
+        endunless
+      endfor
+      if ui_keys contains 'resource_uri'
+        assign uri_kind = manifest.ui.resource_uri | type_of | downcase
+        assign uri_ok = false
+        if uri_kind == 'string'
+          assign uri_ok = manifest.ui.resource_uri | matches: '\Aui://[^\s]+\z'
+        endif
+        unless uri_ok
+          assign errors = errors | array_add: 'ui.resource_uri: must be a ui:// URI'
+        endunless
+      endif
+      if ui_keys contains 'visibility'
+        assign vis = manifest.ui.visibility
+        assign vis_kind = vis | type_of | downcase
+        assign vis_ok = false
+        if vis_kind == 'array' and vis.size > 0
+          assign vis_ok = true
+          assign vis_values = 'model,app' | split: ','
+          for v in vis
+            unless vis_values contains v
+              assign vis_ok = false
+            endunless
+          endfor
+        endif
+        unless vis_ok
+          assign errors = errors | array_add: 'ui.visibility: must be a non-empty array of "model" and "app"'
+        endunless
+      endif
+    else
+      assign errors = errors | array_add: 'ui: must be an object'
     endif
   endunless
 

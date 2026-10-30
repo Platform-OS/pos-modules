@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fields, passes the approved hook only the fields it showed (with `shown`), takes the
   person and the client from the session, and runs it only after Approve with a valid
   CSRF token. A hook that raises is logged and never blocks the sign-in.
+- **MCP Apps declarations** (docs/mcp-apps.md). A manifest may declare
+  `ui: { resource_uri, visibility }`; `tools/list` serves it as `_meta.ui { resourceUri,
+  visibility }`, so hosts that support MCP Apps show the tool's card. An app-only tool
+  (`visibility: ["app"]`) is listed in `tools/list` and answers `tools/call` (under its
+  policy, scopes, rate limits and the ledger) only for a signed-in client that declared
+  the `io.modelcontextprotocol/ui` extension with `text/html;profile=mcp-app`: per request
+  for a modern client, and for an older one as recorded on its token at its last
+  `initialize` (new `mcp_token.ui_apps`, `helpers/protocol/apps_client`). For any other
+  client it is not listed and is an unknown tool. It is left out of
+  `queries/registry/for_agent`, and `commands/execute/invoke` answers it as an unknown
+  tool. Visibility is enforced by the host and is not a security boundary. A malformed `ui` (another key, a URI outside `ui://`, an empty or unknown
+  visibility) excludes the tool. Provider `resources/read` content items keep their
+  `_meta` when it is an object, so a card's `_meta.ui.csp` reaches the host. Tools without
+  `ui` are served exactly as before.
 
 ### Changed
 

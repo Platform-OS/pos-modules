@@ -9,7 +9,9 @@
   entries the engine must drop (a reserved mcp+page: URI and one without a name) and
   pages once through `next_cursor`. Reading `boom` raises, `inner_missing` calls a
   partial that does not exist, and `malformed` returns contents without text, so the
-  suite can check the engine's failure handling.
+  suite can check the engine's failure handling. Reading ui://test/card returns the MCP
+  Apps card of the test_ui_card tool (text/html;profile=mcp-app) with its _meta.ui, which
+  the engine must pass through.
 {%- endcomment -%}
 {% liquid
   assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
@@ -70,6 +72,26 @@
 
     when 'read'
       assign wanted = uri | append: ''
+      if wanted == 'ui://test/card'
+        assign connect_domains = []
+        assign csp = { "connectDomains": connect_domains }
+        assign ui_meta = {
+          "csp": csp,
+          "prefersBorder": true
+        }
+        assign card_meta = { "ui": ui_meta }
+        assign card_html = '<!doctype html><html><head><meta charset="utf-8"><title>Test card</title></head><body><p>TEST FIXTURE card</p></body></html>'
+        assign card = {
+          "uri": wanted,
+          "mimeType": "text/html;profile=mcp-app"
+        }
+        assign card['text'] = card_html
+        assign card['_meta'] = card_meta
+        assign contents = []
+        assign contents = contents | array_add: card
+        assign out = { "contents": contents }
+        return out
+      endif
       assign owner_prefix = wanted | slice: 0, base.size
       unless owner_prefix == base
         return null

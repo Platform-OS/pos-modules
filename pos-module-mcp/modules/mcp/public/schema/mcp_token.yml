@@ -29,3 +29,5 @@ properties:
   - name: refresh_expires_at   # refresh token expiry, unix seconds
     type: integer
   - name: claim_token    # row-lock bump value for refresh rotation (see commands/oauth/refresh)
+  - name: ui_apps        # the client declared MCP Apps (io.modelcontextprotocol/ui, text/html;profile=mcp-app) at its last initialize; legacy clients only (docs/mcp-apps.md)
+    type: boolean

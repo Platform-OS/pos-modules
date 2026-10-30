@@ -1,0 +1,31 @@
+{%- comment -%}
+  Whether client capabilities declare MCP Apps (docs/mcp-apps.md): the
+  io.modelcontextprotocol/ui extension with "text/html;profile=mcp-app" among its
+  mimeTypes. Another mime type, or the extension without mimeTypes, does not count. A
+  legacy client declares capabilities in initialize; a modern one in every request's
+  _meta (helpers/protocol/negotiate).
+
+  @param {object} capabilities - the client's capabilities object, or blank
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  if capabilities == blank
+    return false
+  endif
+  assign extensions = capabilities.extensions
+  if extensions == blank
+    return false
+  endif
+  assign ui = extensions['io.modelcontextprotocol/ui']
+  if ui == blank
+    return false
+  endif
+  assign mime_types = ui.mimeTypes
+  if mime_types == blank
+    return false
+  endif
+  if mime_types contains 'text/html;profile=mcp-app'
+    return true
+  endif
+  return false
+%}

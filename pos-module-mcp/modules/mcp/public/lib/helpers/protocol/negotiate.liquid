@@ -32,10 +32,12 @@
   @param {object} headers - context.headers
   Client capabilities are declared per modern request in
   `_meta["io.modelcontextprotocol/clientCapabilities"]` and never carried over from an
-  earlier request. `tasks_extension` says whether this one declares the Tasks extension.
+  earlier request. `tasks_extension` says whether this one declares the Tasks extension;
+  `ui_extension` whether it declares MCP Apps (helpers/protocol/declares_ui). Both are
+  false for a legacy request, whose declaration is made once in initialize.
 
   @return {object} { version, era: 'modern'|'legacy', modern, tasks_extension,
-                     requested, supported,
+                     ui_extension, requested, supported,
                      error: null | { http_status, code, message, data? } }
                    `modern` is true only for an accepted modern request.
 {%- endcomment -%}
@@ -138,6 +140,7 @@
   endif
 
   assign tasks_extension = false
+  assign ui_extension = false
   if modern
     assign client_caps = req_meta['io.modelcontextprotocol/clientCapabilities']
     unless client_caps == blank
@@ -147,6 +150,7 @@
           assign tasks_extension = true
         endif
       endunless
+      function ui_extension = 'modules/mcp/helpers/protocol/declares_ui', capabilities: client_caps
     endunless
   endif
 
@@ -155,6 +159,7 @@
     "era": era,
     "modern": modern,
     "tasks_extension": tasks_extension,
+    "ui_extension": ui_extension,
     "requested": requested,
     "supported": supported,
     "error": error

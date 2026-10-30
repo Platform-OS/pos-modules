@@ -13,7 +13,8 @@ It is **not** a way to expose GraphQL to an LLM — that is the anti-pattern it
 exists to prevent.
 
 Full design: [`pos-module-mcp-spec.md`](./docs/pos-module-mcp-spec.md). Tool-authoring
-deep dive: [`docs/authoring-tools.md`](./docs/authoring-tools.md).
+deep dive: [`docs/authoring-tools.md`](./docs/authoring-tools.md). Cards in the
+conversation (MCP Apps): [`docs/mcp-apps.md`](./docs/mcp-apps.md).
 
 ---
 

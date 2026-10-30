@@ -1,0 +1,10 @@
+mutation set_ui_apps($id: ID!, $ui_apps: Boolean!) {
+  # Records whether the client declared MCP Apps at its last legacy initialize
+  # (commands/rpc/route). Only touches ui_apps; never the digest or status.
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_token"
+    properties: [{ name: "ui_apps", value_boolean: $ui_apps }]
+  }) {
+    id
+  }
+}

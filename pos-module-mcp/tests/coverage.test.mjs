@@ -492,6 +492,85 @@ describe('coverage · multi-principal governance planes', () => {
     ok('the excluded tool cannot be called', call.json?.error?.code === -32602 || call.json?.result?.isError === true, JSON.stringify(call.json?.error || call.json?.result || {}).slice(0, 120));
   });
 
+  it('MCP Apps — a tool declares its UI and visibility; app-only tools are hidden from the model; malformed ui excludes the tool', async () => {
+    await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'coverage', version: '1' } } }, mem.rawToken);
+    const r = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, mem.rawToken);
+    const tools = r.json?.result?.tools || [];
+    const names = tools.map(t => t.name);
+    const card = tools.find(t => t.name === 'test_ui_card');
+    ok('a tool with ui carries _meta.ui { resourceUri, visibility }', JSON.stringify(card?._meta?.ui) === JSON.stringify({ resourceUri: 'ui://test/card', visibility: ['model', 'app'] }), JSON.stringify(card?._meta || {}));
+    ok('an app-only tool is left out of tools/list for a client without the UI extension', names.length > 0 && !names.includes('test_app_only'), names.join(','));
+    ok('a ui visibility other than model/app excludes the tool', names.length > 0 && !names.includes('test_bad_ui_visibility'));
+    ok('a ui resource_uri outside ui:// excludes the tool', names.length > 0 && !names.includes('test_bad_ui_uri'));
+    const plain = tools.find(t => t.name === 'test_public');
+    ok('a tool without ui keeps exactly _meta { version, deprecated }', JSON.stringify(Object.keys(plain?._meta || {}).sort()) === JSON.stringify(['deprecated', 'version']), JSON.stringify(plain?._meta || {}));
+
+    for (const excluded of ['test_bad_ui_visibility', 'test_bad_ui_uri']) {
+      const bad = await callTool(mem.rawToken, excluded, {});
+      ok(`${excluded} cannot be called`, bad.json?.error?.code === -32602 || bad.json?.result?.isError === true, JSON.stringify(bad.json?.error || bad.json?.result || {}).slice(0, 120));
+    }
+
+    // The UI resource comes from the app's provider, for a signed-in caller only, with the
+    // provider's _meta.ui (the card's content security policy) passed through.
+    const read = (token) => rpc({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'ui://test/card' } }, token);
+    const cardRead = await read(mem.rawToken);
+    const content = cardRead.json?.result?.contents?.[0] || {};
+    ok('the card resource is served as text/html;profile=mcp-app', content.mimeType === 'text/html;profile=mcp-app' && String(content.text || '').startsWith('<!doctype html>'), cardRead.text.slice(0, 200));
+    ok("the provider's _meta.ui is passed through", JSON.stringify(content._meta) === JSON.stringify({ ui: { csp: { connectDomains: [] }, prefersBorder: true } }), JSON.stringify(content._meta || {}));
+    const helloRead = await rpc({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: `test-note://${mem.userId}/hello` } }, mem.rawToken);
+    ok('a content item without _meta carries none', !('_meta' in (helloRead.json?.result?.contents?.[0] || {})), helloRead.text.slice(0, 200));
+    await setConstant('MCP_CONFIG', JSON.stringify({ oauth: { challenge_initialize: false } }));
+    const anonRead = await read(null);
+    await unsetConstant('MCP_CONFIG');
+    ok('an anonymous caller cannot read the card resource', anonRead.json?.error?.code === -32002, anonRead.text.slice(0, 160));
+  });
+
+  it('MCP Apps — app-only tools are listed and callable only for a client that declared the UI extension', async () => {
+    const UI = { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } };
+    const OTHER_UI = { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/plain'] } } };
+    const initialize = (capabilities) => rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities, clientInfo: { name: 'coverage', version: '1' } } }, mem.rawToken);
+    const listed = async () => ((await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }, mem.rawToken)).json?.result?.tools || []);
+    const appOnlyLedger = async () => {
+      const q = await adm.gql(`{ records(per_page: 20, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${mem.principal}" }, { name: "tool_name", value: "test_app_only" }] }, sort: [{ id: { order: DESC } }]) { results { id outcome: property(name: "execution_outcome") authz: property(name: "authz_decision") } } }`);
+      return q?.data?.records?.results || [];
+    };
+
+    // A legacy client that did not declare the extension: the tool does not exist for it.
+    await initialize({});
+    ok('without the extension the app-only tool is not listed', !(await listed()).some(t => t.name === 'test_app_only'));
+    const hidden = await callTool(mem.rawToken, 'test_app_only', {});
+    ok('without the extension the app-only tool is an unknown tool', hidden.json?.error?.code === -32602, JSON.stringify(hidden.json?.error || hidden.json?.result || {}).slice(0, 120));
+
+    // A legacy client declares it once, at initialize; it is kept for the token.
+    await initialize(UI);
+    const appOnlyTool = (await listed()).find(t => t.name === 'test_app_only');
+    ok('after declaring, the app-only tool is listed with _meta.ui.visibility ["app"]', JSON.stringify(appOnlyTool?._meta?.ui?.visibility) === '["app"]', JSON.stringify(appOnlyTool?._meta || {}));
+    const ledgerStart = Math.max(0, ...(await appOnlyLedger()).map(row => Number(row.id)));
+    const appOnly = await callTool(mem.rawToken, 'test_app_only', {});
+    ok('after declaring, the app-only tool answers tools/call', isOkResult(appOnly) && appOnly.json?.result?.structuredContent?.tier === 'app_only', appOnly.text.slice(0, 200));
+    const appOnlyRows = (await appOnlyLedger()).filter(row => Number(row.id) > ledgerStart);
+    ok('the app-only call is authorized by its policy and written to the ledger', appOnlyRows.some(row => row.authz === 'allow' && row.outcome === 'success'), JSON.stringify(appOnlyRows));
+    const anonAppOnly = await callTool(null, 'test_app_only', {});
+    ok('an app-only tool without a token → 401', anonAppOnly.status === 401, `status=${anonAppOnly.status}`);
+
+    // Modern clients declare capabilities on every request; the token's stored legacy declaration does not count for them.
+    const send = makeModern(base).send;
+    const modernNames = async (capabilities) => ((await send('tools/list', {}, { token: mem.rawToken, capabilities })).json?.result?.tools || []).map(t => t.name);
+    ok('a modern request declaring the extension lists the app-only tool', (await modernNames(UI)).includes('test_app_only'));
+    ok('a modern request without it does not, whatever the token declared at initialize', !(await modernNames({})).includes('test_app_only'));
+    const modernHidden = await send('tools/call', { name: 'test_app_only', arguments: {} }, { token: mem.rawToken, capabilities: {} });
+    ok('a modern call without the extension is an unknown tool', modernHidden.json?.error?.code === -32602, modernHidden.text.slice(0, 160));
+    const modernCall = await send('tools/call', { name: 'test_app_only', arguments: {} }, { token: mem.rawToken, capabilities: UI });
+    ok('a modern call declaring the extension answers', modernCall.json?.result?.structuredContent?.tier === 'app_only', modernCall.text.slice(0, 160));
+
+    // Only the MCP Apps HTML profile counts, and reconnecting without the extension withdraws it.
+    await initialize(OTHER_UI);
+    ok('a declaration without text/html;profile=mcp-app does not count', !(await listed()).some(t => t.name === 'test_app_only'));
+    await initialize(UI);
+    await initialize({});
+    ok('initializing again without the extension withdraws it', !(await listed()).some(t => t.name === 'test_app_only'));
+  });
+
   it('tools/list — a malformed cursor starts from the first page', async () => {
     const first = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, mem.rawToken);
     const firstNames = (first.json?.result?.tools || []).map(t => t.name).join(',');
