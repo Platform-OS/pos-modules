@@ -3,13 +3,13 @@
   "change": properties (status, priority, assignee, department, tags),
   snooze, link, merge or unmerge. Each goes through its command, so the
   same rules, audit rows and events apply as everywhere else.
-  Returns { valid, error, ticket_id }.
+  Returns { valid, error, ticket_id, department_changed }.
   @param {object} ticket - Ticket loaded through queries/tickets/find
   @param {object} params - The posted form, read by name
   @param {object} member - The acting team_member
 {% enddoc %}
 {% liquid
-  assign result = { "valid": true, "error": null, "ticket_id": null }
+  assign result = { "valid": true, "error": null, "ticket_id": null, "department_changed": false }
   assign result.ticket_id = ticket.id
   assign actor = { "type": "user" }
   assign actor.id = member.profile_id
@@ -29,7 +29,7 @@
         assign result.error = r.errors.status
       endif
     endif
-    if result.valid and params.priority != blank
+    if result.valid and params.priority != blank and params.priority != ticket.priority
       function r = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: params.priority, actor: actor
       if r.valid
         assign ticket = r.ticket
@@ -47,12 +47,32 @@
         assign result.error = r.errors.assignee_id
       endif
     endif
-    if result.valid
-      assign fields = { "subject": null, "department_id": null, "tags": null }
+    # only fields that differ are written: every write logs and broadcasts
+    assign fields = { "subject": null, "department_id": null, "tags": null }
+    assign changed = false
+    if params.department_id != blank and params.department_id != ticket.department_id
       assign fields.department_id = params.department_id
-      if params.tags != null
-        assign fields.tags = params.tags | split: ','
+      assign changed = true
+      assign result.department_changed = true
+    endif
+    if params.tags != null
+      # compared the way update_fields stores them
+      assign new_tags = params.tags | split: ','
+      assign normalized = []
+      for tag in new_tags
+        assign clean = tag | downcase | strip | truncate: 40, ''
+        if clean != blank
+          assign normalized << clean
+        endif
+      endfor
+      assign new_list = normalized | uniq | join: ','
+      assign old_list = ticket.tags | default: [] | join: ','
+      if new_list != old_list
+        assign fields.tags = new_tags
+        assign changed = true
       endif
+    endif
+    if result.valid and changed
       function r = 'modules/support/commands/tickets/update_fields', ticket: ticket, fields: fields, actor: actor
       unless r.valid
         assign result.valid = false

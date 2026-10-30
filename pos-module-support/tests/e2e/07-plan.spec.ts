@@ -136,10 +136,14 @@ test.describe('queue and ticket', () => {
     const b = await newTicket('E2E merge target');
     const { context, page } = await contextFor(browser, users.superadmin);
     await page.goto(desk(`/support-desk/tickets/${a.ticket.id}`));
-    // properties save as soon as a choice changes (the page reloads); tags need Save
-    await Promise.all([page.waitForNavigation(), page.check('input[name=priority][value=p0]')]);
+    // properties save as soon as a choice changes, without reloading (the badge
+    // is swapped in place); tags need Save
+    await page.check('input[name=priority][value=p0]');
+    await expect(page.locator('.pos-support-ticket-title .pos-support-priority')).toHaveText('P0');
     await page.fill('#pos-support-side-tags', 'billing, E2E');
     await page.click('form:has(#pos-support-side-tags) button[type=submit]');
+    await expect(page.locator('.pos-toast').last()).toContainText('Ticket updated.');
+    await page.reload();
     await expect(page.locator('.pos-support-activity')).toContainText('changed priority');
     expect(ticketField(a.ticket.id, 'priority')).toBe('p0');
     expect(ticketField(a.ticket.id, 'tags')).toEqual(['billing', 'e2e']);

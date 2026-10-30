@@ -1,14 +1,22 @@
 ---
 slug: support-desk/tickets/:id/update
 method: post
-layout: modules/support/support
+layout: ''
 metadata:
   permission: support.tickets.reply
 ---
 {% liquid
+  # Ticket page forms. The properties autosave posts respond=json and stays on
+  # the page (the answer carries the new status and priority badges); every
+  # other form, and the page without JavaScript, gets a redirect.
   # platformos-check-disable ConvertIncludeToRender, UnreachableCode
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  assign wants_json = false
+  if context.params.respond == 'json'
+    assign wants_json = true
+  endif
 
   unless context.csrf_request_valid
     response_status 422
@@ -25,6 +33,38 @@ metadata:
   endif
 
   function result = 'modules/support/commands/tickets/apply_form', ticket: ticket, params: context.params, member: member
+
+  if wants_json
+    response_headers '{"Content-Type": "application/json"}'
+    assign body = { "ok": false, "message": null, "reload": false, "priority_html": null, "status_html": null }
+    if result.valid
+      assign body.ok = true
+      assign body.message = 'modules/support/ticket.updated' | t
+      # a ticket moved to another department may leave this agent's scope
+      assign body.reload = result.department_changed
+      function fresh = 'modules/support/queries/tickets/find', id: ticket.id, number: null, member: member
+      if fresh
+        function statuses = 'modules/support/queries/statuses/all'
+        assign status = statuses.by_id[fresh.status_id]
+        capture priority_html
+          render 'modules/support/badges/priority', priority: fresh.priority
+        endcapture
+        capture status_html
+          render 'modules/support/badges/status', status: status
+        endcapture
+        assign body.priority_html = priority_html | strip
+        assign body.status_html = status_html | strip
+      else
+        assign body.reload = true
+      endif
+    else
+      response_status 422
+      assign body.message = result.error | default: 'modules/support/ticket.not_saved' | t
+    endif
+    echo body | json | html_safe
+    break
+  endif
+
   if result.valid
     function _ = 'modules/user/helpers/flash', notice: 'modules/support/ticket.updated', error: null, info: null, force_clear: null
   else
