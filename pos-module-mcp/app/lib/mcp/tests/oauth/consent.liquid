@@ -1,0 +1,22 @@
+{%- comment -%}
+  Test-only OAuth consent hook (tests/oauth.test.mjs). Used only while MCP_CONFIG sets
+  oauth_consent_partial to 'mcp/tests/oauth/consent'. Returns data the engine must
+  render escaped: markup in a label, a field type the engine does not support, and a
+  field name it must refuse.
+{%- endcomment -%}
+{%- liquid
+  assign title = 'Test consent for ' | append: client.client_name | append: ' (' | append: client.client_kind | append: ', ' | append: client.redirect_host | append: ') as user ' | append: user_id
+  assign option_a = { "value": "a", "label": "Option <b>A</b>", "checked": true }
+  assign option_b = { "value": "b", "label": "Option B" }
+  assign labels_field = { "type": "checkboxes", "name": "labels", "label": "Pick labels" }
+  assign options = [] | array_add: option_a | array_add: option_b
+  assign labels_field['options'] = options
+  assign text_field = { "type": "text", "name": "ignored_text" }
+  assign bad_field = { "type": "checkboxes", "name": "Bad-Name" }
+  assign bad_options = [] | array_add: option_b
+  assign bad_field['options'] = bad_options
+  assign result = { "title": title }
+  assign fields = [] | array_add: labels_field | array_add: text_field | array_add: bad_field
+  assign result['fields'] = fields
+  return result
+-%}

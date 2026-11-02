@@ -1,0 +1,12 @@
+{%- comment -%}
+  Test-only OAuth approved hook (tests/oauth.test.mjs). Used only while MCP_CONFIG sets
+  oauth_approved_partial to 'mcp/tests/oauth/approved'. Writes one test_note row so the
+  suite can prove the hook ran, for which user and client, and with which data.
+{%- endcomment -%}
+{%- liquid
+  assign labels = fields.labels | join: ','
+  assign extra = fields.extra | json
+  assign label = client.client_id | append: '|' | append: labels | append: '|shown=' | append: shown | append: '|extra=' | append: extra
+  graphql _ = 'mcp/test_note_create', user_id: user_id, label: label, source: 'oauth_approved'
+  return true
+-%}

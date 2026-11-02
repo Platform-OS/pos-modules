@@ -1,0 +1,21 @@
+---
+slug: test/mcp-client-metadata-prefers-jwt
+format: json
+---
+{%- comment -%}
+  TEST FIXTURE (gated): a Client ID Metadata Document shaped like ChatGPT's
+  (https://chatgpt.com/oauth/client.json): it prefers private_key_jwt but lists "none" in
+  token_endpoint_auth_methods_supported, so the server may treat it as a public client.
+  Served only when MCP_ENABLE_TEST_TOOLS is '1'/'true' (CI + eval hosts).
+{%- endcomment -%}
+{%- liquid
+  assign test_gate = context.constants.MCP_ENABLE_TEST_TOOLS | default: ''
+  if test_gate == '1' or test_gate == 'true'
+    function origin = 'modules/mcp/queries/origin'
+    assign doc = '{"client_id":"' | append: origin | append: '/test/mcp-client-metadata-prefers-jwt.json","client_name":"CIMD prefers JWT","redirect_uris":["https://client-cimd.example.test/cb"],"token_endpoint_auth_method":"private_key_jwt","token_endpoint_auth_methods_supported":["none","private_key_jwt"]}'
+    print doc
+  else
+    response_status 404
+    echo '{}'
+  endif
+-%}

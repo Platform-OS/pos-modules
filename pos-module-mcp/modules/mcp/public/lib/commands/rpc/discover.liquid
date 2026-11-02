@@ -1,7 +1,8 @@
 {%- comment -%}
   MCP `server/discover` (2026-07-28). The MODERN replacement for the `initialize`
   handshake: supported revisions, capabilities, server identity and instructions.
-  Servers must implement it; clients may skip it. Open method: no auth, no ledger.
+  Servers must implement it; clients may skip it. No ledger. rpc/dispatch answers 401
+  to a caller without a bearer first, unless MCP_CONFIG.oauth.challenge_initialize is false.
 
   `supportedVersions` lists only the modern revisions, because a client uses them
   per request; a legacy revision needs `initialize`. The Tasks extension is advertised:

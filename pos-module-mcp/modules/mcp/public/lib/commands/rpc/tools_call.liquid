@@ -19,6 +19,10 @@
   @param {boolean} tasks_extension - the request declared the Tasks extension
                                      (helpers/protocol/negotiate); an approval-gated
                                      call then answers with a CreateTaskResult
+  @param {object}  proto           - the result of helpers/protocol/negotiate; with the
+                                     authenticated caller it says whether the client can
+                                     show MCP Apps cards (helpers/protocol/apps_client).
+                                     For any other client an app-only tool is an unknown tool
   HTTP STATUS. Every JSON-RPC error here answers HTTP 200 except the two the MCP
   authorization spec defines at the HTTP level: 401 (no/invalid token, with the
   WWW-Authenticate challenge) and 403 insufficient_scope (step-up). A 2025-06-18 client
@@ -120,6 +124,13 @@
   # Step 4 — resolve the tool from the registry (explicit registration + valid
   # manifest + per-token allowed_tools narrowing). Unregistered → unknown tool.
   function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: auth.agent.allowed_tools
+  function apps = 'modules/mcp/helpers/protocol/apps_client', proto: proto, identity: auth
+  if tool != blank and apps != true
+    function tool_model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: tool
+    unless tool_model_visible
+      assign tool = null
+    endunless
+  endif
   if tool == blank
     assign le['authz_decision'] = 'not_applicable'
     assign le['execution_outcome'] = 'invalid'

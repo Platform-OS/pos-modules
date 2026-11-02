@@ -10,7 +10,10 @@
        read, so "forbidden" and "missing" are the same "Resource not found".
   Every outcome after authentication is written to the ledger as method resources/read,
   with the URI hashed (input_sha256), never stored. A provider that raises or returns a
-  malformed result is logged and answered with a generic -32603.
+  malformed result is logged and answered with a generic -32603. A content item keeps
+  its `_meta` when it is an object (MCP resource contents define it): an MCP Apps card
+  (ui://, text/html;profile=mcp-app) declares its content security policy there as
+  _meta.ui.csp (docs/mcp-apps.md).
 
   @param {string} uri      - the requested URI (a provider URI, see queries/resources/provided_uri)
   @param {object} identity - the authenticated caller from rpc/dispatch
@@ -117,6 +120,11 @@
         assign mime_kind = raw.mimeType | type_of | downcase
         if mime_kind == 'string'
           assign item['mimeType'] = raw.mimeType
+        endif
+        assign item_meta = raw['_meta']
+        assign item_meta_kind = item_meta | type_of | downcase
+        if item_meta_kind == 'hash'
+          assign item['_meta'] = item_meta
         endif
         assign contents = contents | array_add: item
       endfor

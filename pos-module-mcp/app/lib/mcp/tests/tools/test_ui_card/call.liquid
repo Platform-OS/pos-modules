@@ -1,0 +1,12 @@
+{%- comment -%}
+  Handler — test_ui_card (TEST FIXTURE). Read-only. Returns a constant marker; the card
+  itself is the ui://test/card resource.
+{%- endcomment -%}
+{% liquid
+  assign result = { "card": "shown" }
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

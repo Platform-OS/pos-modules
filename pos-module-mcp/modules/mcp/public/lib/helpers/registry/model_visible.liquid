@@ -1,0 +1,21 @@
+{%- comment -%}
+  Whether a tool is offered to a model (MCP Apps visibility, docs/mcp-apps.md). A tool is
+  model-visible unless its manifest declares ui.visibility without "model": such an
+  app-only tool exists for an MCP Apps card. Over MCP it is listed and callable only for
+  a client that declared MCP Apps (helpers/protocol/apps_client), whose host keeps it
+  from the model; the server cannot tell a card's call from a model's. It is left out of
+  the in-app agent's tool list and refused by the in-process invoke.
+
+  @param {object} manifest - a validated manifest from queries/registry/load
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  assign visibility = manifest.ui.visibility
+  if visibility == blank
+    return true
+  endif
+  if visibility contains 'model'
+    return true
+  endif
+  return false
+%}

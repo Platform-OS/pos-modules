@@ -55,10 +55,20 @@ layout: ''
     else
       function can = 'modules/user/helpers/can_do', requester: current_profile, do: cfg.oauth.required_permission, entity: null, access_callback: null
       if can
-        assign req_json = v.req | json
-        session mcp_oauth_req = req_json
         assign req = v.req
         function ru = 'modules/mcp/helpers/oauth/parse_url', url: req.redirect_uri
+        # The app's fields (queries/oauth/consent_fields). The names shown are parked with
+        # the request, so the decision passes the app only those fields.
+        assign client = { "client_id": req.client_id, "client_name": req.client_name, "client_kind": req.client_kind, "redirect_host": ru.host }
+        assign consent_user_id = current_profile.user.id | append: ''
+        function consent = 'modules/mcp/queries/oauth/consent_fields', user_id: consent_user_id, client: client
+        assign consent_names = []
+        for consent_field in consent.fields
+          assign consent_names = consent_names | array_add: consent_field.name
+        endfor
+        assign req['consent_fields'] = consent_names
+        assign req_json = req | json
+        session mcp_oauth_req = req_json
         function cu = 'modules/mcp/helpers/oauth/parse_url', url: req.client_id
         assign scopes = req.scope | split: ' '
         assign view = 'consent'
@@ -124,6 +134,17 @@ layout: ''
     <form method="post" action="/oauth/authorize">
       <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
       <input type="hidden" name="rid" value="{{ req.rid }}">
+      {%- if consent.fields.size > 0 %}
+      <fieldset class="consent">
+        {%- if consent.title != blank %}<legend>{{ consent.title }}</legend>{% endif %}
+        {%- for field in consent.fields %}
+          {%- if field.label != blank %}<p class="note">{{ field.label }}</p>{% endif %}
+          {%- for option in field.options %}
+          <label class="opt"><input type="checkbox" name="consent[{{ field.name }}][]" value="{{ option.value }}"{% if option.checked %} checked{% endif %}> {{ option.label }}</label>
+          {%- endfor %}
+        {%- endfor %}
+      </fieldset>
+      {%- endif %}
       <div class="actions">
         <button type="submit" name="decision" value="approve" class="btn btn-primary">Approve</button>
         <button type="submit" name="decision" value="deny" class="btn">Deny</button>

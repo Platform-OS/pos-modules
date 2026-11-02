@@ -42,7 +42,7 @@ let user = null;   // { userId, principal, tokenId, rawToken }
 let tokenId = null;
 let profileId = null;
 
-const challenge = () => cfg?.oauth?.challenge_initialize === true;
+const challenge = () => cfg?.oauth?.challenge_initialize !== false;
 const principalScoped = () => cfg?.tools_list_scope === 'principal';
 const legacy = (method, params, token, id = 1) => mcp.rpc({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }, token);
 const wwwAuth = (r) => r.headers.get('www-authenticate') || '';
@@ -135,6 +135,8 @@ describe('portable conformance · any instance with the module', () => {
     } else {
       const challenged = await legacy('initialize', {}, undefined, 8);
       ok('challenge_initialize: initialize without a token → 401 with the challenge', challenged.status === 401 && /resource_metadata=/.test(wwwAuth(challenged)));
+      const challengedList = await legacy('tools/list', {}, undefined, 8);
+      ok('challenge_initialize: tools/list without a token → 401 with the challenge', challengedList.status === 401 && /resource_metadata=/.test(wwwAuth(challengedList)));
     }
     const valid = await legacy('tools/list', {}, user.rawToken, 9);
     ok('valid token on tools/list → 200', valid.status === 200 && Array.isArray(valid.json?.result?.tools));
@@ -150,7 +152,7 @@ describe('portable conformance · any instance with the module', () => {
     for (const t of tools) {
       ok(`tool ${t.name}: valid name, description and object inputSchema`, /^[a-z][a-z0-9_]{2,63}$/.test(t.name) && typeof t.description === 'string' && t.description.length > 0 && t.inputSchema?.type === 'object', JSON.stringify(t).slice(0, 160));
     }
-    if (principalScoped()) {
+    if (principalScoped() && !challenge()) {
       const anonymous = await legacy('tools/list', {}, undefined, 10);
       ok('tools_list_scope principal: an anonymous caller is advertised no tools', (anonymous.json?.result?.tools || []).length === 0);
     }
@@ -168,7 +170,7 @@ describe('portable conformance · any instance with the module', () => {
     ok('resources/list → an array of {uri, name}', Array.isArray(resources) && resources.every(r => typeof r.uri === 'string' && typeof r.name === 'string'));
     const templates = (await legacy('resources/templates/list', {}, user.rawToken, 14)).json?.result?.resourceTemplates;
     ok('resources/templates/list → an array of {uriTemplate, name}', Array.isArray(templates) && templates.every(t => typeof t.uriTemplate === 'string' && typeof t.name === 'string'));
-    const unknownPage = await legacy('resources/read', { uri: 'mcp+page:///no-such-portable-page' }, undefined, 15);
+    const unknownPage = await legacy('resources/read', { uri: 'mcp+page:///no-such-portable-page' }, user.rawToken, 15);
     ok('resources/read of an unknown page → -32002', unknownPage.json?.error?.code === -32002);
   });
 

@@ -1,0 +1,26 @@
+{%- comment -%}
+  Whether THIS request comes from a client that can show MCP Apps cards (docs/mcp-apps.md),
+  so app-only tools exist for it. A modern request counts only its own declaration
+  (helpers/protocol/negotiate ui_extension). A legacy request counts what its token's
+  client declared at its last initialize (identity ui_apps, kept by commands/rpc/route). A
+  request without a token never does.
+
+  @param {object} proto    - the result of helpers/protocol/negotiate
+  @param {object} identity - the caller resolved by dispatch, or nil without a bearer
+  @return {boolean}
+{%- endcomment -%}
+{% liquid
+  unless identity.authenticated == true
+    return false
+  endunless
+  if proto.modern
+    if proto.ui_extension == true
+      return true
+    endif
+    return false
+  endif
+  if identity.ui_apps == true
+    return true
+  endif
+  return false
+%}

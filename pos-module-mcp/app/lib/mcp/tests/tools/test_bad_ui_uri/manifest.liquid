@@ -1,0 +1,21 @@
+{%- comment -%}
+  Tool manifest — test_bad_ui_uri (TEST FIXTURE, app-owned). Registered ONLY when the
+  MCP_ENABLE_TEST_TOOLS constant is set (see registry). Negative control for the manifest
+  meta-schema: ui.resource_uri points at a web address instead of a ui:// resource, so
+  the engine must exclude the tool rather than let a host load a page from elsewhere.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_bad_ui_uri",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): declares a UI outside ui:// and must never be served.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "ui": {"resource_uri":"https://card.example/card"},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tests/tools/test_public/call"
+  }
+  return m
+%}

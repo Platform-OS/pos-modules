@@ -1,0 +1,22 @@
+{%- comment -%}
+  Tool manifest — test_app_only (TEST FIXTURE, app-owned). Registered ONLY when the
+  MCP_ENABLE_TEST_TOOLS constant is set (see registry). MCP Apps probe for an app-only
+  tool (visibility ["app"]): it must be left out of tools/list and of the in-app agent's
+  tool list, refused by the in-process invoke, and still answer an MCP tools/call (the
+  host enforces visibility there) under its authorization policy and the ledger.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_app_only",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): an app-only tool for a card; returns a constant marker.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "ui": {"visibility":["app"]},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tests/tools/test_app_only/call"
+  }
+  return m
+%}

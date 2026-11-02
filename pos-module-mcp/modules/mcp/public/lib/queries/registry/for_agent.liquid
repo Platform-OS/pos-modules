@@ -6,7 +6,9 @@
   rules tools/list uses with tools_list_scope 'principal', plus the allowed_tools
   narrowing that commands/execute/invoke applies. A policy that needs arguments to
   allow hides the tool here (fail-closed); invoke re-authorizes every call with the real
-  arguments regardless.
+  arguments regardless. An app-only tool (MCP Apps visibility without "model",
+  helpers/registry/model_visible) is never listed: in-app code offers these tools to a
+  model, and app-only tools are for a person's card.
 
   Each tool has the MCP wire shape (helpers/registry/present_tool): name, title?,
   description, inputSchema, outputSchema?, annotations?, _meta.
@@ -30,6 +32,10 @@
   assign empty_args = {}
   function reg = 'modules/mcp/queries/registry/load'
   for m in reg.tools
+    function model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: m
+    unless model_visible
+      continue
+    endunless
     if narrowed
       unless allowed_tools contains m.name
         continue

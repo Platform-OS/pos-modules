@@ -36,9 +36,11 @@
   then no external issuer can be configured (helpers/config).
 
   @param {object} headers - context.headers (needs HTTP_AUTHORIZATION)
-  @return {object} success { authenticated:true, principal:{id,user_id}, agent:{id,client_id,token_id,registered,allowed_tools?}, delegation_mode:'direct', token_id, token_kind, scopes:[…] }
+  @return {object} success { authenticated:true, principal:{id,user_id}, agent:{id,client_id,token_id,registered,allowed_tools?}, delegation_mode:'direct', token_id, token_kind, scopes:[…], ui_apps }
                    agent.token_id is the mcp_token record that made the call: labels are not
                    unique, so it is the only way a handler can tell two tokens of one person apart.
+                   ui_apps is true when the token's client declared MCP Apps at its last legacy
+                   initialize (commands/rpc/route; helpers/protocol/apps_client).
                    failure  (see identity/deny) { authenticated:false, http_status, error_code, message, reason, www_authenticate? }
 {%- endcomment -%}
 {% liquid
@@ -153,5 +155,9 @@
   }
   assign ok['token_kind'] = token.kind | default: 'manual'
   assign ok['scopes'] = scopes
+  assign ok['ui_apps'] = false
+  if token.ui_apps == true
+    assign ok['ui_apps'] = true
+  endif
   return ok
 %}

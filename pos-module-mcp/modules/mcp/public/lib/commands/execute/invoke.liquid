@@ -10,7 +10,10 @@
   It does no HTTP work: no token check (the caller supplies the identity it already
   holds), no OAuth scope, rate limit, abuse counter, idempotency or Tasks handling. A
   tool that requires operator approval is refused, never executed inline (the approval
-  queue re-checks a token, which an in-process call does not have).
+  queue re-checks a token, which an in-process call does not have). An app-only tool
+  (MCP Apps visibility without "model", helpers/registry/model_visible) is answered as
+  an unknown tool: in-process code acts as a model, and no host stands between it and
+  the tool to keep app-only tools away.
 
   The answer has the shape an MCP client gets, without the JSON-RPC envelope: either
   { result: { content, isError, structuredContent? } } (a tool result; invalid
@@ -66,6 +69,12 @@
 
   # Step 4 — resolve the tool (registered, valid manifest, allowed_tools narrowing).
   function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: agent.allowed_tools
+  unless tool == blank
+    function model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: tool
+    unless model_visible
+      assign tool = null
+    endunless
+  endunless
   if tool == blank
     assign le['authz_decision'] = 'not_applicable'
     assign le['execution_outcome'] = 'invalid'

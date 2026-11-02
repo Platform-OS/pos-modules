@@ -100,6 +100,20 @@ describe('in-process tool call · same answers as tools/call', () => {
     expect(rows[0]).toMatchObject({ outcome: 'invalid', tool: 'no_such_tool' });
   });
 
+  it('an app-only tool (MCP Apps visibility ["app"]) is refused in process as an unknown tool, and ledgered', async () => {
+    // In-process code acts as a model: there is no host to keep app-only tools away from
+    // it, so the engine refuses them itself, with the same answer as an unknown tool.
+    const viaInvoke = await call(mem.rawToken, 'test_app_only', {});
+    expect(viaInvoke.json.error).toEqual({ code: -32602, message: 'Unknown tool' });
+    expect(viaInvoke.json.result).toBeUndefined();
+    const rows = await ledgerByRequest(viaInvoke.json.request_id);
+    expect(rows[0]).toMatchObject({ outcome: 'invalid', tool: 'test_app_only' });
+    // Over MCP the tool exists only for a client that declared MCP Apps (coverage.test.mjs);
+    // this token's client did not, so tools/call answers the same.
+    const viaRpc = await callTool(mem.rawToken, 'test_app_only', {});
+    expect(viaRpc.json.error).toEqual({ code: -32602, message: 'Unknown tool' });
+  });
+
   it('invalid arguments come back as the same tool error as tools/call', async () => {
     const bad = { kind: 'delta', count: 99 };
     const viaRpc = await callTool(mem.rawToken, 'test_validate', bad);
@@ -169,6 +183,9 @@ describe('in-process tool call · same answers as tools/call', () => {
     expect(typeof echo.description).toBe('string');
     expect(echo.inputSchema?.type).toBe('object');
     expect(echo._meta).toHaveProperty('version');
+    expect(names).not.toContain('test_app_only');
+    const card = tools.find((t) => t.name === 'test_ui_card');
+    expect(card?._meta?.ui).toEqual({ resourceUri: 'ui://test/card', visibility: ['model', 'app'] });
 
     const narrowNames = (await listFor(narrowTok.raw)).map((t) => t.name);
     expect(narrowNames).toEqual(['test_public']);
