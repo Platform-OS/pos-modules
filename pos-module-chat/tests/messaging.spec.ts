@@ -456,7 +456,7 @@ test.describe('Testing messaging', () => {
       const isMessageSent = await new InboxPage(senderPage).sendMessage(recipient.fullName, notifiedMessage);
       expect(isMessageSent).toBe(true);
 
-      const notification = await recipientChannel.collectNotification(60_000);
+      const notification = await recipientChannel.collectNotification(notifiedMessage, 60_000);
       expect(notification).not.toBeNull();
       expect(notification.sender_name).toBe(sender.fullName);
       expect(String(notification.conversation_id).length).toBeGreaterThan(0);
