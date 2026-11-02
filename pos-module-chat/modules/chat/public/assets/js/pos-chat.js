@@ -190,15 +190,25 @@ window.pos.modules.chat = function(userSettings = {}){
       scrollBottom();
     }
 
-    let is_desktop = true;
-
-    if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-      is_desktop = false;
-    }
+    // Enter sends when the main pointer is a mouse or a touchpad; on a touch screen it starts a new line,
+    // as the on-screen keyboard has no Shift+Enter, and the Send button is right there
+    const touchScreen = window.matchMedia('(pointer: coarse)');
+    const updateEnterKeyHint = () => {
+      module.settings.messageInput?.setAttribute('enterkeyhint', touchScreen.matches ? 'enter' : 'send');
+    };
+    updateEnterKeyHint();
+    // a tablet can get a keyboard with a touchpad attached, or lose it
+    touchScreen.addEventListener('change', updateEnterKeyHint);
 
     // handling what will happen on pressing enter in the input
-    module.settings.messageInput?.addEventListener('keypress', (event) => {
-      if(event.which == 13 && is_desktop && !event.shiftKey && (module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length || module.upload.getUnfinished().length)){
+    module.settings.messageInput?.addEventListener('keydown', (event) => {
+      // the Enter that picks a word in an input method (Japanese, Chinese, Korean...) belongs to it;
+      // Safari ends the composition before that keydown, so isComposing is false there and only keyCode 229 tells
+      if(event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229 || touchScreen.matches){
+        return;
+      }
+
+      if(module.settings.messageInput.value.trim() || module.settings.upload.pending.length || module.settings.upload.pendingSaves.length || module.upload.getUnfinished().length){
         event.preventDefault();
 
         module.triggerSend();
