@@ -41,17 +41,20 @@ export class ChannelClient {
     expect(verdict, 'should be subscribed to own room').toBe('confirm_subscription');
   }
 
-  // Wait for the first payload buffered by startListening(), or null on timeout.
-  async collectNotification(timeoutMs = 10_000): Promise<any> {
-    return this.page.evaluate(async (timeoutMs) => {
+  // Wait for the payload buffered by startListening() whose message is `message`, or null on timeout.
+  // Matched by the message, as tests running at the same time can message the same user, and
+  // notifications are sent by background jobs, in no particular order.
+  async collectNotification(message: string, timeoutMs = 10_000): Promise<any> {
+    return this.page.evaluate(async ({ message, timeoutMs }) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
-        const buffer = (window as any).__notif?.received;
-        if (buffer && buffer.length) return buffer[0];
+        const buffer: any[] = (window as any).__notif?.received ?? [];
+        const notification = buffer.find((payload) => payload?.message === message);
+        if (notification) return notification;
         await new Promise((r) => setTimeout(r, 200));
       }
       return null;
-    }, timeoutMs);
+    }, { message, timeoutMs });
   }
 
   private async ensureInbox(): Promise<void> {
