@@ -739,4 +739,78 @@ test.describe('Testing messaging', () => {
 
     await context?.close();
   });
+
+  test('Enter sends with a mouse, but not while an input method is composing, and starts a new line on a touch screen', async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // the pair of the validation test, its messages are told apart by the marker
+    const sender = users.test2;
+    const receiver = users.test3;
+    const marker = `enter key ${Date.now()}`;
+
+    const openChat = async (options = {}) => {
+      ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`, options));
+      const peoplePage = new PeoplePage(page);
+      const inboxPage = new InboxPage(page);
+      await peoplePage.goto();
+      await peoplePage.openChat(receiver.fullName);
+      const conversationId = await inboxPage.startConversation();
+      return { inboxPage, conversationId };
+    };
+
+    // newest first
+    const storedWithMarker = (conversationId: string) => page.evaluate(async ({ conversationId, marker }) => {
+      const response = await fetch(`/api/chat/messages.json?conversation_id=${conversationId}&per_page=20`);
+      return (await response.json()).results.map((message: any) => String(message.message)).filter((text: string) => text.includes(marker));
+    }, { conversationId, marker });
+
+    const desktopMessage = `${marker} picked word, then more`;
+
+    await test.step('with a mouse, the Enter that picks a word in an input method sends nothing, the next one sends', async () => {
+      const { inboxPage, conversationId } = await openChat();
+      const input = inboxPage.chat.messageInputField;
+
+      await inboxPage.chat.messageInputFieldEnabled.waitFor();
+      await expect(input).toHaveAttribute('enterkeyhint', 'send');
+
+      await input.fill(`${marker} picked word`);
+      // what browsers send for the Enter that ends a composition: Chrome and Firefox with isComposing,
+      // Safari after the composition already ended, with keyCode 229
+      await input.evaluate((element) => {
+        element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true }));
+        const safari = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        Object.defineProperty(safari, 'keyCode', { value: 229 });
+        element.dispatchEvent(safari);
+      });
+
+      await input.press('End');
+      await input.pressSequentially(', then more');
+      await input.press('Enter');
+
+      await inboxPage.chat.messageBox.getMessageByText(desktopMessage, 'sent').waitFor();
+      await expect(input).toHaveValue('');
+      expect(await storedWithMarker(conversationId)).toEqual([desktopMessage]);
+    });
+
+    await test.step('on a touch screen, Enter starts a new line and the Send button sends', async () => {
+      const { inboxPage, conversationId } = await openChat({ hasTouch: true });
+      const input = inboxPage.chat.messageInputField;
+
+      await inboxPage.chat.messageInputFieldEnabled.waitFor();
+      await expect(input).toHaveAttribute('enterkeyhint', 'enter');
+
+      await input.fill(`${marker} first line`);
+      await input.press('End');
+      await input.press('Enter');
+      await input.pressSequentially('second line');
+      await expect(input).toHaveValue(`${marker} first line\nsecond line`);
+
+      await page.getByRole('button', { name: 'Send', exact: true }).click();
+      await inboxPage.chat.messageBox.getMessageByText('second line', 'sent').waitFor();
+      expect(await storedWithMarker(conversationId)).toEqual([`${marker} first line\nsecond line`, desktopMessage]);
+    });
+
+    await context?.close();
+  });
 });
