@@ -813,4 +813,114 @@ test.describe('Testing messaging', () => {
 
     await context?.close();
   });
+
+  test(`failing to load older messages shows one error, scrolling up again retries, and they're loaded once at a time`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // the pair of the validation test, its messages are told apart by the marker
+    const sender = users.test2;
+    const receiver = users.test3;
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${sender.email}.json`));
+    const peoplePage = new PeoplePage(page);
+    const inboxPage = new InboxPage(page);
+    const pageErrors: Error[] = [];
+    page.on('pageerror', error => pageErrors.push(error));
+
+    // older messages are loaded from the oldest one rendered by the server, so there has to be one
+    await peoplePage.goto();
+    await peoplePage.openChat(receiver.fullName);
+    await inboxPage.chat.sendMessage(`older messages ${Date.now()}`);
+    await page.reload();
+    await inboxPage.chat.messageInputFieldEnabled.waitFor();
+
+    const historyUrl = '**/api/chat/messages.json*';
+    const loadPage = () => page.evaluate(() => (window as any).pos.modules.active.chat.loadPage());
+    const errorToasts = page.locator('#pos-toasts .pos-toast-error:not(.pos-toast-unloading)').filter({ hasText: 'We could not load older messages' });
+
+    await test.step('a network error shows the error', async () => {
+      await page.route(historyUrl, route => route.abort());
+      await loadPage();
+      await expect(errorToasts).toHaveCount(1);
+    });
+
+    await test.step('an error page shows it again, in place of the first one', async () => {
+      await page.unrouteAll();
+      await page.route(historyUrl, route => route.fulfill({ status: 500, contentType: 'text/html', body: '<html><body>Internal Server Error</body></html>' }));
+      await loadPage();
+      await expect(errorToasts).toHaveCount(1);
+    });
+
+    await test.step('the next try asks once, however many times it is started, and hides the error', async () => {
+      await page.unrouteAll();
+      let requests = 0;
+      page.on('request', request => { if (request.url().includes('/api/chat/messages.json')) requests++; });
+
+      const sameLoad = await page.evaluate(() => {
+        const chat = (window as any).pos.modules.active.chat;
+        const first = chat.loadPage();
+        const second = chat.loadPage();
+        return Promise.all([first, second]).then(() => first === second);
+      });
+
+      expect(sameLoad).toBe(true);
+      expect(requests).toBe(1);
+      await expect(errorToasts).toHaveCount(0);
+    });
+
+    expect(pageErrors).toEqual([]);
+
+    await context?.close();
+  });
+
+  test(`a failed search shows an error in place of the results, and searching again works`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const user = users.test6;
+    const searched = users.test1;
+    const query = searched.lastName.slice(0, 4).toLowerCase();
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    const pageErrors: Error[] = [];
+    page.on('pageerror', error => pageErrors.push(error));
+
+    await inboxPage.goto();
+
+    const searchError = inboxPage.search.results.locator('.pos-chat-search-error');
+    const searchUrl = '**/search.frame?*';
+
+    await test.step(`results are shown for "${query}"`, async () => {
+      await inboxPage.search.searchFor(query);
+      expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+    });
+
+    await test.step('a network error replaces them with the error', async () => {
+      await page.route(searchUrl, route => route.abort());
+      await inboxPage.search.searchFor(`${query}x`);
+      await expect(searchError).toHaveText('We could not search. Please try again.');
+      await expect(inboxPage.search.getResultByFullName(searched.fullName)).toHaveCount(0);
+    });
+
+    await test.step('so does an error page', async () => {
+      await page.unrouteAll();
+      await page.route(searchUrl, route => route.fulfill({ status: 500, contentType: 'text/html', body: '<html><body>Internal Server Error</body></html>' }));
+      await inboxPage.search.searchFor(query);
+      await expect(searchError).toHaveText('We could not search. Please try again.');
+      await expect(inboxPage.search.getResultByFullName(searched.fullName)).toHaveCount(0);
+    });
+
+    await test.step('searching again shows the results', async () => {
+      await page.unrouteAll();
+      await inboxPage.search.searchFor(query.slice(0, 3));
+      expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+      await expect(searchError).toHaveCount(0);
+    });
+
+    expect(pageErrors).toEqual([]);
+
+    await context?.close();
+  });
 });

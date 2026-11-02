@@ -124,6 +124,11 @@
   display: none;
 }
 
+.pos-chat-search-error {
+  padding: calc(var(--pos-height-input) / 4);
+  color: var(--pos-color-important);
+}
+
 
   /* conversations list
 ============================================================================ */
