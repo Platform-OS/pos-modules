@@ -61,6 +61,10 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.loadingIndicator = document.querySelector('#pos-chat-loadingIndicator');
   // are there older messages to load (bool)
   module.settings.morePages = true;
+  // older messages being loaded right now, so they're never asked for twice (promise)
+  module.settings.loadingPage = null;
+  // the toast shown when loading older messages failed, hidden by the next try (object)
+  module.settings.loadPageError = null;
 
   // gap (ms) since the previous message after which a timestamp is shown again (number)
   module.settings.timeGroupThreshold = 7 * 60 * 1000;
@@ -895,6 +899,11 @@ window.pos.modules.chat = function(userSettings = {}){
   module.loadPage = (perPage = 30) => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Trying to load previous messages');
 
+    // one at a time - a second one started meanwhile would ask for the same messages and show them twice
+    if(module.settings.loadingPage){
+      return module.settings.loadingPage;
+    }
+
     // live messages are added at the bottom, so the first message with an id is the oldest
     // one loaded from the server - with none, the conversation started on this page and
     // there is nothing older
@@ -911,7 +920,7 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.loadingIndicator.classList.add('active');
 
     // get the data
-    fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&before=${oldestId}&per_page=${perPage}`)
+    module.settings.loadingPage = fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&before=${oldestId}&per_page=${perPage}`)
     .then(response => {
       // parse it to JSON if valid
       if(response.ok){
@@ -953,27 +962,39 @@ window.pos.modules.chat = function(userSettings = {}){
       // put the messages on top
       module.settings.messagesList.prepend(html);
 
-      // disable loading next pages if there is nothing left
-      if(!data.has_next_page){
-        module.settings.morePages = false;
-      }
-
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Previous messages loaded');
-    })
-    .catch((error) => {
-      console.log(error);
-      error.json().then(data => console.log(data));
-    })
-    .finally(() => {
-      // remove the loading indicator
-      module.settings.loadingIndicator.classList.remove('active');
       // scroll to the last seen message
       if(secondOldestMessage) {
         module.settings.messagesListContainer.scrollTop = secondOldestMessage.offsetTop - module.settings.messagesListContainer.clientHeight;
       }
 
+      // disable loading next pages if there is nothing left
+      if(!data.has_next_page){
+        module.settings.morePages = false;
+      }
+
+      module.settings.loadPageError?.hide();
+      module.settings.loadPageError = null;
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Previous messages loaded');
+    })
+    .catch((error) => {
+      // a network error, or a response that wasn't ok - its body may well be an HTML error page, so
+      // it isn't read; morePages stays true, so scrolling to the top again tries again
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Loading previous messages failed', error instanceof Response ? error.status : error);
+
+      // one at a time, however many tries fail
+      module.settings.loadPageError?.hide();
+      module.settings.loadPageError = new window.pos.modules.toast('error', window.pos.translations.chat.loadMessagesFailed);
+    })
+    .finally(() => {
+      // remove the loading indicator
+      module.settings.loadingIndicator.classList.remove('active');
+      module.settings.loadingPage = null;
+
       pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous messages');
     });
+
+    return module.settings.loadingPage;
   };
 
 
@@ -1056,8 +1077,11 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.search.run = (query) => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Running search query', query);
+    // the input changed (or was cleared) while the request was in flight, a newer search owns the results
+    const isStale = () => module.settings.search.input.value.trim() !== query;
+
     // get the data
-    fetch(`/search.frame?q=${encodeURIComponent(query)}`)
+    return fetch(`/search.frame?q=${encodeURIComponent(query)}`)
     .then(response => {
       if(response.ok){
         pos.modules.debug(module.settings.debug, module.settings.id, 'Query run successfull', response);
@@ -1070,17 +1094,31 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     })
     .then(data => {
-      // the input changed (or was cleared) while the request was in flight, a newer search owns the results
-      if(module.settings.search.input.value.trim() !== query){
+      if(isStale()){
         pos.modules.debug(module.settings.debug, module.settings.id, 'Ignoring stale search results for', query);
 
         return;
       }
 
       module.settings.search.results.innerHTML = data;
-      
+
       pos.modules.debug(module.settings.debug, module.settings.id, 'Applied serach results HTML to the page', data);
     })
+    .catch(error => {
+      // a network error, or a response that wasn't ok
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Search failed', query, error instanceof Response ? error.status : error);
+
+      if(isStale()){
+        return;
+      }
+
+      // in place of the results, so the ones of an earlier query aren't taken for these - typing again searches again
+      const item = document.createElement('li');
+      item.className = 'pos-chat-search-error';
+      item.setAttribute('role', 'alert');
+      item.textContent = window.pos.translations.chat.searchFailed;
+      module.settings.search.results.replaceChildren(item);
+    });
   };
 
 
