@@ -1,7 +1,39 @@
+{% doc %}
+  The JSON of GET api/chat/conversations. Every field is listed here on purpose: the
+  participants come from modules/user/queries/profiles/find, which returns the whole
+  profile (email, user_id, roles, 2FA and email verification state) - none of that may
+  reach the other participants. Add a field here only if it's fine for anyone in the
+  conversation to see it.
+
+  @param {object} conversations - the result of modules/chat/queries/conversations/search_by_participant
+{% enddoc %}
 {% liquid
-  if conversations.results.size == 0
-    assign conversations['message'] = 'No conversations found'
+  assign results = []
+  for conversation in conversations.results
+    assign participants = []
+    for participant in conversation.participants
+      assign p = { "id": participant.id, "uuid": participant.uuid, "name": participant.name, "first_name": participant.first_name, "last_name": participant.last_name }
+      assign participants << p
+    endfor
+
+    assign last_message = null
+    if conversation.last_message
+      assign last_message = { "created_at": conversation.last_message.created_at, "message": conversation.last_message.message, "media": conversation.last_message.media }
+    endif
+
+    assign c = { "id": conversation.id, "created_at": conversation.created_at, "participant_ids": conversation.participant_ids, "participant_read_ids": conversation.participant_read_ids, "last_message_at": conversation.last_message_at }
+    assign c.last_message = last_message
+    assign c.participants = participants
+    assign results << c
+  endfor
+
+  assign res = { "results": results, "has_next_page": conversations.has_next_page }
+  if conversations.has_next_page
+    assign res.next_read = conversations.next_read
+    assign res.next_before = conversations.next_before
+  endif
+  if results.size == 0
+    assign res.message = 'No conversations found'
   endif
 %}
-
-{{ conversations }}
+{{ res }}

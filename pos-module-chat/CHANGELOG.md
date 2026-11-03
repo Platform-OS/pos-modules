@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. Dates are d
 * Change: the people search only lists people who can use the chat (their roles grant `chat.inbox`), and a conversation can only be started with such a person - the inbox shows "This person can't receive messages" otherwise. Hosts can add their own rules on who may contact whom by overwriting `commands/conversations/find_or_create/check.liquid`.
 * Security: the 10 MB attachment limit is now enforced on the upload itself (S3 refuses larger files), not only against the size the browser reports - before, files up to 100 MB could be stored.
 * Security: the inbox page no longer puts the whole profile of the signed-in user (email, roles, 2FA status...) into `window.pos.profile` - only its `id`, the one field the chat uses. `window.pos.profile.timezone` is no longer set either, and the client no longer sends its own id and name with each message (the server never used them).
+* Security: `GET /api/chat/conversations` no longer returns the participants' whole profiles (email, `user_id`, roles, 2FA and email verification status) - only their `id`, `uuid`, `name`, `first_name` and `last_name`. Before, anyone who could use the chat could read the email address of everyone they had a conversation with.
 * Change: `/inbox?to_uuid=<profile uuid>` opens an empty chat until the first message is sent, so the conversation no longer exists right after the link is opened. Links to it keep working unchanged.
 
 ## v1.0.9
