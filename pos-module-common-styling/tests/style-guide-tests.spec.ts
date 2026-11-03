@@ -331,3 +331,66 @@ test.describe('Dates and times in a chosen timezone', () => {
     expect(await page.evaluate(() => (window as any).pageObservers)).toBe(1);
   });
 });
+
+test.describe('File upload', () => {
+  // two different files with the same name, uploaded one after another from one page view,
+  // like two photos named image.jpg - resolves with the urls they were uploaded to
+  const uploadTwoWithTheSameName = (page: Page, id: string) => page.evaluate(async (id) => {
+    const container = document.getElementById(id)!;
+    const uppy = (window as any).pos.modules.active[id].settings.uppy;
+    const upload = (content: string) => new Promise<string>((resolve, reject) => {
+      const uploaded = (event: any) => { cleanup(); resolve(event.detail.url); };
+      const failed = (event: any) => { cleanup(); reject(new Error(`upload failed: ${event.detail.error}`)); };
+      const cleanup = () => { container.removeEventListener('pos-upload-file-uploaded', uploaded); container.removeEventListener('pos-upload-error', failed); };
+      container.addEventListener('pos-upload-file-uploaded', uploaded);
+      container.addEventListener('pos-upload-error', failed);
+      // a File, as one the user picks - a Blob would be uploaded as 'blob'
+      uppy.addFile({ name: 'same-name.txt', type: 'text/plain', data: new File([content], 'same-name.txt', { type: 'text/plain' }) });
+    });
+    return [await upload('the first file'), await upload('the second, different file')];
+  }, id);
+
+  const waitForUploader = (page: Page, id: string) => page.waitForFunction(id => (window as any).pos?.modules?.active?.[id]?.settings?.uppy, id);
+
+  test('with presign_url, files with the same name get their own key and keep their content', async ({ page }) => {
+    await page.goto('/test/upload');
+    await waitForUploader(page, 'upload-presign-url');
+
+    const [first, second] = await uploadTwoWithTheSameName(page, 'upload-presign-url');
+    expect(first).not.toBe(second);
+    expect(await (await page.request.get(first)).text()).toBe('the first file');
+    expect(await (await page.request.get(second)).text()).toBe('the second, different file');
+  });
+
+  test('with presigned_upload only, uploading works as before', async ({ page }) => {
+    await page.goto('/test/upload');
+    await waitForUploader(page, 'upload-presigned-upload');
+
+    const urls = await uploadTwoWithTheSameName(page, 'upload-presigned-upload');
+    for(const url of urls){
+      expect(decodeURIComponent(url)).toMatch(/\/same-name\.txt$/);
+    }
+  });
+
+  test('a presign that fails marks the file as failed', async ({ page }) => {
+    await page.route('**/api/uploads/presign', route => route.fulfill({ status: 500, body: 'error' }));
+    await page.goto('/test/upload');
+    await waitForUploader(page, 'upload-presign-url');
+
+    await expect(uploadTwoWithTheSameName(page, 'upload-presign-url')).rejects.toThrow(/upload failed/);
+  });
+
+  test('the markdown editor with presign_url gives images with the same name their own key', async ({ page }) => {
+    await page.goto('/test/upload');
+    await page.waitForFunction(() => (window as any).pos?.modules?.active?.['markdown-presign-url']?.uploadImage);
+
+    const urls = await page.evaluate(async () => {
+      const editor = (window as any).pos.modules.active['markdown-presign-url'];
+      // a 1x1 png - the editor uploads images only
+      const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+      const upload = () => new Promise<string>((resolve, reject) => editor.uploadImage(new File([png], 'image.png', { type: 'image/png' }), resolve, reject));
+      return [await upload(), await upload()];
+    });
+    expect(urls[0]).not.toBe(urls[1]);
+  });
+});

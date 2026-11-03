@@ -39,6 +39,9 @@ window.pos.modules.upload = function(settings){
   module.settings.width = settings.width || '100%';
   // height of the dashboard (string)
   module.settings.height = settings.height || '400px';
+  // url returning a fresh presigned upload for each file, so each gets its own key - without it, the one
+  // rendered on the container (data-upload-url, data-request-*) is used for every file (string)
+  module.settings.presignUrl = settings.presignUrl || module.settings.container.dataset.presignUrl || null;
 
   // debug mode enabled (bool)
   module.settings.debug = settings.debug || false;
@@ -165,21 +168,14 @@ window.pos.modules.upload = function(settings){
       debug: module.settings.debug
     })
     .use(pos.modules.uppy.AwsS3, {
-      getUploadParameters(file){
-        const fields = {};
+      async getUploadParameters(file){
+        const presign = module.settings.presignUrl ? await module.presign(file) : module.presignFromContainer();
 
-        for(let attribute of module.settings.container.attributes){
-          if(attribute.name.startsWith('data-request-')){
-            fields[attribute.name.replace('data-request-', '')] = attribute.value;
-          }
-        }
-        fields['Content-Type'] = file.type;
-
-        return Promise.resolve({
+        return {
           method: 'POST',
-          url: module.settings.container.dataset.uploadUrl,
-          fields: fields,
-        });
+          url: presign.url,
+          fields: { ...presign.fields, 'Content-Type': file.type },
+        };
       },
     });
 
@@ -207,6 +203,49 @@ window.pos.modules.upload = function(settings){
       });
     }
 
+  };
+
+
+  // purpose:		gets a fresh presigned upload for a file from settings.presignUrl - every file gets
+  //            its own key, so files with the same name don't overwrite each other, and a page
+  //            left open doesn't upload with an expired presign
+  // arguments:	the file to be uploaded (object)
+  // returns:		{ url, fields } (object), throws when the presign can't be read, so uppy marks
+  //            the file as failed and the upload-error and error events are dispatched
+  // ------------------------------------------------------------------------
+  module.presign = async (file) => {
+    const response = await fetch(module.settings.presignUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+    if(!response.ok){
+      throw new Error(`Could not get a presigned upload for ${file.name}: ${response.status}`);
+    }
+
+    const presign = await response.json();
+    if(!presign.upload_url || !presign.upload_url_payload){
+      throw new Error(`Could not get a presigned upload for ${file.name}: the response has no upload_url and upload_url_payload`);
+    }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Presigned upload', file.name, presign.upload_url);
+
+    // the file's own type is added to the fields when uploading
+    const fields = Object.fromEntries(Object.entries(presign.upload_url_payload).filter(([name]) => name.toLowerCase() !== 'content-type'));
+
+    return { url: presign.upload_url, fields: fields };
+  };
+
+
+  // purpose:		reads the presigned upload rendered on the container, the same for every file
+  // returns:		{ url, fields } (object)
+  // ------------------------------------------------------------------------
+  module.presignFromContainer = () => {
+    const fields = {};
+
+    for(let attribute of module.settings.container.attributes){
+      if(attribute.name.startsWith('data-request-')){
+        fields[attribute.name.replace('data-request-', '')] = attribute.value;
+      }
+    }
+
+    return { url: module.settings.container.dataset.uploadUrl, fields: fields };
   };
 
 

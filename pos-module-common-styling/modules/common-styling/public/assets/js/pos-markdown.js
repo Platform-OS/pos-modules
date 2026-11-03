@@ -26,6 +26,9 @@ window.pos.modules.markdown = function(settings){
   module.settings.minlength = parseInt(settings.minlength) || parseInt(module.settings.container.dataset.minlength) || 0;
   // maximum number of characters allowed in the textarea (int)
   module.settings.maxlength = parseInt(settings.maxlength) || parseInt(module.settings.container.dataset.maxlength) || 10000;
+  // url returning a fresh presigned upload for each image, so each gets its own key - without it, the one
+  // rendered on the textarea (data-upload-url, data-request-*) is used for every image (string)
+  module.settings.presignUrl = settings.presignUrl || module.settings.textarea?.dataset.presignUrl || null;
   // errors container (dom node)
   module.settings.errorsContainer = module.settings.container.querySelector('.pos-form-errors');
   // class name that hides error on the list (string)
@@ -161,16 +164,42 @@ window.pos.modules.markdown = function(settings){
     pos.modules.debug(module.settings.debug, module.settings.id, 'Uploading image', module.settings.container);
 
     const fields = new FormData();
+    let uploadUrl = module.settings.textarea.dataset.uploadUrl;
 
-    for(let attribute of module.settings.textarea.attributes){
-      if(attribute.name.startsWith('data-request-')){
-        fields.append(attribute.name.replace('data-request-', ''), attribute.value)
+    if(module.settings.presignUrl){
+      // a fresh presign for each image, so images with the same name don't overwrite each other
+      try {
+        const response = await fetch(module.settings.presignUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+        if(!response.ok){
+          throw new Error(`status ${response.status}`);
+        }
+        const presign = await response.json();
+        if(!presign.upload_url || !presign.upload_url_payload){
+          throw new Error('the response has no upload_url and upload_url_payload');
+        }
+        uploadUrl = presign.upload_url;
+        for(const [name, value] of Object.entries(presign.upload_url_payload)){
+          if(name.toLowerCase() !== 'content-type'){
+            fields.append(name, value);
+          }
+        }
+      } catch(error) {
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Could not get a presigned upload', error);
+        new pos.modules.toast('error', 'Could not upload image, please refresh the page and try again');
+        onError('Upload failed');
+        return;
+      }
+    } else {
+      for(let attribute of module.settings.textarea.attributes){
+        if(attribute.name.startsWith('data-request-')){
+          fields.append(attribute.name.replace('data-request-', ''), attribute.value)
+        }
       }
     }
     fields.append('Content-Type', file.type);
     fields.append('file', file);
 
-    fetch(module.settings.textarea.dataset.uploadUrl, {
+    fetch(uploadUrl, {
       method: 'POST',
       body: fields
     }).then(async response => {
