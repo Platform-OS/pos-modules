@@ -242,14 +242,16 @@ test.describe('Testing messaging', () => {
     });
 
     await test.step(`the API shows the participants' names, never their emails or account details`, async () => {
-      const text = await (await page.request.get('/api/chat/conversations?per_page=50')).text();
-      const json = JSON.parse(text);
+      const json = await (await page.request.get('/api/chat/conversations?per_page=50')).json();
       const participants = json.results.flatMap((c: any) => c.participants);
       expect(participants.length).toBeGreaterThan(0);
       for (const participant of participants) {
         expect(Object.keys(participant).sort()).toEqual(['first_name', 'id', 'last_name', 'name', 'uuid']);
       }
-      expect(text, 'no email address anywhere in the response').not.toMatch(/@example\.com/);
+      // the seeded messages mention emails in their text - what was typed is shown as typed,
+      // so only the rest of the response is checked
+      for (const c of json.results) delete c.last_message?.message;
+      expect(JSON.stringify(json), 'no email address anywhere else in the response').not.toMatch(/@example\.com/);
     });
 
     await test.step('the inbox shows 30, scrolling down and the "Load more" button load the rest - each once', async () => {
