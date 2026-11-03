@@ -47,8 +47,21 @@
   {% if message.media.size > 0 or as_template %}
     {% for attachment in message.media %}
       {% if attachment.type contains 'image/' %}
-        <div class="pos-chat-message-content pos-chat-message-image">
-          <img src="{{ attachment.url }}" alt="" width="{{ attachment.width }}" height="{{ attachment.height }}" loading="lazy" decoding="async">
+        {% liquid
+          # sized by width and height (see the CSS) - left empty when unknown, which the
+          # browser ignores, so it takes its own size once loaded (0 would hide it)
+          assign image_width = attachment.width | plus: 0
+          assign image_height = attachment.height | plus: 0
+          assign image_sized = false
+          if image_width > 0 and image_height > 0
+            assign image_sized = true
+          else
+            assign image_width = ''
+            assign image_height = ''
+          endif
+        %}
+        <div class="pos-chat-message-content pos-chat-message-image"{% if image_sized %} style="--pos-chat-image-ratio: {{ image_width }} / {{ image_height }}"{% endif %}>
+          <img src="{{ attachment.url }}" alt="" width="{{ image_width }}" height="{{ image_height }}" loading="lazy" decoding="async">
         </div>
       {% else %}
         {% liquid

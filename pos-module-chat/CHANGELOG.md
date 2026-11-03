@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. Dates are d
 * Security: the 10 MB attachment limit is now enforced on the upload itself (S3 refuses larger files), not only against the size the browser reports - before, files up to 100 MB could be stored.
 * Security: the inbox page no longer puts the whole profile of the signed-in user (email, roles, 2FA status...) into `window.pos.profile` - only its `id`, the one field the chat uses. `window.pos.profile.timezone` is no longer set either, and the client no longer sends its own id and name with each message (the server never used them).
 * Security: `GET /api/chat/conversations` no longer returns the participants' whole profiles (email, `user_id`, roles, 2FA and email verification status) - only their `id`, `uuid`, `name`, `first_name` and `last_name`. Before, anyone who could use the chat could read the email address of everyone they had a conversation with.
+* Fix: a conversation with many images opens scrolled to the newest message again. Images now take their space before they load (from the dimensions stored with the upload), and an image loading while the user is at the bottom keeps the newest message in view, instead of a smooth scroll that stopped short as more images came in.
 * Change: `/inbox?to_uuid=<profile uuid>` opens an empty chat until the first message is sent, so the conversation no longer exists right after the link is opened. Links to it keep working unchanged.
 
 ## v1.0.9

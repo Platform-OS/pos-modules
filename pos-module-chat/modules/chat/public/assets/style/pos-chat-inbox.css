@@ -421,14 +421,21 @@
     color: var(--pos-color-highlight-text);
   }
 
+  /* --pos-chat-image-ratio is the image's width / height, set on the bubble when known: a
+     tall image is as wide as fits in 60vh of height, as the bubble is no wider than the image */
   .pos-chat-message-image {
+    max-width: min(400px, 100%, calc(60vh * var(--pos-chat-image-ratio, 1000)));
     padding: 0;
     overflow: hidden;
   }
 
+  /* sized by its width and height attributes, so the space is taken before the image
+     loads: no width here, it would replace the attribute's - and a percentage would resolve
+     against the bubble, which is only as wide as the image, leaving it 0px until the browser
+     reads the file, so the list would grow under the chat as images come in (it opens
+     scrolled to the bottom). height: auto keeps the attributes' aspect ratio */
   .pos-chat-message-image img {
-    width: 100%;
-    max-width: 400px;
+    max-width: 100%;
     max-height: 60vh;
     height: auto;
     display: block;
