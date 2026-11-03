@@ -358,8 +358,17 @@ test.describe('File upload', () => {
 
     const [first, second] = await uploadTwoWithTheSameName(page, 'upload-presign-url');
     expect(first).not.toBe(second);
-    expect(await (await page.request.get(first)).text()).toBe('the first file');
-    expect(await (await page.request.get(second)).text()).toBe('the second, different file');
+
+    // S3 answers with the file's url in its own addressing style, which can have the bucket
+    // as the host (https://<bucket>/<key>) - not served over https, so the file is read
+    // from the upload url of a presign (https://<s3 host>/<bucket>) and its key instead
+    const uploadUrl = new URL((await (await page.request.get('/api/uploads/presign')).json()).upload_url);
+    const readable = (url: string) => {
+      const file = new URL(url);
+      return file.host === uploadUrl.host ? url : `${uploadUrl.origin}${uploadUrl.pathname.replace(/\/$/, '')}${file.pathname}`;
+    };
+    expect(await (await page.request.get(readable(first))).text()).toBe('the first file');
+    expect(await (await page.request.get(readable(second))).text()).toBe('the second, different file');
   });
 
   test('with presigned_upload only, uploading works as before', async ({ page }) => {
