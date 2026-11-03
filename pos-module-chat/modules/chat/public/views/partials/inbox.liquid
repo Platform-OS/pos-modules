@@ -179,8 +179,13 @@
           data-uppy-url="{{ 'modules/common-styling/js/dependency-uppy.js' | asset_url }}"
           data-upload-url="{{ 'modules/common-styling/js/pos-upload.js' | asset_url }}"
         >
+          {% comment %}
+            a presign for each file from presign_url, so files with the same name don't replace
+            each other - presigned_upload stays for a host's own overwrite of forms/upload
+          {% endcomment %}
           {% render 'modules/common-styling/forms/upload',
             id: 'chat-upload',
+            presign_url: '/api/chat/uploads/presign.json',
             presigned_upload: context.presigned_upload,
             name: 'chat-upload',
             max_number_of_files: 5,

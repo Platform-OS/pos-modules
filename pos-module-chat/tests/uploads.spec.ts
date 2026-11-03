@@ -145,6 +145,49 @@ test.describe('Testing uploads', () => {
     await context?.close();
   });
 
+  test('images with the same name sent from one page view keep their own content', async ({ browser }) => {
+    test.setTimeout(120_000);
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    // no other test talks to Dummy37. Two different images named the same, like two photos
+    // named image.jpg - a key shared by the page's uploads would have the second replace the first
+    const user = users.test1;
+    const otherName = 'Dummy37 User';
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+    await inboxPage.goto();
+    await inboxPage.isChatOpenedFromSearch('dummy37', otherName);
+    await inboxPage.chat.messageInputFieldEnabled.waitFor();
+
+    // two images told apart by their size
+    const first = await page.screenshot({ clip: { x: 0, y: 0, width: 40, height: 30 } });
+    const second = await page.screenshot({ clip: { x: 0, y: 0, width: 60, height: 20 } });
+
+    await test.step(`${user.fullName} sends them one after another, without reloading`, async () => {
+      for (const image of [first, second]) {
+        await inboxPage.chat.attachFiles([{ name: 'image.png', mimeType: 'image/png', buffer: image }]);
+        await inboxPage.chat.sendAttachments();
+      }
+    });
+
+    await test.step('opened again, each message shows its own image', async () => {
+      await page.reload();
+      const images = inboxPage.message.getSentMessages().locator('.pos-chat-message-image img');
+      await expect(images.last()).toBeVisible();
+      const count = await images.count();
+      const beforeLast = images.nth(count - 2);
+      const last = images.nth(count - 1);
+      await expect(beforeLast).toHaveJSProperty('complete', true);
+      await expect(last).toHaveJSProperty('complete', true);
+      expect(await beforeLast.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]), 'the first image').toEqual([40, 30]);
+      expect(await last.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]), 'the second image').toEqual([60, 20]);
+    });
+
+    await context?.close();
+  });
+
   test('a conversation with many images opens scrolled to the newest message', async ({ browser }) => {
     test.setTimeout(240_000);
     let context: BrowserContext | null = null;

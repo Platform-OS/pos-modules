@@ -1,0 +1,23 @@
+---
+slug: api/chat/uploads/presign
+method: get
+---
+
+{% doc %}
+  A fresh presigned upload for a file the chat's uploader is about to upload (its
+  presign_url, see common-styling's forms/upload). Each file gets its own key - with the
+  one rendered on the inbox, files with the same name sent from one page view would get
+  the same key, and the later one would replace the earlier one. Only reads: the file is
+  attached to a conversation by POST api/chat/uploads, which checks the participation.
+{% enddoc %}
+
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+
+  function presigned_upload = 'modules/chat/queries/uploads/presign', table: 'modules/chat/uploads', property: 'upload'
+  echo presigned_upload
+%}
