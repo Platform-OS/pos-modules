@@ -1,0 +1,42 @@
+---
+slug: test/upload
+layout: ''
+---
+{% comment %}
+  Uploaders for the upload tests: one presigned per file (presign_url), one with the
+  presigned upload rendered on the page (presigned_upload, as before presign_url), and a
+  markdown editor presigned per image.
+{% endcomment %}
+{% liquid
+  function presigned_upload = 'queries/uploads/presign', table: 'uploads', property: 'upload'
+%}
+<!DOCTYPE html>
+<html lang="en" class="pos-app">
+  <head>
+    <meta charset="utf-8">
+    <title>Upload test</title>
+    <meta name="csrf-token" content="{{ context.authenticity_token }}">
+    {% render 'modules/common-styling/init', reset: false %}
+  </head>
+  <body>
+    {% render 'modules/common-styling/forms/upload',
+      id: 'upload-presign-url',
+      name: 'upload-presign-url',
+      presign_url: '/api/uploads/presign',
+      show_dashboard: false
+    %}
+
+    {% render 'modules/common-styling/forms/upload',
+      id: 'upload-presigned-upload',
+      name: 'upload-presigned-upload',
+      presigned_upload: presigned_upload,
+      show_dashboard: false
+    %}
+
+    {% render 'modules/common-styling/forms/markdown',
+      id: 'markdown-presign-url',
+      name: 'markdown-presign-url',
+      presign_url: '/api/uploads/presign'
+    %}
+  </body>
+</html>

@@ -1,0 +1,12 @@
+---
+slug: api/uploads/presign
+method: get
+---
+{% comment %}
+  A fresh presigned upload for each file, for the uploaders on test/upload that get its url
+  as presign_url. A real app checks here who may upload, and to which table and property.
+{% endcomment %}
+{% liquid
+  function presigned_upload = 'queries/uploads/presign', table: 'uploads', property: 'upload'
+  echo presigned_upload
+%}
