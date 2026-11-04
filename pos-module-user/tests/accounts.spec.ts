@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { HomePage } from './pages/home';
 import { AdminHomePage } from './pages/admin/home';
 import { LogInPage } from './pages/login';
@@ -183,6 +183,59 @@ test.describe('Testing login and authentication', () => {
     await expect(loginPage.elementWithText('Invalid email or password')).toBeVisible();
     await loginPage.logIn('wrong@mail.com', PASSWORD);
     await expect(loginPage.elementWithText('Invalid email or password')).toBeVisible();
+  });
+});
+
+test.describe.serial('Testing login lockout', () => {
+  // LOGIN_ATTEMPTS_MAX is not set in the example app, so the default applies.
+  const MAX_ATTEMPTS = 5;
+
+  // The error stays on screen from one attempt to the next, so wait for each
+  // POST to come back rather than only for the message.
+  const logInAndWait = async (page: Page, loginPage: LogInPage, email: string, password: string) => {
+    await Promise.all([
+      page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/sessions'),
+      loginPage.logIn(email, password)
+    ]);
+  };
+
+  test('repeated failed logins lock the account, even for the right password', async ({ page }) => {
+    const homePage = new HomePage(page);
+    const loginPage = new LogInPage(page);
+    const registrationPage = new RegistrationPage(page);
+    const testMailBoxPage = new TestMailBox(page);
+
+    await test.step('register and confirm a fresh account', async () => {
+      await registrationPage.goto();
+      await registrationPage.registerUser(users.lockedUser, PASSWORD);
+      await testMailBoxPage.confirmEmailAddress(users.lockedUser.email);
+      await expect(homePage.headingWithText('Current profile')).toBeVisible();
+
+      await homePage.buttonWithText('Log out').click();
+      await expect(homePage.linkWithText('Log in')).toBeVisible();
+    });
+
+    await test.step('every failure shows the same neutral message', async () => {
+      await loginPage.goto();
+      for (let i = 0; i < MAX_ATTEMPTS; i++) {
+        await logInAndWait(page, loginPage, users.lockedUser.email, 'wrongpassword');
+        await expect(loginPage.elementWithText('Invalid email or password')).toBeVisible();
+      }
+    });
+
+    await test.step('the right password is refused with that same message while locked', async () => {
+      await logInAndWait(page, loginPage, users.lockedUser.email, PASSWORD);
+      await expect(loginPage.elementWithText('Invalid email or password')).toBeVisible();
+
+      await homePage.goto();
+      await expect(homePage.linkWithText('Log in')).toBeVisible();
+    });
+
+    await test.step('an unknown address gets exactly the same response', async () => {
+      await loginPage.goto();
+      await loginPage.logIn('nobody-lockout@example.com', PASSWORD);
+      await expect(loginPage.elementWithText('Invalid email or password')).toBeVisible();
+    });
   });
 });
 

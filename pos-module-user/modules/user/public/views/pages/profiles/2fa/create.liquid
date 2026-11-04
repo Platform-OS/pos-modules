@@ -8,7 +8,7 @@ method: post
     redirect_to '/'
   endif
 
-  function object = 'modules/user/commands/user/verify_otp', object: context.params.2fa, email: current_profile.user.email
+  function object = 'modules/user/commands/user/verify_otp', object: context.params.2fa, email: current_profile.user.email, track_login_attempts: false
   if object.valid
     assign current_profile.otp_configured = true
     function object = 'modules/user/commands/profiles/mark_otp', object: current_profile

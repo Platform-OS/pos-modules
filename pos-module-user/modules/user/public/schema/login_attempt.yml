@@ -1,0 +1,14 @@
+# Login lockout state, one record per user that has failed to sign in.
+# A table of its own rather than properties on the profile, because
+# applications routinely override modules/user/profile's schema and search
+# query, and the lockout must keep working when they do.
+name: login_attempt
+properties:
+  - name: user_id
+    type: string
+  # consecutive failed sign-ins, cleared by the next successful one
+  - name: failed_login_attempts
+    type: integer
+  # blank unless the account is, or was, locked
+  - name: locked_until
+    type: string

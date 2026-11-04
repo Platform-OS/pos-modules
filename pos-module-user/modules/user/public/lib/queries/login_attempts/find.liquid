@@ -1,0 +1,21 @@
+{% doc %}
+  The login lockout state of a user: the stored record, or - for a user who has
+  no failed sign-ins on record - a hash with just the user_id and no id.
+  Null when user_id is blank.
+
+  @param {string} user_id - The user ID
+{% enddoc %}
+{% liquid
+  if user_id == blank
+    return null
+  endif
+
+  graphql r = 'modules/user/login_attempts/find', user_id: user_id
+  assign login_attempt = r.records.results.first
+
+  if login_attempt == blank
+    assign login_attempt = { "user_id": user_id }
+  endif
+
+  return login_attempt
+%}

@@ -1,0 +1,35 @@
+{% doc %}
+  @param {object} login_attempt - The lockout state (from queries/login_attempts/find)
+{% enddoc %}
+{% liquid
+  function max_attempts = 'modules/user/helpers/login_max_attempts'
+  assign unlock_after_mins = context.constants.LOGIN_ATTEMPTS_UNLOCK_AFTER_MINS | default: 5 | plus: 0
+  if unlock_after_mins <= 0
+    assign unlock_after_mins = 5
+  endif
+
+  comment
+    A lock that is still set here has already expired - a live one stops the
+    caller before the password is checked - so the count starts again rather
+    than re-locking the account on the first mistake after it reopens.
+  endcomment
+  if login_attempt.locked_until != blank
+    assign attempts = 1
+  else
+    assign attempts = login_attempt.failed_login_attempts | default: 0 | plus: 1
+  endif
+
+  assign locked = false
+  assign locked_until = ''
+  if max_attempts > 0 and attempts >= max_attempts
+    assign locked = true
+    assign now_epoch = 'now' | to_time | date: '%s' | plus: 0
+    assign unlock_after_secs = unlock_after_mins | times: 60
+    assign locked_until_epoch = now_epoch | plus: unlock_after_secs
+    assign locked_until = locked_until_epoch | date: '%Y-%m-%dT%H:%M:%S%z'
+  endif
+
+  assign object = { "id": login_attempt.id, "user_id": login_attempt.user_id, "failed_login_attempts": attempts, "locked_until": locked_until, "locked": locked }
+
+  return object
+%}

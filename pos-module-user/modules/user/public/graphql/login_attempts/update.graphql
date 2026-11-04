@@ -1,0 +1,21 @@
+mutation update_login_attempt(
+  $id: ID!
+  $failed_login_attempts: Int!
+  $locked_until: String!
+) {
+  record: record_update(
+    id: $id
+    record: {
+      table: "modules/user/login_attempt"
+      properties: [
+        { name: "failed_login_attempts", value_int: $failed_login_attempts }
+        { name: "locked_until", value: $locked_until }
+      ]
+    }
+  ) {
+    id
+    user_id: property(name: "user_id")
+    failed_login_attempts: property_int(name: "failed_login_attempts")
+    locked_until: property(name: "locked_until")
+  }
+}

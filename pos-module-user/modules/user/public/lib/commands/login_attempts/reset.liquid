@@ -1,0 +1,29 @@
+{% doc %}
+  Clears the failed sign-in count and any lock after a successful sign-in.
+  Writes nothing when there is nothing to clear, so the common case costs one
+  lookup and no mutation.
+
+  Returns true when something was cleared.
+
+  @param {string} user_id - The user ID
+{% enddoc %}
+{% liquid
+  function login_attempt = 'modules/user/queries/login_attempts/find', user_id: user_id
+  if login_attempt.id == blank
+    return false
+  endif
+
+  assign attempts = login_attempt.failed_login_attempts | default: 0 | plus: 0
+  if attempts == 0 and login_attempt.locked_until == blank
+    return false
+  endif
+
+  assign data = { "id": login_attempt.id, "failed_login_attempts": 0, "locked_until": "" }
+  graphql r = 'modules/user/login_attempts/update', args: data
+  if r.errors
+    log r, type: 'ERROR: modules/user/commands/login_attempts/reset'
+    return false
+  endif
+
+  return true
+%}
