@@ -58,7 +58,28 @@ pos-cli constants set <env> --name "modules/push_notifications/PUSH_SENDER_PUBLI
 {% render 'modules/push_notifications/init' %}
 ```
 
-This sets up `window.pos.modules.active.pushNotifications` with `register()`, `subscribe()`, `unsubscribe(id)`, and `getPermissionState()`.
+On `DOMContentLoaded`, when the page has a toggle or a subscriptions list, it loads `pos-push.js` and creates `window.pos.modules.active['pos-push']` (with `subscribe()` and `unsubscribe(id)`), then the toggles and lists.
+
+#### Using the module from your own scripts
+
+Your scripts can run before `pos-push.js` is loaded — a `defer` script runs before `DOMContentLoaded`, so it always does. Don't read `pos.modules.active['pos-push']` directly; wait for it:
+
+```js
+const push = await pos.modules.push.ready;
+
+if(push && !push.settings.error){
+  push.settings.subscription.id;          // id of this browser's subscription, or null
+  push.settings.requiresInstallForPush;   // the browser needs the site installed as an app for push
+}
+```
+
+`pos.modules.push.ready` is set up by the init partial right away (render it in the `<head>`, before your scripts), and resolves:
+
+- with the `pos-push` instance once it initialized — the subscription state and the browser capabilities are only known from then on,
+- still with the instance when push isn't available in the browser context (e.g. the service worker couldn't be registered) — `settings.error` holds the reason, and the toggle stays hidden with the `pos-push-unavailable` class,
+- with `null` when the page has no toggle or subscriptions list, or `pos-push.js` couldn't be loaded.
+
+Anything you attach to `pos.modules.push` before `pos-push.js` is loaded (e.g. `pos.modules.push.myBanner = function(){...}`) is kept when it loads. The `pos-push-initialized` event is still dispatched, but a listener added after it fired never gets it — prefer the promise.
 
 ### 3. Embed the subscribe button and subscriptions table
 

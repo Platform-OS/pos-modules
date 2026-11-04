@@ -13,8 +13,5 @@ mutation api_call_direct(
       status
       body
     }
-    errors {
-      message
-    }
   }
 }
