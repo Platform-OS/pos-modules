@@ -1,5 +1,9 @@
 mutation suspend($id: ID!) {
+  # record_update is keyed by id alone: platformOS does not refuse an id from another
+  # table. Pass only an id read from modules/mcp/mcp_token (e.g. tokens/find_by_id),
+  # never a raw request param.
   record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_token"
     properties: [{ name: "status", value: "revoked" }]
   }) {
     id

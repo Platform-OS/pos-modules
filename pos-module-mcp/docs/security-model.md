@@ -44,7 +44,7 @@ Identity is a **bearer token bound to a real platformOS user**, from one of two 
 | `allowed_tools` | optional per-token narrowing — intersects the served set, **never widens** (§6.2) |
 | `last_used_at` | best-effort recency stamp (throttled ≤1 write/min; not on the hot read path) |
 
-Because only the **digest** is persisted, a database read cannot recover a usable credential. Revoking a token (`status → revoked`) takes effect on the **next** call — a central, immediate kill switch.
+Because only the **digest** is persisted, a database read cannot recover a usable credential. Revoking a token (`status → revoked`) takes effect on the **next** call — a central, immediate kill switch. Operators can revoke any token from `/mcp-admin?tab=tokens`; the page revokes an id only after finding it in the `mcp_token` table, so an id from another table changes nothing.
 
 ### 2.2 Resolution — fail-closed cascade (`identity/resolve_principal`)
 
