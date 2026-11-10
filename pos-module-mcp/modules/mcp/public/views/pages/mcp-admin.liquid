@@ -289,6 +289,14 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
   .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
   .tbl-wrap.attn { border-color: var(--attn); }
 
+  /* Approval arguments: shown in full under each pending request. Wraps (no nowrap,
+     no truncation, no max-height) so nothing the action would run with is hidden. */
+  tr.approval-head td { border-bottom: 0; }
+  td.args { white-space: normal; padding-top: 0; }
+  .args-list { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .8rem; margin: 0; padding: .4rem .55rem; border: 1px solid var(--border-soft); background: var(--bg-2); }
+  .args-list dt { color: var(--muted); }
+  .args-list dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+
   .pill { padding: .05rem .4rem; border-radius: 0; font-size: .72rem; border: 1px solid currentColor; text-transform: uppercase; letter-spacing: .03em; }
   .allow { background: var(--ok-bg); color: var(--ok-fg); } .deny { background: var(--bad-bg); color: var(--bad-fg); }
   .pill.warn { background: var(--warn-bg); color: var(--warn-fg); }
@@ -488,16 +496,23 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
     {%- endif -%}
     <div class="tbl-wrap attn">
       <table>
-        <thead><tr><th>tool</th><th>requested by</th><th>principal</th><th>requested</th><th></th></tr></thead>
+        <thead><tr><th>tool</th><th title="the requesting token's label — chosen by the token's owner, not verified">requested by (token label)</th><th>principal</th><th>requested</th><th></th></tr></thead>
         <tbody>
         {%- for a in pending -%}
-          <tr>
-            <td><b>{{ a.tool_name }}</b></td>
+          {%- liquid
+            # The arguments the action will run with (approval/execute parses the same
+            # stored arguments_json). Shown in full so the operator decides on WHAT will
+            # run, not just which tool and whose; every value is emitted through {{ }}.
+            assign a_args = a.arguments_json | default: '{}' | parse_json: raw_text: true
+            assign a_args_type = a_args | type_of
+          -%}
+          <tr class="approval-head">
+            <td><b>{{ a.tool_name }}</b>{%- if a.tool_version != blank -%} <span class="muted fs-xs">v{{ a.tool_version }}</span>{%- endif -%}</td>
             <td>{{ a.requested_by_agent }}</td>
             <td>{{ a.principal_id }}</td>
             <td>{{ a.created_at }}</td>
             <td class="inline-actions">
-              <form method="post" action="/mcp-admin/approve" onsubmit="return confirm('Approve and EXECUTE this action as {{ a.principal_id }}?')">
+              <form method="post" action="/mcp-admin/approve" onsubmit="return confirm('Approve and EXECUTE {{ a.tool_name }} as {{ a.principal_id }} with the arguments shown?')">
                 <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
                 <input type="hidden" name="handle" value="{{ a.handle }}">
                 <button type="submit" class="btn btn-ok btn-sm">Approve</button>
@@ -507,6 +522,25 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
                 <input type="hidden" name="handle" value="{{ a.handle }}">
                 <button type="submit" class="btn btn-danger btn-sm">Reject</button>
               </form>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="5" class="args">
+              {%- if a_args_type contains 'Hash' -%}
+                {%- if a_args.size > 0 -%}
+              <dl class="args-list" data-approval-args="{{ a.handle }}">
+                {%- for pair in a_args -%}
+                  {%- assign arg_type = pair[1] | type_of -%}
+                <dt>{{ pair[0] }}</dt>
+                <dd>{%- if arg_type == 'String' -%}{{ pair[1] }}{%- else -%}{{ pair[1] | json }}{%- endif -%}</dd>
+                {%- endfor -%}
+              </dl>
+                {%- else -%}
+              <span class="muted fs-sm" data-approval-args="{{ a.handle }}">(no arguments)</span>
+                {%- endif -%}
+              {%- else -%}
+              <dl class="args-list" data-approval-args="{{ a.handle }}"><dt>arguments</dt><dd>{{ a.arguments_json }}</dd></dl>
+              {%- endif -%}
             </td>
           </tr>
         {%- endfor -%}

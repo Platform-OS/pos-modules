@@ -48,6 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Approvals tab shows the arguments each pending action will run with.** The
+  queue showed only the tool, the requesting token's label (chosen by its owner) and the
+  principal, so two requests to the same tool from the same user looked identical, and an
+  operator approved a phishing broadcast or a destructive change blind.
+  `graphql/approvals/list` now selects `arguments_json` and `tool_version`, and each
+  pending row in `/mcp-admin?tab=approvals` lists every argument in full under the
+  request (strings as text, other values as JSON), HTML-escaped and never truncated. The
+  confirmation names the tool and the principal, and the "requested by" column is marked
+  as the token label.
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400
