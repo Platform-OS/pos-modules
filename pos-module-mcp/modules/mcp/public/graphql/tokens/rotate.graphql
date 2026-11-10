@@ -7,8 +7,9 @@ mutation rotate(
   $refresh_expires_at: Int!
 ) {
   # Refresh-token rotation (OAuth 2.1 §4.3.1): new access + refresh digests on the SAME
-  # grant row; the presented refresh digest is kept as prev_refresh_digest so a replay
-  # of it is detected as reuse (commands/oauth/refresh).
+  # grant row. The presented refresh digest is kept as prev_refresh_digest (legacy
+  # reuse lookup) AND recorded in mcp_refresh_retired (tokens/retire_refresh), so a
+  # replay of any older refresh token is detected as reuse (commands/oauth/token_refresh).
   record: record_update(id: $id, record: {
     table: "modules/mcp/mcp_token"
     properties: [

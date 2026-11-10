@@ -1,8 +1,15 @@
 {%- comment -%}
   grant_type=refresh_token (OAuth 2.1 §4.3) with ROTATION: every refresh issues a new
   access + refresh pair on the same grant row and invalidates the presented refresh
-  token. Presenting an already-rotated refresh token is treated as theft (OAuth 2.1
-  §4.3.1, Security BCP §4.14.2): the whole grant is revoked.
+  token. Presenting ANY already-rotated refresh token of the grant — not just the one
+  from the previous rotation — is treated as theft (OAuth 2.1 §4.3.1, Security BCP
+  §4.14.2): the whole grant is revoked. Every rotated-away digest is kept in
+  mcp_refresh_retired for that; prev_refresh_digest still covers rows rotated before
+  that table existed.
+
+  Rotation slides the refresh expiry forward (oauth.refresh_token_ttl_seconds) but
+  never past the grant's absolute lifetime: created_at + oauth.grant_max_lifetime_seconds.
+  A thief who keeps refreshing therefore loses the grant at that point at the latest.
 
   The user must still hold cfg.oauth.required_permission; a refresh for a user who
   lost MCP access is invalid_grant.
@@ -25,11 +32,26 @@
   graphql f = 'modules/mcp/tokens/find_by_refresh_digest', digest: digest
   assign g = f.records.results.first
   if g == blank
-    graphql pf = 'modules/mcp/tokens/find_by_prev_refresh_digest', digest: digest
-    assign stale = pf.records.results.first
-    if stale and stale.status == 'active'
-      graphql _r = 'modules/mcp/tokens/revoke', id: stale.id
-      log stale.id, type: 'mcp.oauth.refresh_reuse_revoked'
+    # Reuse detection: is this a refresh token some grant already rotated away?
+    assign stale_id = ''
+    graphql rf = 'modules/mcp/tokens/find_retired_refresh', digest: digest
+    assign retired = rf.records.results.first
+    if retired
+      assign stale_id = retired.token_id
+    else
+      graphql pf = 'modules/mcp/tokens/find_by_prev_refresh_digest', digest: digest
+      assign prev = pf.records.results.first
+      if prev
+        assign stale_id = prev.id
+      endif
+    endif
+    if stale_id != blank
+      graphql sf = 'modules/mcp/tokens/find_by_id', id: stale_id
+      assign stale = sf.records.results.first
+      if stale and stale.status == 'active'
+        graphql _r = 'modules/mcp/tokens/revoke', id: stale.id
+        log stale.id, type: 'mcp.oauth.refresh_reuse_revoked'
+      endif
     endif
     function e = 'modules/mcp/helpers/oauth/error', error: 'invalid_grant', error_description: 'Invalid refresh token', http_status: null
     return e
@@ -37,7 +59,11 @@
 
   assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
   assign rexp = g.refresh_expires_at | plus: 0
-  if g.status != 'active' or g.kind != 'oauth' or rexp <= now_s
+  # Absolute grant lifetime, from the authorization (the row's creation). Derived, not
+  # stored, so lowering the setting also shortens grants that already exist.
+  assign grant_max = cfg.oauth.grant_max_lifetime_seconds | plus: 0
+  assign grant_expires_at = g.created_at | to_time | strftime: '%s' | plus: grant_max
+  if g.status != 'active' or g.kind != 'oauth' or rexp <= now_s or grant_expires_at <= now_s
     function e = 'modules/mcp/helpers/oauth/error', error: 'invalid_grant', error_description: 'Invalid refresh token', http_status: null
     return e
   endif
@@ -60,7 +86,14 @@
   function refresh = 'modules/mcp/helpers/oauth/random_secret', prefix: 'mcp_rt_'
   assign ttl = cfg.oauth.access_token_ttl_seconds | plus: 0
   assign expires_at = now_s | plus: ttl
+  if expires_at > grant_expires_at
+    assign expires_at = grant_expires_at
+    assign ttl = grant_expires_at | minus: now_s
+  endif
   assign refresh_expires_at = cfg.oauth.refresh_token_ttl_seconds | plus: now_s
+  if refresh_expires_at > grant_expires_at
+    assign refresh_expires_at = grant_expires_at
+  endif
   assign token_digest = access | digest: 'sha256'
   assign new_refresh_digest = refresh | digest: 'sha256'
 
@@ -72,6 +105,7 @@
     assign cur = f2.records.results.first
     if cur and cur.status == 'active' and cur.refresh_digest == digest
       graphql _u = 'modules/mcp/tokens/rotate', id: g.id, token_digest: token_digest, refresh_digest: new_refresh_digest, prev_refresh_digest: digest, expires_at: expires_at, refresh_expires_at: refresh_expires_at
+      graphql _x = 'modules/mcp/tokens/retire_refresh', token_id: g.id, digest: digest, expires_at: grant_expires_at
       assign rotated = true
     endif
   endtransaction

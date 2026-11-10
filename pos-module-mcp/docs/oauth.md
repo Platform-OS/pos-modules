@@ -79,7 +79,8 @@ policy still runs. Manual tokens carry both scopes.
 |---|---|---|
 | authorization code (`mcp_ac_…`) | 60 s (`oauth.code_ttl_seconds`) | single use: the code is consumed before any other check, so a wrong verifier or redirect URI burns it |
 | access token (`mcp_at_…`) | 1 h (`oauth.access_token_ttl_seconds`) | bound to one client, one resource (`<origin>/mcp`, RFC 8707) and a scope set |
-| refresh token (`mcp_rt_…`) | 30 days (`oauth.refresh_token_ttl_seconds`) | rotated on every use; presenting an already-rotated refresh token revokes the whole grant |
+| refresh token (`mcp_rt_…`) | 30 days (`oauth.refresh_token_ttl_seconds`) | rotated on every use; presenting any already-rotated refresh token of the grant, however old, revokes the whole grant |
+| grant | 90 days (`oauth.grant_max_lifetime_seconds`) | counted from the authorization; each refresh moves the refresh token's expiry forward but never past this, so the client must re-authorize after it |
 
 Token request rules:
 
@@ -174,6 +175,7 @@ All keys live under `oauth` in the `MCP_CONFIG` constant:
 | `required_permission` | `mcp.tokens.manage` |
 | `default_scope` | `mcp:read mcp:write` |
 | `access_token_ttl_seconds` / `refresh_token_ttl_seconds` / `code_ttl_seconds` | `3600` / `2592000` / `60` |
+| `grant_max_lifetime_seconds` (a zero, negative or non-numeric value falls back to the default) | `7776000` |
 | `client_id_metadata_documents` / `dynamic_client_registration` | `true` / `true` |
 | `registration_rate_limit_per_min` / `token_rate_limit_per_min` | `10` / `60` |
 
@@ -191,6 +193,10 @@ yet.
   platform's outbound HTTP follows redirects (which would let a public URL bounce to an
   internal one) has not been verified.
 - **Code theft.** PKCE plus single-use codes: a stolen code gets one guess.
-- **Refresh token theft.** Rotation with reuse detection revokes the grant.
+- **Refresh token theft.** Rotation with reuse detection revokes the grant. Every
+  rotated-away refresh token is remembered (as a digest, until the grant's maximum
+  lifetime), so the rightful client's stale token revokes the grant even after the thief
+  has refreshed several times. A thief whose use is never detected keeps the grant at
+  most until `grant_max_lifetime_seconds`.
 - **Consent CSRF.** The decision is a form post with the platform authenticity token and
   a per-request id kept in the session.
