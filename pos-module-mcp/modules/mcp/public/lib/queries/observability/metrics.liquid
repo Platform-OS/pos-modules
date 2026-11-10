@@ -24,7 +24,7 @@
   assign total = ct.records.total_entries | plus: 0
 
   # by_outcome — the execution_outcome vocabulary emitted by the call pipeline (§9.2).
-  assign outcome_names = 'success,error,rolled_back,pending_approval,denied,invalid,replayed,suspended,approval_duplicate,approval_throttled' | split: ','
+  assign outcome_names = 'success,error,rolled_back,pending_approval,denied,invalid,replayed,suspended,approval_duplicate,approval_throttled,rejected,cancelled,expired' | split: ','
   assign by_outcome = {}
   for o in outcome_names
     graphql co = 'modules/mcp/ledger/count_by', name: 'execution_outcome', value: o
@@ -85,6 +85,8 @@
   # "Blocked" = everything the governance layer stopped: policy denials + schema/arg
   # rejections + rate-limits. A suspend entry already carries authz_decision:deny, so it
   # is counted in `denials` — not added again here (no double-count).
+  # `denials` also counts an operator's rejection of an approval-gated request and an
+  # approved request refused at execution time (both ledgered with authz_decision deny).
   assign blocked = denials | plus: schema_rejections | plus: rate_limited
 
   assign denial_rate = 0

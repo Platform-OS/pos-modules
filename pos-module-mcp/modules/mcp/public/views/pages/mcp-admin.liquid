@@ -90,6 +90,11 @@ layout: ''
     assign qp = qp | append: '&verify=full'
   endif
 
+  # ---- always (every tab): close approvals whose window has passed, so the queue
+  #      shows only live requests and each expiry is attested (approval/expire_due;
+  #      one query when nothing is due) ----
+  function _expired = 'modules/mcp/commands/approval/expire_due', limit: 20
+
   # ---- always (every tab): pending approvals for the nav badge ----
   graphql pending_res = 'modules/mcp/approvals/list', status: 'pending', per_page: 50
   assign pending = pending_res.records.results
@@ -626,7 +631,8 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
       <a href="/mcp-admin?tab=ledger&execution_outcome=suspended" class="txt-bad">suspends</a> ·
       <a href="/mcp-admin?tab=ledger&execution_outcome=approval_throttled" class="txt-warn">throttled</a> ·
       <a href="/mcp-admin?tab=ledger&execution_outcome=approval_duplicate" class="txt-warn">duplicates</a> ·
-      <a href="/mcp-admin?tab=ledger&execution_outcome=rolled_back" class="txt-warn">rollbacks</a>
+      <a href="/mcp-admin?tab=ledger&execution_outcome=rolled_back" class="txt-warn">rollbacks</a> ·
+      <a href="/mcp-admin?tab=ledger&execution_outcome=rejected" class="txt-warn">rejections</a>
     </div>
     <div class="tbl-wrap">
       <table>

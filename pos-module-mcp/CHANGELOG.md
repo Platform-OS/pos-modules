@@ -48,6 +48,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Every outcome of an approval-gated request is in the ledger.** Only the request
+  (`pending_approval`) and an approved execution that ran or rolled back were ledgered;
+  every other outcome lived only on the editable `mcp_pending_approval` row. Now each one
+  is a ledger entry with the request's `request_id` and who decided in `authz_reason`:
+  an operator rejection (`rejected`, `rejected_by:<user id>`), a bulk rejection
+  (`bulk_rejected_by:<user id>`), a `tasks/cancel` withdrawal (`cancelled`,
+  `cancelled_by:requester`), an expiry (`expired`), and an approved request refused at
+  execution time because the tool is gone, the requester's access was revoked, the
+  arguments no longer validate or the policy denies (`invalid` -32602 / `denied` -32001,
+  `approved_by:<user id>;<cause>`), as docs/security-model.md §4.1 already promised.
+  `approval/claim` attests a rejection, withdrawal or expiry in the same transaction as
+  the status change, and turns any decision on a request past its window into `expired`
+  under the row lock. Requests nobody decides are closed as `expired` by the new
+  `approval/expire_due`, which runs on each operator-console load and in the maintenance
+  sweep; before, a request was marked expired only when an operator clicked Approve on
+  it. Metrics count the new outcomes, and operator rejections count as denials.
+
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400

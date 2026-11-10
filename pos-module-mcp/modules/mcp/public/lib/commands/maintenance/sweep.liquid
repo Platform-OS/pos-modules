@@ -1,6 +1,8 @@
 {%- comment -%}
   Reclaim short-lived rows that nothing reads any more: closed rate/abuse counter
-  windows, expired idempotency records and expired OAuth authorization codes. These
+  windows, expired idempotency records and expired OAuth authorization codes. Also
+  closes approvals whose window has passed (approval/expire_due), so each expiry is
+  attested in the ledger even when no operator opens the console. These
   tables otherwise grow by a row per principal per active minute (counters) / per
   keyed call (idempotency) / per authorization (codes), forever.
 
@@ -24,5 +26,6 @@
   assign now_s = now_unix | append: ''
   graphql _i = 'modules/mcp/idempotency/sweep', now: now_s
   graphql _c = 'modules/mcp/oauth/code_sweep', now: now_s
+  function _e = 'modules/mcp/commands/approval/expire_due', limit: 20
   return true
 %}

@@ -66,9 +66,25 @@ async function clearIdempotencyFor(principalId) {
   for (const row of (r?.data?.records?.results || [])) await adm.recordDelete('modules/mcp/mcp_idempotency', row.id);
 }
 async function pendingRecordsFor(principalId) {
-  const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }, sort: [{ id: { order: DESC } }]) { results { id handle: property(name: "handle") } } }`);
+  const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }, sort: [{ id: { order: DESC } }]) { results { id handle: property(name: "handle") request_id: property(name: "request_id") } } }`);
   return r?.data?.records?.results || [];
 }
+// Every ledger entry of one approval-gated request, oldest first. The request_id on the
+// approval row links the pending_approval entry to the entry recording how it ended.
+async function ledgerForRequest(requestId) {
+  if (!requestId) return [];
+  const r = await adm.gql(`{ records(per_page: 20, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "request_id", value: "${requestId}" }] }, sort: [{ id: { order: ASC } }]) { results { outcome: property(name: "execution_outcome") authz: property(name: "authz_decision") reason: property(name: "authz_reason") code: property(name: "error_code") principal: property(name: "principal_id") tool: property(name: "tool_name") } } }`);
+  return r?.data?.records?.results || [];
+}
+// The request's ledger story: pending_approval first, then exactly one entry for how it ended.
+function endedAs(entries, outcome) {
+  return entries.length === 2 && entries[0].outcome === 'pending_approval' && entries[1].outcome === outcome;
+}
+async function requestIdOf(handle) {
+  const r = await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "handle", value: "${handle}" }] }) { results { request_id: property(name: "request_id") } } }`);
+  return r?.data?.records?.results?.[0]?.request_id;
+}
+const showLedger = (entries) => JSON.stringify(entries.map(e => [e.outcome, e.authz, e.reason, e.code]));
 async function recordUpdate(table, id, props) {
   const p = Object.entries(props).map(([k, v]) => `{ name: "${k}", value: ${JSON.stringify(String(v))} }`).join(' ');
   const r = await adm.gql(`mutation { record_update(id: ${id}, record: { table: "${table}" properties: [ ${p} ] }) { id } }`);
@@ -239,6 +255,8 @@ describe('coverage · multi-principal governance planes', () => {
       const opNotes = (await notesFor(op.userId)).filter(x => x.source === 'test_approve');
       ok('approved action EXECUTED (row now exists)', memNotes.length === 1 && memNotes[0].label === 'execnow', 'member rows=' + memNotes.length);
       ok('executed AS THE ORIGINAL PRINCIPAL (member owns it, not the operator)', memNotes.length === 1 && opNotes.length === 0, 'op rows=' + opNotes.length);
+      const led = await ledgerForRequest(pend[0]?.request_id);
+      ok('ledger: pending_approval, then success naming the approver', endedAs(led, 'success') && led[1].reason === 'approved_by:' + op.userId && led[1].principal === mem.principal, showLedger(led));
     }
   });
 
@@ -258,6 +276,8 @@ describe('coverage · multi-principal governance planes', () => {
       ok('approval of a revoked requester does NOT execute', rows.length === 0, 'rows=' + rows.length);
       const st = (await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_PENDING}" } id: { value: "${pend[0]?.id}" } }) { results { status: property(name: "status") summary: property(name: "result_summary") } } }`))?.data?.records?.results?.[0];
       ok('approval is failed with "access was revoked"', st?.status === 'failed' && /access was revoked/.test(st?.summary || ''), JSON.stringify(st));
+      const led = await ledgerForRequest(pend[0]?.request_id);
+      ok('ledger: the refusal at execution is attested as denied -32001, naming the approver and the cause', endedAs(led, 'denied') && led[1].authz === 'deny' && Number(led[1].code) === -32001 && led[1].reason === 'approved_by:' + op.userId + ';token_revoked' && led[1].principal === mem.principal, showLedger(led));
     } finally {
       await recordUpdate('modules/mcp/mcp_token', revokeTok.id, { status: 'active' }); // seeded baseline; the lifecycle test revokes it later
       await clearPendingFor(mem.principal);
@@ -287,13 +307,18 @@ describe('coverage · multi-principal governance planes', () => {
     await callTool(mem.rawToken, 'test_approve', { label: 'bulk1' });
     await callTool(mem.rawToken, 'test_approve', { label: 'bulk2' });
     {
-      ok('two pending queued', (await pendingFor(mem.principal)).length === 2, 'pending=' + (await pendingFor(mem.principal)).length);
+      const pend = await pendingRecordsFor(mem.principal);
+      ok('two pending queued', pend.length === 2, 'pending=' + pend.length);
       ok('operator reaches the console (login ok)', await operatorLogin(op));
       const tok = _formTok(await (await webGet('mcp-admin')).text());
       const r = await webPost('mcp-admin/reject-principal', { authenticity_token: tok, principal_id: mem.principal });
       ok('reject-principal POST accepted', r.status === 302 || r.status === 200, 'status=' + r.status);
       ok('no pending left for the principal', (await pendingFor(mem.principal)).length === 0, 'pending=' + (await pendingFor(mem.principal)).length);
       ok('bulk-rejected actions never executed', (await notesFor(mem.userId)).filter(x => x.source === 'test_approve').length === 0);
+      for (const p of pend) {
+        const led = await ledgerForRequest(p.request_id);
+        ok('ledger: each bulk-rejected request is attested as rejected by the operator', endedAs(led, 'rejected') && led[1].authz === 'deny' && led[1].reason === 'bulk_rejected_by:' + op.userId && led[1].principal === mem.principal, showLedger(led));
+      }
     }
   });
 
@@ -309,6 +334,10 @@ describe('coverage · multi-principal governance planes', () => {
       ok('reject POST accepted', rejectRes.status === 302 || rejectRes.status === 200, 'status=' + rejectRes.status);
       const memNotes = (await notesFor(mem.userId)).filter(x => x.source === 'test_approve' && x.label === 'rejectme');
       ok('rejected action NEVER executed (no row)', memNotes.length === 0, 'rows=' + memNotes.length);
+      const led = await ledgerForRequest(pend[0]?.request_id);
+      ok('ledger: pending_approval, then rejected naming the operator', endedAs(led, 'rejected') && led[1].authz === 'deny' && led[1].reason === 'rejected_by:' + op.userId && led[1].principal === mem.principal && led[1].tool === 'test_approve', showLedger(led));
+      const again = await webPost('mcp-admin/reject', { authenticity_token: _formTok(adminPage), handle });
+      ok('rejecting again changes nothing and is not ledgered twice', (again.status === 302 || again.status === 200) && (await ledgerForRequest(pend[0]?.request_id)).length === 2);
     }
   });
 
@@ -367,6 +396,31 @@ describe('coverage · multi-principal governance planes', () => {
       await webPost('mcp-admin/approve', { authenticity_token: _formTok(adminPage), handle: pend[0].handle });
       const memNotes = (await notesFor(mem.userId)).filter(x => x.source === 'test_approve' && x.label === 'expireme');
       ok('approving an EXPIRED approval does NOT execute (no row)', memNotes.length === 0, 'rows=' + memNotes.length);
+      const led = await ledgerForRequest(pend[0].request_id);
+      ok('ledger: pending_approval, then expired', endedAs(led, 'expired') && led[1].authz === 'not_applicable' && led[1].reason === 'expired', showLedger(led));
+    }
+  });
+
+  it('Approval — an expired request is closed and attested without an operator decision (§9.6)', async () => {
+    await clearPendingFor(mem.principal);
+    await deleteNotesFor(mem.userId);
+    await callTool(mem.rawToken, 'test_approve', { label: 'expirequiet' });
+    {
+      const pend = await pendingRecordsFor(mem.principal);
+      ok('one pending to expire', pend.length === 1, 'pending=' + pend.length);
+      await recordUpdate(T_PENDING, pend[0].id, { expires_at: '1' });
+      // Opening the console closes approvals past their window (approval/expire_due);
+      // nobody approves or rejects.
+      ok('operator reaches the console (login ok)', await operatorLogin(op));
+      const page = await (await webGet('mcp-admin?tab=approvals')).text();
+      ok('the expired request is no longer listed as pending', !page.includes(pend[0].handle));
+      const st = (await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_PENDING}" } id: { value: "${pend[0].id}" } }) { results { status: property(name: "status") decided_by: property(name: "decided_by") } } }`))?.data?.records?.results?.[0];
+      ok('the row is marked expired by the system', st?.status === 'expired' && st?.decided_by === 'system:expiry', JSON.stringify(st));
+      const led = await ledgerForRequest(pend[0].request_id);
+      ok('ledger: pending_approval, then expired', endedAs(led, 'expired') && led[1].reason === 'expired' && led[1].principal === mem.principal, showLedger(led));
+      await webGet('mcp-admin?tab=approvals');
+      ok('a second console load does not attest it again', (await ledgerForRequest(pend[0].request_id)).length === 2);
+      ok('nothing executed', (await notesFor(mem.userId)).filter(x => x.label === 'expirequiet').length === 0);
     }
   });
 
@@ -684,8 +738,10 @@ describe('coverage · multi-principal governance planes', () => {
     ok('task is cancelled with an explanation', after.status === 'cancelled' && /withdrew/.test(after.statusMessage || ''), JSON.stringify(after).slice(0, 160));
     ok('cancelled task carries neither result nor error', after.result === undefined && after.error === undefined);
     ok('cancel frees the pending queue slot', (await pendingFor(mem.principal)).length === 0);
+    const led = await ledgerForRequest(await requestIdOf(taskId));
+    ok('ledger: pending_approval, then cancelled by the requester', endedAs(led, 'cancelled') && led[1].authz === 'not_applicable' && led[1].reason === 'cancelled_by:requester' && led[1].principal === mem.principal, showLedger(led));
     const c2 = await send('tasks/cancel', { taskId }, { token: mem.rawToken, capabilities: TASKS_CAPABILITY });
-    ok('cancelling again is still acknowledged and changes nothing', c2.status === 200 && (await getTask(send, taskId)).json?.result?.status === 'cancelled');
+    ok('cancelling again is still acknowledged and changes nothing', c2.status === 200 && (await getTask(send, taskId)).json?.result?.status === 'cancelled' && (await ledgerForRequest(await requestIdOf(taskId))).length === 2);
     ok('operator reaches the console (login ok)', await operatorLogin(op));
     ok('approving a cancelled task does nothing', (await decide('approve', taskId)) && (await notesFor(mem.userId)).filter(x => x.label === 'task-cancel').length === 0 && (await getTask(send, taskId)).json?.result?.status === 'cancelled');
     await clearPendingFor(mem.principal);
@@ -727,6 +783,8 @@ describe('coverage · multi-principal governance planes', () => {
     await decide('approve', gone.taskId);
     const g = (await getTask(send, gone.taskId)).json?.result || {};
     ok('tool removed before approval → failed with -32602 Unknown tool', g.status === 'failed' && g.error?.code === -32602 && g.error?.message === 'Unknown tool' && g.result === undefined, JSON.stringify(g).slice(0, 200));
+    const gl = await ledgerForRequest(await requestIdOf(gone.taskId));
+    ok('ledger: the refusal at execution is attested as invalid -32602, naming the approver', endedAs(gl, 'invalid') && Number(gl[1].code) === -32602 && gl[1].reason === 'approved_by:' + op.userId + ';unknown_tool', showLedger(gl));
 
     const broken = await createTask(send, 'task-handler-error');
     await recordUpdate(T_PENDING, await recId(broken.taskId), { tool_name: 'test_fail' });
@@ -734,6 +792,8 @@ describe('coverage · multi-principal governance planes', () => {
     const b = (await getTask(send, broken.taskId)).json?.result || {};
     ok('handler failure → completed with an isError tool result (not failed)', b.status === 'completed' && b.result?.isError === true && Array.isArray(b.result?.content) && b.error === undefined, JSON.stringify(b).slice(0, 200));
     ok('the failed handler left no row (rolled back)', (await notesFor(mem.userId)).filter(x => x.label === 'task-handler-error').length === 0);
+    const bl = await ledgerForRequest(await requestIdOf(broken.taskId));
+    ok('ledger: the rolled-back execution is attested, naming the approver', endedAs(bl, 'rolled_back') && bl[1].reason === 'approved_by:' + op.userId, showLedger(bl));
 
     const late = await createTask(send, 'task-expired');
     const lateId = await recId(late.taskId);
@@ -744,6 +804,8 @@ describe('coverage · multi-principal governance planes', () => {
     await decide('approve', late.taskId);
     const e2 = (await getTask(send, late.taskId)).json?.result || {};
     ok('approving after the window still reports expired, nothing ran', e2.status === 'failed' && e2.error?.code === -32005 && (await notesFor(mem.userId)).filter(x => x.label === 'task-expired').length === 0);
+    const el = await ledgerForRequest(await requestIdOf(late.taskId));
+    ok('ledger: pending_approval, then expired (once)', endedAs(el, 'expired') && el[1].reason === 'expired', showLedger(el));
     await clearPendingFor(mem.principal);
   });
 
