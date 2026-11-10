@@ -8,7 +8,7 @@
   slightly at a window boundary, never over-count, so it fails safe for the caller
   and conservative for the limit.
 
-  @param {string}  scope - "principal:<id>" or "client:<id>"
+  @param {string}  scope - "principal:<id>:token:<token_id>" (per token), "client:<id>", …
   @param {integer} limit - max requests allowed in the window
   @return {object} { allowed:boolean, count:int, limit:int, retry_after:int } — a blank scope
                    or limit fails closed (allowed: false)

@@ -68,6 +68,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authorization endpoint read only the preferred method and refused it with "Only public
   clients … are supported". A document is now a public client when either field allows
   `none`; a document that does not allow `none` is still refused.
+- **Abuse auto-suspend revokes only the token that misbehaved.** Violations (unknown or
+  disallowed tools, invalid arguments, policy denials, rate-limit hits, duplicate or
+  excess approval requests) were counted per person, and at the threshold the token that
+  made the *next* call was revoked. A narrowed token given to a less-trusted agent could
+  make 20 bad calls and get the person's main token revoked for good while staying active
+  itself. Violations are now counted per token (`abuse:<principal>:tok:<token id>:<slice>`),
+  and `limits/enforce_abuse` suspends a token only when its own count reaches
+  `abuse_threshold`; the person's other tokens and OAuth grants keep working. The
+  `security/suspend` ledger entry names the revoked token (`subject_type: token`,
+  `subject_id`, and `audit_json` with the count, threshold and window), and the
+  `/mcp-admin` watchlist shows each token's own count.
+- **The abuse window rolls.** `abuse_window_seconds` was a clock-aligned bucket that reset
+  at every boundary, so 19 violations before it and 19 after never suspended. The count
+  now covers the last `abuse_window_seconds`, summed from counters a tenth of the window
+  long (`helpers/limits/abuse_window`, `queries/limits/abuse_counts`). Defaults are
+  unchanged (20 in 300 s).
+- **The rate limit is per token.** `rate_limit_per_min` was one bucket per person, so one
+  chatty agent used up the budget of every other agent of that person, and each of their
+  refused calls counted as a violation. Each token (or OAuth grant) now has its own
+  bucket (scope `principal:<id>:token:<token id>`), on `tools/call` and provider
+  `resources/read` alike. The default (60) is unchanged; it now applies per token.
 
 ## [0.2.0] - 2026-10-23
 

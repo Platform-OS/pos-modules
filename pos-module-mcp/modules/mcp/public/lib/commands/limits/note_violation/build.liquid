@@ -1,22 +1,20 @@
 {%- comment -%}
-  The counter key for this principal in the current abuse window.
+  The counter key for this token in the current slice of the abuse window.
 
   @param {string} principal_id
+  @param {string} token_id
 {%- endcomment -%}
 {% liquid
-  function cfg = 'modules/mcp/helpers/config'
-  assign win_len = cfg.defaults.abuse_window_seconds | plus: 0
-  assign enabled = false
+  function win = 'modules/mcp/helpers/limits/abuse_window'
   assign key = null
-  if win_len > 0
-    assign enabled = true
-    assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
-    assign window = now_unix | divided_by: win_len
-    assign key = 'abuse:' | append: principal_id | append: ':' | append: window
+  assign tid = token_id | append: ''
+  if win.enabled
+    function key = 'modules/mcp/helpers/limits/abuse_key', principal_id: principal_id, token_id: tid, slice: win.current
   endif
   assign object = {
     "principal_id": principal_id,
-    "enabled": enabled,
+    "token_id": tid,
+    "enabled": win.enabled,
     "key": key
   }
   return object

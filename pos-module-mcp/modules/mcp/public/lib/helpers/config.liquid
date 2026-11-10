@@ -108,6 +108,7 @@
   # Depth cap for a tool's output_schema (declared for clients, never used to validate
   # input), which describes nested results such as lists of objects with lists.
   assign d['max_output_schema_depth'] = 8
+  # Per-token (per agent) requests per minute on tools/call and provider resources/read.
   assign d['rate_limit_per_min'] = 60
   # Idempotency replay window (§16.3): how long a client key can replay its result.
   assign d['idempotency_window_seconds'] = 86400
@@ -121,9 +122,12 @@
   # Suggested polling interval for an approval task (Tasks extension `pollIntervalMs`).
   # An operator decides in minutes or hours, so polling faster only adds load.
   assign d['task_poll_interval_ms'] = 30000
-  # Abuse auto-suspend: if a principal accrues this many policy violations (denials,
-  # rate-limits, invalid/unknown-tool attempts) within the window, its current token
-  # is auto-suspended. A real control, not a message. 0 disables.
+  # Abuse auto-suspend: when one TOKEN accrues this many policy violations (denials,
+  # rate-limits, invalid/unknown-tool attempts, rejected approval requests) within the
+  # rolling window, that token is auto-suspended (revoked). Counted per token, so one
+  # misbehaving agent never gets the person's other tokens revoked. The window rolls in
+  # steps of a tenth of its length (helpers/limits/abuse_window). A real control, not a
+  # message. 0 disables either.
   assign d['abuse_threshold'] = 20
   assign d['abuse_window_seconds'] = 300
   assign c['defaults'] = d

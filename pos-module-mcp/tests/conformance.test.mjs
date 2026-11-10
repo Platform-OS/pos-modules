@@ -37,7 +37,7 @@ const { setConstant, unsetConstant } = makeConstants(adm);
 const ok = (name, cond, detail) => expect.soft(cond === true || cond === false ? cond : !!cond, detail ? `${name} — ${detail}` : name).toBe(true);
 
 async function pruneRate() {
-  // Rate keys are "principal:<id>:<window>" — match the full scope prefix.
+  // Rate keys are "principal:<id>:token:<token_id>:<window>" — match the principal prefix.
   const r = await gql(`{ records(per_page: 200, filter: { table: { value: "${TABLE_RATE}" } properties: [{ name: "key", starts_with: "principal:${CONF_PRINCIPAL}" }] }) { results { id } } }`);
   for (const row of r?.data?.records?.results || []) await adm.recordDelete(TABLE_RATE, row.id);
 }
