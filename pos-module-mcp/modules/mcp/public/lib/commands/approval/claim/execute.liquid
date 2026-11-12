@@ -1,24 +1,78 @@
 {%- comment -%}
   The row-locked claim: rewrite claim_token (takes the row lock), re-read, and move the
-  row only while it is still pending. See approval/claim for why.
+  row only while it is still pending. A row past its window moves to `expired` instead
+  of the requested status. A decision that ends the request (anything but `approved`)
+  is attested in the same transaction. See approval/claim for why.
 
   @param {object} object - validated by approval/claim/check
-  @return {object} { claimed:boolean, rec }
+  @return {object} { claimed:boolean, status, rec }
 {%- endcomment -%}
 {% liquid
-  assign out = { "claimed": false }
+  assign out = {
+    "claimed": false,
+    "status": null
+  }
   assign token = '' | uuid
   assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
 
   transaction timeout: 10
     graphql _lock = 'modules/mcp/approvals/claim_lock', id: object.id, token: token
     graphql f = 'modules/mcp/approvals/find_by_handle', handle: object.handle
     assign rec = f.records.results.first
     if rec and rec.status == 'pending'
-      graphql _u = 'modules/mcp/approvals/update', id: rec.id, status: object.status, decided_by: object.decided_by, decided_at: decided_at, result_summary: object.result_summary
-      assign out['claimed'] = true
+      assign status = object.status
+      assign summary = object.result_summary
+      assign exp = rec.expires_at | plus: 0
+      if exp < now_unix and status != 'expired'
+        assign status = 'expired'
+        assign summary = 'Expired before decision.'
+      endif
+
+      graphql _u = 'modules/mcp/approvals/update', id: rec.id, status: status, decided_by: object.decided_by, decided_at: decided_at, result_summary: summary
+
+      # Attest a decision that ends the request (an approval is attested by
+      # approval/execute with what the action did).
+      assign attested = true
+      if status != 'approved'
+        function le = 'modules/mcp/helpers/approval/ledger_entry', rec: rec
+        assign le['execution_outcome'] = status
+        if status == 'rejected'
+          assign le['authz_decision'] = 'deny'
+        else
+          assign le['authz_decision'] = 'not_applicable'
+        endif
+        if status == 'expired'
+          assign reason = 'expired'
+        else
+          assign reason = status | append: '_by:' | append: object.decided_by
+          unless object.ledger_reason == blank
+            assign reason = object.ledger_reason
+          endunless
+        endif
+        assign le['authz_reason'] = reason
+        assign attested = false
+        try
+          function _ = 'modules/mcp/commands/ledger/append', entry: le
+          assign attested = true
+        catch e
+          log e.message, type: 'mcp.approval_decision_ledger_append_failed'
+        endtry
+      endif
+
+      # No decision without its attestation: a failed append leaves the row pending.
+      # `rollback` is a valid platformOS transaction tag; the linter's HTML/Liquid
+      # parser mis-flags it inside this block. Correct at runtime.
+      # platformos-check-disable LiquidHTMLSyntaxError
+      if attested
+        assign out['claimed'] = true
+        assign out['status'] = status
+      else
+        rollback
+      endif
     endif
   endtransaction
+  # platformos-check-enable LiquidHTMLSyntaxError
 
   assign out['rec'] = rec
   return out

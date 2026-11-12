@@ -1,0 +1,25 @@
+{%- comment -%}
+  The ledger entry fields every outcome of an approval-gated request shares (spec §6.1,
+  §9.6): the requester's identity, the tool and the argument hash as stored on the
+  approval row, and its request_id, which links the entry to the request's
+  pending_approval entry. The caller adds authz_decision, authz_reason,
+  execution_outcome and error_code. Never carries the stored arguments, only their hash.
+
+  @param {object} rec - an approval record from approvals/find_by_handle
+  @return {object} a partial ledger entry for ledger/append
+{%- endcomment -%}
+{% liquid
+  assign le = {
+    "method": "tools/call",
+    "tool_name": rec.tool_name,
+    "tool_version": rec.tool_version,
+    "principal_id": rec.principal_id,
+    "agent_id": rec.requested_by_agent,
+    "delegation_mode": "direct",
+    "input_sha256": rec.input_sha256,
+    "authz_policy": rec.authz_policy,
+    "request_id": rec.request_id
+  }
+  assign le['client_id'] = rec.requested_by_client_id | default: rec.requested_by_agent
+  return le
+%}

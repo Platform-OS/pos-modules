@@ -260,7 +260,9 @@ review as security-relevant.
   intent and returns an opaque **handle** + `pending_approval`; an operator approves
   in `/mcp-admin`, and it then executes **as the original principal** (re-validated
   and re-authorized; the requesting token must still be active and allowed the tool), with the execution ledger entry linked to the request by
-  `request_id`. The agent polls the built-in `mcp_approval_status` tool with the
+  `request_id`. Every other ending — rejected, bulk-rejected, withdrawn, expired, or
+  refused at execution — is ledgered the same way, with who decided
+  (docs/security-model.md §4.1). The agent polls the built-in `mcp_approval_status` tool with the
   handle. This keeps genuinely high-impact actions out of autonomous execution.
   **Queue-flood protection:** a duplicate pending request (same principal + identical
   argument hash) returns the existing handle instead of stacking a new one, and each

@@ -11,15 +11,30 @@
   commit). A concurrent claim blocks there, then re-reads the row we committed and
   sees it is no longer pending.
 
+  EXPIRY is decided here, under the same lock: a row past its approval window becomes
+  `expired` whatever decision was asked for, so a late approve never executes and a
+  late reject or withdrawal records what actually happened. The caller reads the
+  status the row ended in from `status`.
+
+  ATTESTATION. A decision that ends the request (rejected, cancelled, expired) is
+  appended to the ledger INSIDE the claim's transaction, linked to the request by
+  request_id, with who decided in authz_reason: the decision and its attestation
+  commit together or not at all (a failed append leaves the row pending). An
+  `approved` claim is not attested here: approval/execute attests what the approved
+  action did (success, rolled_back, or the refusal at execution time).
+
   @param {string} id             - approval record id
   @param {string} handle         - approval handle (for the locked re-read)
   @param {string} status         - target status (approved | rejected | cancelled | expired)
   @param {string} decided_by
   @param {string} result_summary
-  @return {object} { claimed:boolean, rec } rec = the row as re-read under the lock
+  @param {string} ledger_reason  - optional authz_reason for the ledger entry; default
+                                   `<status>_by:<decided_by>` (`expired` for expiry)
+  @return {object} { claimed:boolean, status, rec } rec = the row as re-read under the
+                   lock (before the update); status = the status the row moved to
 {%- endcomment -%}
 {% liquid
-  function object = 'modules/mcp/commands/approval/claim/build', id: id, handle: handle, status: status, decided_by: decided_by, result_summary: result_summary
+  function object = 'modules/mcp/commands/approval/claim/build', id: id, handle: handle, status: status, decided_by: decided_by, result_summary: result_summary, ledger_reason: ledger_reason
   function object = 'modules/mcp/commands/approval/claim/check', object: object
   if object.valid
     function out = 'modules/mcp/commands/approval/claim/execute', object: object
@@ -28,6 +43,7 @@
 
   assign out = {
     "claimed": false,
+    "status": null,
     "rec": null
   }
   return out
