@@ -11,6 +11,15 @@
   assign ttl = cfg.oauth.access_token_ttl_seconds | plus: 0
   assign expires_at = now_s | plus: ttl
   assign refresh_expires_at = cfg.oauth.refresh_token_ttl_seconds | plus: now_s
+  # Neither token outlives the grant's absolute lifetime (see oauth/token_refresh).
+  assign grant_expires_at = cfg.oauth.grant_max_lifetime_seconds | plus: now_s
+  if expires_at > grant_expires_at
+    assign expires_at = grant_expires_at
+    assign ttl = grant_expires_at | minus: now_s
+  endif
+  if refresh_expires_at > grant_expires_at
+    assign refresh_expires_at = grant_expires_at
+  endif
   assign label = client_name | default: 'OAuth client' | strip | truncate: 40, ''
   assign object = {
     "user_id": user_id,

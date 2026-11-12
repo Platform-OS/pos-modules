@@ -1,0 +1,14 @@
+mutation retire_refresh($token_id: String!, $digest: String!, $expires_at: Int!) {
+  # Remember a refresh token the grant rotated away, so a later replay of it — however
+  # many rotations old — is detected as reuse (commands/oauth/token_refresh).
+  record: record_create(record: {
+    table: "modules/mcp/mcp_refresh_retired"
+    properties: [
+      { name: "token_id", value: $token_id }
+      { name: "digest", value: $digest }
+      { name: "expires_at", value_int: $expires_at }
+    ]
+  }) {
+    id
+  }
+}

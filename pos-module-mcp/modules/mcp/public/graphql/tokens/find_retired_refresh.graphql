@@ -1,0 +1,14 @@
+query find_retired_refresh($digest: String!) {
+  records(
+    per_page: 1
+    filter: {
+      table: { value: "modules/mcp/mcp_refresh_retired" }
+      properties: [{ name: "digest", value: $digest }]
+    }
+  ) {
+    results {
+      id
+      token_id: property(name: "token_id")
+    }
+  }
+}
