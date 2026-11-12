@@ -113,7 +113,7 @@ export async function seedMatrix(adm, { runId } = {}) {
   return { runId, operator, member, outsider };
 }
 
-/** Prune this principal's rate-counter rows (keys are "principal:<id>:<window>"). */
+/** Prune this principal's rate-counter rows (keys are "principal:<id>:token:<token_id>:<window>"). */
 export async function pruneRate(adm, principal) {
   const r = await adm.gql(`{ records(per_page: 200, filter: { table: { value: "${T_RATE}" } properties: [{ name: "key", starts_with: "principal:${principal}" }] }) { results { id } } }`);
   for (const row of r?.data?.records?.results || []) await adm.recordDelete(T_RATE, row.id);

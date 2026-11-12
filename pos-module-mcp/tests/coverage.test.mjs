@@ -59,6 +59,17 @@ async function clearAbuse(principal) {
   const r = await adm.gql(`{ records(per_page: 200, filter: { table: { value: "modules/mcp/mcp_rate_counter" } properties: [{ name: "key", starts_with: "abuse:${principal}" }] }) { results { id } } }`);
   for (const row of (r?.data?.records?.results || [])) await adm.recordDelete('modules/mcp/mcp_rate_counter', row.id);
 }
+async function suspendEntriesFor(principalId) {
+  const r = await adm.gql(`{ records(per_page: 50, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "method", value: "security/suspend" }] }, sort: [{ id: { order: DESC } }]) { results { subject_type: property(name: "subject_type") subject_id: property(name: "subject_id") audit_json: property(name: "audit_json") } } }`);
+  return r?.data?.records?.results || [];
+}
+// The instance's clock (unix seconds), from the Date header of a response: the abuse
+// window is computed on the server, so a test aimed at a boundary must use its clock.
+function serverNowFrom(res) {
+  const d = Date.parse(res.headers.get('date') || '');
+  return Number.isNaN(d) ? Date.now() / 1000 : d / 1000 + 0.5; // header has 1 s resolution
+}
+const isSuspended = (r) => r.status === 401 || r.json?.error?.code === -32001;
 // Clear a principal's idempotency records — the fixed fixtures use FIXED keys, so a prior
 // run's cached result would otherwise replay (no new write) and break re-runs.
 async function clearIdempotencyFor(principalId) {
@@ -90,7 +101,7 @@ async function purgeUserRecords(userId) {
 }
 
 // ---- fixture handles (resolved in beforeAll) ----
-let op, mem, out, rate, abuseA, abuseB, abuseC, validator, narrowTok, revokeTok;
+let op, mem, out, rate, abuseA, abuseB, abuseC, abuseD, validator, narrowTok, revokeTok;
 
 describe('coverage · multi-principal governance planes', () => {
   beforeAll(async () => {
@@ -98,7 +109,7 @@ describe('coverage · multi-principal governance planes', () => {
     // Deterministic fixtures (TASK-5): (re-)import the fixed users/profiles/tokens to baseline.
     await applyReset(adm.gql);
     op = FIXT.users.operator; mem = FIXT.users.member; out = FIXT.users.outsider;
-    rate = FIXT.users.rate; abuseA = FIXT.users.abuseA; abuseB = FIXT.users.abuseB; abuseC = FIXT.users.abuseC; validator = FIXT.users.validator;
+    rate = FIXT.users.rate; abuseA = FIXT.users.abuseA; abuseB = FIXT.users.abuseB; abuseC = FIXT.users.abuseC; abuseD = FIXT.users.abuseD; validator = FIXT.users.validator;
     narrowTok = mem.tokens.find(t => t.label === 'fixt-narrow');   // pre-seeded, allowed_tools:[test_public]
     revokeTok = mem.tokens.find(t => t.label === 'fixt-revoke');   // pre-seeded, revoked+reset per run
   });
@@ -106,7 +117,7 @@ describe('coverage · multi-principal governance planes', () => {
   afterAll(async () => {
     // ---- reset transient state + restore fixtures to baseline (no user teardown) ----
     await unsetConstant('MCP_CONFIG');
-    const principals = [op, mem, out, rate, abuseA, abuseB, abuseC, validator];
+    const principals = [op, mem, out, rate, abuseA, abuseB, abuseC, abuseD, validator];
     for (const h of principals) { if (!h) continue; try { await deleteNotesFor(h.userId); } catch {} try { await clearPendingFor(h.principal); } catch {} try { await pruneRate(adm, h.principal); } catch {} try { await clearAbuse(h.principal); } catch {} try { await clearIdempotencyFor(h.principal); } catch {} }
     for (const h of [out, mem]) { try { await purgeUserRecords(h.userId); } catch {} }
     try { await applyReset(adm.gql); } catch {}
@@ -442,16 +453,16 @@ describe('coverage · multi-principal governance planes', () => {
     await pruneRate(adm, rate.principal);
   });
 
-  it('Abuse — windowed counter resets across windows (§12.4)', async () => {
+  it('Abuse — violations older than the window drop out (§12.4)', async () => {
     await clearAbuse(abuseB.principal); // dedicated principal = clean slate
     await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 3, abuse_window_seconds: 1 } }));
     await callTool(abuseB.rawToken, 'test_admin', {}); // deny = violation (window A)
     await callTool(abuseB.rawToken, 'test_admin', {});
-    await new Promise(r => setTimeout(r, 1500)); // roll to window B
+    await new Promise(r => setTimeout(r, 1500)); // the first two are now older than the 1 s window
     await callTool(abuseB.rawToken, 'test_admin', {}); // window B
     await callTool(abuseB.rawToken, 'test_admin', {});
     const after = await callTool(abuseB.rawToken, 'test_public', {});
-    ok('violations split across windows do NOT accumulate to suspend', after.status === 200, 'status=' + after.status);
+    ok('violations older than the rolling window do NOT accumulate to suspend', after.status === 200, 'status=' + after.status);
     await unsetConstant('MCP_CONFIG');
   });
 
@@ -461,6 +472,79 @@ describe('coverage · multi-principal governance planes', () => {
     for (let i = 0; i < 4; i++) await callTool(abuseC.rawToken, 'no_such_tool_xyz', {}); // unknown-tool violations
     const after = await callTool(abuseC.rawToken, 'test_public', {});
     ok('repeated unknown-tool attempts → token suspended (401)', after.status === 401, 'status=' + after.status);
+    await unsetConstant('MCP_CONFIG');
+  });
+
+  it('Rate limiting — per token: one agent exhausting its bucket does not throttle the person\'s other tokens (§12.4)', async () => {
+    const [mainTok, narrowD] = abuseD.tokens;
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 3 } }));
+    await pruneRate(adm, abuseD.principal);
+    await awaitFreshRateWindow();
+    {
+      const codes = [];
+      for (let i = 0; i < 4; i++) { const r = await callTool(narrowD.raw, 'test_public', {}); codes.push(r.json?.error?.code ?? r.status); }
+      ok('the chatty token exhausts its own bucket → -32004', codes.slice(0, 3).every(c => c === 200) && codes[3] === -32004, codes.join(','));
+      const other = await callTool(mainTok.raw, 'test_public', {});
+      ok('another token of the SAME person still has its own budget', isOkResult(other), other.text.slice(0, 200));
+    }
+    await unsetConstant('MCP_CONFIG');
+    await pruneRate(adm, abuseD.principal);
+    await clearAbuse(abuseD.principal);
+  });
+
+  it('Abuse — only the token that made the violations is suspended (§12.4)', async () => {
+    // Regression: violations were counted per person and the token making the NEXT call
+    // was revoked, so a narrowed token's bad calls got the person's main token revoked.
+    const [mainTok, narrowD] = abuseD.tokens;
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 3, abuse_window_seconds: 600 } }));
+    await clearAbuse(abuseD.principal);
+    await pruneRate(adm, abuseD.principal);
+    {
+      ok('main token works', isOkResult(await callTool(mainTok.raw, 'test_public', {})));
+      for (let i = 0; i < 3; i++) await callTool(narrowD.raw, 'test_member', {}); // outside its allowed_tools → violation
+      const main1 = await callTool(mainTok.raw, 'test_public', {});
+      const main2 = await callTool(mainTok.raw, 'test_public', {});
+      ok('the innocent main token is NOT suspended by the narrowed token\'s violations', isOkResult(main1) && isOkResult(main2), main1.text.slice(0, 200) + ' | ' + main2.text.slice(0, 200));
+      const bad = await callTool(narrowD.raw, 'test_public', {});
+      ok('the narrowed token that misbehaved IS suspended', bad.json?.error?.code === -32001 && bad.json?.error?.message === 'Access suspended', bad.text.slice(0, 200));
+      const badAgain = await callTool(narrowD.raw, 'test_public', {});
+      ok('…and stays revoked (401)', badAgain.status === 401, 'status=' + badAgain.status);
+      const main3 = await callTool(mainTok.raw, 'test_public', {});
+      ok('the main token keeps working after the suspension', isOkResult(main3), main3.text.slice(0, 200));
+      const rows = await tokensFor(abuseD.userId);
+      const st = Object.fromEntries(rows.map(t => [String(t.id), t.status]));
+      ok('token statuses: main active, narrowed revoked', st[mainTok.id] === 'active' && st[narrowD.id] === 'revoked', JSON.stringify(st));
+      const entry = (await suspendEntriesFor(abuseD.principal))[0];
+      ok('security/suspend ledger entry names the revoked token', entry?.subject_type === 'token' && String(entry?.subject_id) === narrowD.id, JSON.stringify(entry || {}));
+      let audit = {}; try { audit = JSON.parse(entry?.audit_json || '{}'); } catch {}
+      ok('…with the token, its count and the threshold in audit_json', String(audit.token_id) === narrowD.id && Number(audit.violations) >= 3 && Number(audit.threshold) === 3, entry?.audit_json);
+    }
+    await unsetConstant('MCP_CONFIG');
+  });
+
+  it('Abuse — the window rolls: violations either side of a clock boundary add up (§12.4)', async () => {
+    // Regression: the window was a clock-aligned bucket, so violations split by a
+    // boundary never accumulated. With a 10 s window, 2 violations just before a
+    // multiple of 10 s (server clock) and 2 just after must suspend at threshold 3.
+    await clearAbuse(abuseB.principal);
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 3, abuse_window_seconds: 10 } }));
+    {
+      const probe = await callTool(abuseB.rawToken, 'test_public', {});
+      ok('token works before the test', isOkResult(probe), probe.text.slice(0, 200));
+      const offset = serverNowFrom(probe) - Date.now() / 1000;
+      const serverNow = () => Date.now() / 1000 + offset;
+      const sleepUntil = async (t) => { const ms = (t - serverNow()) * 1000; if (ms > 0) await new Promise(r => setTimeout(r, ms)); };
+      let boundary = Math.ceil(serverNow() / 10) * 10;
+      if (boundary - serverNow() < 4) boundary += 10;
+      await sleepUntil(boundary - 3.5);
+      await callTool(abuseB.rawToken, 'test_admin', {}); // deny = violation, before the boundary
+      await callTool(abuseB.rawToken, 'test_admin', {});
+      await sleepUntil(boundary + 1.5);
+      await callTool(abuseB.rawToken, 'test_admin', {}); // after the boundary
+      await callTool(abuseB.rawToken, 'test_admin', {});
+      const after = await callTool(abuseB.rawToken, 'test_public', {});
+      ok('violations straddling a boundary still suspend the token', isSuspended(after), 'status=' + after.status + ' ' + after.text.slice(0, 200));
+    }
     await unsetConstant('MCP_CONFIG');
   });
 

@@ -96,7 +96,7 @@ every request — no redeploy needed.
 |---|---|---|
 | `server_name` | `pos-module-mcp` | `serverInfo.name` + the `claude mcp add <name>` alias on `/mcp-tools` |
 | `tools_list_scope` | `open` | `open` advertises every tool to any caller (MCP-default open discovery); `principal` scopes `tools/list` to what the caller may actually call — restricted tools aren't leaked to unauthorized/anonymous callers (least-disclosure). Execution is authorized per-call either way. |
-| `defaults.rate_limit_per_min` | `60` | per-principal fixed-window rate limit |
+| `defaults.rate_limit_per_min` | `60` | per-token fixed-window (per-minute) rate limit; each agent's token or OAuth grant has its own bucket |
 | `defaults.max_input_bytes` | `65536` | request body size cap |
 | `defaults.max_schema_depth` | `5` | argument-validation nesting cap |
 | `defaults.idempotency_window_seconds` | `86400` | how long an idempotency key can replay |
@@ -104,7 +104,7 @@ every request — no redeploy needed.
 | `defaults.approval_max_pending_per_principal` | `3` | max non-expired pending approvals per principal (queue-flood cap) |
 | `defaults.max_output_schema_depth` | `8` | nesting cap for a tool's declared `output_schema` |
 | `defaults.task_poll_interval_ms` | `30000` | `pollIntervalMs` suggested to Tasks-extension clients |
-| `defaults.abuse_threshold` / `defaults.abuse_window_seconds` | `20` / `300` | violations within the window that auto-suspend a token (`0` disables) |
+| `defaults.abuse_threshold` / `defaults.abuse_window_seconds` | `20` / `300` | violations made with one token within the rolling window that auto-suspend (revoke) **that token only** — the person's other tokens keep working. The window rolls in steps of a tenth of its length (`0` disables) |
 | `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle. Only pages declaring `handler: markdown` in front matter are exposed — a Liquid page is never served as a resource |
 | `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist; matched on a `/` boundary, markdown GET pages only) |
 | `oauth.*` | see [OAuth](#oauth-authorization-server) | built-in authorization server |
@@ -339,7 +339,7 @@ Two sources serve `resources/*`:
   dropped. `next_cursor` becomes `nextCursor` and comes back as `cursor`.
 
 A `resources/read` of a provider URI runs the same controls as a tool call:
-auto-suspend, the per-principal rate limit, the `mcp:read` scope, and a ledger entry
+auto-suspend, the per-token rate limit, the `mcp:read` scope, and a ledger entry
 (`method: resources/read`, URI hashed). "Not found" and "not allowed" give the same
 answer, so a probe learns nothing. A provider that raises or returns malformed contents
 is logged and answered with a generic `-32603`. For a signed-in caller the lists and
@@ -414,7 +414,7 @@ Tools & config) that preserves context on switch. Shows: hash-chain verification
 status; metrics (calls, denial/rollback rate, schema rejections, rate-limited,
 approval throttle/dup, by-tool); **pending approvals** (approve/reject, plus
 per-principal bulk-drain); **active tokens** with an abuse watchlist (violation count
-per principal) and one-click revoke; **MCP access** (approve requests, make admin/user,
+per token) and one-click revoke; **MCP access** (approve requests, make admin/user,
 revoke, grant by id); **registered tools** (name/version/read|write/approval/policy +
 excluded manifests); the **tool-surface eval** (Run + latest result); and a filterable
 ledger with security-lens quick filters and a paginated JSON export.
@@ -443,7 +443,8 @@ ledger with security-lens quick filters and a paginated JSON export.
   as the original principal, re-authorized.
 - **Least leakage** — denials return a stable generic message; specifics go to the
   ledger, not the wire.
-- **Bounded blast radius** — per-principal rate limiting; size and depth caps.
+- **Bounded blast radius** — per-token rate limiting; auto-suspend of the one token that
+  keeps violating policy; size and depth caps.
 - **Console forms check the form token** — every POST page of `/mcp-tools` and
   `/mcp-admin` refuses a request without a valid `authenticity_token` (403, nothing
   changed), and the OAuth consent decision answers 400 without redirecting.

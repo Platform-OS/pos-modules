@@ -1,0 +1,16 @@
+{%- comment -%}
+  The violation counter key of one token in one slice of the abuse window
+  (helpers/limits/abuse_window). Keyed by the TOKEN, so violations made with one
+  token never count against another token of the same person. The principal stays in
+  the key as a prefix, so every counter of one person can still be found by
+  `abuse:<principal_id>:`.
+
+  @param {string}  principal_id - 'user:<id>'
+  @param {string}  token_id     - the mcp_token row that made the call
+  @param {integer} slice        - the slice number
+  @return {string} abuse:<principal_id>:tok:<token_id>:<slice>
+{%- endcomment -%}
+{% liquid
+  assign key = 'abuse:' | append: principal_id | append: ':tok:' | append: token_id | append: ':' | append: slice
+  return key
+%}
