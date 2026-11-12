@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The operator's token revoke changes MCP tokens only.** `/mcp-admin/token-revoke`
+  passed the posted id straight to `tokens/revoke`, whose `record_update` is keyed by id
+  alone, so an `mcp_operator` could set `status = "revoked"` on a record from any table
+  (for example hide a community event). The page now looks the id up in
+  `modules/mcp/mcp_token` (`tokens/find_by_id`) and revokes only a token it found; any
+  other id changes nothing. `tokens/revoke` and `tokens/suspend` also name the
+  `mcp_token` table.
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400

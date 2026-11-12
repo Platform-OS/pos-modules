@@ -985,6 +985,35 @@ describe('coverage · multi-principal governance planes', () => {
     ok('owner CAN revoke their own token', (await tokensFor(mem.userId)).find(t => t.id === victim?.id)?.status === 'revoked');
   });
 
+  it('Token console — operator revoke changes MCP tokens only, never another table (§20)', async () => {
+    // The seeded community event 90401 (tests/seed/seed.mjs, E + 1). record_update is keyed
+    // by id alone, so the page must refuse any id that is not an mcp_token row.
+    const EVENT_ID = '90401';
+    const eventRow = async () => {
+      const r = await adm.gql(`{ records(per_page: 1, filter: { id: { value: "${EVENT_ID}" } }) { results { table status: property(name: "status") } } }`);
+      return r?.data?.records?.results?.[0];
+    };
+    const before = await eventRow();
+    ok('fixture event exists', before?.table === 'modules/community/event', JSON.stringify(before));
+
+    ok('operator reaches the console (login ok)', await operatorLogin(op));
+    let tokensTab = await (await webGet('mcp-admin?tab=tokens')).text();
+    await webPost('mcp-admin/token-revoke', { authenticity_token: _formTok(tokensTab), id: EVENT_ID });
+    const after = await eventRow();
+    ok('operator revoke with a non-token id → the record is unchanged', after?.status === before?.status && after?.status !== 'revoked', JSON.stringify(after));
+
+    // The kill switch still works on a real token.
+    await sessionLogin(mem);
+    const memTools = await (await webGet('mcp-tools')).text();
+    await webPost('mcp-tools/mint', { authenticity_token: _formTok(memTools), label: 'ci-op-revoke' });
+    const target = (await tokensFor(mem.userId)).find(t => t.label === 'ci-op-revoke' && t.status === 'active');
+    ok('member minted a token for the operator to revoke', !!target);
+    await operatorLogin(op);
+    tokensTab = await (await webGet('mcp-admin?tab=tokens')).text();
+    await webPost('mcp-admin/token-revoke', { authenticity_token: _formTok(tokensTab), id: target?.id });
+    ok('operator revoke with a token id → the token is revoked', (await tokensFor(mem.userId)).find(t => t.id === target?.id)?.status === 'revoked');
+  });
+
   it('Token console — a label names one agent, so a label in use is refused', async () => {
     await purgeUserRecords(mem.userId); // start from the seeded tokens only (web mints accumulate across runs)
     await sessionLogin(mem);
