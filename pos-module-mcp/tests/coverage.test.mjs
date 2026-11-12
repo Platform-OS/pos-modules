@@ -312,6 +312,45 @@ describe('coverage · multi-principal governance planes', () => {
     }
   });
 
+  // Two requests to the same tool from the same token differ only in their arguments; the
+  // operator must see those arguments (escaped) to tell a routine action from a harmful one.
+  it('Approval — the console shows each pending request\'s arguments, escaped (§9.6)', async () => {
+    await clearPendingFor(mem.principal);
+    await deleteNotesFor(mem.userId);
+    const ROUTINE = 'Team meeting moved to 3pm in the main hall.';
+    const PHISH = 'Locked! Log in at https://evil.example/?a=1&b=2 "now" \'please\'';
+    const decode = (t) => t.replace(/&quot;/g, '"').replace(/&#39;|&#x27;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    // The <dl> rendered for one handle (data-approval-args marks it), or ''.
+    const argsBlock = (html, handle) => {
+      const i = html.indexOf(`data-approval-args="${handle}"`);
+      if (i < 0) return '';
+      const end = html.indexOf('</dl>', i);
+      return html.slice(i, end < 0 ? i + 4000 : end);
+    };
+    try {
+      await callTool(mem.rawToken, 'test_approve', { label: ROUTINE });
+      await callTool(mem.rawToken, 'test_approve', { label: PHISH });
+      const rows = await adm.gql(`{ records(per_page: 10, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${mem.principal}" }, { name: "status", value: "pending" }] }) { results { handle: property(name: "handle") args: property(name: "arguments_json") } } }`);
+      const pend = rows?.data?.records?.results || [];
+      const hRoutine = pend.find(r => (r.args || '').includes('3pm'))?.handle;
+      const hPhish = pend.find(r => (r.args || '').includes('evil.example'))?.handle;
+      ok('two pending requests queued', pend.length === 2 && !!hRoutine && !!hPhish, 'pending=' + pend.length);
+
+      ok('operator reaches the console (login ok)', await operatorLogin(op));
+      const page = await (await webGet('mcp-admin?tab=approvals')).text();
+      const routine = argsBlock(page, hRoutine);
+      const phish = argsBlock(page, hPhish);
+      ok('the routine request shows its arguments', routine.includes('<dt>label</dt>') && decode(routine).includes(ROUTINE), routine.slice(0, 300));
+      ok('the harmful request shows its arguments', phish.includes('<dt>label</dt>') && decode(phish).includes(PHISH), phish.slice(0, 300));
+      ok('each row shows only its own arguments', !routine.includes('evil.example') && !phish.includes('3pm'));
+      ok('argument text is HTML-escaped (no raw quote or ampersand)', !phish.includes('"now"') && !phish.includes('&b=2') && phish.includes('&amp;b=2'), phish.slice(0, 300));
+      ok('the confirmation names the tool and principal', page.includes(`Approve and EXECUTE test_approve as ${mem.principal} with the arguments shown?`));
+      ok('showing the arguments ran nothing', (await notesFor(mem.userId)).filter(x => x.source === 'test_approve').length === 0);
+    } finally {
+      await clearPendingFor(mem.principal);
+    }
+  });
+
   it('Abuse — auto-suspend after threshold (§12.4)', async () => {
     // Dedicated principal (abuseA) so a suspend never contaminates the shared fixtures.
     await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 3, abuse_window_seconds: 600 } }));
