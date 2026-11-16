@@ -30,7 +30,19 @@
     endfor
   endif
 
+  # recovery trusts an address only once its owner proved it, when the host
+  # uses the user module's email verification (otherwise anyone could register
+  # the listed address first). Without verification there is no proof to ask
+  # for: the README says to keep ADMIN_EMAILS to addresses that already have
+  # an account.
+  assign recovery_allowed = true
   if source == null
+    function verification_on = 'modules/user/helpers/email_verification_enabled'
+    if verification_on and profile.email_verified_at == blank
+      assign recovery_allowed = false
+    endif
+  endif
+  if source == null and recovery_allowed
     assign email = profile.email | default: profile.user.email | downcase | strip
     assign admin_emails = context.constants['modules/support/ADMIN_EMAILS'] | default: '' | downcase | split: ','
     for admin_email in admin_emails

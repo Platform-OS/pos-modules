@@ -1,13 +1,16 @@
 import Generator from 'yeoman-generator';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { execFileSync } from 'child_process';
 
 // Install generator for the support desk (tech spec 09 §3). Every step looks
 // at what is already there first, so running it twice changes nothing.
-// It never edits the host's permissions file and never writes a secret or a
-// password to a file: they go straight to the environment.
+// It never edits the host's permissions file. Secrets and passwords never
+// appear on a command line (the process list shows those to other users of
+// the machine): they go to the environment in a GraphQL file readable only
+// by the current user, deleted as soon as pos-cli has sent it.
 
 const EMAIL_RE = /^[^@\s'"{}%<>|]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 const HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
@@ -200,15 +203,28 @@ export default class extends Generator {
     }
   }
 
+  // Runs a GraphQL operation whose text holds a secret: written to a private
+  // temporary file (0600) and removed afterwards. JSON string literals are
+  // valid GraphQL string literals.
+  _privateGraphql(env, text) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'support-install-'));
+    const file = path.join(dir, 'operation.graphql');
+    try {
+      fs.writeFileSync(file, text, { mode: 0o600 });
+      return execFileSync('pos-cli', ['exec', 'graphql', env, '-f', file], { cwd: this.destinationPath(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
   _setConstant(env, name, value) {
-    execFileSync('pos-cli', ['constants', 'set', env, '--name', `modules/support/${name}`, '--value', value], { cwd: this.destinationPath(), stdio: ['ignore', 'ignore', 'inherit'] });
+    this._privateGraphql(env, `mutation { constant_set(name: ${JSON.stringify(`modules/support/${name}`)}, value: ${JSON.stringify(value)}) { name } }`);
     console.log(`Set constant modules/support/${name}.`);
   }
 
   _createUser(env, email, password) {
-    const userCreate = this.destinationPath('modules/user/public/graphql/user/create.graphql');
     const profileCreate = this.destinationPath('modules/user/public/graphql/profiles/create.graphql');
-    const user = JSON.parse(execFileSync('pos-cli', ['exec', 'graphql', env, '-f', userCreate, '-p', JSON.stringify({ email, password })], { cwd: this.destinationPath(), encoding: 'utf8' }));
+    const user = JSON.parse(this._privateGraphql(env, `mutation { user: user_create(user: { email: ${JSON.stringify(email)}, password: ${JSON.stringify(password)}, properties: [] }) { id email } }`));
     const userId = user && user.data && user.data.user && user.data.user.id;
     if (!userId) throw new Error('user_create returned no user');
     const profile = { uuid: crypto.randomUUID(), user_id: userId, first_name: '', last_name: '', name: '', email, roles: [], c__names: '' };

@@ -40,6 +40,19 @@
         # which needs the session; the sandboxed frame has none, so they point
         # at the file's short-lived signed URL instead
         assign original_html = message.body_html
+        # remote images and other loads are blocked (tracking pixels would tell
+        # the sender who opened the ticket and when); only this message's own
+        # attachments and inline data: images load
+        assign image_sources = 'data:'
+        for attachment in attachments
+          if attachment.file.url != blank
+            assign file_host = attachment.file.url | split: '/' | slice: 0, 3 | join: '/'
+            unless image_sources contains file_host
+              assign image_sources = image_sources | append: ' ' | append: file_host
+            endunless
+          endif
+        endfor
+        assign frame_policy = "default-src 'none'; img-src " | append: image_sources | append: "; style-src 'unsafe-inline'; font-src data:"
         for attachment in attachments
           if attachment.file.url != blank
             assign local_url = '/support-desk/attachments/' | append: attachment.id
@@ -54,7 +67,7 @@
       -%}
       <details class="pos-support-original">
         <summary>{{ 'modules/support/ticket.show_original' | t }}</summary>
-        <iframe class="pos-support-html-frame" sandbox="allow-popups" referrerpolicy="no-referrer" title="{{ 'modules/support/ticket.original_title' | t }}" srcdoc="<base target='_blank'>{{ original_html }}"></iframe>
+        <iframe class="pos-support-html-frame" sandbox="allow-popups" referrerpolicy="no-referrer" title="{{ 'modules/support/ticket.original_title' | t }}" srcdoc="<meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;{{ frame_policy }}&quot;><base target='_blank'>{{ original_html }}"></iframe>
       </details>
     {% elsif message.body_stripped != blank and message.body_text != blank and message.body_stripped != message.body_text %}
       {%- comment -%} a plain-text email: the quoted history cut from the body stays readable here {%- endcomment -%}

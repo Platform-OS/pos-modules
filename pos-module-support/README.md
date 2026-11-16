@@ -70,7 +70,7 @@ Outgoing mail: every customer email gets its own `Message-ID` (stored before sen
 The desk is a standalone section at `/support-desk` with its own sign-in at `/support-desk/sign-in`. Access comes only from the module's team membership records (`team_member`), never from the host's roles or permissions file:
 
 - A host user with the `superadmin` role gets an admin membership on their first visit.
-- An email listed in `modules/support/ADMIN_EMAILS` (comma-separated) gets an admin membership on first visit; use it to recover access.
+- An email listed in `modules/support/ADMIN_EMAILS` (comma-separated) gets an admin membership on first visit; use it to recover access. When the host uses the user module's email verification (`USER_EMAIL_VERIFICATION_ENABLED`), the address must be verified first. Without it nobody has proved they own the address, so list only addresses that already have an account, and clear the constant once access is back: whoever registers a listed address first becomes a support admin.
 - Holders of a host role listed in the `role_map` setting get that support role on first visit (off by default).
 - Invited people accept at `/support-desk/invites/:id`; anyone else signed in sees "You don't have access to Support" and can request access, which support admins approve in Settings → Team.
 - A disabled membership is never recreated.
