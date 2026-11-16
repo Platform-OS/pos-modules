@@ -82,14 +82,15 @@
     files.value = '';
     holder.textContent = '';
     if (list) list.textContent = '';
-    files.setCustomValidity(message);
-    files.reportValidity();
-    files.setCustomValidity('');
+    // the desk's inline message (pos-support-ui.js), not a browser bubble
+    const fieldError = window.pos && window.pos.supportFieldError;
+    if (fieldError) fieldError.show(files, message);
   };
   let readFailed = false;
 
   if (files) {
     files.addEventListener('change', () => {
+      if (window.pos && window.pos.supportFieldError) window.pos.supportFieldError.clear(files);
       holder.textContent = '';
       if (list) list.textContent = '';
       readFailed = false;

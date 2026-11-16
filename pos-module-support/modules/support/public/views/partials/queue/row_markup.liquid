@@ -24,7 +24,13 @@
     <a href="{{ url }}">{{ ticket.subject }}</a>{% if ticket.snooze_until != blank %} <span class="pos-tag" title="{{ 'modules/support/ticket.snoozed' | t }}">{% render 'modules/support/icon', name: 'alarm-clock', size: 'sm' %}<span class="pos-support-sr-only">{{ 'modules/support/ticket.snoozed' | t }}</span></span>{% endif %}
   </td>
   <td class="pos-support-cell-requester" title="{{ requester.emails.first }}">
-    {{ requester_name }}{% if organization %}<span class="pos-supplementary">{{ organization.name }}</span>{% endif %}
+    {%- if requester.name == blank and requester_name contains '@' -%}
+      {%- comment -%} no name: the address on two lines (name part, then @domain) instead of cut off {%- endcomment -%}
+      {%- assign email_parts = requester_name | split: '@' -%}
+      <span class="pos-support-email-split"><span>{{ email_parts.first }}</span><span class="pos-supplementary">@{{ email_parts.last }}</span></span>
+    {%- else -%}
+      {{ requester_name }}{% if organization %}<span class="pos-supplementary">{{ organization.name }}</span>{% endif %}
+    {%- endif -%}
   </td>
   <td class="pos-support-cell-department">{% render 'modules/support/badges/department', department: department, variant: null %}</td>
   <td class="pos-support-cell-status">{% render 'modules/support/badges/status', status: status %}</td>

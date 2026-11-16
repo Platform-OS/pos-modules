@@ -1,6 +1,79 @@
-// Desk-wide behaviour: confirmation before destructive actions
-// (data-support-confirm on a button or form) and the mobile navigation drawer.
+// Desk-wide behaviour: the desk's own form validation, confirmation before
+// destructive actions (data-support-confirm on a button or form) and the
+// mobile navigation drawer.
 (function () {
+  // Field validation: with JavaScript, forms skip the browser's bubbles
+  // (novalidate) and show the desk's message under each field instead, tied
+  // to it with aria-describedby and aria-invalid; the first one gets focus.
+  // The rules are still the fields' own (required, type, min/max, pattern),
+  // and without JavaScript the browser checks them as before.
+  const texts = document.body.dataset;
+  const messageFor = (field) => {
+    const v = field.validity;
+    if (field.dataset.supportError) return field.dataset.supportError;
+    if (v.valueMissing) return texts.supportFieldRequired;
+    if (v.typeMismatch && field.type === 'email') return texts.supportFieldEmail;
+    if (v.typeMismatch && field.type === 'url') return texts.supportFieldUrl;
+    if (v.rangeUnderflow || v.rangeOverflow || v.stepMismatch || v.badInput) return texts.supportFieldNumber;
+    return texts.supportFieldFormat;
+  };
+  const clearError = (field) => {
+    const note = field.id && document.getElementById(`${field.id}-error`);
+    if (note) note.remove();
+    field.removeAttribute('aria-invalid');
+    const described = (field.getAttribute('aria-describedby') || '').split(' ').filter((id) => id && id !== `${field.id}-error`);
+    if (described.length) field.setAttribute('aria-describedby', described.join(' '));
+    else field.removeAttribute('aria-describedby');
+  };
+  let fieldUid = 0;
+  // shows a message under a field (also used for checks the browser cannot
+  // make, like the size of chosen files)
+  const showError = (field, message) => {
+    if (!field.id) field.id = `pos-support-field-${++fieldUid}`;
+    clearError(field);
+    const note = document.createElement('p');
+    note.id = `${field.id}-error`;
+    note.className = 'pos-support-field-error';
+    note.textContent = message;
+    // under the field's fieldset; under the whole row when the field shares a
+    // row with its button (Merge into ticket #); otherwise right after it
+    const holder = field.closest('fieldset, .pos-support-field');
+    const row = field.parentElement;
+    const rowStyle = row && row !== field.form ? getComputedStyle(row) : null;
+    if (holder) holder.append(note);
+    else if (rowStyle && rowStyle.display.includes('flex') && !rowStyle.flexDirection.startsWith('column')) row.after(note);
+    else field.after(note);
+    field.setAttribute('aria-invalid', 'true');
+    field.setAttribute('aria-describedby', [field.getAttribute('aria-describedby'), note.id].filter(Boolean).join(' '));
+  };
+  window.pos = window.pos || {};
+  window.pos.supportFieldError = { show: showError, clear: clearError };
+  const takeOver = (scope) => scope.querySelectorAll('form').forEach((form) => { form.noValidate = true; });
+  takeOver(document);
+  new MutationObserver((records) => {
+    records.forEach((r) => r.addedNodes.forEach((node) => { if (node.nodeType === 1) takeOver(node.matches('form') ? node.parentNode : node); }));
+  }).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (event.submitter && event.submitter.formNoValidate) return;
+    const fields = Array.from(form.elements).filter((f) => f.willValidate);
+    fields.forEach(clearError);
+    const invalid = fields.filter((f) => !f.checkValidity());
+    if (!invalid.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    invalid.forEach((f) => showError(f, messageFor(f)));
+    // a desk dropdown hides its <select>: focus its button instead
+    const first = invalid[0];
+    const button = first.dataset.supportEnhanced && document.getElementById(`${first.id}-combobox`);
+    (button || first).focus();
+  }, true);
+  // the browser's own "invalid" event would still show a bubble on reportValidity()
+  document.addEventListener('invalid', (event) => event.preventDefault(), true);
+  document.addEventListener('input', (event) => {
+    if (event.target.getAttribute && event.target.getAttribute('aria-invalid') === 'true' && event.target.checkValidity()) clearError(event.target);
+  });
+
   document.addEventListener('submit', (event) => {
     const button = event.submitter;
     const message = (button && button.dataset.supportConfirm) || event.target.dataset.supportConfirm;
@@ -213,11 +286,10 @@
       input.value = '';
       holder.replaceChildren();
       status.textContent = '';
-      input.setCustomValidity(message);
-      input.reportValidity();
+      showError(input, message);
     };
     input.addEventListener('change', () => {
-      input.setCustomValidity('');
+      clearError(input);
       holder.replaceChildren();
       status.textContent = '';
       const file = input.files[0];

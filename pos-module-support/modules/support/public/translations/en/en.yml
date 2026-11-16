@@ -3,6 +3,12 @@ en:
   select:
     search: Search
     no_matches: No matches
+  field_errors:
+    required: Fill in this field.
+    email: Enter an email address, like name@example.com.
+    url: Enter a full link, starting with https://.
+    number: Enter a number in the allowed range.
+    format: Check the format of this value.
   shell:
     navigation: Support desk
     settings: Settings

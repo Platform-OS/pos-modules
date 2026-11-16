@@ -135,8 +135,15 @@ if (root) {
       event.dataTransfer.setData('text/plain', card.dataset.ticketId);
       event.dataTransfer.effectAllowed = 'move';
       card.classList.add('pos-support-dragging');
+      // every other column shows its "Drop a ticket here" place while dragging
+      root.classList.add('pos-support-board-dragging');
+      card.closest('.pos-support-column').classList.add('pos-support-drag-source');
     });
-    card.addEventListener('dragend', () => card.classList.remove('pos-support-dragging'));
+    card.addEventListener('dragend', () => {
+      card.classList.remove('pos-support-dragging');
+      root.classList.remove('pos-support-board-dragging');
+      root.querySelectorAll('.pos-support-drag-source').forEach((col) => col.classList.remove('pos-support-drag-source'));
+    });
   };
   root.querySelectorAll('.pos-support-card').forEach(bind);
 

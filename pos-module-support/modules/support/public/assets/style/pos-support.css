@@ -1073,6 +1073,18 @@
     color: var(--pos-support-danger);
   }
 
+  /* the desk's own field validation (pos-support-ui.js) */
+  .pos-support-field-error {
+    flex-basis: 100%;
+    margin: 0.25rem 0 0;
+    color: var(--pos-support-danger);
+    font-size: var(--pos-support-text-meta);
+  }
+
+  .pos-support [aria-invalid="true"] {
+    border-color: var(--pos-support-danger);
+  }
+
   .pos-support-ok {
     color: var(--pos-support-status-solved-fg);
   }
@@ -2096,6 +2108,18 @@
     text-overflow: ellipsis;
   }
 
+  /* a requester without a name: the address on two lines, each cut only at its end */
+  .pos-support-email-split {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .pos-support-email-split > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .pos-support-col-select { inline-size: 2.75rem; }
   .pos-support-col-priority { inline-size: 3.5rem; }
   .pos-support-col-number { inline-size: 4.25rem; }
@@ -3081,10 +3105,13 @@
     min-block-size: 3rem;
     overflow-y: auto;
     scrollbar-width: thin;
-    padding: 0.75rem 0.875rem 0.875rem 1rem;
+    /* the same on both sides: room for the hover background, which grows
+       evenly left and right (the drag handle sits in the left band) */
+    padding: 0.75rem 1rem 0.875rem;
   }
 
-  .pos-support-column-cards:empty::before {
+  .pos-support-column-cards:empty::before,
+  .pos-support-board-dragging .pos-support-column:not(.pos-support-drag-source) .pos-support-column-cards:not(:empty)::after {
     content: attr(data-empty);
     display: grid;
     place-items: center;
@@ -3120,8 +3147,9 @@
 
   /* 3.18 card hover and drag (design handoff): only the background grows.
      The surface, border and shadow live on ::before, which expands 6px
-     vertically, 3px right and 8px left (room for the drag handle) with a 3px
-     translucent brand ring and a spreading brand shadow; the content stays put. */
+     vertically and 8px on each side (the drag handle sits in the left band),
+     so the highlight stays centred in the column, with a 3px translucent
+     brand ring and a spreading brand shadow; the content stays put. */
   .pos-support-card {
     isolation: isolate;
     background: transparent;
@@ -3146,7 +3174,7 @@
   }
 
   .pos-support-card:is(:hover, :active, .pos-support-dragging)::before {
-    inset: -7px -4px -7px -9px;
+    inset: -7px -9px;
     border-color: transparent;
     border-radius: calc(var(--pos-support-radius-card) + 4px);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--pos-support-brand) 22%, transparent), var(--card-lift-shadow);
@@ -3209,7 +3237,8 @@
     font-size: var(--pos-support-text-small);
     font-weight: 700;
     white-space: nowrap;
-    animation: pos-support-overdue-ping 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+    /* plays once when the card appears, then stays still (no motion that never ends) */
+    animation: pos-support-overdue-ping 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) 1;
     transition: max-inline-size 200ms var(--pos-support-ease), padding 200ms var(--pos-support-ease), block-size 200ms var(--pos-support-ease), inset 200ms var(--pos-support-ease);
   }
 

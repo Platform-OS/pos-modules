@@ -67,7 +67,7 @@
       -%}
       <details class="pos-support-original">
         <summary>{{ 'modules/support/ticket.show_original' | t }}</summary>
-        <iframe class="pos-support-html-frame" sandbox="allow-popups" referrerpolicy="no-referrer" title="{{ 'modules/support/ticket.original_title' | t }}" srcdoc="<meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;{{ frame_policy }}&quot;><base target='_blank'>{{ original_html }}"></iframe>
+        <iframe class="pos-support-html-frame" sandbox="allow-popups" referrerpolicy="no-referrer" title="{{ 'modules/support/ticket.original_title' | t }}" srcdoc="<meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;{{ frame_policy }}&quot;><style>body{margin:0.75rem;font:14px/1.6 system-ui,-apple-system,'Segoe UI',sans-serif}</style><base target='_blank'>{{ original_html }}"></iframe>
       </details>
     {% elsif message.body_stripped != blank and message.body_text != blank and message.body_stripped != message.body_text %}
       {%- comment -%} a plain-text email: the quoted history cut from the body stays readable here {%- endcomment -%}
