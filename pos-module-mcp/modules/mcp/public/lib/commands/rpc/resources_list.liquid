@@ -3,9 +3,10 @@
 
   1. Zero-config markdown pages: exposes markdown/doc pages as agent-readable resources
      with NO custom authoring. Gated by config: resources.expose_markdown_pages must be
-     true (OFF by default), and only markdown GET pages under a configured slug prefix
-     (allowlist, path boundary — see queries/resources/page_allowed) are listed — so no
-     page is agent-visible unless the operator opts in. Freshness-stamped via
+     true (OFF by default), and only markdown GET pages without authorization_policies
+     under a configured slug prefix (allowlist, path boundary — see
+     queries/resources/page_allowed) are listed — so no page is agent-visible unless the
+     operator opts in, and a page the website protects is never listed. Freshness-stamped via
      content_updated_at. The engine's own pages (mcp, well-known) never match the doc
      prefixes, so they are never exposed. Listed on the first page only.
   2. The app's resource provider (queries/resources/provider), for an AUTHENTICATED
@@ -36,7 +37,7 @@
       # platformos-check-enable NestedGraphQLQuery
       for page in pres.admin_pages.results
         # starts_with is a raw string prefix ("docs" also hits "docs-internal") and
-        # can't filter handler/method — apply the shared exposure predicate.
+        # can't filter handler/method/policies — apply the shared exposure predicate.
         function allowed = 'modules/mcp/queries/resources/page_allowed', page: page, prefixes: cfg.resources.markdown_page_prefixes
         unless allowed
           continue

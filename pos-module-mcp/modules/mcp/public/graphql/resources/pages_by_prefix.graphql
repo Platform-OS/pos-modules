@@ -14,6 +14,9 @@ query pages_by_prefix($prefix: String!, $per_page: Int!) {
       request_method
       content_updated_at
       metadata
+      authorization_policies {
+        id
+      }
     }
   }
 }
