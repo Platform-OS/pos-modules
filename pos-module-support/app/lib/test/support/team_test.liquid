@@ -134,6 +134,8 @@
   assign params = { "state": "disabled" }
   function disabled = 'modules/support/commands/team/update_member', member: f.actor.member, params: params, actor: actor
   function contract = 'modules/tests/assertions/equal', contract: contract, given: disabled.valid, expected: true, field_name: 'disable ok'
+  # the move runs in a background job (team/offboard_tickets); run it here as the job would
+  function _ = 'modules/support/commands/team/offboard_tickets', profile_id: f.actor.id, round: 1
   function ticket = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
   assign still_theirs = false
   if ticket.assignee_id == f.actor.id

@@ -21,8 +21,11 @@
   function reply_to = 'modules/support/helpers/email_address', local_part: department.inbound_local_part, number: ticket.number, address: null
   assign result.reply_to = reply_to
 
+  # the random part keeps the ID from being guessed: a reply naming it in
+  # In-Reply-To joins the ticket (inbound/match_ticket)
   assign epoch = 'now' | to_time | strftime: '%s'
-  assign result.message_id = '<support.' | append: message_record_id | append: '.' | append: epoch | append: '@' | append: domain | append: '>'
+  assign nonce = 16 | random_string | downcase
+  assign result.message_id = '<support.' | append: message_record_id | append: '.' | append: epoch | append: '.' | append: nonce | append: '@' | append: domain | append: '>'
 
   assign tag = '[#' | append: ticket.number | append: ']'
   assign subject = ticket.subject | default: ''

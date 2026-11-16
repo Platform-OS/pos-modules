@@ -8,7 +8,7 @@
 {% liquid
   assign result = { "valid": false, "errors": {}, "ticket": null }
   assign url = url | strip
-  assign parts = url | regex_matches: '^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)/?$'
+  assign parts = url | regex_matches: '\Ahttps://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)/?\z'
   if parts.size == 0
     assign result.errors.url = 'modules/support/tickets.errors.github_url'
     return result

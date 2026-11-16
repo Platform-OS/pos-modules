@@ -36,7 +36,8 @@
     if email.in_reply_to != blank
       assign ids << email.in_reply_to
     endif
-    assign refs = email.reference_ids | reverse
+    # newest 20 References only: a long header must not become a long search
+    assign refs = email.reference_ids | reverse | slice: 0, 20
     assign ids = ids | concat: refs | uniq
     if ids.size > 0
       graphql found = 'modules/support/messages/search', email_message_ids: ids, limit: 50, order: 'DESC'
@@ -62,8 +63,10 @@
     endif
   endif
 
-  # 3. [#number] in the subject, only from a known sender
-  if ticket == null
+  # 3. [#number] in the subject, only from a known sender whose From address
+  # passed SPF/DKIM: anyone can type a customer's address and a ticket number
+  function verified = 'modules/support/helpers/email/sender_verified', email: email
+  if ticket == null and verified
     assign tag = email.subject | regex_matches: '\[#(\d+)\]'
     if tag.size > 0
       function candidate = 'modules/support/queries/tickets/find', id: null, number: tag[0][0], member: null

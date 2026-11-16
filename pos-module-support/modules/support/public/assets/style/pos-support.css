@@ -2481,6 +2481,18 @@
     color: var(--pos-support-text-muted);
   }
 
+  .pos-support-unverified {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.0625rem 0.5rem;
+    border-radius: 999px;
+    background: var(--pos-support-danger-bg);
+    color: var(--pos-support-danger);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
   .pos-support-message-note .pos-support-message-meta {
     color: var(--pos-support-note-fg);
     font-weight: 600;

@@ -440,6 +440,8 @@ en:
     merge_placeholder: "Merge into ticket #"
     merge_confirm: Merge this ticket into the other one? Its messages move there; you can undo it.
     received: Received
+    unverified_sender: Unverified sender
+    unverified_sender_hint: "The sender's address did not pass the email checks (SPF/DKIM), so this message may not come from them. Don't act on requests to change payment or contact details without checking."
     show: Show
     merged: Merged into another ticket
     follow_up_of: Follow-up of a closed ticket

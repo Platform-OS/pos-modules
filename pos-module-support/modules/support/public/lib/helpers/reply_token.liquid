@@ -24,7 +24,7 @@
   if parts.size != 3 or parts[0] != 't'
     return null
   endif
-  assign is_number = parts[1] | matches: '^[0-9]{1,12}$'
+  assign is_number = parts[1] | matches: '\A[0-9]{1,12}\z'
   unless is_number
     return null
   endunless

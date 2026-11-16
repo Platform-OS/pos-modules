@@ -61,13 +61,41 @@
   assign email = { "reference_ids": [], "to": [], "cc": [], "envelope_to": ["dob@support-dev.platformos.com"], "from": {} }
   assign email.subject = subject
   assign email.from.email = contact.emails.first
+  # forged: the requester's address in From, but SPF fails and no DKIM
+  assign email.auth = { "spf": "fail", "dkim": "none" }
+  assign email.envelope_from = 'forger@evil.example'
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'subject refused when SPF/DKIM fail'
+  # SPF pass for a different envelope domain is not enough either
+  assign email.auth = { "spf": "pass", "dkim": "none" }
+  function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'subject refused when SPF passes for another domain'
+  # DKIM signed by the From domain
+  assign from_domain = contact.emails.first | split: '@' | last
+  assign email.auth.dkim = '{@' | append: from_domain | append: ' : pass}'
   function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
   function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'subject', field_name: 'subject accepted for requester'
   assign stranger_email = 'stranger-' | append: suffix | append: '@gmail.com'
   function stranger = 'modules/support/commands/contacts/find_or_create', email: stranger_email, name: null
   assign email.from.email = stranger_email
+  # verified, but not a known sender of the ticket
+  assign email.auth.dkim = '{@gmail.com : pass}'
   function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: stranger
   function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'subject rejected for stranger'
+
+  # sender_verified: aligned SPF or DKIM only
+  assign v = { "from": { "email": "Ann@Example.com" }, "envelope_from": "bounce@mail.example.com", "auth": { "spf": "pass", "dkim": "none" } }
+  function ok = 'modules/support/helpers/email/sender_verified', email: v
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: true, field_name: 'spf pass on a subdomain envelope verifies'
+  assign v.envelope_from = 'bounce@badexample.com'
+  function ok = 'modules/support/helpers/email/sender_verified', email: v
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: false, field_name: 'look-alike envelope domain does not verify'
+  assign v.auth = { "spf": "softfail", "dkim": "{@evil.example : pass, @mail.example.com : pass}" }
+  function ok = 'modules/support/helpers/email/sender_verified', email: v
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: true, field_name: 'dkim from a subdomain of the From domain verifies'
+  assign v.auth = { "spf": null, "dkim": null }
+  function ok = 'modules/support/helpers/email/sender_verified', email: v
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: false, field_name: 'no results do not verify'
 
   # merged ticket pointer followed
   function target = 'support_test_helpers/ticket_fixture', label: 'target'
@@ -82,4 +110,29 @@
   function closed = 'modules/support/commands/tickets/change_status', ticket: target.ticket, status_key: 'closed', actor: f.manager_actor
   function m = 'modules/support/commands/inbound/match_ticket', email: email, contact: contact
   function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'follow_up', field_name: 'closed gives follow-up'
+
+  # a stranger matching only by a (guessable) header is not added as a CC;
+  # one writing to the signed reply address is
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+  function g = 'support_test_helpers/ticket_fixture', label: 'guess'
+  assign nl = '%0A' | url_decode
+  assign guess_id = '<support.guess.' | append: suffix | append: '@support-dev.platformos.com>'
+  assign rows = []
+  assign row = { "table": "modules/support/message", "properties": { "author_type": "agent", "visibility": "public", "kind": "message" } }
+  assign row.properties.ticket_id = g.ticket.id
+  assign row.properties.email_message_id = guess_id
+  assign rows << row
+  graphql created = 'modules/support/records/create_many', records: rows
+  assign stranger = 'stranger-' | append: suffix | append: '@elsewhere.example' | downcase
+  assign raw = 'From: Stranger <' | append: stranger | append: '>' | append: nl | append: 'To: testfixtures@support-dev.platformos.com' | append: nl | append: 'Subject: Re: Fixture ticket' | append: nl | append: 'Message-ID: <stranger-' | append: suffix | append: '@elsewhere.example>' | append: nl | append: 'In-Reply-To: ' | append: guess_id | append: nl | append: nl | append: 'Send the invoice to me instead.' | append: nl
+  function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: stranger, to: null
+  graphql p = 'modules/support/participants/search', ticket_id: g.ticket.id, email: stranger, role: null, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.records.total_entries, expected: 0, field_name: 'header-only stranger not added as cc'
+
+  function token_address = 'modules/support/helpers/email_address', local_part: 'testfixtures', number: g.ticket.number, address: null
+  assign colleague = 'colleague-' | append: suffix | append: '@elsewhere.example' | downcase
+  assign raw = 'From: Colleague <' | append: colleague | append: '>' | append: nl | append: 'To: ' | append: token_address | append: nl | append: 'Subject: Re: Fixture ticket' | append: nl | append: 'Message-ID: <colleague-' | append: suffix | append: '@elsewhere.example>' | append: nl | append: nl | append: 'Adding myself.' | append: nl
+  function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: colleague, to: token_address
+  graphql p = 'modules/support/participants/search', ticket_id: g.ticket.id, email: colleague, role: null, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.records.total_entries, expected: 1, field_name: 'reply-address sender added as cc'
 %}

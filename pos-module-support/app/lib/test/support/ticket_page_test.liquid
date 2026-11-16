@@ -15,6 +15,14 @@ see <a href="https://example.com/x">https://example.com/x</a></p>
   # GitHub link: wrong URL refused, issue URL links and sets Waiting on deploy
   function bad = 'modules/support/commands/escalation_links/create', ticket: f.ticket, url: 'https://example.com/issues/1', actor: f.actor
   function contract = 'modules/tests/assertions/equal', contract: contract, given: bad.valid, expected: false, field_name: 'non-GitHub url refused'
+  # a second line must not slip through (^...$ matched any line)
+  assign nl = '%0A' | url_decode
+  assign smuggled = 'javascript:alert(1)' | append: nl | append: 'https://github.com/Platform-OS/pos-modules/issues/42'
+  function bad_lines = 'modules/support/commands/escalation_links/create', ticket: f.ticket, url: smuggled, actor: f.actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bad_lines.valid, expected: false, field_name: 'multi-line url refused'
+  assign smuggled = 'https://github.com/Platform-OS/pos-modules/issues/42' | append: nl | append: 'javascript:alert(1)'
+  function bad_lines = 'modules/support/commands/escalation_links/create', ticket: f.ticket, url: smuggled, actor: f.actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: bad_lines.valid, expected: false, field_name: 'url with a trailing line refused'
   function linked = 'modules/support/commands/escalation_links/create', ticket: f.ticket, url: 'https://github.com/Platform-OS/pos-modules/issues/42', actor: f.actor
   function contract = 'modules/tests/assertions/equal', contract: contract, given: linked.valid, expected: true, field_name: 'github url linked'
   function statuses = 'modules/support/queries/statuses/all'

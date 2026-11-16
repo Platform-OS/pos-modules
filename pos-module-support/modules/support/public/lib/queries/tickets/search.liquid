@@ -67,7 +67,7 @@
   assign q = filters.q | strip
   if q != blank
     assign digits = q | remove: '#'
-    assign is_number = digits | matches: '^\d{1,12}$'
+    assign is_number = digits | matches: '\A\d{1,12}\z'
     if is_number
       assign number = digits | plus: 0
       assign categories = null

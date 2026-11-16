@@ -41,7 +41,7 @@ layout: modules/support/support
   elsif res.valid
     # only a path inside the desk; no protocol-relative or backslash tricks
     assign target = context.session.return_to | default: '/support-desk'
-    assign internal = target | matches: '^/support-desk(?:[/?#]|$)'
+    assign internal = target | matches: '\A/support-desk(?:[/?#][^\s]*)?\z'
     assign backslash = '%5C' | url_decode
     if internal == false or target contains backslash
       assign target = '/support-desk'

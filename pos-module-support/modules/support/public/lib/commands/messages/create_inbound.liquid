@@ -27,6 +27,9 @@
   assign values.match_reason = match_reason
   assign auth = email.auth | default: {}
   assign auth.auto_reply = flags.auto_reply
+  # the thread shows "Unverified sender" when this is false (PRD EM-10)
+  function verified = 'modules/support/helpers/email/sender_verified', email: email
+  assign auth.verified = verified
   assign values.auth_results = auth | json
   function props = 'modules/support/helpers/props', values: values
   graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props

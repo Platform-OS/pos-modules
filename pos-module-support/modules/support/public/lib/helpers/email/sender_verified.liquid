@@ -1,0 +1,41 @@
+{% doc %}
+  Whether an inbound email's From address is backed by the provider's
+  checks (PRD EM-10): DKIM passed for the From domain, or SPF passed for an
+  envelope sender on the From domain. SPF alone is not enough, because a
+  forger can pass SPF for their own envelope domain while writing someone
+  else's address in From. Missing results count as unverified.
+  SendGrid gives SPF as "pass", "fail", "softfail", ... and dkim as
+  "{@example.com : pass}" (one entry per signature).
+  @param {object} email - Normalized email (from, envelope_from, auth)
+{% enddoc %}
+{% liquid
+  assign from_domain = email.from.email | downcase | split: '@' | last
+  if from_domain == blank
+    return false
+  endif
+
+  # relaxed alignment: a subdomain of the From domain counts (mail.example.com)
+  assign dkim = email.auth.dkim | downcase | remove: ' '
+  assign signed = '@' | append: from_domain | append: ':pass'
+  assign signed_sub = '.' | append: from_domain | append: ':pass'
+  if dkim contains signed or dkim contains signed_sub
+    return true
+  endif
+
+  assign spf = email.auth.spf | downcase | strip
+  if spf != 'pass'
+    return false
+  endif
+  assign envelope_domain = email.envelope_from | downcase | split: '@' | last
+  if envelope_domain == from_domain
+    return true
+  endif
+  assign sub_suffix = '.' | append: from_domain
+  assign tail_size = sub_suffix | size
+  assign from_end = tail_size | times: -1
+  assign tail = envelope_domain | slice: from_end, tail_size
+  if tail_size < envelope_domain.size and tail == sub_suffix
+    return true
+  endif
+  return false
+%}

@@ -18,6 +18,10 @@
       <span class="pos-support-message-meta">{% render 'modules/support/icon', name: 'lock', size: 'sm' %}{{ 'modules/support/ticket.internal_note' | t }}</span>
     {% elsif message.author_type == 'customer' %}
       <span class="pos-support-message-meta">{% render 'modules/support/icon', name: 'arrow-down-left', size: 'sm' %}{{ 'modules/support/ticket.received' | t }}</span>
+      {%- comment -%} PRD EM-10: the From address did not pass SPF/DKIM (older messages have no result and show nothing) {%- endcomment -%}
+      {% if message.auth_results.verified == false %}
+        <span class="pos-support-unverified" title="{{ 'modules/support/ticket.unverified_sender_hint' | t }}">{% render 'modules/support/icon', name: 'triangle-alert', size: 'sm' %}{{ 'modules/support/ticket.unverified_sender' | t }}</span>
+      {% endif %}
     {% else %}
       <span class="pos-support-message-meta pos-support-delivery pos-support-delivery-{{ message.delivery_state }}">{% render 'modules/support/icon', name: 'arrow-up-right', size: 'sm' %}{{ 'modules/support/ticket.delivery_' | append: message.delivery_state | t }}</span>
     {% endif %}

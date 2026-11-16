@@ -10,7 +10,7 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: h.subject, expected: 'Re: Payment receipts [#4321]', field_name: 'subject tag and Re'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: h.headers['In-Reply-To'], expected: '<c1@example.com>', field_name: 'in-reply-to'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: h.from.email, expected: 'support-dob@platformos.com', field_name: 'from department address'
-  assign mid_ok = h.message_id | matches: '^<support\.77\.\d+@support-dev\.platformos\.com>$'
+  assign mid_ok = h.message_id | matches: '\A<support\.77\.\d+\.[a-z0-9]{16}@support-dev\.platformos\.com>\z'
   function contract = 'modules/tests/assertions/true', contract: contract, value: mid_ok, field_name: 'message-id format', object: null
   assign reply_ok = h.reply_to | matches: '^dob\+t\.4321\.[0-9a-f]{16}@support-dev\.platformos\.com$'
   function contract = 'modules/tests/assertions/true', contract: contract, value: reply_ok, field_name: 'reply-to token', object: null

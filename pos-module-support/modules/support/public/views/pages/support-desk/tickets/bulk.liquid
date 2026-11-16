@@ -20,7 +20,7 @@ metadata:
     assign wants_json = true
   endif
   assign target = form.return_to | default: '/support-desk'
-  assign internal = target | matches: '^/support-desk(?:[/?#]|$)'
+  assign internal = target | matches: '\A/support-desk(?:[/?#][^\s]*)?\z'
   assign backslash = '%5C' | url_decode
   if internal == false or target contains backslash
     assign target = '/support-desk'
@@ -33,7 +33,7 @@ metadata:
   if posted_ids.first != null
     for id in posted_ids
       assign text = id | append: ''
-      assign numeric = text | matches: '^[0-9]+$'
+      assign numeric = text | matches: '\A[0-9]+\z'
       if text == id and numeric
         assign ids << id
       endif
