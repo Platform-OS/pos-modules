@@ -72,9 +72,9 @@
   }
 
 
-  /* @mention popup
+  /* @mention and #hashtag popups
   ============================================================================ */
-  .pos-markdown-mention [popover] {
+  :is(.pos-markdown-mention, .pos-markdown-hashtag) [popover] {
     margin-inline-start: calc(var(--pos-radius-card) * -2);
     overflow: visible;
 
@@ -85,7 +85,7 @@
     position: absolute;
   }
 
-  .pos-markdown-mention [popover]:after {
+  :is(.pos-markdown-mention, .pos-markdown-hashtag) [popover]:after {
     width: 16px;
     height: 11px;
     position: absolute;
@@ -99,31 +99,35 @@
   }
 
     @media (max-width: 600px) {
-      .pos-markdown-mention [popover] {
+      :is(.pos-markdown-mention, .pos-markdown-hashtag) [popover] {
         margin-inline-start: 0;
       }
 
-      .pos-markdown-mention [popover]:after {
+      :is(.pos-markdown-mention, .pos-markdown-hashtag) [popover]:after {
         inset-inline-start: calc(50% - 8px);
       }
     }
 
-  .pos-markdown-mention menu li button {
+  :is(.pos-markdown-mention, .pos-markdown-hashtag) menu li button {
     padding: .5rem .75rem;
   }
 
-  .pos-markdown-mention menu li:first-child button {
+  :is(.pos-markdown-mention, .pos-markdown-hashtag) menu li:first-child button {
     border-start-start-radius: var(--pos-radius-card);
     border-start-end-radius: var(--pos-radius-card);
   }
 
-  .pos-markdown-mention menu li:last-child button {
+  :is(.pos-markdown-mention, .pos-markdown-hashtag) menu li:last-child button {
     border-end-start-radius: var(--pos-radius-card);
     border-end-end-radius: var(--pos-radius-card);
   }
 
-  /* @mention mark inside the editor */
-  .EasyMDEContainer .CodeMirror .pos-markdown-mention-mark {
+  .pos-markdown-hashtag-name:before {
+    content: '#';
+  }
+
+  /* @mention and #hashtag marks inside the editor */
+  .EasyMDEContainer .CodeMirror :is(.pos-markdown-mention-mark, .pos-markdown-hashtag-mark) {
     font-weight: 600 !important;
     color: var(--pos-color-interactive-active) !important;
     text-decoration: none !important;
