@@ -57,4 +57,19 @@
   function events = 'modules/support/commands/email/providers/sendgrid/parse_events', events: late
   function state = 'modules/support/commands/email/apply_event', event: events.first
   function contract = 'modules/tests/assertions/equal', contract: contract, given: state, expected: 'bounced', field_name: 'bounce kept'
+
+  # the webhook queues batches (apply_events); a provider retry of the same
+  # bounce changes nothing and logs no second failure
+  assign again = []
+  assign e = { "event": "bounce", "type": "bounce", "reason": "550 mailbox unavailable" }
+  assign e.support_message_id = second
+  assign e.email = email
+  assign again << e
+  function events = 'modules/support/commands/email/providers/sendgrid/parse_events', events: again
+  assign events_json = events | json
+  graphql before = 'modules/support/ticket_events/search', ticket_id: f.ticket.id, event_type: 'delivery_failed', actor_id: null, limit: 50
+  function applied = 'modules/support/commands/email/apply_events', events_json: events_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: applied, expected: 1, field_name: 'batch job applies its events'
+  graphql after = 'modules/support/ticket_events/search', ticket_id: f.ticket.id, event_type: 'delivery_failed', actor_id: null, limit: 50
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.records.total_entries, expected: before.records.total_entries, field_name: 'repeated bounce logs nothing new'
 %}

@@ -22,7 +22,11 @@
   if state == 'bounced' or state == 'dropped'
     assign error = event.reason
   endif
-  graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: state, delivery_error: error, email_message_id: message.email_message_id
+  # the same event again (a provider retry) changes nothing and logs nothing
+  if message.delivery_state == state and message.delivery_error == error
+    return state
+  endif
+  graphql u ='modules/support/messages/update_delivery', id: message.id, delivery_state: state, delivery_error: error, email_message_id: message.email_message_id
 
   if event.hard and event.email != blank
     assign emails = []

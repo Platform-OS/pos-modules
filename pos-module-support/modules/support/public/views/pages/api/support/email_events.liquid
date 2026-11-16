@@ -26,8 +26,16 @@ format: json
   function settings = 'modules/support/helpers/settings'
   assign adapter = 'modules/support/commands/email/providers/' | append: settings.email_provider | append: '/parse_events'
   function events = adapter, events: context.params._json
+  # applied in background jobs of 100: a slow answer makes the provider
+  # retry, and applying an event again changes nothing (apply_event)
+  assign batch = []
   for event in events limit: 1000
-    function _ = 'modules/support/commands/email/apply_event', event: event
+    assign batch << event
+    if batch.size == 100 or forloop.last
+      assign events_json = batch | json
+      background _ = 'modules/support/commands/email/apply_events', events_json: events_json, max_attempts: 3, source_name: 'support_email_events', priority: 'default'
+      assign batch = []
+    endif
   endfor
   echo '{"ok":true}'
 %}

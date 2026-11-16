@@ -1,0 +1,16 @@
+{% doc %}
+  Background job for the email-events webhook: applies one batch of
+  normalized delivery events (at most 100). The webhook answers the provider
+  at once and queues these, so a large post never times out and is retried.
+  Returns the number applied.
+  @param {string} events_json - JSON array from the adapter's parse_events
+{% enddoc %}
+{% liquid
+  assign events = events_json | parse_json
+  assign applied = 0
+  for event in events limit: 100
+    function _ = 'modules/support/commands/email/apply_event', event: event
+    assign applied = applied | plus: 1
+  endfor
+  return applied
+%}
