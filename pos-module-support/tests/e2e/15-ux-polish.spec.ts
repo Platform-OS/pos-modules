@@ -87,3 +87,88 @@ test('U4. forms show the desk’s own validation message, not the browser’s bu
   await expect(field).toBeFocused();
   await admin.context.close();
 });
+
+test('U5. list ↔ board, grouping and filters change in place; back goes to the previous list', async ({ browser }) => {
+  const { subject } = await newTicket('E2E polish nav');
+  const admin = await contextFor(browser, users.superadmin);
+  const page = admin.page;
+  // grouped by status to start with (the grouping is remembered from earlier visits)
+  await page.goto(desk(`/support-desk?view=all_open&layout=list&group=status&q=${encodeURIComponent(subject)}`));
+  await expect(page.locator('.pos-support-row', { hasText: subject })).toBeVisible();
+  // a marker on window survives only if the page is not reloaded
+  await page.evaluate(() => { (window as any).noReload = true; });
+
+  await page.locator('.pos-support-queue a[href*="layout=board"]').first().click();
+  await expect(page.locator('.pos-support-card', { hasText: subject })).toBeVisible();
+  await expect(page).toHaveURL(/layout=board/);
+  expect(await page.evaluate(() => (window as any).noReload)).toBe(true);
+
+  await page.locator('.pos-support-queue a[href*="group=priority"]').first().click();
+  await expect(page.locator('.pos-support-column[data-priority]').first()).toBeVisible();
+  expect(await page.evaluate(() => (window as any).noReload)).toBe(true);
+
+  await page.goBack();
+  await expect(page.locator('.pos-support-column[data-status-key]').first()).toBeVisible();
+  await page.goBack();
+  await expect(page.locator('.pos-support-row', { hasText: subject })).toBeVisible();
+  expect(await page.evaluate(() => (window as any).noReload)).toBe(true);
+  await admin.context.close();
+});
+
+test('U6. Show more adds cards to the column and keeps it where it was', async ({ browser }) => {
+  const admin = await contextFor(browser, users.superadmin);
+  const page = admin.page;
+  await page.goto(desk('/support-desk/board?view=all_open'));
+  const more = page.locator('.pos-support-column a[href*="expand="]').first();
+  test.skip(await more.count() === 0, 'no column with more cards than shown');
+  const key = await more.evaluate((el) => el.closest('.pos-support-column')!.getAttribute('data-group-key'));
+  const cards = page.locator(`.pos-support-column[data-group-key="${key}"] [data-cards]`);
+  const before = await cards.locator('.pos-support-card').count();
+  await cards.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const scrolled = await cards.evaluate((el) => el.scrollTop);
+  await page.evaluate(() => { (window as any).noReload = true; });
+  await more.click();
+  const after = page.locator(`.pos-support-column[data-group-key="${key}"] [data-cards]`);
+  await expect.poll(() => after.locator('.pos-support-card').count()).toBeGreaterThan(before);
+  expect(await page.evaluate(() => (window as any).noReload)).toBe(true);
+  expect(Math.abs((await after.evaluate((el) => el.scrollTop)) - scrolled)).toBeLessThan(5);
+  await admin.context.close();
+});
+
+test('U7. ticket page: the header stays while the thread scrolls', async ({ browser }) => {
+  const { ticket } = await newTicket('E2E polish header');
+  const admin = await contextFor(browser, users.superadmin);
+  const page = admin.page;
+  await page.goto(desk(`/support-desk/tickets/${ticket.id}`));
+  const head = page.locator('.pos-support-ticket-head');
+  const top = (await head.boundingBox())!.y;
+  await page.locator('.pos-support-ticket-main').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await page.mouse.wheel(0, 2000);
+  expect((await head.boundingBox())!.y).toBe(top);
+  const overflow = await page.locator('.pos-support-ticket-side').evaluate((el) => getComputedStyle(el).overflowY);
+  expect(overflow).toBe('auto');
+  await admin.context.close();
+});
+
+test('U8. Settings: labels above fields, spacing between cards, holidays one at a time', async ({ browser }) => {
+  const admin = await contextFor(browser, users.superadmin);
+  const page = admin.page;
+  await page.goto(desk('/support-desk/settings/sla'));
+  const label = (await page.locator('label[for="sla-tz"]').boundingBox())!;
+  const input = (await page.locator('#sla-tz').boundingBox())!;
+  expect(input.y).toBeGreaterThan(label.y + label.height - 1);
+  const cards = page.locator('form.pos-form > .pos-support-step');
+  const first = (await cards.nth(0).boundingBox())!;
+  const second = (await cards.nth(1).boundingBox())!;
+  expect(second.y - (first.y + first.height)).toBeGreaterThanOrEqual(12);
+
+  // add a named holiday, then remove it
+  const day = '2031-12-24';
+  await page.fill('#sla-add-holiday', day);
+  await page.fill('#sla-add-holiday-name', 'E2E holiday');
+  await page.click('button[name="add"][value="holiday"]');
+  await expect(page.locator(`#holiday-name-${day}`)).toHaveValue('E2E holiday');
+  await page.click(`button[name="remove_holiday"][value="${day}"]`);
+  await expect(page.locator(`#holiday-name-${day}`)).toHaveCount(0);
+  await admin.context.close();
+});

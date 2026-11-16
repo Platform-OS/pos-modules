@@ -74,6 +74,15 @@
     if (event.target.getAttribute && event.target.getAttribute('aria-invalid') === 'true' && event.target.checkValidity()) clearError(event.target);
   });
 
+  // Loading state: a form that loads a new page (save, delete, merge…) shows
+  // the progress bar until the page changes; read after the submit is handled,
+  // so forms sent with fetch (board, bulk, queue filters) are left alone.
+  document.addEventListener('submit', (event) => {
+    setTimeout(() => { if (!event.defaultPrevented) document.body.classList.add('pos-support-loading'); }, 0);
+  });
+  // coming back with the browser's back button shows the page from its cache
+  window.addEventListener('pageshow', () => document.body.classList.remove('pos-support-loading'));
+
   document.addEventListener('submit', (event) => {
     const button = event.submitter;
     const message = (button && button.dataset.supportConfirm) || event.target.dataset.supportConfirm;

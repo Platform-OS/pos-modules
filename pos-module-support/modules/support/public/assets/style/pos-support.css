@@ -1073,6 +1073,38 @@
     color: var(--pos-support-danger);
   }
 
+  /* loading: a thin bar along the top while a page or the queue is fetched
+     (pos-support-ui.js, pos-support-queue-nav.js); the queue dims slightly */
+  .pos-support-loading::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 200;
+    block-size: 3px;
+    background: linear-gradient(90deg, transparent, var(--pos-support-brand), transparent);
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    animation: pos-support-loading-bar 1s linear infinite;
+  }
+
+  @keyframes pos-support-loading-bar {
+    from { background-position: -40% 0; }
+    to { background-position: 140% 0; }
+  }
+
+  .pos-support-queue[aria-busy="true"] {
+    opacity: 0.6;
+    transition: opacity 150ms var(--pos-support-ease) 150ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pos-support-loading::before {
+      animation: none;
+      background: var(--pos-support-brand);
+      opacity: 0.6;
+    }
+  }
+
   /* the desk's own field validation (pos-support-ui.js) */
   .pos-support-field-error {
     flex-basis: 100%;
@@ -1791,6 +1823,20 @@
     gap: 0.875rem;
   }
 
+  /* a form holding several cards (SLA and hours): the same gap as between cards elsewhere */
+  .pos-form:has(> .pos-support-step) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+
+  .pos-form:has(> .pos-support-step) > .pos-support-step {
+    align-self: stretch;
+  }
+
+  /* labels above controls everywhere, also on a fieldset that carries the class itself */
+  fieldset.pos-support-settings-form,
   .pos-support-settings-form fieldset,
   .pos-support-step .pos-form fieldset:has(> label + :is(input, select, textarea)) {
     display: flex;
@@ -2309,6 +2355,32 @@
      ================================================================ */
   .pos-support-content:has(> .pos-support-ticket) {
     padding: 0;
+  }
+
+  /* two columns: the page is exactly one screen tall, the header stays put and
+     the thread and the side panel scroll on their own (phones keep one scroll) */
+  @media (min-width: 48.0625rem) {
+    .pos-support-ticket {
+      display: flex;
+      flex-direction: column;
+      block-size: 100dvh;
+    }
+
+    .pos-support-ticket-head {
+      flex: none;
+    }
+
+    .pos-support-ticket .pos-support-ticket-layout {
+      flex: 1;
+      min-block-size: 0;
+    }
+
+    .pos-support-ticket-main,
+    .pos-support-ticket-side {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+    }
   }
 
   .pos-support-ticket-head {
@@ -3902,6 +3974,17 @@
   .pos-support-matrix :is(thead th, td):not(:first-child) {
     text-align: center;
     inline-size: 5rem;
+  }
+
+  /* the targets fit and the clock dropdown (last column) shows in full */
+  .pos-support-matrix td input {
+    inline-size: 100%;
+    min-inline-size: 4.5rem;
+  }
+
+  .pos-support-matrix :is(thead th, td):last-child {
+    inline-size: 11rem;
+    min-inline-size: 11rem;
   }
 
   .pos-support-brand-preview {

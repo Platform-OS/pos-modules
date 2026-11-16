@@ -78,7 +78,15 @@
       assign hours.days[day] = window
     endif
   endfor
+  # holidays: the current list (one hidden field, comma-separated), plus the
+  # date being added, minus the one whose Remove button was pressed; each may
+  # carry a name (holiday_name_<date>), kept in holiday_names next to the dates
   assign holidays = params.holidays | split: ','
+  assign adding = params.add_holiday | strip
+  if adding != blank
+    assign holidays << adding
+  endif
+  assign removing = params.remove_holiday | strip
   for holiday in holidays
     assign day = holiday | strip
     # month and day in range first (to_date fails the request on month 13), then
@@ -91,12 +99,27 @@
       endif
     endif
     if valid_day
-      assign hours.holidays << day
+      unless hours.holidays contains day or day == removing
+        assign hours.holidays << day
+      endunless
     elsif day != blank
       assign result.error = 'modules/support/settings.errors.holidays'
       return result
     endif
   endfor
+  assign hours.holidays = hours.holidays | sort
+  assign names = {}
+  for day in hours.holidays
+    assign name_key = 'holiday_name_' | append: day
+    assign holiday_name = params[name_key] | strip
+    if day == adding
+      assign holiday_name = params.add_holiday_name | strip
+    endif
+    if holiday_name != blank
+      assign names[day] = holiday_name | truncate: 60, ''
+    endif
+  endfor
+  assign hours.holiday_names = names
 
   assign values = { "name": null }
   assign values.name = name

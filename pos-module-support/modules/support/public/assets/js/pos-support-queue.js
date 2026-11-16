@@ -14,9 +14,18 @@
     lane.querySelectorAll('tr:not(.pos-support-lane-head)').forEach((tr) => { tr.hidden = !open; });
     lane.classList.toggle('pos-support-lane-closed', !open);
   };
-  const closed = readClosed();
-  document.querySelectorAll('.pos-support-lane').forEach((lane) => {
-    if (closed.includes(lane.dataset.lane)) setLane(lane, false);
+  const applyClosed = () => {
+    const closed = readClosed();
+    document.querySelectorAll('.pos-support-lane').forEach((lane) => {
+      if (closed.includes(lane.dataset.lane)) setLane(lane, false);
+    });
+  };
+  applyClosed();
+  // a list replaced in place: lanes closed again, bulk bar and row focus start over
+  document.addEventListener('pos-support:queue-replaced', () => {
+    applyClosed();
+    index = -1;
+    updateBulk();
   });
   document.addEventListener('click', (event) => {
     const toggle = event.target.closest('[data-support-lane-toggle]');
@@ -30,11 +39,16 @@
   });
   let index = -1;
 
-  const bar = document.querySelector('[data-support-bulk-bar]');
-  const countLabel = document.querySelector('[data-support-bulk-count]');
-  const selectedText = (n) => (bar && bar.closest('form').dataset.selectedTemplate || '{count} selected').replace('{count}', n);
+  // looked up on use: the list can be replaced in place (pos-support-queue-nav.js)
+  const barNow = () => document.querySelector('[data-support-bulk-bar]');
+  const selectedText = (n) => {
+    const bar = barNow();
+    return (bar && bar.closest('form').dataset.selectedTemplate || '{count} selected').replace('{count}', n);
+  };
 
   const updateBulk = () => {
+    const bar = barNow();
+    const countLabel = document.querySelector('[data-support-bulk-count]');
     if (!bar) return;
     const n = document.querySelectorAll('.pos-support-select:checked').length;
     bar.classList.toggle('pos-support-bulk-active', n > 0);
@@ -43,13 +57,14 @@
 
   // Bulk changes run in the background on the server: post the form without
   // leaving the page, so the live channel can report the result here.
-  const bulkForm = bar && bar.closest('form');
   const notify = (kind, message) => {
     if (window.pos && window.pos.modules && window.pos.modules.toast) new window.pos.modules.toast(kind, message);
   };
-  if (bulkForm && window.fetch) {
+  if (window.fetch) {
     document.addEventListener('submit', async (event) => {
-      if (event.target !== bulkForm || event.defaultPrevented) return;
+      const bar = barNow();
+      const bulkForm = bar && bar.closest('form');
+      if (!bulkForm || event.target !== bulkForm || event.defaultPrevented) return;
       event.preventDefault();
       const data = new FormData(bulkForm, event.submitter);
       data.set('respond', 'json');

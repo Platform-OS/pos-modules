@@ -65,7 +65,43 @@
           </tbody>
         </table>
       </div>
-      <fieldset class="pos-support-settings-form"><label for="sla-holidays">{{ 'modules/support/settings.holidays' | t }}</label><input id="sla-holidays" name="holidays" value="{{ hours.holidays | join: ', ' }}" placeholder="2026-12-25, 2027-01-01"></fieldset>
+    </section>
+    {%- comment -%}
+      Holidays one at a time: the list with a Remove button per day and an
+      Add form. The buttons send the whole form (the policy saves as one), so
+      it works without JavaScript; the current list travels in one hidden field.
+    {%- endcomment -%}
+    <section class="pos-card pos-support-step" aria-labelledby="sla-holidays-title">
+      <h2 class="pos-heading-3" id="sla-holidays-title">{{ 'modules/support/settings.holidays_title' | t }}</h2>
+      <p class="pos-supplementary">{{ 'modules/support/settings.holidays_help' | t }}</p>
+      <input type="hidden" name="holidays" value="{{ hours.holidays | join: ',' }}">
+      {% if hours.holidays.size > 0 %}
+        <div class="pos-support-table-wrap">
+          <table class="pos-support-table">
+            <thead><tr><th scope="col">{{ 'modules/support/settings.holiday_date' | t }}</th><th scope="col">{{ 'modules/support/settings.holiday_name' | t }}</th><th scope="col"><span class="pos-support-sr-only">{{ 'modules/support/settings.holiday_remove' | t }}</span></th></tr></thead>
+            <tbody>
+              {% for day in hours.holidays %}
+                {% assign holiday_label = hours.holiday_names[day] %}
+                <tr>
+                  <td>{{ day | to_date | strftime: '%a, %b %-d, %Y' }}</td>
+                  <td>
+                    <label class="pos-support-sr-only" for="holiday-name-{{ day }}">{{ 'modules/support/settings.holiday_name' | t }} {{ day }}</label>
+                    <input id="holiday-name-{{ day }}" name="holiday_name_{{ day }}" value="{{ holiday_label }}" maxlength="60">
+                  </td>
+                  <td><button type="submit" class="pos-button pos-button-small pos-button-ghost" name="remove_holiday" value="{{ day }}" formnovalidate aria-label="{{ 'modules/support/settings.holiday_remove' | t }} {{ day }}">{{ 'modules/support/settings.holiday_remove' | t }}</button></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="pos-supplementary">{{ 'modules/support/settings.holidays_none' | t }}</p>
+      {% endif %}
+      <div class="pos-support-inline-form">
+        <fieldset><label for="sla-add-holiday">{{ 'modules/support/settings.holiday_date' | t }}</label><input id="sla-add-holiday" type="date" name="add_holiday"></fieldset>
+        <fieldset><label for="sla-add-holiday-name">{{ 'modules/support/settings.holiday_name' | t }}</label><input id="sla-add-holiday-name" name="add_holiday_name" maxlength="60" placeholder="{{ 'modules/support/settings.holiday_name_example' | t }}"></fieldset>
+        <button type="submit" class="pos-button" name="add" value="holiday">{% render 'modules/support/icon', name: 'plus', size: 'sm' %}{{ 'modules/support/settings.holiday_add' | t }}</button>
+      </div>
     </section>
     <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
   </form>

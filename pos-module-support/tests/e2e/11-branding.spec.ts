@@ -121,7 +121,9 @@ test('BR-4 logos and the app icon can be uploaded; a non-square icon is refused 
   try {
     await page.goto(desk('/support-desk/settings/branding'));
     await page.setInputFiles('#br-icon-file', { name: 'wide.png', mimeType: 'image/png', buffer: await png(page, 600, 300) });
-    expect(await page.locator('#br-icon-file').evaluate((el: HTMLInputElement) => el.validationMessage)).toContain('square');
+    // the desk's own message under the field (pos-support-ui.js), not a browser bubble
+    await expect(page.locator('#br-icon-file-error')).toContainText('square');
+    await expect(page.locator('#br-icon-file')).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator('[data-support-brand-upload="icon_url"] input')).toHaveCount(0);
 
     await page.setInputFiles('#br-logo-file', { name: 'logo.png', mimeType: 'image/png', buffer: await png(page, 256, 64) });

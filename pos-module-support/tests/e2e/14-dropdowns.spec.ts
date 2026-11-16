@@ -70,7 +70,7 @@ test('D3. Saved replies is an action: choosing inserts the text and the dropdown
   await page.fill('#sr-title', replyName);
   await page.fill('#sr-body', `Text of ${replyName}.`);
   await page.click('form:has(#sr-title) button[type=submit]');
-  await expect(page.locator('.pos-support-plain-list')).toContainText(replyName);
+  await expect(page.locator('.pos-support-steps .pos-support-table')).toContainText(replyName);
 
   await page.goto(desk(`/support-desk/tickets/${ticket.id}`));
   const saved = page.getByRole('combobox', { name: 'Saved reply' });

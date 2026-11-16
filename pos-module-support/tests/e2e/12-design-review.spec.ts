@@ -78,8 +78,8 @@ test('G. card hover grows the background with a brand ring; overdue: the red "!"
 
   await overdue.locator('.pos-support-card-title').hover();
   await expect.poll(async () => (await badge.boundingBox())!.width).toBeGreaterThan(50);
-  const ring = await overdue.evaluate((el) => getComputedStyle(el, '::before').boxShadow);
-  expect(ring).toMatch(/3px/);
+  // read once the 160 ms hover transition has finished
+  await expect.poll(() => overdue.evaluate((el) => getComputedStyle(el, '::before').boxShadow)).toMatch(/ 0px 0px 0px 3px/);
   // the content does not move or scale; only the background layer grows
   expect(await overdue.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
   await expect.poll(() => overdue.evaluate((el) => getComputedStyle(el, '::before').inset)).not.toBe('-1px');

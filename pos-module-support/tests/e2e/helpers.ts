@@ -49,7 +49,8 @@ export const unique = (prefix: string) => `${prefix}-${crypto.randomBytes(4).toS
 
 // Runs Liquid on the instance and returns the JSON object it prints.
 export function liquid(code: string): any {
-  const output = execFileSync('pos-cli', ['exec', 'liquid', ENV, code], { cwd: MODULE_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  // a large answer (or a long error) must not overflow the default 1 MB buffer (ENOBUFS)
+  const output = execFileSync('pos-cli', ['exec', 'liquid', ENV, code], { cwd: MODULE_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
   const start = output.indexOf('{');
   const end = output.lastIndexOf('}');
   if (start < 0 || end < start) throw new Error(`no JSON in liquid output: ${output.slice(0, 300)}`);

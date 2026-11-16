@@ -1,0 +1,5 @@
+mutation ($id: ID!, $table: String!) {
+  record_delete(id: $id, table: $table) {
+    id
+  }
+}

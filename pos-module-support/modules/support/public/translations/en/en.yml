@@ -720,7 +720,14 @@ en:
     day: Day
     opens: Opens
     closes: Closes
-    holidays: Holidays (YYYY-MM-DD, comma-separated)
+    holidays_title: Holidays
+    holidays_help: Days the desk is closed. Business-hours SLA targets do not count them.
+    holidays_none: No holidays yet.
+    holiday_date: Date
+    holiday_name: Name
+    holiday_name_example: e.g. Christmas Day
+    holiday_add: Add holiday
+    holiday_remove: Remove
     days:
       mon: Monday
       tue: Tuesday

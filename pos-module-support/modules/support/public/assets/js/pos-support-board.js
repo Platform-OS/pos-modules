@@ -6,8 +6,11 @@
 // Changes from the queue rooms refresh cards the same way.
 import { subscribe } from './pos-support-cable-1.js';
 
-const root = document.querySelector('[data-support-board]');
-if (root) {
+// start(root) wires one board and returns stop(); the queue navigation
+// (pos-support-queue-nav.js) replaces the board in place, then fires
+// "pos-support:queue-replaced", and the board is wired again.
+const start = (root) => {
+  const subscriptions = [];
   const priorityRank = { p0: 0, p1: 1, p2: 2, p3: 3 };
   // columns are priorities or statuses; a card belongs to the column of its priority or status
   const byPriority = root.dataset.supportGroup === 'priority';
@@ -404,6 +407,21 @@ if (root) {
         refresh(data.ticket_id);
       }, 500));
     };
-    departments.forEach((id) => subscribe(`queue-${id}`, received));
+    departments.forEach((id) => subscriptions.push(subscribe(`queue-${id}`, received)));
   }
-}
+
+  return () => {
+    subscriptions.forEach((subscription) => { if (subscription) subscription.unsubscribe(); });
+    const layer = window.pos && window.pos.supportLayer;
+    if (layer) layer.close(false);
+  };
+};
+
+let stop = null;
+const boot = () => {
+  if (stop) stop();
+  const root = document.querySelector('[data-support-board]');
+  stop = root ? start(root) : null;
+};
+boot();
+document.addEventListener('pos-support:queue-replaced', boot);

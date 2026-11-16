@@ -181,7 +181,7 @@ test.describe('queue and ticket', () => {
     await page.fill('#sr-title', replyName);
     await page.fill('#sr-body', 'Hello {{ requester.first_name }}, about ticket #{{ ticket.number }}.');
     await page.click('form:has(#sr-title) button[type=submit]');
-    await expect(page.locator('.pos-support-plain-list')).toContainText(replyName);
+    await expect(page.locator('.pos-support-steps .pos-support-table')).toContainText(replyName);
 
     const signature = unique('E2E signature');
     await page.goto(desk(`/support-desk/settings/departments?edit=${state().department_id}`));

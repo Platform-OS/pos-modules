@@ -1,10 +1,26 @@
 // Live updates and presence (05 §4) over the platformOS "support" channel.
 // Rooms: queue-<department>, ticket-<id>, profile-<id>. Payloads carry ids;
 // rows and pages are fetched from the desk, which checks access again.
-import { subscribe } from './pos-support-cable-1.js';
+import { subscribe as subscribeRoom } from './pos-support-cable-1.js';
 
-const root = document.querySelector('[data-support-live]');
-if (root && window.pos && window.pos.csrfToken) {
+// once the page is being left (a form was sent), rows are not fetched any more:
+// requests racing the redirect could take the one-time flash message
+let leaving = false;
+// read after the event has been handled: the queue navigation cancels a filter
+// submit and replaces the list in place, which is not leaving
+document.addEventListener('submit', (event) => { setTimeout(() => { if (!event.defaultPrevented) leaving = true; }, 0); });
+window.addEventListener('pagehide', () => { leaving = true; });
+
+// start(root) wires one page's live updates and returns stop(); the queue
+// navigation (pos-support-queue-nav.js) replaces the list in place, then fires
+// "pos-support:queue-replaced", and the new list is wired again.
+const start = (root) => {
+  const subscriptions = [];
+  const subscribe = (room, received, connected) => {
+    const subscription = subscribeRoom(room, received, connected);
+    subscriptions.push(subscription);
+    return subscription;
+  };
   const text = (key, fallback) => root.dataset[key] || fallback;
 
   // Queue: refresh changed rows; new tickets go to the top of their swim lane
@@ -15,11 +31,6 @@ if (root && window.pos && window.pos.csrfToken) {
     const key = root.dataset.supportGroup === 'status' ? row.dataset.statusKey : row.dataset.priority;
     return document.querySelector(`.pos-support-lane[data-lane="${CSS.escape(key || '')}"]`) || tbody;
   };
-  // once the page is being left (a form was sent), rows are not fetched any more:
-  // requests racing the redirect could take the one-time flash message
-  let leaving = false;
-  document.addEventListener('submit', (event) => { if (!event.defaultPrevented) leaving = true; });
-  window.addEventListener('pagehide', () => { leaving = true; });
   const rowOf = (ticketId) => document.querySelector(`.pos-support-row [value="${CSS.escape(ticketId)}"]`)?.closest('tr');
   const refreshRow = async (ticketId, kind, attempt = 1) => {
     if (leaving) return;
@@ -162,4 +173,19 @@ if (root && window.pos && window.pos.csrfToken) {
       }
     });
   }
-}
+
+  return () => {
+    subscriptions.forEach((subscription) => { if (subscription) subscription.unsubscribe(); });
+    pending.forEach((entry) => clearTimeout(entry.timer));
+    pending.clear();
+  };
+};
+
+let stop = null;
+const boot = () => {
+  if (stop) stop();
+  const root = document.querySelector('[data-support-live]');
+  stop = root && window.pos && window.pos.csrfToken ? start(root) : null;
+};
+boot();
+document.addEventListener('pos-support:queue-replaced', boot);

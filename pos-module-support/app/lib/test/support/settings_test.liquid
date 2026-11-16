@@ -32,6 +32,33 @@
   function r = 'modules/support/commands/settings_sections/save', section: 'sla', params: sla
   function contract = 'modules/tests/assertions/equal', contract: contract, given: r.error, expected: 'modules/support/settings.errors.holidays', field_name: 'month 13 refused without a crash'
 
+  # holidays one at a time: added with a name, sorted, removed by its button
+  assign suffix = 8 | random_string | downcase
+  assign policy_name = 'Holiday test ' | append: suffix
+  assign sla = { "tz": "Europe/Warsaw", "holidays": "2027-01-01", "add_holiday": "2026-12-25", "add_holiday_name": "Christmas Day" }
+  assign sla.name = policy_name
+  function r = 'modules/support/commands/settings_sections/save', section: 'sla', params: sla
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: r.valid, expected: true, field_name: 'holiday added'
+  graphql found = 'modules/support/records/find_by', table: 'modules/support/sla_policy', name: 'name', value: policy_name
+  assign policy_id = found.records.results.first.id
+  assign policy_ids = []
+  assign policy_ids << policy_id
+  graphql p = 'modules/support/sla_policies/search', ids: policy_ids, limit: 1
+  assign hours = p.records.results.first.business_hours
+  assign listed = hours.holidays | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: listed, expected: '2026-12-25,2027-01-01', field_name: 'holidays sorted with the new one'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: hours.holiday_names['2026-12-25'], expected: 'Christmas Day', field_name: 'holiday name stored'
+  assign sla = { "tz": "Europe/Warsaw", "holidays": "2026-12-25,2027-01-01", "remove_holiday": "2027-01-01", "holiday_name_2026-12-25": "Christmas" }
+  assign sla.name = policy_name
+  assign sla.id = policy_id
+  function r = 'modules/support/commands/settings_sections/save', section: 'sla', params: sla
+  graphql p = 'modules/support/sla_policies/search', ids: policy_ids, limit: 1
+  assign hours = p.records.results.first.business_hours
+  assign listed = hours.holidays | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: listed, expected: '2026-12-25', field_name: 'Remove takes one holiday out'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: hours.holiday_names['2026-12-25'], expected: 'Christmas', field_name: 'holiday name edited'
+  graphql _ = 'support_test_helpers/delete_record', id: policy_id, table: 'modules/support/sla_policy'
+
   # departments: duplicate name and a From address off the sending domain are refused
   graphql some = 'modules/support/departments/search', limit: 1
   assign taken = { "name": null, "inbound_local_part": "unique-validation-only" }
