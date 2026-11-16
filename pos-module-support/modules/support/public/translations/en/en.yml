@@ -274,6 +274,7 @@ en:
       email_taken: That address already belongs to a contact.
       merge_self: Choose a different contact to merge into.
       merge_permission: Only a manager can merge contacts.
+      identity_permission: Only a manager can change a contact's email addresses or organization.
       merge_target: No contact with that email address.
       domain: Enter domains like example.com.
   emails:

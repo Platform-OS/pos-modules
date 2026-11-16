@@ -9,23 +9,33 @@
 {% liquid
   assign result = { "valid": false, "error": null, "contact_id": null }
   assign result.contact_id = contact.id
+  # who a contact is (their addresses, their organization) decides whose
+  # email joins which ticket, so only managers and admins change it
+  function can_manage = 'modules/support/queries/team/can', member: member, do: 'support.tickets.manage.all'
   case params.change
   when 'details'
     assign values = { "name": null }
     assign values.name = params.name | strip | default: contact.name | truncate: 120, ''
     assign values.phone = params.phone | strip | truncate: 40, ''
-    if params.organization_id != null
+    if params.organization_id != null and params.organization_id != contact.organization_id
+      unless can_manage
+        assign result.error = 'modules/support/contacts.errors.identity_permission'
+        return result
+      endunless
       assign values.organization_id = params.organization_id
     endif
     function props = 'modules/support/helpers/props', values: values
     graphql u = 'modules/support/records/update', id: contact.id, properties: props
     assign result.valid = true
   when 'add_email'
+    unless can_manage
+      assign result.error = 'modules/support/contacts.errors.identity_permission'
+      return result
+    endunless
     function added = 'modules/support/commands/contacts/add_email', contact: contact, email: params.email
     assign result.valid = added.valid
     assign result.error = 'modules/support/contacts.errors.email_taken'
   when 'merge'
-    function can_manage = 'modules/support/queries/team/can', member: member, do: 'support.tickets.manage.all'
     unless can_manage
       assign result.error = 'modules/support/contacts.errors.merge_permission'
       return result

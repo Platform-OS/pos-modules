@@ -27,12 +27,15 @@
       <fieldset><label for="ct-phone">{{ 'modules/support/contacts.phone' | t }}</label><input id="ct-phone" name="phone" value="{{ contact.phone }}"></fieldset>
       <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
     </form>
-    <form action="{{ action }}" method="post" class="pos-form pos-support-settings-form">
-      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-      <input type="hidden" name="change" value="add_email">
-      <fieldset><label for="ct-email">{{ 'modules/support/contacts.add_email' | t }}</label><input id="ct-email" type="email" name="email" required></fieldset>
-      <button type="submit" class="pos-button">{{ 'modules/support/contacts.add' | t }}</button>
-    </form>
+    {%- comment -%} an address decides whose email joins this contact's tickets: managers and admins only {%- endcomment -%}
+    {% if data.can_manage %}
+      <form action="{{ action }}" method="post" class="pos-form pos-support-settings-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="change" value="add_email">
+        <fieldset><label for="ct-email">{{ 'modules/support/contacts.add_email' | t }}</label><input id="ct-email" type="email" name="email" required></fieldset>
+        <button type="submit" class="pos-button">{{ 'modules/support/contacts.add' | t }}</button>
+      </form>
+    {% endif %}
   </section>
 
   {% if data.can_manage %}

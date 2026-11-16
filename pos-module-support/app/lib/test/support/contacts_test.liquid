@@ -45,4 +45,20 @@
   function removed = 'modules/support/commands/participants/remove', ticket_id: ticket_id, email: email, role: 'cc'
   graphql r = 'modules/support/participants/search', ticket_id: ticket_id, email: null, role: null
   function contract = 'modules/tests/assertions/equal', contract: contract, given: r.records.total_entries, expected: 0, field_name: 'participant removed'
+
+  # an agent cannot attach an address to a contact (they could then write as
+  # that customer); a manager can
+  function cf = 'support_test_helpers/ticket_fixture', label: 'identity'
+  assign extra_suffix = 8 | random_string | downcase
+  assign extra = 'extra-' | append: extra_suffix | append: '@example.com'
+  assign form = { "change": "add_email" }
+  assign form.email = extra
+  function by_agent = 'modules/support/commands/contacts/update', contact: cf.contact, params: form, member: cf.actor.member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: by_agent.error, expected: 'modules/support/contacts.errors.identity_permission', field_name: 'agent cannot add an email'
+  assign emails = []
+  assign emails << extra
+  graphql owner = 'modules/support/contacts/search', emails: emails, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: owner.records.total_entries, expected: 0, field_name: 'refused email not stored'
+  function by_manager = 'modules/support/commands/contacts/update', contact: cf.contact, params: form, member: cf.manager_actor.member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: by_manager.valid, expected: true, field_name: 'manager adds an email'
 %}
