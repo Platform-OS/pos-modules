@@ -23,7 +23,12 @@ see <a href="https://example.com/x">https://example.com/x</a></p>
   function contract = 'modules/tests/assertions/equal', contract: contract, given: links.records.results.first.issue_ref, expected: 'Platform-OS/pos-modules#42', field_name: 'issue ref stored'
 
   # saved reply: whitelisted variables only, other placeholders removed, values escaped
-  assign reply = { "body_html": "<p>Hi {{ requester.first_name }}, ticket #{{ticket.number}} {{ context.constants }} {{ brand.name }} {{ agent.first_name }}</p>" }
+  # built from single braces: newer platformOS versions fill double braces inside a hash literal when it is assigned
+  assign o = '{' | append: '{'
+  assign c = '}' | append: '}'
+  assign body = '<p>Hi ' | append: o | append: ' requester.first_name ' | append: c | append: ', ticket #' | append: o | append: 'ticket.number' | append: c | append: ' ' | append: o | append: ' context.constants ' | append: c | append: ' ' | append: o | append: ' brand.name ' | append: c | append: ' ' | append: o | append: ' agent.first_name ' | append: c | append: '</p>'
+  assign reply = { "body_html": null }
+  assign reply.body_html = body
   assign requester = { "name": "Ann <b>Example</b>" }
   assign ticket = { "number": 777, "subject": "S" }
   assign agent = { "first_name": "Sam" }

@@ -91,10 +91,13 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: wrong_used.used, expected: false, field_name: 'wrong token learns nothing about a used link'
 
   # staff candidates come from host roles granting admin_pages.view (example host: superadmin, editor)
+  assign editor_email = 'editor-' | append: suffix | append: '@example.com'
+  assign editor_roles = ["editor"]
+  function editor_user = 'modules/user/commands/user/create', first_name: 'Eddie', last_name: 'Editor', email: editor_email, password: 'password-12345678', roles: editor_roles, hook_params: null
   function candidates = 'modules/support/queries/team/staff_candidates'
   assign candidate_emails = candidates | map: 'email'
   assign has_editor = false
-  if candidate_emails contains 'artur+sd-hostadmin@near-me.com'
+  if candidate_emails contains editor_email
     assign has_editor = true
   endif
   function contract = 'modules/tests/assertions/true', contract: contract, value: has_editor, field_name: 'editor role holder is a candidate', object: null
