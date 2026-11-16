@@ -1,0 +1,31 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # The install generator's instance step (09 §3): the first support admin
+  # gets a membership once; running the generator again changes nothing.
+  assign suffix = 8 | random_string | downcase
+  assign email = 'install-admin-' | append: suffix | append: '@example.com'
+  assign no_roles = []
+  function user = 'modules/user/commands/user/create', first_name: 'Ina', last_name: 'Install', email: email, password: 'password-12345678', roles: no_roles, hook_params: null
+
+  function first = 'modules/support/commands/install/apply', email: email, provider: 'sendgrid', inbound_domain: null, role_map: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: first.admin, expected: 'created', field_name: 'first admin membership created'
+  function state = 'modules/support/queries/install/state', email: email
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: state.member_role, expected: 'admin', field_name: 'first admin is a support admin'
+
+  function again = 'modules/support/commands/install/apply', email: email, provider: 'sendgrid', inbound_domain: null, role_map: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: again.admin, expected: 'kept', field_name: 'second run keeps the membership'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: again.email_provider, expected: 'kept', field_name: 'second run keeps the provider'
+
+  function unknown = 'modules/support/commands/install/apply', email: 'nobody-here@example.com', provider: 'not-a-provider', inbound_domain: null, role_map: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unknown.admin, expected: 'skipped', field_name: 'unknown user skipped'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unknown.email_provider, expected: 'skipped', field_name: 'unknown provider skipped'
+
+  # the test admin must not stay active
+  function member = 'modules/support/queries/team_members/find', profile_id: state.profile_id
+  assign values = { "state": "disabled" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+%}

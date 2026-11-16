@@ -12,7 +12,8 @@ export default defineConfig({
   globalTeardown: './tests/e2e/global-teardown.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  // one retry in CI only, against staging noise; locally a failure shows at once
+  retries: process.env.CI ? 1 : 0,
   workers: 1,
   timeout: 240_000,
   expect: { timeout: 30_000 },

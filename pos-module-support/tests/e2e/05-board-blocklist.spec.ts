@@ -73,19 +73,12 @@ test('16. a blocked domain creates nothing, and after Mark as spam the next emai
   await expect(admin.page.locator('table')).toContainText(domain);
 
   const blockedSubject = unique('E2E blocked domain');
-  const blockedId = await inbound({ from: `someone@mail.${domain}`, to: 'e2e@support-dev.platformos.com', subject: blockedSubject, body: 'spam' });
-  await new Promise((r) => setTimeout(r, 20000));
+  // the blocklist refuses the email inside the webhook request, before anything
+  // is stored, so the check needs no wait: no stored email means no ticket later
+  const blockedSender = `someone@mail.${domain}`;
+  await inbound({ from: blockedSender, to: 'e2e@support-dev.platformos.com', subject: blockedSubject, body: 'spam' });
+  expect(storedFrom(blockedSender)).toBe(0);
   expect(ticketBySubject(blockedSubject).count).toBe(0);
-  const stored = liquid(`{% liquid
-  graphql r = 'modules/support/inbound_emails/search', limit: 50
-  assign ids = r.records.results | map: 'message_id_header'
-  assign out = { "found": false }
-  if ids contains '${blockedId.replace(/[<>]/g, '')}'
-    assign out.found = true
-  endif
-  echo out | json | html_safe
-%}`);
-  expect(stored.found).toBe(false);
 
   const spammer = `${unique('spammer')}@e2e.example`;
   const subject = unique('E2E spam');
@@ -99,8 +92,20 @@ test('16. a blocked domain creates nothing, and after Mark as spam the next emai
   await expect(admin.page.locator('table')).not.toContainText(spammer.split('@')[1] + ' domain');
 
   const nextSubject = unique('E2E spam again');
+  const storedBefore = storedFrom(spammer);
   await inbound({ from: spammer, to: 'e2e@support-dev.platformos.com', subject: nextSubject, body: 'Buy now again' });
-  await new Promise((r) => setTimeout(r, 20000));
+  expect(storedFrom(spammer)).toBe(storedBefore);
   expect(ticketBySubject(nextSubject).count).toBe(0);
   await admin.context.close();
 });
+
+// Inbound emails stored from an address (the webhook stores before answering).
+function storedFrom(address: string): number {
+  return liquid(`{% liquid
+  assign key = '"sender":"${address.toLowerCase()}"'
+  graphql r = 'modules/support/inbound_emails/search', sender: key, limit: 1
+  assign out = { "count": 0 }
+  assign out.count = r.records.total_entries
+  echo out | json | html_safe
+%}`).count;
+}

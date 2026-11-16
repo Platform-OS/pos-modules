@@ -1,7 +1,7 @@
 // Scenarios 5–8 (tech-spec 10 §3): presence and collision warning, SLA pause
 // and resume, Confirmation in both modes, per-person notification switches.
 import { test, expect, Page } from '@playwright/test';
-import { contextFor, desk, inbound, liquid, newTicket, recipients, contentOf, reply as replyFromTicket, setting, setSetting, stubBodies, ticketField as field, unique, users, waitForStub } from './helpers';
+import { contextFor, desk, inbound, liquid, newTicket, recipients, contentOf, reply as replyFromTicket, setting, setSetting, ticketField as field, unique, users, waitForStub } from './helpers';
 
 // Replies from the ticket page and returns the token Reply-To address.
 const reply = async (page: Page, ticketId: string, text: string, thenStatus?: string) => (await replyFromTicket(page, ticketId, text, thenStatus)).reply_to.email as string;
@@ -63,9 +63,14 @@ test('7. Confirmation: auto_close closes and a later reply opens a follow-up; ke
     expect(field(second.ticket.id, 'category')).toBe('solved');
     const number = String(second.ticket.number);
     await waitForStub((b) => recipients(b).includes(users.agent.email.toLowerCase()) && b.subject.includes('Confirmation period ended') && contentOf(b).includes(`#${number}`));
-    await new Promise((r) => setTimeout(r, 15000));
-    const notices = stubBodies().filter((b) => recipients(b).includes(users.agent.email.toLowerCase()) && b.subject.includes('Confirmation period ended') && contentOf(b).includes(`#${number}`));
-    expect(notices.length).toBe(1);
+    // one notice: the waiting event was published once (the second run above returned without publishing)
+    const notified = liquid(`{% liquid
+  graphql r = 'modules/support/ticket_events/search', ticket_id: '${second.ticket.id}', event_type: 'confirm_wait_notified', actor_id: null, limit: 5
+  assign out = { "count": 0 }
+  assign out.count = r.records.total_entries
+  echo out | json | html_safe
+%}`).count;
+    expect(notified).toBe(1);
   } finally {
     setSetting('confirmation_mode', JSON.stringify(mode || 'auto_close'));
     await context.close();

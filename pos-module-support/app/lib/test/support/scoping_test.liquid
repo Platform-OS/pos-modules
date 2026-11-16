@@ -1,0 +1,49 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # Department scope (09 §1): an agent reads only their departments' tickets,
+  # by id, by number and in queue views; managers read every department.
+  function f = 'support_test_helpers/ticket_fixture', label: 'scope'
+
+  graphql d = 'modules/support/departments/search', inbound_local_part: 'testscope', limit: 1
+  assign other_department_id = d.records.results.first.id
+  if other_department_id == blank
+    assign rows = []
+    assign row = { "table": "modules/support/department", "properties": { "name": "Test scope", "short_code": "TSC", "inbound_local_part": "testscope", "is_default": false, "active": false } }
+    assign rows << row
+    graphql created = 'modules/support/records/create_many', records: rows
+    assign other_department_id = created.records.first.id
+  endif
+  assign object = { "subject": "Other department ticket", "channel": "email", "actor_type": "customer" }
+  assign object.department_id = other_department_id
+  assign object.requester_id = f.contact.id
+  assign object.actor_id = f.contact.id
+  function other = 'modules/support/commands/tickets/create', object: object
+
+  function own = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: f.actor.member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: own.id, expected: f.ticket.id, field_name: 'agent reads own department ticket'
+  function by_id = 'modules/support/queries/tickets/find', id: other.id, number: null, member: f.actor.member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: by_id, expected: null, field_name: 'agent cannot read another department by id'
+  function by_number = 'modules/support/queries/tickets/find', id: null, number: other.number, member: f.actor.member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: by_number, expected: null, field_name: 'agent cannot read another department by number'
+  function as_manager = 'modules/support/queries/tickets/find', id: other.id, number: null, member: f.manager_actor.member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: as_manager.id, expected: other.id, field_name: 'manager reads every department'
+
+  # a disabled member reads nothing
+  assign disabled = f.actor.member | hash_merge: state: 'disabled'
+  function as_disabled = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: disabled
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: as_disabled, expected: null, field_name: 'disabled member reads nothing'
+
+  # queue view: searching for the other ticket's subject finds nothing for the agent
+  assign filters = { "q": "Other department ticket" }
+  function seen = 'modules/support/queries/tickets/search', member: f.actor.member, view: 'all_open', filters: filters, page: 1, per_page: 50, skip_lookup: true, include_waiting: true, ticket_id: null
+  assign ids = seen.results | map: 'id'
+  assign leaked = false
+  if ids contains other.id
+    assign leaked = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: leaked, expected: false, field_name: 'queue search stays in the agent departments'
+
+  graphql _ = 'support_test_helpers/cleanup', department_id: other_department_id
+%}

@@ -1,0 +1,60 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{%- capture nl %}
+{% endcapture -%}
+{% liquid
+  # sanitize (04 §2.2): customer HTML shown in the desk never runs code
+  assign dirty = '<p onclick="steal()">Hi <b>there</b></p><script>alert(1)</script><img src="x" onerror="alert(2)"><a href="javascript:alert(3)">link</a><iframe src="https://evil.example"></iframe><style>body{display:none}</style><a href="https://example.com">ok</a><svg onload="alert(4)"></svg>'
+  function clean = 'modules/support/helpers/email/sanitize', html: dirty
+  assign lowered = clean | downcase
+  assign bad = 'script,onerror,onclick,onload,javascript:,iframe,<style,<svg' | split: ','
+  assign leaks = ''
+  for word in bad
+    if lowered contains word
+      assign leaks = leaks | append: word | append: ' '
+    endif
+  endfor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: leaks, expected: '', field_name: 'sanitize removes active content'
+  assign kept = false
+  if clean contains '<b>there</b>' and clean contains 'href="https://example.com"'
+    assign kept = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: kept, field_name: 'sanitize keeps formatting and safe links', object: null
+  assign safe_link = false
+  if clean contains 'rel="nofollow noopener noreferrer"'
+    assign safe_link = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: safe_link, field_name: 'links open without opener', object: null
+  function cleaned_blank = 'modules/support/helpers/email/sanitize', html: ''
+  assign empty_is_blank = false
+  if cleaned_blank == blank
+    assign empty_is_blank = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: empty_is_blank, field_name: 'sanitize blank', object: null
+
+  # strip_quotes (04 §2.5): the new part of a reply only
+  assign reply = 'Thanks, that worked.' | append: nl | append: nl | append: 'On Mon, 2 Nov 2026 at 10:00, Support <support@example.com> wrote:' | append: nl | append: '> Please try again.'
+  function stripped = 'modules/support/helpers/email/strip_quotes', text: reply
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stripped, expected: 'Thanks, that worked.', field_name: 'gmail quote cut'
+  assign ours = 'New question' | append: nl | append: '##- Please type your reply above this line -##' | append: nl | append: 'Old text'
+  function stripped = 'modules/support/helpers/email/strip_quotes', text: ours
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stripped, expected: 'New question', field_name: 'our delimiter cut'
+  assign only_quote = 'On Mon, 2 Nov 2026, Support wrote:' | append: nl | append: '> everything quoted'
+  function stripped = 'modules/support/helpers/email/strip_quotes', text: only_quote
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stripped, expected: only_quote, field_name: 'nothing left keeps the whole text'
+
+  # mime: nested multipart split into leaf parts with their encodings
+  assign raw = 'Content-Type: multipart/mixed; boundary="outer"' | append: nl | append: nl
+  assign raw = raw | append: '--outer' | append: nl | append: 'Content-Type: multipart/alternative; boundary="inner"' | append: nl | append: nl
+  assign raw = raw | append: '--inner' | append: nl | append: 'Content-Type: text/plain; charset=utf-8' | append: nl | append: 'Content-Transfer-Encoding: quoted-printable' | append: nl | append: nl | append: 'Caf=C3=A9' | append: nl
+  assign raw = raw | append: '--inner' | append: nl | append: 'Content-Type: text/html; charset=utf-8' | append: nl | append: nl | append: '<p>Cafe</p>' | append: nl | append: '--inner--' | append: nl
+  assign raw = raw | append: '--outer' | append: nl | append: 'Content-Type: application/pdf; name="a.pdf"' | append: nl | append: 'Content-Disposition: attachment; filename="a.pdf"' | append: nl | append: 'Content-Transfer-Encoding: base64' | append: nl | append: nl | append: 'JVBERi0=' | append: nl | append: '--outer--' | append: nl
+  function m = 'modules/support/helpers/email/mime', raw: raw, depth: 0
+  assign types = m.parts | map: 'type' | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: types, expected: 'text/plain,text/html,application/pdf', field_name: 'nested parts in order'
+  assign plain = m.parts | where: 'type', 'text/plain' | first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: plain.encoding, expected: 'quoted-printable', field_name: 'part encoding read'
+  assign pdf = m.parts | where: 'type', 'application/pdf' | first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: pdf.filename, expected: 'a.pdf', field_name: 'attachment filename read'
+%}

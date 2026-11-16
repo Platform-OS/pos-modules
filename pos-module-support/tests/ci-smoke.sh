@@ -19,4 +19,4 @@ for role in superadmin agent; do
   echo "$email $password $role" >> "$E2E_USERS_FILE"
 done
 
-npx playwright test tests/e2e/00-smoke.spec.ts --project=test --reporter=list --retries=1
+npx playwright test tests/e2e/00-smoke.spec.ts --project=test --reporter=list
