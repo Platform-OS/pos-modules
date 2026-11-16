@@ -70,7 +70,22 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: message.delivery_error, expected: 'stub bad request', field_name: '4xx keeps provider error'
 
   # a mail loop is reported to managers and admins, naming only the sender's domain
+  # (its own manager: a fresh instance has none)
+  assign loop_suffix = 8 | random_string | downcase
+  assign loop_email = 'loop-manager-' | append: loop_suffix | append: '@example.com'
+  assign no_roles = []
+  function loop_user = 'modules/user/commands/user/create', first_name: 'Lou', last_name: 'Manager', email: loop_email, password: 'password-12345678', roles: no_roles, hook_params: null
+  function loop_profile = 'modules/user/queries/profiles/find', id: null, user_id: loop_user.id, uuid: null, first_name: null, last_name: null
+  assign no_departments = []
+  assign object = { "role": "manager", "state": "active", "source": "invite", "availability": "away" }
+  assign object.profile_id = loop_profile.id
+  assign object.department_ids = no_departments
+  function loop_manager = 'modules/support/commands/team_members/create', object: object
   function alerted = 'modules/support/commands/notifications/alert_mail_loop', sender: 'robot@loop-test.example'
+  assign disabled_values = { "state": "disabled" }
+  function disabled_props = 'modules/support/helpers/props', values: disabled_values
+  graphql _ = 'modules/support/records/update', id: loop_manager.id, properties: disabled_props
+  function _ = 'modules/support/commands/team_members/forget'
   # the list of recent bodies, not the last one: background retries of the cases above may send in between
   graphql stored = 'modules/support/records/find_by', table: 'modules/support/setting', name: 'key', value: 'test_stub_bodies'
   assign last_text = stored.records.results.first.properties.value | json
