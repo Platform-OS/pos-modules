@@ -3,6 +3,8 @@
   serving the ticket's department; an agent may take a ticket or give up
   their own unless they hold support.tickets.manage.all
   (queries/tickets/assignee_error). A blank assignee unassigns.
+  Build/Check/Execute: assign/build, assign/check, assign/execute.
+  Returns { valid, errors, ticket, warning }.
   @param {object} ticket - Ticket loaded through queries/tickets/find
   @param {string} [assignee_id] - Profile id, blank to unassign
   @param {string} [reason] - Shown in the activity log, default "manual"
@@ -10,45 +12,13 @@
 {% enddoc %}
 {% liquid
   assign result = { "valid": false, "errors": {}, "ticket": null, "warning": null }
-  assign reason = reason | default: 'manual'
-  # unassigned is stored as null: the Unassigned view and counts match on a missing assignee_id
-  if assignee_id == blank
-    assign assignee_id = null
-  endif
-
-  function error = 'modules/support/queries/tickets/assignee_error', ticket: ticket, assignee_id: assignee_id, actor: actor
-  if error
-    assign result.errors.assignee_id = error
+  function object = 'modules/support/commands/tickets/assign/build', ticket: ticket, assignee_id: assignee_id, reason: reason, actor: actor
+  function object = 'modules/support/commands/tickets/assign/check', object: object
+  unless object.valid
+    assign result.errors = object.errors
     return result
-  endif
-
-  assign values = { "assignee_id": null, "assigned_at": null }
-  assign values.assignee_id = assignee_id
-  if assignee_id != blank
-    function assignee = 'modules/support/queries/team_members/find', profile_id: assignee_id
-    assign values.assigned_at = 'now' | to_time
-  endif
-  assign values.assignment_reason = reason
-  function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
-  # live update right after the save, before the audit row and the event
-  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'assigned', message_id: null, profile_id: assignee_id, actor_id: actor.id
-
-  if assignee_id != blank
-    assign now = 'now' | to_time
-    assign member_values = { "last_assigned_at": null }
-    assign member_values.last_assigned_at = now
-    function props = 'modules/support/helpers/props', values: member_values
-    graphql m = 'modules/support/records/update', id: assignee.id, properties: props
-    function _ = 'modules/support/commands/team_members/forget'
-  endif
-
-  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'assigned', from_value: ticket.assignee_id, to_value: assignee_id, reason: reason
-  assign payload = { "ticket_id": null, "actor_id": null, "assignee_id": null }
-  assign payload.ticket_id = ticket.id
-  assign payload.actor_id = actor.id
-  assign payload.assignee_id = assignee_id
-  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_assigned', object: payload, delay: null, max_attempts: null
-
+  endunless
+  function saved = 'modules/support/commands/tickets/assign/execute', object: object
   assign result.valid = true
   assign result.ticket = saved
   return result

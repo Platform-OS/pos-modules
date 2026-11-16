@@ -1,0 +1,38 @@
+{% doc %}
+  Saves the assignment, sends the live update, stamps the assignee's
+  last_assigned_at, writes the activity row and publishes
+  support_ticket_assigned. Returns the saved ticket.
+  @param {object} object - From assign/check, valid
+{% enddoc %}
+{% liquid
+  assign ticket = object.ticket
+  assign assignee_id = object.assignee_id
+  assign actor = object.actor
+  assign values = { "assignee_id": null, "assigned_at": null }
+  assign values.assignee_id = assignee_id
+  if assignee_id != blank
+    function assignee = 'modules/support/queries/team_members/find', profile_id: assignee_id
+    assign values.assigned_at = 'now' | to_time
+  endif
+  assign values.assignment_reason = object.reason
+  function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+  # live update right after the save, before the audit row and the event
+  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'assigned', message_id: null, profile_id: assignee_id, actor_id: actor.id
+
+  if assignee_id != blank
+    assign now = 'now' | to_time
+    assign member_values = { "last_assigned_at": null }
+    assign member_values.last_assigned_at = now
+    function props = 'modules/support/helpers/props', values: member_values
+    graphql m = 'modules/support/records/update', id: assignee.id, properties: props
+    function _ = 'modules/support/commands/team_members/forget'
+  endif
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'assigned', from_value: ticket.assignee_id, to_value: assignee_id, reason: object.reason
+  assign payload = { "ticket_id": null, "actor_id": null, "assignee_id": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.actor_id = actor.id
+  assign payload.assignee_id = assignee_id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_assigned', object: payload, delay: null, max_attempts: null
+  return saved
+%}

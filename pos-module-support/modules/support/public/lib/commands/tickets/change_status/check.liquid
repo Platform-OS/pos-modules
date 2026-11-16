@@ -1,0 +1,14 @@
+{% doc %}
+  The target status must exist and be active.
+  @param {object} object - From change_status/build
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  if object.status == blank or object.status.active == false
+    assign c.valid = false
+    assign c.errors.status = 'modules/support/tickets.errors.unknown_status'
+  endif
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

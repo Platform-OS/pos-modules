@@ -1,0 +1,16 @@
+{% doc %}
+  Normalises a new ticket: priority p0–p3 (default p2), subject trimmed to
+  250 characters ("(no subject)" when blank), channel default email.
+  @param {object} object - { subject, department_id, requester_id, organization_id?, channel, priority?, follow_up_of_id?, actor_type, actor_id, auto_reply? }
+{% enddoc %}
+{% liquid
+  assign priorities = ["p0", "p1", "p2", "p3"]
+  assign priority = object.priority | default: 'p2'
+  unless priorities contains priority
+    assign priority = 'p2'
+  endunless
+  assign object.priority = priority
+  assign object.subject = object.subject | strip | default: '(no subject)' | truncate: 250, ''
+  assign object.channel = object.channel | default: 'email'
+  return object
+%}

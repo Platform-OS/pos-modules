@@ -1,0 +1,17 @@
+{% doc %}
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} [assignee_id] - Profile id, blank to unassign
+  @param {string} [reason] - Shown in the activity log, default "manual"
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign object = { "ticket": null, "assignee_id": null, "reason": null, "actor": null }
+  assign object.ticket = ticket
+  # unassigned is stored as null: the Unassigned view and counts match on a missing assignee_id
+  if assignee_id != blank
+    assign object.assignee_id = assignee_id
+  endif
+  assign object.reason = reason | default: 'manual'
+  assign object.actor = actor
+  return object
+%}

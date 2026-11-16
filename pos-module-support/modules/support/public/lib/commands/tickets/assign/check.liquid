@@ -1,0 +1,17 @@
+{% doc %}
+  The assignee must be an active member serving the ticket's department; an
+  agent may only take a ticket or give up their own
+  (queries/tickets/assignee_error).
+  @param {object} object - From assign/build
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  function error = 'modules/support/queries/tickets/assignee_error', ticket: object.ticket, assignee_id: object.assignee_id, actor: object.actor
+  if error
+    assign c.valid = false
+    assign c.errors.assignee_id = error
+  endif
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

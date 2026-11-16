@@ -1,0 +1,31 @@
+{% doc %}
+  Moves the source's messages back, reopens it in In progress (clearing
+  merged_into_id, closed_at and solved_at), restarts its SLA, writes the
+  activity row and publishes support_ticket_unmerged. Returns the saved source.
+  @param {object} object - From unmerge/check, valid
+{% enddoc %}
+{% liquid
+  assign source = object.source
+  assign actor = object.actor
+  graphql moved = 'modules/support/messages/move_all', from_ticket_id: source.merged_into_id, to_ticket_id: source.id, moved_from_ticket_id: null, only_moved_from: source.id
+
+  function statuses = 'modules/support/queries/statuses/all'
+  assign progress = statuses.by_key.progress
+  assign values = { "merged_into_id": null, "closed_at": null, "solved_at": null }
+  assign values.status_id = progress.id
+  assign values.category = progress.category
+  function saved = 'modules/support/commands/tickets/save', ticket: source, values: values
+  # the ticket is open again: deadlines and the queue's SLA sort key come back
+  function sla = 'modules/support/commands/sla/update', ticket_id: source.id
+  if sla
+    assign saved = sla
+  endif
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: source.id, actor_type: actor.type, actor_id: actor.id, event_type: 'unmerged', from_value: source.merged_into_id, to_value: source.id, reason: null
+  assign payload = { "ticket_id": null, "actor_id": null, "target_id": null }
+  assign payload.ticket_id = source.id
+  assign payload.actor_id = actor.id
+  assign payload.target_id = source.merged_into_id
+  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_unmerged', object: payload, delay: null, max_attempts: null
+  return saved
+%}

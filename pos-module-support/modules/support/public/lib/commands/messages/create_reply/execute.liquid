@@ -1,0 +1,63 @@
+{% doc %}
+  Stores the message as queued, updates the ticket (first_replied_at once,
+  needs_reply off, last_agent_reply_at), optionally changes the status,
+  queues delivery (with the attachments) in the background, writes the
+  activity row, publishes support_reply_created and sends the live update.
+  Returns { message, ticket }.
+  @param {object} object - From create_reply/check, valid
+{% enddoc %}
+{% liquid
+  assign ticket = object.ticket
+  assign actor = object.actor
+  assign attachments = object.attachments
+
+  assign values = { "author_type": "agent", "visibility": "public", "channel": "email", "kind": "message", "delivery_state": "queued" }
+  assign values.ticket_id = ticket.id
+  assign values.author_id = actor.id
+  assign values.body_html = object.body_html
+  assign values.body_text = object.body_text
+  assign values.body_stripped = object.body_text
+  assign values.cc_emails = object.cc
+  assign values.subject = ticket.subject
+  function props = 'modules/support/helpers/props', values: values
+  graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props
+  assign message = values
+  assign message.id = r.record.id
+
+  assign now = 'now' | to_time
+  assign ticket_values = { "needs_reply": false }
+  assign ticket_values.last_agent_reply_at = now
+  if ticket.first_replied_at == blank
+    assign ticket_values.first_replied_at = now
+  endif
+  function ticket = 'modules/support/commands/tickets/save', ticket: ticket, values: ticket_values
+
+  if object.then_status_key != blank
+    function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: object.then_status_key, actor: actor
+    if changed.valid
+      assign ticket = changed.ticket
+    endif
+  endif
+
+  # files are stored and the email sent in the background: a job carries
+  # their base64 (14 MB checked), so the request does not wait for either
+  if attachments.size > 0
+    background _ = 'modules/support/commands/messages/attach_and_deliver', message_id: message.id, ticket_id: ticket.id, attachments: attachments, source_name: 'support_deliver', priority: 'high'
+  else
+    background _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, attachments: null, source_name: 'support_deliver', priority: 'high'
+  endif
+
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'replied', from_value: null, to_value: message.id, reason: null
+  assign payload = { "ticket_id": null, "message_id": null, "actor_id": null }
+  assign payload.ticket_id = ticket.id
+  assign payload.message_id = message.id
+  assign payload.actor_id = actor.id
+  function _ = 'modules/core/commands/events/publish', type: 'support_reply_created', object: payload, delay: null, max_attempts: null
+  # live update now, not from a background consumer, so open screens follow at once
+  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'reply', message_id: message.id, profile_id: null, actor_id: actor.id
+
+  assign out = { "message": null, "ticket": null }
+  assign out.message = message
+  assign out.ticket = ticket
+  return out
+%}

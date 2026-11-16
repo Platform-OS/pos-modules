@@ -1,0 +1,38 @@
+{% doc %}
+  Sanitises the reply HTML, derives its plain text, keeps only valid CC
+  addresses (lower-cased, unique) and adds up the attachments' size.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} body_html - Reply HTML from the composer
+  @param {string[]} [cc_emails] - Extra recipients
+  @param {string} [then_status_key] - Status after sending
+  @param {object[]} [attachments] - [{ filename, content_type, content_base64 }]
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  assign object = { "ticket": null, "actor": null, "then_status_key": null, "body_html": null, "body_text": null, "cc": [], "attachments": [], "attachments_size": 0 }
+  assign object.ticket = ticket
+  assign object.actor = actor
+  assign object.then_status_key = then_status_key
+  function clean_html = 'modules/support/helpers/email/sanitize', html: body_html
+  assign object.body_html = clean_html
+  assign object.body_text = clean_html | replace_regex: '<(br|/p|/div|/li)[^>]*>', ' ', 'i' | strip_html | strip
+
+  assign files = attachments | default: []
+  assign total = 0
+  for file in files
+    assign total = total | plus: file.content_base64.size
+  endfor
+  assign object.attachments = files
+  assign object.attachments_size = total
+
+  assign cc = []
+  for address in cc_emails
+    assign clean = address | downcase | strip
+    assign is_email = clean | is_email_valid
+    if is_email
+      assign cc << clean
+    endif
+  endfor
+  assign object.cc = cc | uniq
+  return object
+%}

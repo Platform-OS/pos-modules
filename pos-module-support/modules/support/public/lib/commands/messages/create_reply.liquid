@@ -2,6 +2,8 @@
   Public agent reply (05 §1): stores the message as queued, updates the
   ticket (first_replied_at once, needs_reply off, last_agent_reply_at),
   optionally changes status, then delivers the email in the background.
+  Build/Check/Execute: create_reply/build, check, execute.
+  Returns { valid, errors, message, ticket }.
   @param {object} ticket - Ticket loaded through queries/tickets/find
   @param {string} body_html - Reply HTML from the composer
   @param {string[]} [cc_emails] - Extra recipients
@@ -11,79 +13,15 @@
 {% enddoc %}
 {% liquid
   assign result = { "valid": false, "errors": {}, "message": null, "ticket": null }
-  function body_html = 'modules/support/helpers/email/sanitize', html: body_html
-  assign body_text = body_html | replace_regex: '<(br|/p|/div|/li)[^>]*>', ' ', 'i' | strip_html | strip
-  if body_text == blank
-    assign result.errors.body = 'modules/support/tickets.errors.blank_body'
+  function object = 'modules/support/commands/messages/create_reply/build', ticket: ticket, body_html: body_html, cc_emails: cc_emails, then_status_key: then_status_key, attachments: attachments, actor: actor
+  function object = 'modules/support/commands/messages/create_reply/check', object: object
+  unless object.valid
+    assign result.errors = object.errors
     return result
-  endif
-
-  assign attachments = attachments | default: []
-  assign total = 0
-  for file in attachments
-    assign total = total | plus: file.content_base64.size
-  endfor
-  if total > 14000000
-    assign result.errors.attachments = 'modules/support/tickets.errors.attachments_size'
-    return result
-  endif
-
-  assign cc = []
-  for address in cc_emails
-    assign clean = address | downcase | strip
-    assign is_email = clean | is_email_valid
-    if is_email
-      assign cc << clean
-    endif
-  endfor
-
-  assign values = { "author_type": "agent", "visibility": "public", "channel": "email", "kind": "message", "delivery_state": "queued" }
-  assign values.ticket_id = ticket.id
-  assign values.author_id = actor.id
-  assign values.body_html = body_html
-  assign values.body_text = body_text
-  assign values.body_stripped = body_text
-  assign values.cc_emails = cc | uniq
-  assign values.subject = ticket.subject
-  function props = 'modules/support/helpers/props', values: values
-  graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props
-  assign message = values
-  assign message.id = r.record.id
-
-  assign now = 'now' | to_time
-  assign ticket_values = { "needs_reply": false }
-  assign ticket_values.last_agent_reply_at = now
-  if ticket.first_replied_at == blank
-    assign ticket_values.first_replied_at = now
-  endif
-  function ticket = 'modules/support/commands/tickets/save', ticket: ticket, values: ticket_values
-
-  if then_status_key != blank
-    function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: then_status_key, actor: actor
-    if changed.valid
-      assign ticket = changed.ticket
-    endif
-  endif
-
-  # files are stored and the email sent in the background: a job carries
-  # their base64 (14 MB checked), so the request does not wait for either
-  if attachments.size > 0
-    background _ = 'modules/support/commands/messages/attach_and_deliver', message_id: message.id, ticket_id: ticket.id, attachments: attachments, source_name: 'support_deliver', priority: 'high'
-  else
-    background _ = 'modules/support/commands/messages/deliver', message_id: message.id, attempt: 1, attachments: null, source_name: 'support_deliver', priority: 'high'
-  endif
-
-  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'replied', from_value: null, to_value: message.id, reason: null
-  assign payload = { "ticket_id": null, "message_id": null, "actor_id": null }
-  assign payload.ticket_id = ticket.id
-  assign payload.message_id = message.id
-  assign payload.actor_id = actor.id
-  function _ = 'modules/core/commands/events/publish', type: 'support_reply_created', object: payload, delay: null, max_attempts: null
-  # live update now, not from a background consumer, so open screens follow at once
-  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'reply', message_id: message.id, profile_id: null, actor_id: actor.id
-
+  endunless
+  function done = 'modules/support/commands/messages/create_reply/execute', object: object
   assign result.valid = true
-  assign result.message = message
-  assign result.ticket = ticket
+  assign result.message = done.message
+  assign result.ticket = done.ticket
   return result
 %}

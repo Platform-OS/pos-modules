@@ -1,0 +1,23 @@
+{% doc %}
+  Only a merged ticket can be unmerged, and only within 30 days of the merge.
+  @param {object} object - { source, actor }
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  assign source = object.source
+  if source.merged_into_id == blank
+    assign c.errors.source = 'modules/support/tickets.errors.not_merged'
+  else
+    assign limit = source.closed_at | add_to_time: 30, 'd'
+    assign now = 'now' | to_time
+    if limit < now
+      assign c.errors.source = 'modules/support/tickets.errors.unmerge_expired'
+    endif
+  endif
+  if c.errors.source
+    assign c.valid = false
+  endif
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

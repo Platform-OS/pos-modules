@@ -1,0 +1,12 @@
+{% doc %}
+  A ticket needs a department and a requester.
+  @param {object} object - From create/build
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'department_id', key: null
+  function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'requester_id', key: null
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

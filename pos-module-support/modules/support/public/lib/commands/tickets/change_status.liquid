@@ -9,60 +9,26 @@
   first_replied_at rather than the category, so returning a ticket to New
   cannot restart the SLA clock; support_ticket_created hangs off creation,
   so no new-ticket alert re-fires either.
+  Build/Check/Execute: change_status/build, check, execute. Moving to the
+  status the ticket already has changes nothing. Returns { valid, errors, ticket }.
   @param {object} ticket - Ticket loaded through queries/tickets/find
   @param {string} status_key - Target status key
   @param {object} actor - { type, id, member }
 {% enddoc %}
 {% liquid
   assign result = { "valid": false, "errors": {}, "ticket": null }
-  function statuses = 'modules/support/queries/statuses/all'
-  assign status = statuses.by_key[status_key]
-  if status == blank or status.active == false
-    assign result.errors.status = 'modules/support/tickets.errors.unknown_status'
+  function object = 'modules/support/commands/tickets/change_status/build', ticket: ticket, status_key: status_key, actor: actor
+  function object = 'modules/support/commands/tickets/change_status/check', object: object
+  unless object.valid
+    assign result.errors = object.errors
     return result
-  endif
-  if status.id == ticket.status_id
+  endunless
+  if object.status.id == ticket.status_id
     assign result.valid = true
     assign result.ticket = ticket
     return result
   endif
-
-  assign previous = statuses.by_id[ticket.status_id]
-  assign now = 'now' | to_time
-  assign values = { "status_id": null }
-  assign values.status_id = status.id
-  assign values.category = status.category
-  if status.category == 'solved'
-    assign values.solved_at = now
-    assign values.needs_reply = false
-  endif
-  if status.category == 'closed'
-    assign values.closed_at = now
-    assign values.needs_reply = false
-  endif
-  if previous.category == 'closed' and status.category != 'closed'
-    assign values.closed_at = null
-  endif
-  # reopened: the SLA result must come from the next solve, not this one (SL-4)
-  if status.category != 'solved' and status.category != 'closed' and ticket.solved_at != blank
-    assign values.solved_at = null
-  endif
-  if status.category != 'solved' and ticket.confirm_notified_at != blank
-    assign values.confirm_notified_at = null
-  endif
-  function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
-  # live update right after the save, before the audit row and the event, so
-  # open screens follow as soon as possible
-  function _ = 'modules/support/commands/channels/ticket_changed', ticket_id: ticket.id, kind: 'updated', message_id: null, profile_id: null, actor_id: actor.id
-
-  function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'status_changed', from_value: previous.key, to_value: status.key, reason: null
-  assign payload = { "ticket_id": null, "actor_id": null, "from_value": null, "to_value": null }
-  assign payload.ticket_id = ticket.id
-  assign payload.actor_id = actor.id
-  assign payload.from_value = previous.key
-  assign payload.to_value = status.key
-  function _ = 'modules/core/commands/events/publish', type: 'support_ticket_status_changed', object: payload, delay: null, max_attempts: null
-
+  function saved = 'modules/support/commands/tickets/change_status/execute', object: object
   assign result.valid = true
   assign result.ticket = saved
   return result

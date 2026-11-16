@@ -1,0 +1,27 @@
+{% doc %}
+  Refuses merging a ticket into itself, into a closed or merged ticket (or
+  a source that is already merged), and across organizations without
+  support.tickets.manage.all. The first problem found is reported.
+  @param {object} object - { source, target, actor }
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  assign source = object.source
+  assign target = object.target
+  if source.id == target.id
+    assign c.errors.target = 'modules/support/tickets.errors.merge_self'
+  elsif target.category == 'closed' or target.merged_into_id != blank or source.merged_into_id != blank
+    assign c.errors.target = 'modules/support/tickets.errors.merge_closed'
+  elsif source.organization_id != target.organization_id
+    function can_manage = 'modules/support/queries/team/can', member: object.actor.member, do: 'support.tickets.manage.all'
+    unless can_manage
+      assign c.errors.target = 'modules/support/tickets.errors.merge_org'
+    endunless
+  endif
+  if c.errors.target
+    assign c.valid = false
+  endif
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

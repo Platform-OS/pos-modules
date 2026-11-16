@@ -1,0 +1,19 @@
+{% doc %}
+  A reply needs text, and its attachments may add up to 14 MB of base64
+  (10 MB of files: what a background job can carry). The first problem
+  found is reported.
+  @param {object} object - From create_reply/build
+{% enddoc %}
+{% liquid
+  assign c = { "errors": {}, "valid": true }
+  if object.body_text == blank
+    assign c.valid = false
+    assign c.errors.body = 'modules/support/tickets.errors.blank_body'
+  elsif object.attachments_size > 14000000
+    assign c.valid = false
+    assign c.errors.attachments = 'modules/support/tickets.errors.attachments_size'
+  endif
+  assign object.valid = c.valid
+  assign object.errors = c.errors
+  return object
+%}

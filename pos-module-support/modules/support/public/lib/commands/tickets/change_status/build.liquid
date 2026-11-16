@@ -1,0 +1,15 @@
+{% doc %}
+  Looks up the target and the current status.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} status_key - Target status key
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  function statuses = 'modules/support/queries/statuses/all'
+  assign object = { "ticket": null, "actor": null, "status": null, "previous": null }
+  assign object.ticket = ticket
+  assign object.actor = actor
+  assign object.status = statuses.by_key[status_key]
+  assign object.previous = statuses.by_id[ticket.status_id]
+  return object
+%}

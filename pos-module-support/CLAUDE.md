@@ -15,6 +15,7 @@ validate (`validate_code`, platformos-supervisor) â†’ write (Write/Edit only) â†
 ## Things that are specific here
 
 - Tables are `modules/support/<table>`; every ticket write goes through `modules/support/commands/tickets/*` and writes a `ticket_event`. Exception: `commands/sla/*` store derived SLA fields (deadlines, state, version; a due-soon or breach still logs its event). Migrations only seed and start jobs: fixes to development data are not shipped as migrations.
+- Build/Check/Execute (the monorepo command pattern) is used by the main write commands that pages call with user input: `tickets/create`, `tickets/assign`, `tickets/change_status`, `tickets/merge`, `tickets/unmerge` (these two need no build step) and `messages/create_reply`, each with a folder of `build`, `check`, `execute`. Other commands are small, internal or system-driven (consumers, timers, settings sections) and stay one file; a new command that validates user input should follow the pattern.
 - Layering (checked by `tests/ci-static.sh`): pages read data through `lib/queries/*`, never GraphQL directly; partials only render what they are passed and may call formatting helpers (`helpers/*`), never queries, commands or GraphQL. The channel partials (`views/partials/channels/`) are WebSocket handlers and check access themselves.
 - Status behaviour comes from the **category** (`lib/helpers/categories.liquid`), never from a status key.
 - Department scope is applied in every query; every by-id write loads the record through a scoped query first.
