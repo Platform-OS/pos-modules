@@ -102,7 +102,7 @@ every request — no redeploy needed.
 | `defaults.idempotency_window_seconds` | `86400` | how long an idempotency key can replay |
 | `defaults.approval_window_seconds` | `604800` | how long a pending approval can be acted on |
 | `defaults.approval_max_pending_per_principal` | `3` | max non-expired pending approvals per principal (queue-flood cap) |
-| `defaults.max_output_schema_depth` | `8` | nesting cap for a tool's declared `output_schema` |
+| `defaults.max_output_schema_depth` | `8` | nesting cap for a tool's declared `output_schema`, and for validating results against it |
 | `defaults.task_poll_interval_ms` | `30000` | `pollIntervalMs` suggested to Tasks-extension clients |
 | `defaults.abuse_threshold` / `defaults.abuse_window_seconds` | `20` / `300` | violations within the window that auto-suspend a token (`0` disables) |
 | `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle. Only pages declaring `handler: markdown` in front matter are exposed — a Liquid page is never served as a resource |

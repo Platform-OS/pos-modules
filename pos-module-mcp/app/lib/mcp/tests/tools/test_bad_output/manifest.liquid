@@ -1,0 +1,24 @@
+{%- comment -%}
+  Tool manifest — test_bad_output (TEST FIXTURE, app-owned; gated by MCP_ENABLE_TEST_TOOLS).
+  Read-only, public_read. Probe for the output contract: the tool declares a closed
+  output_schema and the handler returns, depending on `mode`, either a conforming result
+  or one that breaks it in a single way (wrong type, undeclared key, missing required
+  key, null where null is not listed, a bad array item, a value below minimum). The
+  coverage suite asserts the conforming result is served and every other one becomes a
+  tool error with no structuredContent, logged and written to the ledger.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_bad_output",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): returns a result that does or does not match its output schema, to prove results are checked.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["mode"],"properties":{"mode":{"type":"string","enum":["ok","type","extra","missing","null","item","minimum"],"description":"which result to return"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["count","label"],"properties":{"count":{"type":"integer","minimum":0},"label":{"type":["string","null"]},"tags":{"type":"array","items":{"type":"string"}}}},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tests/tools/test_bad_output/call"
+  }
+  return m
+%}

@@ -9,18 +9,21 @@
   Enforced:
    - `type` present and one of object/string/integer/number/boolean/array. For an
      OUTPUT schema (`output: true`) `type` may also be a list of those types plus
-     "null", because a result field can be empty; the engine never validates
-     results against it, so the subset rule protects inputs only.
+     "null", because a result field can be empty. execute/run validates every
+     result against the output schema (validate/json_schema, output mode) before it
+     is served, so every keyword allowed here is enforced on results too.
    - Only supported keywords per node (union set below); any other key → error.
-   - additionalProperties, when present, must be boolean (it is FORCED to false at
-     validation time regardless — §7.2 — but must be declarable only as a boolean).
+   - additionalProperties, when present, must be boolean. In an input schema it is
+     FORCED to false at validation time regardless (§7.2); in an output schema it is
+     honoured as declared (false rejects undeclared result keys).
    - pattern is length-capped and rejects classic catastrophic-backtracking
      nested-quantifier signatures (§16.4).
    - depth is capped (max_schema_depth) to bound validation cost (§10.1).
    - `format` in an INPUT schema must be one validate/json_schema enforces (uuid,
      email, date, date-time). Any other value would be silently ignored, so it is rejected;
-     enforcing a new format later then only affects tools that opt in. An output
-     schema is never validated against, so its formats are client hints only.
+     enforcing a new format later then only affects tools that opt in. In an output
+     schema those four formats are checked on results; any other format is a client
+     annotation (JSON Schema treats format as an annotation by default) and is not.
 
   Not enforced, reported: every `description` and `title` is model-read text, like the
   tool description, so each goes through registry/lint_description (§12.3). A hit is

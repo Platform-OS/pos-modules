@@ -350,7 +350,7 @@ deprecated: false
 | `version` | yes | SemVer. Surfaced in `tools/list` and the ledger (§14). |
 | `description` | yes | Read by the model. Reviewed as security-relevant text (§12.1). |
 | `input_schema` | yes | JSON Schema subset (§10.1). `additionalProperties: false` is enforced regardless of declaration. |
-| `output_schema` | no | Advisory; enables client-side validation and clearer errors. |
+| `output_schema` | no | Published as `outputSchema`; every successful result is validated against it before it is served (MCP: servers MUST return conforming structured results). A non-conforming result becomes a tool error and is logged; a mutating call is rolled back. |
 | `mutating` | yes | `true` ⇒ handler runs inside a transaction (§11). |
 | `authorization_policy` | yes | Named pOS policy. A tool with no policy is invalid (§12.2 — no implicit allow). |
 | `requires_approval` | yes | `true` ⇒ never executes inline; creates a pending approval (§9.6). |

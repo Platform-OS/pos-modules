@@ -1,31 +1,63 @@
 {%- comment -%}
-  Validate a VALUE against a JSON-Schema node (spec §10) — the input-surface
-  control. Distinct from registry/validate_schema_node (which validates the SCHEMA
-  itself): this validates a tool call's ARGUMENTS against an already-valid schema.
+  Validate a VALUE against a JSON-Schema node (spec §10). Distinct from
+  registry/validate_schema_node (which validates the SCHEMA itself): this validates a
+  value against an already-valid schema. Two modes:
 
-  STRICT, no coercion (§10.2): a string "42" for an integer field is REJECTED, not
-  coerced — agents emit well-formed JSON, and lenient coercion hides model errors
-  and widens the input surface. Unknown keys are rejected (additionalProperties is
-  FORCED false regardless of declaration, §7.2). Depth is capped.
+  INPUT (default) — a tool call's ARGUMENTS against input_schema, the input-surface
+  control. STRICT, no coercion (§10.2): a string "42" for an integer field is
+  REJECTED, not coerced — agents emit well-formed JSON, and lenient coercion hides
+  model errors and widens the input surface. Unknown keys are rejected
+  (additionalProperties is FORCED false regardless of declaration, §7.2).
+
+  OUTPUT (`output: true`) — a handler's result against output_schema, before it is
+  served as structuredContent (MCP: a server MUST return structured results that
+  conform to its declared outputSchema). Same strict type and constraint checks, with
+  the output-mode schema subset (registry/validate_schema_node):
+   - `type` may be a list (`["string","null"]`); a value matches if it matches any
+     listed type, and null is valid only where "null" is listed;
+   - additionalProperties is honoured as declared: `false` rejects undeclared keys,
+     absent or `true` allows them (standard JSON Schema; forcing false would refuse
+     results that conform to the published schema);
+   - a `format` other than uuid/email/date/date-time is an annotation for clients and
+     is not checked (JSON Schema treats format as an annotation by default).
+
+  Depth is capped in both modes.
 
   Type rules (JSON-parsed values):
    - integer : Integer, or a Float with zero fractional part (JSON-Schema semantics)
    - number  : Integer or Float
    - string/boolean/array/object : exact type match
-   - a null value for any typed field is a type error (null ≠ absent, strict)
+   - a null value for a typed field is a type error (null ≠ absent, strict) unless an
+     output schema lists "null" among its types
 
   @param {*}       value     - the value to check
   @param {object}  schema    - the JSON-Schema node
   @param {integer} depth     - current depth (start 1)
-  @param {integer} max_depth - cap (config.defaults.max_schema_depth)
+  @param {integer} max_depth - cap (config.defaults.max_schema_depth, or
+                               max_output_schema_depth in output mode)
   @param {string}  path      - dotted location for messages (start 'arguments')
+  @param {boolean} output    - true to validate a result against an output_schema
+                               (default false)
   @return {object} { valid:boolean, errors:[string] }
 {%- endcomment -%}
 {% liquid
   assign errors = []
   assign at = path | default: 'arguments'
+  assign output = output | default: false
   assign t = schema.type
   assign vt = value | type_of
+
+  # The declared types as a list. Input schemas always declare one type; an output
+  # schema may declare several (registry/validate_schema_node enforces both).
+  assign types = []
+  assign t_kind = t | type_of | downcase
+  if t_kind == 'array'
+    assign types = t
+    assign t_label = t | join: ' or '
+  else
+    assign types = types | array_add: t
+    assign t_label = t
+  endif
 
   if depth > max_depth
     assign msg = at | append: ': exceeds max nesting depth'
@@ -37,9 +69,16 @@
     return out
   endif
 
-  # ---- null is never a valid typed value in this subset ----
-  if vt == 'null'
-    assign msg = at | append: ': must be ' | append: t | append: ', got null'
+  # ---- null: valid only where an output schema lists "null" ----
+  if vt == 'null' or vt == 'NilClass'
+    if output and types contains 'null'
+      assign out = {
+        "valid": true,
+        "errors": errors
+      }
+      return out
+    endif
+    assign msg = at | append: ': must be ' | append: t_label | append: ', got null'
     assign errors = errors | array_add: msg
     assign out = {
       "valid": false,
@@ -49,50 +88,52 @@
   endif
 
   # ---- strict type check ----
-  assign type_ok = false
-  case t
-    when 'object'
-      # Accept plain Hash and ActiveSupport::HashWithIndifferentAccess (request
-      # params arrive as the latter); both contain 'Hash'.
-      if vt contains 'Hash'
-        assign type_ok = true
+  # `kind` is the declared type the value matched; it picks the constraints below.
+  assign kind = ''
+  # Accept plain Hash and ActiveSupport::HashWithIndifferentAccess (request params
+  # arrive as the latter); both contain 'Hash'.
+  if vt contains 'Hash'
+    if types contains 'object'
+      assign kind = 'object'
+    endif
+  elsif vt == 'Array'
+    if types contains 'array'
+      assign kind = 'array'
+    endif
+  elsif vt == 'String'
+    if types contains 'string'
+      assign kind = 'string'
+    endif
+  elsif vt == 'Boolean'
+    if types contains 'boolean'
+      assign kind = 'boolean'
+    endif
+  elsif vt == 'Integer'
+    if types contains 'integer'
+      assign kind = 'integer'
+    elsif types contains 'number'
+      assign kind = 'number'
+    endif
+  elsif vt == 'Float'
+    if types contains 'number'
+      assign kind = 'number'
+    elsif types contains 'integer'
+      assign floored = value | floor
+      if value == floored
+        assign kind = 'integer'
       endif
-    when 'array'
-      if vt == 'Array'
-        assign type_ok = true
-      endif
-    when 'string'
-      if vt == 'String'
-        assign type_ok = true
-      endif
-    when 'boolean'
-      if vt == 'Boolean'
-        assign type_ok = true
-      endif
-    when 'number'
-      if vt == 'Integer' or vt == 'Float'
-        assign type_ok = true
-      endif
-    when 'integer'
-      if vt == 'Integer'
-        assign type_ok = true
-      elsif vt == 'Float'
-        assign floored = value | floor
-        if value == floored
-          assign type_ok = true
-        endif
-      endif
-  endcase
+    endif
+  endif
 
-  unless type_ok
-    assign msg = at | append: ': expected ' | append: t | append: ', got ' | append: vt
+  if kind == blank
+    assign msg = at | append: ': expected ' | append: t_label | append: ', got ' | append: vt
     assign errors = errors | array_add: msg
     assign out = {
       "valid": false,
       "errors": errors
     }
     return out
-  endunless
+  endif
 
   # ---- enum (any scalar) ----
   unless schema.enum == blank
@@ -111,7 +152,7 @@
   endunless
 
   # ---- per-type constraints ----
-  case t
+  case kind
     when 'string'
       assign len = value | size
       unless schema.minLength == blank
@@ -227,7 +268,7 @@
         for el in value
           assign el_path = at | append: '[' | append: i | append: ']'
           assign nd = depth | plus: 1
-          function er = 'modules/mcp/helpers/validate/json_schema', value: el, schema: schema.items, depth: nd, max_depth: max_depth, path: el_path
+          function er = 'modules/mcp/helpers/validate/json_schema', value: el, schema: schema.items, depth: nd, max_depth: max_depth, path: el_path, output: output
           unless er.valid
             for e in er.errors
               assign errors = errors | array_add: e
@@ -249,17 +290,24 @@
           endunless
         endfor
       endunless
-      # additionalProperties FORCED false: no unknown keys
+      # Unknown keys: an input schema FORCES additionalProperties false (§7.2); an
+      # output schema rejects them only where it declares additionalProperties: false.
       assign pkeys = []
       unless props == blank
         assign pkeys = props | hash_keys
       endunless
-      for k in vkeys
-        unless pkeys contains k
-          assign msg = at | append: ': unknown property "' | append: k | append: '"'
-          assign errors = errors | array_add: msg
-        endunless
-      endfor
+      assign closed = true
+      if output and schema.additionalProperties != false
+        assign closed = false
+      endif
+      if closed
+        for k in vkeys
+          unless pkeys contains k
+            assign msg = at | append: ': unknown property "' | append: k | append: '"'
+            assign errors = errors | array_add: msg
+          endunless
+        endfor
+      endif
       # recurse into declared properties that are present
       unless props == blank
         for pk in pkeys
@@ -268,7 +316,7 @@
             assign child_schema = props[pk]
             assign child_path = at | append: '.' | append: pk
             assign nd = depth | plus: 1
-            function cr = 'modules/mcp/helpers/validate/json_schema', value: child, schema: child_schema, depth: nd, max_depth: max_depth, path: child_path
+            function cr = 'modules/mcp/helpers/validate/json_schema', value: child, schema: child_schema, depth: nd, max_depth: max_depth, path: child_path, output: output
             unless cr.valid
               for e in cr.errors
                 assign errors = errors | array_add: e

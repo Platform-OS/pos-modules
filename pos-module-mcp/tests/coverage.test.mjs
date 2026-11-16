@@ -47,6 +47,12 @@ async function ledgerFor(principalId) {
   const r = await adm.gql(`{ records(per_page: 200, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }] }, sort: [{ id: { order: ASC } }]) { results { outcome: property(name: "execution_outcome") tool: property(name: "tool_name") authz: property(name: "authz_decision") } } }`);
   return r?.data?.records?.results || [];
 }
+// The newest ledger rows of one principal for one tool (DESC, so a long ledger never
+// pushes them off the page).
+async function recentLedgerFor(principalId, toolName, perPage = 50) {
+  const r = await adm.gql(`{ records(per_page: ${perPage}, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "tool_name", value: "${toolName}" }] }, sort: [{ id: { order: DESC } }]) { results { id outcome: property(name: "execution_outcome") code: property(name: "error_code") } } }`);
+  return r?.data?.records?.results || [];
+}
 async function pendingFor(principalId) {
   const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }) { results { id } } }`);
   return r?.data?.records?.results || [];
@@ -490,6 +496,37 @@ describe('coverage · multi-principal governance planes', () => {
     ok('a malformed annotation excludes the tool from tools/list', tools.length > 0 && !tools.some(t => t.name === 'test_bad_annotations'), tools.map(t => t.name).join(','));
     const call = await callTool(mem.rawToken, 'test_bad_annotations', {});
     ok('the excluded tool cannot be called', call.json?.error?.code === -32602 || call.json?.result?.isError === true, JSON.stringify(call.json?.error || call.json?.result || {}).slice(0, 120));
+  });
+
+  it('Output contract — a result that breaks the declared outputSchema is never served (MCP: servers MUST conform)', async () => {
+    const r = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, mem.rawToken);
+    const listed = (r.json?.result?.tools || []).find(t => t.name === 'test_bad_output');
+    ok('the probe advertises its closed outputSchema', listed?.outputSchema?.additionalProperties === false && listed?.outputSchema?.properties?.count?.type === 'integer', JSON.stringify(listed?.outputSchema || {}).slice(0, 200));
+
+    const call = (mode) => callTool(mem.rawToken, 'test_bad_output', { mode });
+    const good = await call('ok');
+    const sc = good.json?.result?.structuredContent;
+    ok('a conforming result (null where "null" is listed) is served as a success', isOkResult(good) && good.json?.result?.isError === false && sc?.count === 1 && sc?.label === null && Array.isArray(sc?.tags), JSON.stringify(good.json?.result || {}).slice(0, 200));
+
+    const ledgerStart = Math.max(0, ...(await recentLedgerFor(mem.principal, 'test_bad_output', 1)).map(x => Number(x.id)));
+    const wLedgerStart = Math.max(0, ...(await recentLedgerFor(mem.principal, 'test_bad_output_write', 1)).map(x => Number(x.id)));
+    const refused = (res) => res.status === 200 && res.json?.result?.isError === true && res.json.result.structuredContent === undefined && /does not match its declared output schema/.test(res.json.result.content?.[0]?.text || '');
+    for (const mode of ['type', 'extra', 'missing', 'null', 'item', 'minimum']) {
+      const res = await call(mode);
+      ok(`non-conforming result (${mode}) → tool error, no structuredContent`, refused(res), JSON.stringify(res.json || {}).slice(0, 240));
+      if (mode === 'extra') ok('the refused result does not leak the undeclared field or its value', !/secret|leaked-internal-value/.test(res.text || JSON.stringify(res.json || {})));
+    }
+    const rows = (await recentLedgerFor(mem.principal, 'test_bad_output')).filter(x => Number(x.id) > ledgerStart);
+    ok('each refused result is in the ledger as error -32603', rows.length === 6 && rows.every(x => x.outcome === 'error' && String(x.code) === '-32603'), JSON.stringify(rows));
+
+    // Mutating: the refused result turns the call into an error, so the write rolls back.
+    await deleteNotesFor(mem.userId);
+    const w = await callTool(mem.rawToken, 'test_bad_output_write', { label: 'outcontract' });
+    ok('mutating tool with a non-conforming result → tool error, no structuredContent', refused(w), JSON.stringify(w.json || {}).slice(0, 240));
+    const notes = (await notesFor(mem.userId)).filter(x => x.source === 'test_bad_output_write');
+    ok('its write is rolled back → NO row persisted', notes.length === 0, 'rows=' + notes.length);
+    const wrows = (await recentLedgerFor(mem.principal, 'test_bad_output_write')).filter(x => Number(x.id) > wLedgerStart);
+    ok('the ledger records the mutating call as rolled_back', wrows.some(x => x.outcome === 'rolled_back'), JSON.stringify(wrows));
   });
 
   it('MCP Apps — a tool declares its UI and visibility; app-only tools are hidden from the model; malformed ui excludes the tool', async () => {

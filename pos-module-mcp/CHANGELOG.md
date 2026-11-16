@@ -48,6 +48,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Results are checked against the tool's `output_schema` before they are served.** The
+  module published `output_schema` as `outputSchema` but never checked results against
+  it, so a handler result that broke it (a string where the schema says integer, a
+  missing required key, a key outside `additionalProperties: false`) was served as a
+  success, against the MCP rule that a server MUST return conforming structured results.
+  `execute/run` now validates every `ok: true` result of a tool with an `output_schema`
+  (`validate/json_schema` gains an output mode: type lists with `"null"`,
+  `additionalProperties` honoured as declared, formats other than uuid/email/date/
+  date-time left as annotations). A result that does not conform is not served: the
+  caller gets a generic tool error (`isError: true`, no `structuredContent`, no field
+  names), the log gets `mcp.output_schema_mismatch` with the violations, and the ledger
+  records `error` with `error_code -32603`; a mutating call is rolled back
+  (`rolled_back`, `-32003`). Tools without `output_schema` are unaffected. A tool whose
+  handler returned non-conforming results before now fails those calls, so check
+  results against the schema (docs/authoring-tools.md, "Output-schema reference").
+  New gated test fixtures `test_bad_output` and `test_bad_output_write`.
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400

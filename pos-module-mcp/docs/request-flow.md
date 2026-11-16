@@ -239,7 +239,9 @@ Idempotency does **not** apply on this branch — the handle is the dedup, and t
   ```
   The mutation, its idempotency record, and its attestation **commit or roll back together** — an action can never exist without its attestation, and a rolled-back call leaves no idempotency record (so a genuine retry re-executes). A handler failure *or* a failed ledger append rolls the whole thing back; the `rolled_back` outcome is then recorded outside the transaction so the failure is never invisible.
 
-- **Read-only tool** — no transaction: `execute/run`, record `exec.outcome` (+subject) to the ledger, and if `idem_store` and success, store the idempotency record.
+- **Read-only tool** — no transaction: `execute/run`, record `exec.outcome` (+subject, and `exec.error_code` when set) to the ledger, and if `idem_store` and success, store the idempotency record.
+
+**Output contract (inside `execute/run`).** When the tool declares an `output_schema`, a handler's `ok:true` result is validated against it (`validate/json_schema` in output mode, after a JSON round trip, depth capped at `max_output_schema_depth`) before it can become `structuredContent`. MCP requires a server to return structured results that conform to the advertised `outputSchema`. A non-conforming result is never served: `execute/run` returns outcome `error` with `error_code -32603`, logs `mcp.output_schema_mismatch` (tool, version, request id, violations), and the caller gets a generic `isError` result without `structuredContent`. For a mutating tool the `error` outcome rolls the transaction back, so the write is not kept (`rolled_back`, `-32003`); it is never stored for idempotent replay.
 
 **Step 10 — Respond.** `execute/result_of` builds the single canonical MCP result (the same shape used for the idempotency cache, so a replay is byte-identical). A handler *business* error is an MCP **tool error** (`isError:true`) — **not** a protocol error — so a protocol-successful call returns `HTTP 200` either way. Internals never leak; only the handler's stable `error.message` surfaces.
 
@@ -273,7 +275,9 @@ Every authenticated ending writes one chained entry (`ledger/append`: stamps `se
 | `pending_approval` | `allow` | — | 200 | Gate 6 queued for operator |
 | `replayed` | `allow` | — | 200 | Gate 7 idempotent replay |
 | `success` | `allow` | — | 200 | Gate 8 executed & committed |
-| `rolled_back` | `allow` | `-32003` | 200* | Gate 8 mutating handler/append failed |
+| `error` | `allow` | `-32603` | 200 | Gate 8 read tool's result did not conform to its `output_schema` (`isError` result) |
+| `error` | `allow` | — | 200 | Gate 8 read tool's handler failed or returned `ok:false` (`isError` result) |
+| `rolled_back` | `allow` | `-32003` | 200* | Gate 8 mutating handler/append failed, or its result did not conform to its `output_schema` |
 | `security/suspend` | `deny` | — | 200 | Gate 1b auto-suspend (separate entry) |
 
 \* A `rolled_back` mutation still returns the handler's tool-error result (`isError:true`, HTTP 200) — the *protocol* call succeeded; the *action* did not.
