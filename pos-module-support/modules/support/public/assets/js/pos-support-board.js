@@ -4,7 +4,7 @@
 // answers with JSON instead of a redirect. The card changes before the answer
 // arrives, goes back when the change is refused, and is re-fetched afterwards.
 // Changes from the queue rooms refresh cards the same way.
-import { createConsumer } from './vendor/actioncable-8.0.100.esm.js';
+import { subscribe } from './pos-support-cable-1.js';
 
 const root = document.querySelector('[data-support-board]');
 if (root) {
@@ -229,36 +229,11 @@ if (root) {
       refresh(ticketId);
     };
 
+    // placement, the phone sheet, outside click and scrolling come from the
+    // dropdowns' shared layer (pos-support-select.js, window.pos.supportLayer)
+    const layer = window.pos && window.pos.supportLayer;
     const close = (returnFocus) => {
-      if (!open) return;
-      const { button, pop } = open;
-      open = null;
-      pop.remove();
-      button.setAttribute('aria-expanded', 'false');
-      document.removeEventListener('pointerdown', onOutside, true);
-      document.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onResize);
-      if (returnFocus && button.isConnected) button.focus();
-    };
-    const onOutside = (event) => {
-      if (open && !open.pop.contains(event.target) && !open.button.contains(event.target)) close(false);
-    };
-    const onScroll = (event) => {
-      if (open && !open.pop.contains(event.target)) close(false);
-    };
-    const onResize = () => close(false);
-
-    const position = (button, pop) => {
-      const rect = button.getBoundingClientRect();
-      const margin = 8;
-      const width = pop.offsetWidth;
-      const height = pop.offsetHeight;
-      let left = rect.right - width;
-      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
-      let top = rect.bottom + 4;
-      if (top + height > window.innerHeight - margin && rect.top - height - 4 >= margin) top = rect.top - height - 4;
-      pop.style.left = `${left}px`;
-      pop.style.top = `${Math.max(margin, top)}px`;
+      if (open && layer.isOpen(open.pop)) layer.close(returnFocus);
     };
 
     const openPicker = (button) => {
@@ -269,7 +244,10 @@ if (root) {
       const department = button.dataset.departmentId;
 
       const pop = document.createElement('div');
-      pop.className = 'pos-support-assign-pop';
+      pop.className = 'pos-support-richselect-pop pos-support-assign-pop';
+      const title = document.createElement('p');
+      title.className = 'pos-support-richselect-title';
+      pop.append(title);
       const list = document.createElement('ul');
       list.id = `pos-support-assign-list-${++uid}`;
       list.setAttribute('role', 'listbox');
@@ -317,8 +295,6 @@ if (root) {
         list.tabIndex = 0;
       }
       pop.append(list, empty);
-      document.body.append(pop);
-      button.setAttribute('aria-expanded', 'true');
 
       const focusTarget = search || list;
       const visible = () => Array.from(list.children).filter((o) => !o.hidden);
@@ -372,10 +348,20 @@ if (root) {
       });
 
       open = { button, pop };
-      position(button, pop);
-      document.addEventListener('pointerdown', onOutside, true);
-      document.addEventListener('scroll', onScroll, true);
-      window.addEventListener('resize', onResize);
+      layer.open({
+        anchor: button,
+        pop,
+        title,
+        titleText: button.getAttribute('aria-label'),
+        align: 'end',
+        matchWidth: false,
+        onClose: (returnFocus) => {
+          if (open && open.pop === pop) open = null;
+          button.setAttribute('aria-expanded', 'false');
+          if (returnFocus && button.isConnected) button.focus();
+        }
+      });
+      button.setAttribute('aria-expanded', 'true');
       focusTarget.focus();
       activate(list.querySelector('[aria-selected="true"]') || visible()[0] || null);
     };
@@ -401,7 +387,6 @@ if (root) {
   // decides from the board's view and filters whether a ticket belongs on it.
   const departments = (root.dataset.supportDepartments || '').split(',').filter(Boolean);
   if (departments.length && window.pos && window.pos.csrfToken) {
-    const consumer = createConsumer(() => `/websocket?authenticity_token=${encodeURIComponent(window.pos.csrfToken)}`);
     // several messages for one change are merged into one card fetch
     const timers = new Map();
     const received = (data) => {
@@ -412,6 +397,6 @@ if (root) {
         refresh(data.ticket_id);
       }, 500));
     };
-    departments.forEach((id) => consumer.subscriptions.create({ channel: 'support', room_id: `queue-${id}` }, { received }));
+    departments.forEach((id) => subscribe(`queue-${id}`, received));
   }
 }

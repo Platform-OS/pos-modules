@@ -1,15 +1,10 @@
 // Live updates and presence (05 §4) over the platformOS "support" channel.
 // Rooms: queue-<department>, ticket-<id>, profile-<id>. Payloads carry ids;
 // rows and pages are fetched from the desk, which checks access again.
-import { createConsumer } from './vendor/actioncable-8.0.100.esm.js';
+import { subscribe } from './pos-support-cable-1.js';
 
 const root = document.querySelector('[data-support-live]');
 if (root && window.pos && window.pos.csrfToken) {
-  const consumer = createConsumer(() => `/websocket?authenticity_token=${encodeURIComponent(window.pos.csrfToken)}`);
-  const subscribe = (room, received, connected) => consumer.subscriptions.create(
-    { channel: 'support', room_id: room },
-    { received, connected }
-  );
   const text = (key, fallback) => root.dataset[key] || fallback;
 
   // Queue: refresh changed rows; new tickets go to the top of their swim lane

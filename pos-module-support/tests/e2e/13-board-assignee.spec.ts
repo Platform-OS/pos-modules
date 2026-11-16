@@ -82,6 +82,24 @@ test('B2. the picker works from the keyboard and Escape returns focus to the but
   await admin.context.close();
 });
 
+test('B4. on a phone the picker opens as a bottom sheet, like every dropdown', async ({ browser }) => {
+  const { subject } = await newTicket('E2E board assign phone');
+  const admin = await contextFor(browser, users.superadmin, { viewport: { width: 390, height: 844 } });
+  const card = await boardFor(admin.page, subject);
+  await card.locator('[data-support-assign]').click();
+  const pop = admin.page.locator('.pos-support-assign-pop');
+  await expect(pop).toHaveClass(/pos-support-richselect-sheet/);
+  await expect(admin.page.locator('.pos-support-richselect-backdrop')).toBeVisible();
+  const box = await pop.boundingBox();
+  expect(Math.round((box?.x ?? -1))).toBe(0);
+  expect(Math.round((box?.width ?? 0))).toBe(390);
+  // tapping the backdrop closes it and gives focus back to the button
+  await admin.page.mouse.click(195, 50);
+  await expect(pop).toHaveCount(0);
+  await expect(card.locator('[data-support-assign]')).toBeFocused();
+  await admin.context.close();
+});
+
 test('B3. an agent can only take a ticket or give up their own', async ({ browser }) => {
   const { ticket, subject } = await newTicket('E2E board assign agent');
   unassign(ticket.id);

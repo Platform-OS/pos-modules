@@ -28,7 +28,98 @@
   const indexProp = Object.getOwnPropertyDescriptor(proto, 'selectedIndex');
   const strings = document.body.dataset;
   let uid = 0;
-  let current = null; // the open dropdown's close function
+
+  // The layer every list laid over the page uses: these dropdowns and the
+  // board's assignee picker (window.pos.supportLayer). One list is open at a
+  // time, attached to <body>. It sits below its button, or above when there is
+  // no room; on narrow screens it is a sheet at the bottom with a backdrop and
+  // a title. Next to its button it follows the page while it scrolls (a smooth
+  // scroll may still be running when it opens) and closes once the button
+  // leaves the window. A sheet does not follow the button, and a phone keyboard
+  // opening scrolls and resizes the page, so only a width change closes it.
+  // A click outside the list and its button closes it.
+  const layer = (() => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'pos-support-richselect-backdrop';
+    // tapping the backdrop of a sheet closes it and gives focus back to the button
+    // (preventDefault stops the mouse events that follow, which would move focus to the page)
+    backdrop.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      close(true);
+    });
+    let shown = null;
+    let frame = 0;
+    const isSheet = () => !!shown && shown.pop.classList.contains('pos-support-richselect-sheet');
+    const place = () => {
+      if (!shown || isSheet()) return;
+      const { anchor, pop, align, matchWidth } = shown;
+      const rect = anchor.getBoundingClientRect();
+      const margin = 8;
+      if (matchWidth) pop.style.minWidth = `${Math.round(rect.width)}px`;
+      const width = pop.offsetWidth;
+      const height = pop.offsetHeight;
+      const start = align === 'end' ? rect.right - width : rect.left;
+      const left = Math.max(margin, Math.min(start, window.innerWidth - width - margin));
+      let top = rect.bottom + 4;
+      if (top + height > window.innerHeight - margin && rect.top - height - 4 >= margin) top = rect.top - height - 4;
+      pop.style.left = `${left}px`;
+      pop.style.top = `${Math.max(margin, top)}px`;
+    };
+    const close = (returnFocus) => {
+      if (!shown) return;
+      const closing = shown;
+      shown = null;
+      closing.pop.remove();
+      backdrop.remove();
+      document.removeEventListener('pointerdown', onOutside, true);
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+      closing.onClose(returnFocus);
+    };
+    function onOutside(event) {
+      if (event.target === backdrop) return;
+      if (shown && !shown.pop.contains(event.target) && !shown.inside.contains(event.target)) close(false);
+    }
+    function onScroll(event) {
+      if (!shown || isSheet() || shown.pop.contains(event.target) || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (!shown) return;
+        const rect = shown.anchor.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > window.innerHeight) close(false);
+        else place();
+      });
+    }
+    function onResize() {
+      if (shown && window.innerWidth !== shown.width) close(false);
+    }
+    // anchor: the button; inside: what counts as "not outside" (default the
+    // anchor); title: an element in pop shown as the sheet's heading;
+    // align: start | end (which edge of the button the list lines up with);
+    // matchWidth: at least as wide as the button; onClose(returnFocus).
+    const open = ({ anchor, inside, pop, title, titleText, align, matchWidth, onClose }) => {
+      close(false);
+      const sheet = window.innerWidth < SHEET_BELOW;
+      shown = { anchor, inside: inside || anchor, pop, align: align || 'start', matchWidth: !!matchWidth, onClose: onClose || (() => {}), width: window.innerWidth };
+      pop.classList.toggle('pos-support-richselect-sheet', sheet);
+      if (title) {
+        title.textContent = titleText || '';
+        title.hidden = !sheet || !title.textContent;
+      }
+      pop.style.left = '';
+      pop.style.top = '';
+      if (sheet) document.body.append(backdrop);
+      document.body.append(pop);
+      place();
+      document.addEventListener('pointerdown', onOutside, true);
+      document.addEventListener('scroll', onScroll, true);
+      window.addEventListener('resize', onResize);
+    };
+    return { open, close, isOpen: (pop) => !!shown && shown.pop === pop };
+  })();
+  window.pos = window.pos || {};
+  window.pos.supportLayer = layer;
 
   const icon = (name, className) => {
     const svg = document.createElementNS(SVG, 'svg');
@@ -107,8 +198,6 @@
     empty.className = 'pos-support-richselect-empty pos-supplementary';
     empty.textContent = strings.supportNoMatches || '';
     empty.hidden = true;
-    const backdrop = document.createElement('div');
-    backdrop.className = 'pos-support-richselect-backdrop';
     let search = null;
 
     // options of the listbox, one per option of the select (prompt and hidden ones left out)
@@ -185,84 +274,36 @@
       setActive(options[next]);
     };
     const isOpen = () => box.getAttribute('aria-expanded') === 'true';
-    const sheet = () => window.innerWidth < SHEET_BELOW;
-
-    const place = () => {
-      if (pop.classList.contains('pos-support-richselect-sheet')) return;
-      const rect = box.getBoundingClientRect();
-      const margin = 8;
-      pop.style.minWidth = `${Math.round(rect.width)}px`;
-      const width = pop.offsetWidth;
-      const height = pop.offsetHeight;
-      const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
-      let top = rect.bottom + 4;
-      if (top + height > window.innerHeight - margin && rect.top - height - 4 >= margin) top = rect.top - height - 4;
-      pop.style.left = `${left}px`;
-      pop.style.top = `${Math.max(margin, top)}px`;
-    };
-
-    const onOutside = (event) => {
-      if (!pop.contains(event.target) && !wrap.contains(event.target)) close(false);
-    };
-    // A list next to the button follows it while the page scrolls (a smooth
-    // scroll may still be running when it opens) and closes once the button
-    // leaves the window. A sheet does not follow the button, and a phone
-    // keyboard opening scrolls and resizes the page, so it ignores both.
-    let openWidth = 0;
-    let scrollFrame = 0;
-    const onScroll = (event) => {
-      if (pop.classList.contains('pos-support-richselect-sheet') || pop.contains(event.target) || scrollFrame) return;
-      scrollFrame = requestAnimationFrame(() => {
-        scrollFrame = 0;
-        if (!isOpen()) return;
-        const rect = box.getBoundingClientRect();
-        if (rect.bottom < 0 || rect.top > window.innerHeight) close(false);
-        else place();
-      });
-    };
-    const onResize = () => {
-      if (window.innerWidth !== openWidth) close(false);
-    };
-
+    // placement, sheet, outside click and scrolling: the shared layer above
     const open = () => {
       if (isOpen() || box.disabled) return;
-      if (current) current(false);
-      current = close;
-      const asSheet = sheet();
-      openWidth = window.innerWidth;
-      pop.classList.toggle('pos-support-richselect-sheet', asSheet);
-      sheetTitle.textContent = labelText();
-      sheetTitle.hidden = !asSheet || !sheetTitle.textContent;
-      pop.style.left = '';
-      pop.style.top = '';
       if (search) {
         search.value = '';
         items.forEach((li) => { li.hidden = false; });
         empty.hidden = true;
       }
-      if (asSheet) document.body.append(backdrop);
-      document.body.append(pop);
+      layer.open({
+        anchor: box,
+        inside: wrap,
+        pop,
+        title: sheetTitle,
+        titleText: labelText(),
+        align: 'start',
+        matchWidth: true,
+        onClose: (returnFocus) => {
+          setActive(null);
+          box.removeAttribute('aria-activedescendant');
+          box.setAttribute('aria-expanded', 'false');
+          if (returnFocus) box.focus();
+        }
+      });
       box.setAttribute('aria-expanded', 'true');
-      place();
-      document.addEventListener('pointerdown', onOutside, true);
-      document.addEventListener('scroll', onScroll, true);
-      window.addEventListener('resize', onResize);
       if (search) search.focus();
       const selected = items.find((li) => li.getAttribute('aria-selected') === 'true' && li.getAttribute('aria-disabled') !== 'true');
       setActive(selected || visible()[0]);
     };
     const close = (returnFocus) => {
-      if (!isOpen()) return;
-      if (current === close) current = null;
-      setActive(null);
-      box.removeAttribute('aria-activedescendant');
-      box.setAttribute('aria-expanded', 'false');
-      pop.remove();
-      backdrop.remove();
-      document.removeEventListener('pointerdown', onOutside, true);
-      document.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onResize);
-      if (returnFocus) box.focus();
+      if (layer.isOpen(pop)) layer.close(returnFocus);
     };
     const choose = (li) => {
       if (!li || li.getAttribute('aria-disabled') === 'true') return;
@@ -340,7 +381,6 @@
       const li = event.target.closest('[role="option"]');
       if (li && li !== active && li.getAttribute('aria-disabled') !== 'true') setActive(li);
     });
-    backdrop.addEventListener('click', () => close(true));
     box.addEventListener('blur', (event) => {
       if (isOpen() && !pop.contains(event.relatedTarget)) close(false);
     });

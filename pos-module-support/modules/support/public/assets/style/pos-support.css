@@ -3641,8 +3641,18 @@
     border-radius: var(--pos-support-radius-panel) var(--pos-support-radius-panel) 0 0;
   }
 
-  .pos-support-richselect-sheet .pos-support-richselect-list {
+  .pos-support-richselect-sheet .pos-support-richselect-list,
+  .pos-support-assign-pop.pos-support-richselect-sheet [role="listbox"] {
     max-block-size: 60vh;
+  }
+
+  /* the board's assignee picker as a sheet: full width, rows tall enough to tap */
+  .pos-support-assign-pop.pos-support-richselect-sheet {
+    inline-size: auto;
+  }
+
+  .pos-support-assign-pop.pos-support-richselect-sheet [role="option"] {
+    min-block-size: 2.75rem;
   }
 
   .pos-support-richselect-sheet .pos-support-richselect-list [role="option"] {
