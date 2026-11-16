@@ -4,12 +4,20 @@
   least-loaded available agent of the department. With nobody available
   the ticket stays unassigned and the escalation jobs are scheduled.
   Returns { assignee_id, reason } or null.
+  A ticket still held by `replacing` (a disabled or absent agent) counts as
+  unassigned, so moving it takes one assignment, and `replace_reason` is
+  put in front of the logged reason.
   @param {string} ticket_id - The ticket
+  @param {string} [replacing] - Profile id the ticket may be taken from
+  @param {string} [replace_reason] - Why it is taken from them
 {% enddoc %}
 {% liquid
   function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
   assign closed_categories = ["solved", "closed"]
-  if ticket == blank or ticket.assignee_id != blank or closed_categories contains ticket.category
+  if ticket == blank or closed_categories contains ticket.category
+    return null
+  endif
+  if ticket.assignee_id != blank and ticket.assignee_id != replacing
     return null
   endif
   assign actor = { "type": "system", "id": null, "member": null }
@@ -20,6 +28,9 @@
   function _ = 'modules/core/commands/hook/alter', hook: 'support_assignment', params: hook_params, params_to_modify: decision
   if decision.assignee_id != blank
     assign reason = decision.reason | default: 'host rule'
+    if replace_reason != blank
+      assign reason = replace_reason | append: '; ' | append: reason
+    endif
     function assigned = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: decision.assignee_id, reason: reason, actor: actor
     if assigned.valid
       return decision
@@ -33,6 +44,9 @@
     assign department = d.records.results.first
     assign label = department.short_code | default: department.name
     assign reason = 'modules/support/assignment.least_loaded' | t: department: label, count: best.open_count
+    if replace_reason != blank
+      assign reason = replace_reason | append: '; ' | append: reason
+    endif
     function assigned = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: best.profile_id, reason: reason, actor: actor
     if assigned.valid
       assign result = { "assignee_id": null, "reason": null }

@@ -1,0 +1,31 @@
+{% doc %}
+  Background job after a member is disabled (PRD TA-7): moves every open
+  ticket of theirs to the least-loaded available agent, 100 per run, then
+  queues the next run while any remain. Each ticket gets one assignment
+  (auto_assign replaces the disabled assignee directly); with nobody
+  available it is unassigned and the usual escalation follows.
+  @param {string} profile_id - The disabled member's profile
+  @param {number} round - Run number; the chain stops after 200 runs
+{% enddoc %}
+{% liquid
+  assign open_categories = ["new", "open", "pending", "on_hold"]
+  graphql t = 'modules/support/tickets/search', assignee_id: profile_id, categories: open_categories, limit: 100
+  assign actor = { "type": "system", "id": null, "member": null }
+  assign reason = 'modules/support/team.reassigned_disabled' | t
+  for ticket in t.records.results
+    function moved = 'modules/support/commands/assignment/auto_assign', ticket_id: ticket.id, replacing: profile_id, replace_reason: reason
+    if moved == null
+      function current = 'modules/support/queries/tickets/find', id: ticket.id, number: null, member: null
+      if current.assignee_id == profile_id
+        function _ = 'modules/support/commands/tickets/assign', ticket: current, assignee_id: null, reason: reason, actor: actor
+      endif
+    endif
+  endfor
+
+  assign left = t.records.total_entries | minus: t.records.results.size
+  assign next_round = round | plus: 1
+  if left > 0 and next_round <= 200
+    background _ = 'modules/support/commands/team/offboard_tickets', delay: 0, source_name: 'support_offboard', priority: 'low', profile_id: profile_id, round: next_round
+  endif
+  return t.records.results.size
+%}

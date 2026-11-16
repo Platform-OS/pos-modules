@@ -11,5 +11,5 @@ metadata:
   if event.auto_reply
     return null
   endif
-  function _ = 'modules/support/commands/assignment/auto_assign', ticket_id: event.ticket_id
+  function _ = 'modules/support/commands/assignment/auto_assign', ticket_id: event.ticket_id, replacing: null, replace_reason: null
 %}

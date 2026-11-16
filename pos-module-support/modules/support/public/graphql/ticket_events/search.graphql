@@ -6,7 +6,7 @@ query ($ticket_id: String, $event_type: String, $actor_id: String, $limit: Int =
       table: { value: "modules/support/ticket_event" }
       properties: [{ name: "ticket_id", value: $ticket_id }, { name: "event_type", value: $event_type }, { name: "actor_id", value: $actor_id }]
     }
-    sort: [{ created_at: { order: DESC } }]
+    sort: [{ created_at: { order: DESC } }, { id: { order: DESC } }]
   ) {
     total_entries
     results {

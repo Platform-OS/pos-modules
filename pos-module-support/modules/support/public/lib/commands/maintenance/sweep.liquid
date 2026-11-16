@@ -20,7 +20,13 @@
   assign wait_days = settings.confirmation_wait_days | default: 7 | plus: 0 | times: -1
   assign solved_before = 'now' | add_to_time: wait_days, 'd' | strftime: '%Y-%m-%dT%H:%M:%SZ'
   assign solved = ["solved"]
-  graphql waiting = 'modules/support/tickets/search', categories: solved, solved_before: solved_before, limit: 100
+  # keep_open leaves notified tickets in Confirmation: skip them, or the
+  # same 100 would be read on every run and older ones never reached
+  assign not_notified = null
+  if settings.confirmation_mode == 'keep_open'
+    assign not_notified = false
+  endif
+  graphql waiting = 'modules/support/tickets/search', categories: solved, solved_before: solved_before, confirm_notified: not_notified, limit: 100
   for ticket in waiting.records.results
     function done = 'modules/support/commands/maintenance/confirmation_ended', ticket: ticket, mode: settings.confirmation_mode
     if done == 'closed'

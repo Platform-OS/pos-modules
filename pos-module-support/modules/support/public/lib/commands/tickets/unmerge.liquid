@@ -21,7 +21,7 @@
 
   function statuses = 'modules/support/queries/statuses/all'
   assign progress = statuses.by_key.progress
-  assign values = { "merged_into_id": null, "closed_at": null }
+  assign values = { "merged_into_id": null, "closed_at": null, "solved_at": null }
   assign values.status_id = progress.id
   assign values.category = progress.category
   function saved = 'modules/support/commands/tickets/save', ticket: source, values: values

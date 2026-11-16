@@ -12,6 +12,7 @@ query (
   $organization_id: String
   $sla_states: [String!]
   $solved_before: String
+  $confirm_notified: Boolean
   $snoozed_before: String
   $due_before: String
   $requester_id: String
@@ -37,6 +38,7 @@ query (
         { name: "organization_id", value: $organization_id }
         { name: "sla_state", value_in: $sla_states }
         { name: "solved_at", range: { lte: $solved_before } }
+        { name: "confirm_notified_at", exists: $confirm_notified }
         { name: "snooze_until", range: { lte: $snoozed_before } }
         { name: "sla_due_at", range: { lte: $due_before } }
         { name: "requester_id", value: $requester_id }
@@ -72,6 +74,7 @@ query (
       first_replied_at: property(name: "first_replied_at")
       solved_at: property(name: "solved_at")
       closed_at: property(name: "closed_at")
+      confirm_notified_at: property(name: "confirm_notified_at")
       snooze_until: property(name: "snooze_until")
       assigned_at: property(name: "assigned_at")
       assignment_reason: property(name: "assignment_reason")

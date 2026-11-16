@@ -1,8 +1,12 @@
 {% doc %}
-  Re-assigns a ticket when its assignee has not been available for more
-  than one business day, measured from their last availability change
-  (ticket_event availability_changed). Returns true when re-assigned.
+  Re-assigns a ticket when its assignee set themselves away or off more
+  than one business day ago (PRD AS-5: on leave or sick). Only the
+  availability the agent saved counts: being outside working hours is not
+  a reason, or a weekend reply would take the ticket from its owner when
+  nobody is on shift. Measured from the availability_changed event that
+  set the current value. Returns true when re-assigned.
   @param {string} ticket_id - The ticket
+  @param {number} [at] - Unix time to judge at (tests); default now
 {% enddoc %}
 {% liquid
   function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
@@ -13,28 +17,36 @@
   if member == blank
     return false
   endif
-  function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
-  if availability == 'available'
+  if member.availability == blank or member.availability == 'available'
     return false
   endif
 
   graphql changes = 'modules/support/ticket_events/search', event_type: 'availability_changed', actor_id: member.profile_id, limit: 1
   assign changed = changes.records.results.first
-  if changed == blank
+  if changed == blank or changed.to_value != member.availability
     return false
   endif
   function policy = 'modules/support/queries/sla/policy_for', ticket: ticket
   assign since = changed.created_at | to_time | strftime: '%s' | plus: 0
   function limit = 'modules/support/helpers/sla/add_minutes', start: since, minutes: 480, mode: 'business', hours: policy.business_hours
   assign now = 'now' | to_time | strftime: '%s' | plus: 0
+  if at != blank
+    assign now = at | plus: 0
+  endif
   if now < limit
     return false
   endif
 
   assign actor = { "type": "system", "id": null, "member": null }
   assign reason = 'modules/support/assignment.reassigned_off' | t
-  function unassigned = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: null, reason: reason, actor: actor
-  function _ = 'modules/support/commands/assignment/auto_assign', ticket_id: ticket.id
+  # one assignment: straight to the least-loaded available agent, or unassigned when nobody is
+  function moved = 'modules/support/commands/assignment/auto_assign', ticket_id: ticket.id, replacing: member.profile_id, replace_reason: reason
+  if moved == null
+    function current = 'modules/support/queries/tickets/find', id: ticket.id, number: null, member: null
+    if current.assignee_id == member.profile_id
+      function _ = 'modules/support/commands/tickets/assign', ticket: current, assignee_id: null, reason: reason, actor: actor
+    endif
+  endif
   # the previous assignee learns the ticket moved on while they were away
   assign previous = []
   assign previous << member.profile_id

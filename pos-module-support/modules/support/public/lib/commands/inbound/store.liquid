@@ -39,7 +39,13 @@
   assign params.dkim = dkim
   assign params.spam_score = spam_score
   assign params.charsets = charsets
-  assign params.sender = parsed_envelope.from | downcase
+  # the loop rule (inbound/process) counts by the From address; autoresponders
+  # usually send from a different envelope (bounce) address
+  assign sender = parsed_envelope.from
+  if from_header.size > 0
+    assign sender = from_header[0][0]
+  endif
+  assign params.sender = sender | downcase
   assign params_json = params | json
   graphql c = 'modules/support/inbound_emails/create', params_json: params_json, raw_mime: email, state: 'received'
   assign result.id = c.record.id

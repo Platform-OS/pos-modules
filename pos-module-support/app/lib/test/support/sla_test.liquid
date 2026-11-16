@@ -83,6 +83,28 @@
   function second = 'modules/support/commands/maintenance/confirmation_ended', ticket: solved.ticket, mode: 'keep_open'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: first, expected: 'notified', field_name: 'keep_open notifies'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: second, expected: null, field_name: 'keep_open notifies once'
-  function closed = 'modules/support/commands/maintenance/confirmation_ended', ticket: solved.ticket, mode: 'auto_close'
+  # the sweep's keep_open query skips notified tickets, so it never stalls on the same 100
+  assign solved_categories = ["solved"]
+  graphql waiting = 'modules/support/tickets/search', id: f.ticket.id, categories: solved_categories, confirm_notified: false, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: waiting.records.total_entries, expected: 0, field_name: 'notified ticket left out of the sweep'
+  graphql notified = 'modules/support/tickets/search', id: f.ticket.id, categories: solved_categories, confirm_notified: true, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: notified.records.total_entries, expected: 1, field_name: 'notified marker stored'
+  # as the sweep does: the ticket as stored now, marker included
+  function waiting_ticket = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function closed = 'modules/support/commands/maintenance/confirmation_ended', ticket: waiting_ticket, mode: 'auto_close'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: closed, expected: 'closed', field_name: 'auto_close closes'
+  function t = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: t.confirm_notified_at, expected: null, field_name: 'leaving solved clears the notified marker'
+
+  # reopening clears solved_at, so the SLA result comes from the next solve (SL-4)
+  function f = 'support_test_helpers/ticket_fixture', label: 'slareopen'
+  function solved = 'modules/support/commands/tickets/change_status', ticket: f.ticket, status_key: 'confirm', actor: f.actor
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: solved.ticket, field_name: 'solved_at'
+  function reopened = 'modules/support/commands/tickets/change_status', ticket: solved.ticket, status_key: 'progress', actor: f.actor
+  function t = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: t.solved_at, expected: null, field_name: 'reopen clears solved_at'
+  function closed_again = 'modules/support/commands/tickets/change_status', ticket: t, status_key: 'closed', actor: f.actor
+  function t = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: t.solved_at, expected: null, field_name: 'closing straight from open sets no solved_at'
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: t, field_name: 'closed_at'
 %}

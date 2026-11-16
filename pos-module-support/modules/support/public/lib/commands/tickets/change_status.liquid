@@ -43,6 +43,13 @@
   if previous.category == 'closed' and status.category != 'closed'
     assign values.closed_at = null
   endif
+  # reopened: the SLA result must come from the next solve, not this one (SL-4)
+  if status.category != 'solved' and status.category != 'closed' and ticket.solved_at != blank
+    assign values.solved_at = null
+  endif
+  if status.category != 'solved' and ticket.confirm_notified_at != blank
+    assign values.confirm_notified_at = null
+  endif
   function saved = 'modules/support/commands/tickets/save', ticket: ticket, values: values
   # live update right after the save, before the audit row and the event, so
   # open screens follow as soon as possible

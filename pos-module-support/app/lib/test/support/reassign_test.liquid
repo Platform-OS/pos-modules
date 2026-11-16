@@ -1,0 +1,51 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # PRD AS-5: a customer reply re-assigns only when the assignee set
+  # themselves away/off more than one business day ago, never because their
+  # shift is over
+  function f = 'support_test_helpers/ticket_fixture', label: 'reassign'
+  assign system = { "type": "system", "id": null, "member": null }
+  function assigned = 'modules/support/commands/tickets/assign', ticket: f.ticket, assignee_id: f.actor.id, reason: null, actor: system
+  assign agent_id = f.actor.id
+  assign month_later = 'now' | add_to_time: 30, 'd' | strftime: '%s' | plus: 0
+  assign now = 'now' | to_time | strftime: '%s' | plus: 0
+
+  # available, but outside working hours (no working day at all): keeps the ticket
+  assign values = { "availability": "available", "working_hours": "{\"tz\":\"UTC\",\"days\":{}}" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: f.actor.member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+  # their last own change (to available) is long past by month_later
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: agent_id, event_type: 'availability_changed', from_value: 'away', to_value: 'available', reason: null
+  function moved = 'modules/support/commands/assignment/reassign_if_off', ticket_id: f.ticket.id, at: month_later
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved, expected: false, field_name: 'off shift keeps the ticket'
+  function t = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: t.assignee_id, expected: agent_id, field_name: 'off shift assignee unchanged'
+
+  # set themselves off: not yet one business day later
+  assign values = { "availability": "off", "working_hours": null }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: f.actor.member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: agent_id, event_type: 'availability_changed', from_value: 'available', to_value: 'off', reason: null
+  function moved = 'modules/support/commands/assignment/reassign_if_off', ticket_id: f.ticket.id, at: now
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved, expected: false, field_name: 'off for less than a business day keeps the ticket'
+
+  # ...and more than one business day later: re-assigned
+  function moved = 'modules/support/commands/assignment/reassign_if_off', ticket_id: f.ticket.id, at: month_later
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved, expected: true, field_name: 'off for more than a business day re-assigns'
+  function t = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  assign still_theirs = false
+  if t.assignee_id == agent_id
+    assign still_theirs = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: still_theirs, expected: false, field_name: 'ticket left the off agent'
+
+  # the fixture agent must not take tickets in later tests
+  assign values = { "state": "disabled" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: f.actor.member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+%}

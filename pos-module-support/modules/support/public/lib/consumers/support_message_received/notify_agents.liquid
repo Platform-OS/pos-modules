@@ -15,7 +15,7 @@ metadata:
   if event.auto_reply
     return null
   endif
-  function _ = 'modules/support/commands/assignment/reassign_if_off', ticket_id: event.ticket_id
+  function _ = 'modules/support/commands/assignment/reassign_if_off', ticket_id: event.ticket_id, at: null
   graphql first = 'modules/support/messages/search', ticket_id: event.ticket_id, limit: 1
   if first.records.results.first.id == event.message_id
     return null

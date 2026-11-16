@@ -17,6 +17,10 @@
         return null
       endif
     endif
+    # the sweep filters on this marker; change_status clears it when the ticket leaves solved
+    assign marker = { "confirm_notified_at": null }
+    assign marker.confirm_notified_at = 'now' | to_time
+    function _ = 'modules/support/commands/tickets/save', ticket: ticket, values: marker
     function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'confirm_wait_notified', from_value: null, to_value: null, reason: null
     assign payload = { "ticket_id": null }
     assign payload.ticket_id = ticket.id

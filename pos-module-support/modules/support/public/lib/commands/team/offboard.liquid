@@ -1,17 +1,16 @@
 {% doc %}
-  After a member is disabled: re-assigns their open tickets by least-loaded
-  assignment and removes their push subscriptions.
+  After a member is disabled: queues the background job that re-assigns
+  all their open tickets by least-loaded assignment (team/offboard_tickets)
+  and removes their push subscriptions. Returns the number of open tickets
+  that will be moved.
   @param {object} member - The disabled team_member
 {% enddoc %}
 {% liquid
   assign open_categories = ["new", "open", "pending", "on_hold"]
-  graphql t = 'modules/support/tickets/search', assignee_id: member.profile_id, categories: open_categories, limit: 100
-  assign actor = { "type": "system", "id": null, "member": null }
-  assign reason = 'modules/support/team.reassigned_disabled' | t
-  for ticket in t.records.results
-    function _ = 'modules/support/commands/tickets/assign', ticket: ticket, assignee_id: null, reason: reason, actor: actor
-    function _ = 'modules/support/commands/assignment/auto_assign', ticket_id: ticket.id
-  endfor
+  graphql t = 'modules/support/tickets/search', assignee_id: member.profile_id, categories: open_categories, limit: 1
+  if t.records.total_entries > 0
+    background _ = 'modules/support/commands/team/offboard_tickets', delay: 0, source_name: 'support_offboard', priority: 'default', profile_id: member.profile_id, round: 1
+  endif
 
   function profile = 'modules/user/queries/profiles/find', id: member.profile_id, user_id: null, uuid: null, first_name: null, last_name: null
   if profile.user_id != blank

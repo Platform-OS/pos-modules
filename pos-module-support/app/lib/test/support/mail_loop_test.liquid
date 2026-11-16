@@ -1,0 +1,29 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{%- capture nl %}
+{% endcapture -%}
+{% liquid
+  # inbound rule 3 (04 §2.4): more than 20 emails from one sender in an hour
+  # is a loop. Autoresponders send from changing envelope (bounce) addresses,
+  # so the rule must count by the From address.
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+  assign suffix = 8 | random_string | downcase
+  assign from = 'Robot-' | append: suffix | append: '@Loop-Test.example'
+  assign outcomes = []
+  for i in (1..21)
+    assign envelope_sender = 'bounce-' | append: suffix | append: '-' | append: i | append: '@mailer.example'
+    assign message_id = '<loop-' | append: suffix | append: '-' | append: i | append: '@example.com>'
+    assign raw = 'From: Auto Responder <' | append: from | append: '>' | append: nl | append: 'To: testfixtures@support-dev.platformos.com' | append: nl | append: 'Subject: Out of office' | append: nl | append: 'Message-ID: ' | append: message_id | append: nl | append: 'Auto-Submitted: auto-replied' | append: nl | append: nl | append: 'I am away.' | append: nl
+    function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: envelope_sender, to: null
+    assign outcomes << outcome.reason
+  endfor
+  assign twentieth = outcomes[19]
+  assign last = outcomes.last
+  assign twentieth_loop = false
+  if twentieth == 'loop'
+    assign twentieth_loop = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: twentieth_loop, expected: false, field_name: 'twenty emails are not a loop yet'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: last, expected: 'loop', field_name: 'the 21st email from one From address is a loop'
+%}

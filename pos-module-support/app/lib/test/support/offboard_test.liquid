@@ -1,0 +1,60 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # PRD TA-7: disabling an agent moves all their open tickets, one assignment each
+  function f = 'support_test_helpers/ticket_fixture', label: 'offboard'
+  assign system = { "type": "system", "id": null, "member": null }
+  assign agent_id = f.actor.id
+  assign other_id = f.other_agent_id
+  assign ticket_ids = []
+  assign ticket_ids << f.ticket.id
+  for i in (1..2)
+    assign object = { "subject": "Offboard ticket", "channel": "email", "actor_type": "customer" }
+    assign object.department_id = f.department_id
+    assign object.requester_id = f.contact.id
+    assign object.actor_id = f.contact.id
+    function extra = 'modules/support/commands/tickets/create', object: object
+    assign ticket_ids << extra.id
+  endfor
+  for id in ticket_ids
+    function t = 'modules/support/queries/tickets/find', id: id, number: null, member: null
+    function _ = 'modules/support/commands/tickets/assign', ticket: t, assignee_id: agent_id, reason: null, actor: system
+  endfor
+
+  # the agent is disabled; their colleague is available
+  assign values = { "state": "disabled" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: f.actor.member.id, properties: props
+  function other = 'modules/support/queries/team_members/find', profile_id: other_id
+  assign values = { "availability": "available" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: other.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+
+  function moved = 'modules/support/commands/team/offboard_tickets', profile_id: agent_id, round: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved, expected: 3, field_name: 'every open ticket processed'
+  assign with_other = 0
+  assign single_assignment = 0
+  for id in ticket_ids
+    function t = 'modules/support/queries/tickets/find', id: id, number: null, member: null
+    if t.assignee_id == other_id
+      assign with_other = with_other | plus: 1
+    endif
+    # platformos-check-disable NestedGraphQLQuery
+    graphql ev = 'modules/support/ticket_events/search', ticket_id: id, event_type: 'assigned', actor_id: null, limit: 10
+    # platformos-check-enable NestedGraphQLQuery
+    # the first row is the manual assignment above, the second the move
+    if ev.records.total_entries == 2 and ev.records.results.first.from_value == agent_id
+      assign single_assignment = single_assignment | plus: 1
+    endif
+  endfor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: with_other, expected: 3, field_name: 'all tickets moved to the available agent'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: single_assignment, expected: 3, field_name: 'one assignment per moved ticket'
+
+  # the fixture agents must not take tickets in later tests
+  assign values = { "state": "disabled" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: other.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+%}

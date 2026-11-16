@@ -38,6 +38,8 @@ properties:
     type: datetime
   - name: closed_at
     type: datetime
+  - name: confirm_notified_at
+    type: datetime
   - name: snooze_until
     type: datetime
   - name: assigned_at

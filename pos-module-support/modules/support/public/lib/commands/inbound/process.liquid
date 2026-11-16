@@ -105,7 +105,7 @@
   # 3. loop: more than 20 emails from the same sender in 60 minutes
   if sender != blank
     assign since = 'now' | add_to_time: -1, 'h' | strftime: '%Y-%m-%dT%H:%M:%SZ'
-    assign sender_key = '"sender":"' | append: sender | append: '"'
+    assign sender_key = '"sender":"' | append: sender | downcase | append: '"'
     graphql recent = 'modules/support/inbound_emails/search', sender: sender_key, since: since, limit: 1
     if recent.records.total_entries > 20
       # managers hear about it once, when the sender first crosses the limit
