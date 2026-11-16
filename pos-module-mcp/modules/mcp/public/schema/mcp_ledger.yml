@@ -1,12 +1,13 @@
 name: mcp_ledger
 # Append-only attestation ledger (spec §6.1). One row per governed request
 # outcome — allowed AND denied. Rows are hash-chained (entry_hash over the
-# canonical payload || prev_entry_hash) so any edit or backdating is detectable
-# by ledger/verify_chain. Immutability is TWO-fold (see docs/security-model.md §4.5):
-# append-only BY CONSTRUCTION (no code path updates/deletes an entry — the ledger/
-# ops are create+read only), and TAMPER-EVIDENT for out-of-band edits (a direct DB /
-# admin-API change is detected by verify_chain, not prevented — this is an audit log,
-# not tamper-proof against the instance owner).
+# canonical payload || prev_entry_hash), and ledger/append records the end of the
+# chain on mcp_chain_lock. See docs/security-model.md §4.5: append-only BY
+# CONSTRUCTION (no code path updates/deletes an entry — the ledger/ ops are
+# create+read only); an out-of-band change to THIS table alone (edit, backdate,
+# deletion, also of the newest entries) is detected by ledger/verify_chain. The hash
+# is unkeyed, so someone who can also rewrite mcp_chain_lock is NOT detected on the
+# instance — only against an end-of-chain checkpoint kept outside it.
 # NEVER store raw tool arguments here — only input_sha256 + input_bytes, plus
 # manifest-declared non-sensitive audit_fields (audit_json).
 properties:

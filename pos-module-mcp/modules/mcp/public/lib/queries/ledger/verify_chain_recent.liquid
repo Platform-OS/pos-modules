@@ -10,11 +10,14 @@
   it TRUSTS the oldest fetched entry as an anchor and verifies every entry after it, which
   detects any fork / edit / backdate WITHIN the window (the concurrency-fork case is a
   recent-append event, always inside the window). Older-entry tampering needs the full
-  ledger/verify_chain (surface it on-demand). Returns the SHAPE of verify_chain plus
-  { recent:true, window }.
+  ledger/verify_chain (surface it on-demand). Like verify_chain it then compares the last
+  entry with the end of chain ledger/append recorded (queries/ledger/check_head), so
+  deleting the newest entries or rewriting the newest entry is reported here too. The
+  same limits apply: see verify_chain. Returns the SHAPE of verify_chain (without
+  checkpoint) plus { recent:true, window }.
 
   @param {integer} limit - tail size to verify (default 200)
-  @return {object} { ok, count, broken_at, reason, recent, window }
+  @return {object} { ok, count, broken_at, reason, kind, head, recent, window }
 {%- endcomment -%}
 {% liquid
   assign zero = '0000000000000000000000000000000000000000000000000000000000000000'
@@ -31,7 +34,10 @@
   assign ok = true
   assign broken_at = null
   assign reason = null
+  assign kind = null
   assign count = 0
+  assign prev = zero
+  assign prev_seq = 0
 
   if n > 0
     assign anchor = rows.first
@@ -39,25 +45,37 @@
     # trust the oldest fetched row as the anchor and verify from its successor.
     if anchor.prev_entry_hash == zero
       assign prev = zero
+      assign prev_seq = 0
       assign start_index = 0
     else
       assign prev = anchor.entry_hash
+      assign prev_seq = anchor.seq | plus: 0
       assign start_index = 1
     endif
 
     assign idx = 0
     for rec in rows
       if idx >= start_index
+        assign rec_seq = rec.seq | plus: 0
         if rec.prev_entry_hash != prev
           assign ok = false
           assign broken_at = rec.seq
-          assign reason = 'linkage break: prev_entry_hash does not match preceding entry'
+          assign expected_seq = prev_seq | plus: 1
+          if rec_seq > expected_seq
+            assign last_missing = rec_seq | minus: 1
+            assign kind = 'gap'
+            assign reason = 'linkage break: seq ' | append: expected_seq | append: '–' | append: last_missing | append: ' are missing (deleted); this entry links to an entry that is no longer in the ledger'
+          else
+            assign kind = 'linkage'
+            assign reason = 'linkage break: prev_entry_hash does not match preceding entry'
+          endif
           break
         endif
         function canonical = 'modules/mcp/helpers/ledger/canonical', entry: rec
         if canonical == blank
           assign ok = false
           assign broken_at = rec.seq
+          assign kind = 'version'
           assign reason = 'unknown canonical_version: this module version cannot verify the entry'
           break
         endif
@@ -65,14 +83,29 @@
         if expected != rec.entry_hash
           assign ok = false
           assign broken_at = rec.seq
+          assign kind = 'integrity'
           assign reason = 'integrity break: recomputed entry_hash does not match stored value'
           break
         endif
         assign prev = rec.entry_hash
+        assign prev_seq = rec_seq
         assign count = count | plus: 1
       endif
       assign idx = idx | plus: 1
     endfor
+  endif
+
+  # End of chain (the anchor counts as the last entry when it is the only one fetched).
+  assign last_hash = null
+  if n > 0
+    assign last_hash = prev
+  endif
+  function head = 'modules/mcp/queries/ledger/check_head', last_seq: prev_seq, last_hash: last_hash
+  if ok and head.ok == false
+    assign ok = false
+    assign broken_at = head.broken_at
+    assign kind = head.kind
+    assign reason = head.reason
   endif
 
   assign out = {
@@ -80,6 +113,8 @@
     "count": count,
     "broken_at": broken_at,
     "reason": reason,
+    "kind": kind,
+    "head": head,
     "recent": true,
     "window": win
   }

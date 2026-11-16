@@ -9,6 +9,10 @@ format: json
   authz_decision, execution_outcome). Operator-gated (403 JSON otherwise). Bounded by
   export_cap with an explicit `capped` flag — a silent truncation would read as a
   complete archive when it is not. Read-only: never mutates the chain.
+
+  `chain_head` is the end of chain ledger/append recorded at export time (seq +
+  entry_hash, null before one is recorded). Keep it with the archive: it is the
+  checkpoint the console's "Check checkpoint" verifies later (docs/security-model.md §4.5).
 {%- endcomment -%}
 {%- liquid
   function current_profile = 'modules/user/helpers/current_profile'
@@ -64,6 +68,17 @@ format: json
     "execution_outcome": context.params.execution_outcome
   }
   assign payload['filter'] = filt
+  graphql head_res = 'modules/mcp/ledger/lock_find', table: 'modules/mcp/mcp_chain_lock'
+  assign head_row = head_res.records.results.first
+  assign chain_head = null
+  unless head_row == blank or head_row.head_hash == blank or head_row.head_seq == blank
+    assign head_seq_n = head_row.head_seq | plus: 0
+    assign chain_head = {
+      "seq": head_seq_n,
+      "entry_hash": head_row.head_hash
+    }
+  endunless
+  assign payload['chain_head'] = chain_head
   assign payload['rows'] = out_rows
   echo payload | json
 -%}

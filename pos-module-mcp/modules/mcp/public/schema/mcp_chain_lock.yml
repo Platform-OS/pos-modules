@@ -15,6 +15,18 @@ name: mcp_chain_lock
 # always issues a real UPDATE — a no-op update would take no lock. The value is meaningless;
 # only the write-lock matters. All appends lock the min-id row, so even a bootstrap race that
 # briefly creates two rows still converges on one mutex. Holds no secrets.
+#
+# END OF CHAIN. The same row records where the chain ends: `head_seq` + `head_hash` are the
+# seq and entry_hash of the newest entry, written by ledger/append in the same transaction as
+# the entry. verify_chain compares the last ledger row with them, so deleting the newest
+# entries or rewriting the newest entry (even with a recomputed hash) is reported, and the
+# next append links to the recorded end, so the gap stays visible. This is NOT a secret and
+# NOT protected against an actor who can write this table too (see docs/security-model.md
+# §4.5): it catches changes made to the ledger table alone.
 properties:
   - name: token
+    type: string
+  - name: head_seq
+    type: integer
+  - name: head_hash
     type: string

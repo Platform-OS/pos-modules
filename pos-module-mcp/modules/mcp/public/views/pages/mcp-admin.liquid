@@ -53,6 +53,20 @@ layout: ''
     assign full_verify = true
   endif
 
+  # Optional checkpoint: an end of chain (seq + entry_hash) the operator copied OUT of the
+  # instance earlier. Checking it is the only way to detect a rewrite by someone who can
+  # also rewrite the recorded end of chain (docs/security-model.md §4.5). Implies a full walk.
+  assign cp_seq = context.params.checkpoint_seq | default: '' | strip
+  assign cp_hash = context.params.checkpoint_hash | default: '' | strip | downcase
+  assign has_checkpoint = false
+  if cp_seq != '' and cp_hash != ''
+    assign cp_seq_n = cp_seq | plus: 0
+    if cp_seq_n >= 1
+      assign has_checkpoint = true
+      assign full_verify = true
+    endif
+  endif
+
   # Live tail (JS-free auto-refresh via <meta http-equiv="refresh">). Opt-in with ?live=N
   # (seconds, clamped 5..300; a bare truthy value defaults to 20s). Off by default.
   assign live_on = false
@@ -89,6 +103,10 @@ layout: ''
   if full_verify
     assign qp = qp | append: '&verify=full'
   endif
+  if has_checkpoint
+    assign cp_hash_q = cp_hash | url_encode
+    assign qp = qp | append: '&checkpoint_seq=' | append: cp_seq_n | append: '&checkpoint_hash=' | append: cp_hash_q
+  endif
 
   # ---- always (every tab): pending approvals for the nav badge ----
   graphql pending_res = 'modules/mcp/approvals/list', status: 'pending', per_page: 50
@@ -97,7 +115,7 @@ layout: ''
   # ---- chain status for the banner (every tab). On Overview the metrics scan already
   #      yields it; elsewhere do the cheap bounded check alone (NO count scan). ----
   if active_tab == 'overview'
-    if full_verify
+    if full_verify and has_checkpoint == false
       function m = 'modules/mcp/queries/observability/metrics'
     else
       function m = 'modules/mcp/queries/observability/metrics', chain_tail: 200
@@ -105,7 +123,10 @@ layout: ''
     assign chain = m.chain
     graphql eval_res = 'modules/mcp/eval/runs_latest', per_page: 1
     assign latest_eval = eval_res.records.results.first
-  else
+  endif
+  if has_checkpoint
+    function chain = 'modules/mcp/queries/ledger/verify_chain', checkpoint_seq: cp_seq_n, checkpoint_hash: cp_hash
+  elsif active_tab != 'overview'
     if full_verify
       function chain = 'modules/mcp/queries/ledger/verify_chain'
     else
@@ -169,7 +190,8 @@ layout: ''
   endif
 
   # ---- F: chain-break diagnostics (fetched ONLY when the chain is broken — rare, so
-  #      no cost on the normal path). Surfaces the forked/tampered rows on the Ledger tab.
+  #      no cost on the normal path). Surfaces the rows at the break on the Ledger tab;
+  #      the explanation comes from chain.kind, not from the row count alone.
   unless chain.ok
     assign _broken_seq = chain.broken_at | plus: 0
     graphql fork_res = 'modules/mcp/ledger/by_seq', seq: _broken_seq
@@ -327,6 +349,7 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
   .mb-05 { margin-bottom: .5rem; } .mb-06 { margin-bottom: .6rem; } .mb-075 { margin-bottom: .75rem; }
   .mb-09 { margin-bottom: .9rem; } .mb-1 { margin-bottom: 1rem; } .mb-125 { margin-bottom: 1.25rem; }
   .mb-175 { margin-bottom: 1.75rem; }
+  .break-all { word-break: break-all; }
   .w-7 { width: 7rem; } .w-8 { width: 8rem; } .w-9 { width: 9rem; } .w-10 { width: 10rem; } .w-12 { width: 12rem; }
 
   /* URL-driven panels (server renders the active one; ?tab= is the single source of
@@ -384,9 +407,9 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
   <div class="topbar">
     <h1>{{ active_tab | capitalize }}</h1>
     {%- if chain.ok -%}
-      <div class="banner ok">&#10003; Ledger chain verified — {{ chain.count }} entries{% if chain.recent %} (recent window){% endif %} intact.{%- unless full_verify %} &middot; <a href="?tab={{ active_tab }}&amp;verify=full{% if live_on %}&amp;live={{ live_secs }}{% endif %}">verify entire chain</a>{% endunless -%}</div>
+      <div class="banner ok">&#10003; Ledger chain verified — {{ chain.count }} entries{% if chain.recent %} (recent window){% endif %} intact{% if chain.checkpoint %}, checkpoint seq {{ chain.checkpoint.seq }} matches{% endif %}.{% unless chain.head.recorded %} End of chain not recorded yet (it is recorded from the next MCP call on).{% endunless %}{%- unless full_verify %} &middot; <a href="?tab={{ active_tab }}&amp;verify=full{% if live_on %}&amp;live={{ live_secs }}{% endif %}">verify entire chain</a>{% endunless -%}</div>
     {%- else -%}
-      <div class="banner bad">&#10007; LEDGER CHAIN BROKEN at seq {{ chain.broken_at }} — {{ chain.reason }}. Investigate immediately.{% if active_tab != 'ledger' %} <a href="?tab=ledger{{ qp }}">see forked entries</a>{% endif %}</div>
+      <div class="banner bad">&#10007; LEDGER CHAIN BROKEN at seq {{ chain.broken_at }} — {{ chain.reason }}. Investigate immediately.{% if active_tab != 'ledger' %} <a href="?tab=ledger{{ qp }}">see details</a>{% endif %}</div>
     {%- endif -%}
     {%- if live_on -%}
       <a class="btn" href="?tab={{ active_tab }}{% if full_verify %}&amp;verify=full{% endif %}" title="Stop auto-refresh">&#9208; Live {{ live_secs }}s</a>
@@ -587,7 +610,15 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
     {%- unless chain.ok -%}
     <div class="notice bad mb-06">
       &#9888; Chain break at seq {{ chain.broken_at }} — {{ chain.reason }}.
-      {%- if fork_rows.size > 1 %} {{ fork_rows.size }} entries share seq {{ chain.broken_at }} — a concurrency <b>fork</b> (multiple appends linked to the same predecessor).{% else %} The entry recomputes to a different hash — <b>edited / backdated</b>.{% endif -%}
+      {%- if fork_rows.size > 1 %} {{ fork_rows.size }} entries share seq {{ chain.broken_at }} — a concurrency <b>fork</b> (multiple appends linked to the same predecessor).
+      {%- elsif chain.kind == 'gap' %} Entries before this one were <b>deleted</b>: it still links to the hash of an entry that is no longer in the ledger.
+      {%- elsif chain.kind == 'linkage' %} The entry before this one no longer has the hash this entry linked to: that entry was <b>rewritten</b> (its hash recomputed), or this entry's link was edited.
+      {%- elsif chain.kind == 'integrity' %} The entry recomputes to a different hash — <b>edited / backdated</b>.
+      {%- elsif chain.kind == 'truncated' %} The <b>newest entries were deleted</b>: the remaining chain links up, but it ends before the end ledger/append recorded.
+      {%- elsif chain.kind == 'head' %} The newest entry does not match the end of chain ledger/append recorded: it was <b>rewritten</b> (hash recomputed) or <b>added outside the MCP module</b>.
+      {%- elsif chain.kind == 'checkpoint' %} The ledger does not match the checkpoint you supplied: entries up to seq {{ chain.checkpoint.seq }} were <b>rewritten or deleted</b> since it was taken.
+      {%- elsif chain.kind == 'version' %} This entry was written with a hash format this module version does not know — <b>upgrade the module</b> before treating it as tampering.
+      {%- endif %}
     </div>
     {%- if fork_rows.size > 0 -%}
     <div class="tbl-wrap mb-09">
@@ -606,6 +637,21 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
     </div>
     {%- endif -%}
     {%- endunless -%}
+    <div class="muted fs-sm mb-06">
+      {%- if chain.head.recorded %}
+      End of chain: seq <b>{{ chain.head.head_seq }}</b>, entry_hash <code class="break-all">{{ chain.head.head_hash }}</code>.
+      {%- else %}
+      End of chain: not recorded yet (it is recorded from the next MCP call on).
+      {%- endif %}
+      The chain and its recorded end live on this instance, so anyone who can write its tables can rewrite both. To detect that, keep a copy of the end of chain outside the instance and check it here later:
+    </div>
+    <form method="get" action="/mcp-admin" class="form-row mb-05">
+      <input type="hidden" name="tab" value="ledger">
+      <input type="hidden" name="verify" value="full">
+      <input type="text" name="checkpoint_seq" value="{{ context.params.checkpoint_seq }}" placeholder="checkpoint seq" class="field w-8">
+      <input type="text" name="checkpoint_hash" value="{{ context.params.checkpoint_hash }}" placeholder="checkpoint entry_hash" class="field w-12">
+      <button type="submit" class="btn">Check checkpoint</button>
+    </form>
     <form method="get" action="/mcp-admin" class="form-row mb-05">
       <input type="hidden" name="tab" value="ledger">
       <input type="text" name="tool_name" value="{{ context.params.tool_name }}" placeholder="tool" class="field w-8">

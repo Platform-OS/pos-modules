@@ -280,7 +280,7 @@ Every authenticated ending writes one chained entry (`ledger/append`: stamps `se
 
 **Not in the ledger:** pre-auth failures (bad/missing/revoked/unbound token) — platform log only. And the open methods (`initialize`, `ping`, `tools/list`, `resources/*`, `prompts/*`, `logging/setLevel`) — they take no governed action. The one exception is a `resources/read` of an app provider resource, which is ledgered as `method: resources/read` with the outcomes `success`, `invalid` (not found), `denied` (scope), or `error` (rate limit, provider failure) — see 3b.
 
-Only `input_sha256` and the chain hashes are hashed; everything else (tool name, principal, outcome, timings, declared `audit_json`) is plaintext, so the ledger is *readable* — `verify_chain` proves it wasn't altered, and the operator console + metrics read it directly.
+Only `input_sha256` and the chain hashes are hashed; everything else (tool name, principal, outcome, timings, declared `audit_json`) is plaintext, so the ledger is *readable* — `verify_chain` shows whether the ledger table was changed on its own (a rewrite of every table shows only against an external checkpoint, see [security-model.md §4.5](./security-model.md)), and the operator console + metrics read it directly.
 
 ---
 
