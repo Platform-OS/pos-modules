@@ -37,10 +37,11 @@
   endfor
 
   graphql snoozed = 'modules/support/tickets/search', snoozed_before: now_iso, limit: 100
+  # through the ticket command, so the activity log shows "unsnoozed"
+  assign system_actor = { "type": "system", "id": null, "member": null }
   for ticket in snoozed.records.results
     if ticket.snooze_until != blank
-      assign values = { "snooze_until": null }
-      function _ = 'modules/support/commands/tickets/save', ticket: ticket, values: values
+      function _ = 'modules/support/commands/tickets/snooze', ticket: ticket, until: null, actor: system_actor
       assign summary.unsnoozed = summary.unsnoozed | plus: 1
     endif
   endfor

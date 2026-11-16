@@ -77,7 +77,17 @@
   assign query.assignee_id = filters.assignee_id
   assign query.sort = filters.sort
 
-  assign result = { "view": null, "layout": null, "group": null, "filters": null, "groups": null, "counts": null, "department_counts": null, "statuses": null, "members": null, "can_manage": false, "query": null, "live_departments": null }
+  # the board's assignee picker shows job titles (board/assign_people)
+  assign job_titles = {}
+  if current_layout == 'board'
+    function records = 'modules/support/queries/team_members/all_active'
+    for r in records
+      assign job_titles[r.profile_id] = r.job_title
+    endfor
+  endif
+
+  assign result = { "view": null, "layout": null, "group": null, "filters": null, "groups": null, "counts": null, "department_counts": null, "statuses": null, "members": null, "can_manage": false, "query": null, "live_departments": null, "job_titles": null }
+  assign result.job_titles = job_titles
   assign result.view = view
   assign result.layout = current_layout
   assign result.group = group

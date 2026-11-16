@@ -1,0 +1,13 @@
+{% doc %}
+  One attachment by id with a short-lived signed file URL, or null. A blank
+  id returns null (a blank filter would match the first attachment).
+  @param {string} id - Attachment id
+  @param {number} expires_in - Seconds the signed URL stays valid
+{% enddoc %}
+{% liquid
+  if id == blank
+    return null
+  endif
+  graphql r = 'modules/support/attachments/search', id: id, expires_in: expires_in, limit: 1
+  return r.records.results.first
+%}

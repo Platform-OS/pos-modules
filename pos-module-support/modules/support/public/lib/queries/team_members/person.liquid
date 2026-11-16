@@ -1,0 +1,13 @@
+{% doc %}
+  The host profile behind a membership (name, email), or null.
+  @param {string} profile_id - Profile id
+{% enddoc %}
+{% liquid
+  if profile_id == blank
+    return null
+  endif
+  assign ids = []
+  assign ids << profile_id
+  graphql p = 'modules/user/profiles/search', ids: ids, limit: 1
+  return p.records.results.first
+%}

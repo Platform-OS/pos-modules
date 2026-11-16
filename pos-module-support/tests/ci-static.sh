@@ -50,6 +50,18 @@ if [ -f "$CSS" ]; then
   fi
 fi
 
+# 5. Layering: pages read data through lib/queries, not GraphQL; partials only
+#    render (formatting helpers are fine). Channel partials are platformOS
+#    WebSocket handlers that check access themselves, so they may query.
+PAGE_GQL=$(grep -rlE '^\s*graphql [a-z_]+ = |\{%-? *graphql ' "$ROOT/views/pages" 2>/dev/null || true)
+if [ -n "$PAGE_GQL" ]; then
+  echo "ci-static: pages running GraphQL directly (use a lib/queries wrapper):"; echo "$PAGE_GQL"; FAIL=1
+fi
+PARTIAL_DATA=$(grep -rlE "function [a-z_]+ = 'modules/support/(queries|commands)/|^\s*graphql " "$ROOT/views/partials" 2>/dev/null | grep -v '/views/partials/channels/' || true)
+if [ -n "$PARTIAL_DATA" ]; then
+  echo "ci-static: partials calling queries, commands or GraphQL (pass the data in):"; echo "$PARTIAL_DATA"; FAIL=1
+fi
+
 if [ "$FAIL" -ne 0 ]; then
   exit 1
 fi

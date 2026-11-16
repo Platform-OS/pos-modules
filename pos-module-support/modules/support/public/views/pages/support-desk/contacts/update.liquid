@@ -15,8 +15,7 @@ metadata:
     render 'modules/support/forbidden'
     break
   endunless
-  graphql c = 'modules/support/contacts/search', id: context.params.id, limit: 1
-  assign contact = c.records.results.first
+  function contact = 'modules/support/queries/contacts/find', id: context.params.id
   if contact == blank
     response_status 404
     render 'modules/support/forbidden'

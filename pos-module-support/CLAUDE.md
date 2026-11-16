@@ -14,7 +14,8 @@ validate (`validate_code`, platformos-supervisor) â†’ write (Write/Edit only) â†
 
 ## Things that are specific here
 
-- Tables are `modules/support/<table>`; every ticket write goes through `modules/support/commands/tickets/*` and writes a `ticket_event`.
+- Tables are `modules/support/<table>`; every ticket write goes through `modules/support/commands/tickets/*` and writes a `ticket_event`. Exceptions: `commands/sla/*` store derived SLA fields (deadlines, state, version; a due-soon or breach still logs its event), and one-off data repairs in `commands/maintenance/*` run by migrations.
+- Layering (checked by `tests/ci-static.sh`): pages read data through `lib/queries/*`, never GraphQL directly; partials only render what they are passed and may call formatting helpers (`helpers/*`), never queries, commands or GraphQL. The channel partials (`views/partials/channels/`) are WebSocket handlers and check access themselves.
 - Status behaviour comes from the **category** (`lib/helpers/categories.liquid`), never from a status key.
 - Department scope is applied in every query; every by-id write loads the record through a scoped query first.
 - Every POST under `support-desk` checks `context.csrf_request_valid`. Webhooks under `api/support` authenticate by the secret path segment.

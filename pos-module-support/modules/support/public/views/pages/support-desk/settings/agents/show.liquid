@@ -17,10 +17,7 @@ metadata:
   endif
   function availability = 'modules/support/helpers/team/effective_availability', member: member, at: null
   assign action = '/support-desk/settings/agents/' | append: member.profile_id
-  assign ids = []
-  assign ids << member.profile_id
-  graphql p = 'modules/user/profiles/search', ids: ids, limit: 1
-  assign person = p.records.results.first
+  function person = 'modules/support/queries/team_members/person', profile_id: member.profile_id
   assign deleted = 'modules/support/team.deleted_user' | t
   assign name = person.name | default: person.email | default: deleted
   assign title = 'modules/support/profile.agent_title' | t: name: name

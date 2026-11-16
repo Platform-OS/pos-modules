@@ -1,0 +1,8 @@
+{% doc %}
+  Every department (at most 100), for Settings pages.
+  Returns the records collection { results, total_entries }.
+{% enddoc %}
+{% liquid
+  graphql departments = 'modules/support/departments/search', limit: 100
+  return departments.records
+%}

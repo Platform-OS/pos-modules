@@ -1,0 +1,12 @@
+{% doc %}
+  One contact by id, or null. A blank id returns null (a blank filter would
+  match the first contact).
+  @param {string} id - Contact id
+{% enddoc %}
+{% liquid
+  if id == blank
+    return null
+  endif
+  graphql c = 'modules/support/contacts/search', id: id, limit: 1
+  return c.records.results.first
+%}

@@ -15,8 +15,7 @@ metadata:
     render 'modules/support/forbidden'
     break
   endunless
-  graphql o = 'modules/support/organizations/search', id: context.params.id, limit: 1
-  assign organization = o.records.results.first
+  function organization = 'modules/support/queries/organizations/find', id: context.params.id
   if organization == blank
     response_status 404
     render 'modules/support/forbidden'

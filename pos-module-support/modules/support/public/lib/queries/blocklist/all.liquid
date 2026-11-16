@@ -1,0 +1,8 @@
+{% doc %}
+  Blocked senders for Settings → Blocklist (newest first, at most 200).
+  Returns the records collection { results, total_entries }.
+{% enddoc %}
+{% liquid
+  graphql r = 'modules/support/blocked_senders/search', limit: 200
+  return r.records
+%}

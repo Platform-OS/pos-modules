@@ -9,8 +9,7 @@ metadata:
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
 
-  graphql r = 'modules/support/attachments/search', id: context.params.id, expires_in: 120, limit: 1
-  assign attachment = r.records.results.first
+  function attachment = 'modules/support/queries/attachments/find', id: context.params.id, expires_in: 120
   if attachment
     function ticket = 'modules/support/queries/tickets/find', id: attachment.ticket_id, number: null, member: context.exports.support.support_member
   endif

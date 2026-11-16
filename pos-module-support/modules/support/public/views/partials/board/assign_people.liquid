@@ -6,16 +6,12 @@
   Unassign. Agents may only take a ticket or give up their own
   (queries/tickets/assignee_error), so they get no list of people; the
   server checks every change again.
-  @param {object} page_data - From helpers/queue_page (members, can_manage)
+  @param {object} page_data - From helpers/queue_page (members, can_manage, job_titles)
   @param {object} member - The signed-in team_member
 {% enddoc %}
 {% liquid
   function roles = 'modules/support/helpers/member_roles'
-  function records = 'modules/support/queries/team_members/all_active'
-  assign titles = {}
-  for r in records
-    assign titles[r.profile_id] = r.job_title
-  endfor
+  assign titles = page_data.job_titles | default: {}
   assign people = page_data.members | sort_natural: 'name'
   assign me = people | where: 'profile_id', member.profile_id | first
   assign buckets = 'available,away,off' | split: ','

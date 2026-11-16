@@ -1,0 +1,12 @@
+{% doc %}
+  One organization by id, or null. A blank id returns null (a blank filter
+  would match the first organization).
+  @param {string} id - Organization id
+{% enddoc %}
+{% liquid
+  if id == blank
+    return null
+  endif
+  graphql o = 'modules/support/organizations/search', id: id, limit: 1
+  return o.records.results.first
+%}
