@@ -25,6 +25,17 @@
     else
       assign done.admin = 'kept'
     endif
+    # with the host's email verification on, an unverified account cannot sign
+    # in: the installer typed this address for themselves, so it counts as proved
+    function verification_on = 'modules/user/helpers/email_verification_enabled'
+    if verification_on
+      function first_admin = 'modules/user/queries/profiles/find', id: state.profile_id, user_id: null, uuid: null, first_name: null, last_name: null
+      if first_admin.email_verified_at == blank
+        assign verify = { "id": null }
+        assign verify.id = state.profile_id
+        function _ = 'modules/user/commands/profiles/mark_email_verified', object: verify
+      endif
+    endif
   endif
 
   assign providers = ["sendgrid"]

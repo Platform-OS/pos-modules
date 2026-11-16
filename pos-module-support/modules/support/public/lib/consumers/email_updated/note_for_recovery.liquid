@@ -1,0 +1,23 @@
+---
+metadata:
+  priority: high
+  max_attempts: 5
+---
+{% doc %}
+  The user module changed an account's email (event email_updated). The desk
+  notes it, so ADMIN_EMAILS recovery (helpers/resolve_member) never trusts a
+  verification made for the earlier address, even with a user module that
+  keeps email_verified_at across the change.
+  @param {object} event - { actor_id: user id, … }
+{% enddoc %}
+{% liquid
+  if event.actor_id == blank
+    return null
+  endif
+  function profile = 'modules/user/queries/profiles/find', user_id: event.actor_id, id: null, uuid: null, first_name: null, last_name: null
+  if profile.id == blank
+    return null
+  endif
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: profile.id, event_type: 'account_email_changed', from_value: null, to_value: null, reason: null
+  return true
+%}

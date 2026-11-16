@@ -28,14 +28,6 @@ format: json
   function events = adapter, events: context.params._json
   # applied in background jobs of 100: a slow answer makes the provider
   # retry, and applying an event again changes nothing (apply_event)
-  assign batch = []
-  for event in events limit: 1000
-    assign batch << event
-    if batch.size == 100 or forloop.last
-      assign events_json = batch | json
-      background _ = 'modules/support/commands/email/apply_events', events_json: events_json, max_attempts: 3, source_name: 'support_email_events', priority: 'default'
-      assign batch = []
-    endif
-  endfor
+  function _ = 'modules/support/commands/email/queue_events', events: events
   echo '{"ok":true}'
 %}

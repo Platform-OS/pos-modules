@@ -13,6 +13,10 @@
   if from_domain == blank
     return false
   endif
+  # more than one From line: the checked address may not be the one shown
+  if email.from_count > 1
+    return false
+  endif
 
   # relaxed alignment: a subdomain of the From domain counts (mail.example.com)
   assign dkim = email.auth.dkim | downcase | remove: ' '

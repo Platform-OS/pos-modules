@@ -84,3 +84,28 @@ see <a href="https://example.com/x">https://example.com/x</a></p>
   function contract = 'modules/tests/assertions/equal', contract: contract, given: pd.messages.size, expected: total, field_name: 'show earlier loads every message'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: pd.earlier_messages, expected: 0, field_name: 'nothing hidden after show earlier'
 %}
+{%- liquid
+  # the "Unverified sender" badge (PRD EM-10): shown when the checks failed,
+  # not for a verified sender, not for older messages without a result
+  assign unverified = { "id": "u1", "author_type": "customer", "body_text": "hi", "created_at": "2026-11-16T10:00:00Z", "auth_results": { "verified": false } }
+  assign verified = { "id": "u2", "author_type": "customer", "body_text": "hi", "created_at": "2026-11-16T10:00:00Z", "auth_results": { "verified": true } }
+  assign older = { "id": "u3", "author_type": "customer", "body_text": "hi", "created_at": "2026-11-16T10:00:00Z", "auth_results": {} }
+  assign no_files = []
+-%}
+{%- capture shown_unverified -%}{% render 'modules/support/ticket/message_card', message: unverified, attachments: no_files, author: 'A', author_email: null, is_note: false %}{%- endcapture -%}
+{%- capture shown_verified -%}{% render 'modules/support/ticket/message_card', message: verified, attachments: no_files, author: 'A', author_email: null, is_note: false %}{%- endcapture -%}
+{%- capture shown_older -%}{% render 'modules/support/ticket/message_card', message: older, attachments: no_files, author: 'A', author_email: null, is_note: false %}{%- endcapture -%}
+{%- liquid
+  assign badge = 'pos-support-unverified'
+  assign has_badge = false
+  if shown_unverified contains badge
+    assign has_badge = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: has_badge, field_name: 'badge on an unverified sender', object: null
+  assign wrong_badge = false
+  if shown_verified contains badge or shown_older contains badge
+    assign wrong_badge = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: wrong_badge, expected: false, field_name: 'no badge for verified or older messages'
+  return contract
+-%}

@@ -1,0 +1,56 @@
+{% doc %}
+  Whether a profile without a membership gets an admin membership through
+  ADMIN_EMAILS recovery (D-24). Its address must be listed. When the host
+  verifies addresses (the user module's USER_EMAIL_VERIFICATION_ENABLED), the
+  address must be verified, and verified after the account's last email
+  change (consumers/email_updated): verifying one address and then switching
+  the account to a listed one does not count. Without verification there is
+  nothing to check; the README says to list only addresses that already have
+  an account.
+  @param {object} profile - The signed-in profile
+  @param {boolean} [verification_on] - Default: the user module's setting (tests pass it)
+  @param {string} [admin_emails] - Comma-separated; default: the ADMIN_EMAILS constant (tests pass it)
+{% enddoc %}
+{% liquid
+  assign email = profile.email | default: profile.user.email | downcase | strip
+  if email == blank
+    return false
+  endif
+  assign listed = admin_emails
+  if listed == null
+    assign listed = context.constants['modules/support/ADMIN_EMAILS']
+  endif
+  assign listed = listed | default: '' | downcase | split: ','
+  assign on_list = false
+  for admin_email in listed
+    assign admin_email = admin_email | strip
+    if admin_email != blank and admin_email == email
+      assign on_list = true
+      break
+    endif
+  endfor
+  unless on_list
+    return false
+  endunless
+
+  assign verifying = verification_on
+  if verifying == null
+    function verifying = 'modules/user/helpers/email_verification_enabled'
+  endif
+  unless verifying
+    return true
+  endunless
+  if profile.email_verified_at == blank
+    return false
+  endif
+  graphql changes = 'modules/support/ticket_events/search', event_type: 'account_email_changed', actor_id: profile.id, limit: 1
+  assign changed = changes.records.results.first
+  if changed
+    assign changed_at = changed.created_at | to_time | strftime: '%s' | plus: 0
+    assign verified_at = profile.email_verified_at | to_time | strftime: '%s' | plus: 0
+    if changed_at >= verified_at
+      return false
+    endif
+  endif
+  return true
+%}

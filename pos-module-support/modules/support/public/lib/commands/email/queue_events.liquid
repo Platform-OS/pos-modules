@@ -1,0 +1,20 @@
+{% doc %}
+  Queues normalized delivery events (from the adapter's parse_events) as
+  background jobs of 100 (commands/email/apply_events), at most 1000 per
+  webhook post. Returns the number of jobs queued.
+  @param {object[]} events - Normalized events
+{% enddoc %}
+{% liquid
+  assign jobs = 0
+  assign batch = []
+  for event in events limit: 1000
+    assign batch << event
+    if batch.size == 100 or forloop.last
+      assign events_json = batch | json
+      background _ = 'modules/support/commands/email/apply_events', events_json: events_json, max_attempts: 3, source_name: 'support_email_events', priority: 'default'
+      assign jobs = jobs | plus: 1
+      assign batch = []
+    endif
+  endfor
+  return jobs
+%}

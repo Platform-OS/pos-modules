@@ -135,4 +135,26 @@
   function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: colleague, to: token_address
   graphql p = 'modules/support/participants/search', ticket_id: g.ticket.id, email: colleague, role: null, limit: 1
   function contract = 'modules/tests/assertions/equal', contract: contract, given: p.records.total_entries, expected: 1, field_name: 'reply-address sender added as cc'
+
+  # two From lines: the first is shown, DKIM signed the last (a replayed,
+  # signed mail with the victim's From added on top). Never verified, never
+  # threaded by subject tag or headers.
+  function requester_of_g = 'modules/support/queries/contacts/find', id: g.ticket.requester_id
+  assign victim = requester_of_g.emails.first
+  assign victim_domain = victim | split: '@' | last
+  assign attacker = 'attacker-' | append: suffix | append: '@' | append: victim_domain
+  assign raw = 'From: Victim <' | append: victim | append: '>' | append: nl | append: 'From: Attacker <' | append: attacker | append: '>' | append: nl | append: 'To: testfixtures@support-dev.platformos.com' | append: nl | append: 'Subject: Re: Fixture ticket [#' | append: g.ticket.number | append: ']' | append: nl | append: 'Message-ID: <two-from-' | append: suffix | append: '@elsewhere.example>' | append: nl | append: 'In-Reply-To: ' | append: guess_id | append: nl | append: nl | append: 'Send the invoice elsewhere.' | append: nl
+  assign envelope = '{"to":["testfixtures@support-dev.platformos.com"],"from":"' | append: attacker | append: '"}'
+  assign dkim = '{@' | append: victim_domain | append: ' : pass}'
+  assign adapter_params = { "SPF": "pass" }
+  assign adapter_params.email = raw
+  assign adapter_params.envelope = envelope
+  assign adapter_params.dkim = dkim
+  function parsed = 'modules/support/commands/email/providers/sendgrid/parse_inbound', params: adapter_params
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parsed.from_count, expected: 2, field_name: 'two From lines counted'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: parsed.from.email, expected: victim, field_name: 'first From is the shown sender'
+  function two_from_verified = 'modules/support/helpers/email/sender_verified', email: parsed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: two_from_verified, expected: false, field_name: 'two From lines are never verified'
+  function m = 'modules/support/commands/inbound/match_ticket', email: parsed, contact: requester_of_g
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'two From lines thread by neither subject tag nor headers'
 %}

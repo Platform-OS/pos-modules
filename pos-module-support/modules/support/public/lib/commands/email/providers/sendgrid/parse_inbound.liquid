@@ -31,6 +31,11 @@
     assign email.reference_ids << ref[0]
   endfor
 
+  # RFC 5322 allows one From line. With more, the first is shown but DKIM signs
+  # the last, so a second line can borrow someone else's signature:
+  # helpers/email/sender_verified treats such mail as unverified
+  assign from_lines = head | regex_matches: '^From:', 'i'
+  assign email.from_count = from_lines.size
   function from_list = 'modules/support/helpers/email/parse_addresses', value: email.headers.from
   assign email.from = from_list.first
   function reply_to = 'modules/support/helpers/email/parse_addresses', value: email.headers['reply-to']

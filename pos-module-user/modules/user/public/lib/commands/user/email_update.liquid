@@ -8,6 +8,15 @@
 
   if object.valid
     function object = 'modules/core/commands/execute', object: object, mutation_name: 'modules/user/user/email_update', selection: 'user'
+    # a changed address has not been proved yet: email_verified_at belonged to
+    # the old one (anything trusting a verified address, such as an admin
+    # recovery list, must not carry it over to the new one)
+    if object.id != blank
+      function profile = 'modules/user/queries/profiles/find', user_id: object.id, id: null, uuid: null, first_name: null, last_name: null
+      if profile.id != blank and profile.email_verified_at != blank
+        graphql _ = 'modules/user/profiles/clear_email_verified', id: profile.id
+      endif
+    endif
   endif
 
   return object

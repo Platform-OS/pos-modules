@@ -1,0 +1,37 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # ADMIN_EMAILS recovery (helpers/recovery_admin). Verification and the list
+  # are passed in, so the instance's constants are not touched.
+  assign suffix = 8 | random_string | downcase
+  assign listed = 'recovery-' | append: suffix | append: '@example.com'
+  assign no_roles = []
+  function user = 'modules/user/commands/user/create', first_name: 'Rita', last_name: 'Recovery', email: listed, password: 'password-12345678', roles: no_roles, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  # without verification on the host: being listed is enough (documented risk)
+  function ok = 'modules/support/helpers/recovery_admin', profile: profile, verification_on: false, admin_emails: listed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: true, field_name: 'listed address recovers without verification'
+  function not_listed = 'modules/support/helpers/recovery_admin', profile: profile, verification_on: false, admin_emails: 'someone-else@example.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: not_listed, expected: false, field_name: 'unlisted address never recovers'
+
+  # with verification on: unverified is refused, verified is accepted
+  function unverified = 'modules/support/helpers/recovery_admin', profile: profile, verification_on: true, admin_emails: listed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unverified, expected: false, field_name: 'unverified address refused'
+  assign verify = { "id": null }
+  assign verify.id = profile.id
+  function _ = 'modules/user/commands/profiles/mark_email_verified', object: verify
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function verified = 'modules/support/helpers/recovery_admin', profile: profile, verification_on: true, admin_emails: listed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: verified, expected: true, field_name: 'verified address recovers'
+
+  # the account's email changed after the verification (verify your own
+  # address, then switch to a listed one): refused, whatever the user module
+  # did with email_verified_at
+  assign changed_event = { "actor_id": null }
+  assign changed_event.actor_id = user.id
+  function _ = 'modules/support/consumers/email_updated/note_for_recovery', event: changed_event
+  function switched = 'modules/support/helpers/recovery_admin', profile: profile, verification_on: true, admin_emails: listed
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: switched, expected: false, field_name: 'email changed after verification refused'
+%}

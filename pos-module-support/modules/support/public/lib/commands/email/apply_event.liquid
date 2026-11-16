@@ -22,11 +22,15 @@
   if state == 'bounced' or state == 'dropped'
     assign error = event.reason
   endif
-  # the same event again (a provider retry) changes nothing and logs nothing
-  if message.delivery_state == state and message.delivery_error == error
-    return state
-  endif
-  graphql u ='modules/support/messages/update_delivery', id: message.id, delivery_state: state, delivery_error: error, email_message_id: message.email_message_id
+  # The message keeps one delivery state for all its recipients; a failure is
+  # recorded per recipient. The same event again (a provider retry) changes
+  # nothing: the message update is skipped when nothing differs, and the
+  # failure row when one exists for this recipient, state and reason. A second
+  # recipient bouncing with the same reason still gets its row and its contact
+  # marked.
+  unless message.delivery_state == state and message.delivery_error == error
+    graphql u = 'modules/support/messages/update_delivery', id: message.id, delivery_state: state, delivery_error: error, email_message_id: message.email_message_id
+  endunless
 
   if event.hard and event.email != blank
     assign emails = []
@@ -40,7 +44,19 @@
     endif
   endif
   if state == 'bounced' or state == 'dropped'
-    function _ = 'modules/support/commands/ticket_events/log', ticket_id: message.ticket_id, actor_type: 'system', actor_id: null, event_type: 'delivery_failed', from_value: event.email, to_value: state, reason: event.reason
+    assign recipient = event.email | downcase
+    graphql logged = 'modules/support/ticket_events/search', ticket_id: message.ticket_id, event_type: 'delivery_failed', actor_id: null, limit: 100
+    assign already = false
+    for row in logged.records.results
+      assign row_recipient = row.from_value | downcase
+      if row_recipient == recipient and row.to_value == state and row.reason == event.reason
+        assign already = true
+        break
+      endif
+    endfor
+    unless already
+      function _ = 'modules/support/commands/ticket_events/log', ticket_id: message.ticket_id, actor_type: 'system', actor_id: null, event_type: 'delivery_failed', from_value: event.email, to_value: state, reason: event.reason
+    endunless
   endif
   return state
 %}

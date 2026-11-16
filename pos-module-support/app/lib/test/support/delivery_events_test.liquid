@@ -72,4 +72,35 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: applied, expected: 1, field_name: 'batch job applies its events'
   graphql after = 'modules/support/ticket_events/search', ticket_id: f.ticket.id, event_type: 'delivery_failed', actor_id: null, limit: 50
   function contract = 'modules/tests/assertions/equal', contract: contract, given: after.records.total_entries, expected: before.records.total_entries, field_name: 'repeated bounce logs nothing new'
+
+  # a second recipient (a CC) bouncing with the same reason: its own failure
+  # row and its contact marked bounced, although the message state is unchanged
+  assign cc_suffix = 8 | random_string | downcase
+  assign cc_email = 'cc-bounce-' | append: cc_suffix | append: '@example.com'
+  function cc_contact = 'modules/support/commands/contacts/find_or_create', email: cc_email, name: null
+  assign cc_batch = []
+  assign e = { "event": "bounce", "type": "bounce", "reason": "550 mailbox unavailable" }
+  assign e.support_message_id = second
+  assign e.email = cc_email
+  assign cc_batch << e
+  function events = 'modules/support/commands/email/providers/sendgrid/parse_events', events: cc_batch
+  assign events_json = events | json
+  function _ = 'modules/support/commands/email/apply_events', events_json: events_json
+  graphql with_cc = 'modules/support/ticket_events/search', ticket_id: f.ticket.id, event_type: 'delivery_failed', actor_id: null, limit: 50
+  assign added = with_cc.records.total_entries | minus: after.records.total_entries
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: added, expected: 1, field_name: 'second recipient with the same reason gets its own row'
+  graphql c2 = 'modules/support/contacts/search', id: cc_contact.id, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: c2.records.results.first.bounced, expected: true, field_name: 'second recipient marked bounced'
+  function _ = 'modules/support/commands/email/apply_events', events_json: events_json
+  graphql cc_again = 'modules/support/ticket_events/search', ticket_id: f.ticket.id, event_type: 'delivery_failed', actor_id: null, limit: 50
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: cc_again.records.total_entries, expected: with_cc.records.total_entries, field_name: 'retried second-recipient bounce logs nothing new'
+
+  # the webhook queues jobs of 100, at most 1000 events
+  assign many = []
+  for i in (1..250)
+    assign e = { "message_ref": "0", "event": "deferred" }
+    assign many << e
+  endfor
+  function jobs = 'modules/support/commands/email/queue_events', events: many
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: jobs, expected: 3, field_name: '250 events queue 3 jobs'
 %}

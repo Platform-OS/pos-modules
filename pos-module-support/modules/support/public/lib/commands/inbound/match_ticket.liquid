@@ -31,7 +31,13 @@
   endfor
 
   # 2. In-Reply-To and References, newest first
-  if ticket == null
+  # more than one From line (a borrowed signature): only the signed reply
+  # address above may thread it, never headers or the subject tag
+  assign several_from = false
+  if email.from_count > 1
+    assign several_from = true
+  endif
+  if ticket == null and several_from == false
     assign ids = []
     if email.in_reply_to != blank
       assign ids << email.in_reply_to
