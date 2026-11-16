@@ -25,8 +25,20 @@
     assign best_last = best.last_assigned_at | default: '1970-01-01T00:00:00Z' | to_time | strftime: '%s' | plus: 0
     if agent_last < best_last
       assign best = agent
-    elsif agent_last == best_last and agent.profile_id < best.profile_id
-      assign best = agent
+    elsif agent_last == best_last
+      # ids are numbers kept as text: as text, "10" sorts before "9"
+      assign agent_numeric = agent.profile_id | matches: '\A\d+\z'
+      assign best_numeric = best.profile_id | matches: '\A\d+\z'
+      if agent_numeric and best_numeric
+        assign agent_id = agent.profile_id | plus: 0
+        assign best_id = best.profile_id | plus: 0
+      else
+        assign agent_id = agent.profile_id
+        assign best_id = best.profile_id
+      endif
+      if agent_id < best_id
+        assign best = agent
+      endif
     endif
   endfor
   return best

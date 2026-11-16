@@ -140,6 +140,12 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: tag_list, expected: 'billing,portal', field_name: 'tags normalised'
   graphql by_tag = 'modules/support/tickets/search', id: ticket.id, query: 'portal', limit: 1
   function contract = 'modules/tests/assertions/equal', contract: contract, given: by_tag.records.total_entries, expected: 1, field_name: 'ticket found by its tag'
+  # renaming keeps the rest of the search text (it was rebuilt from a field the query did not return)
+  assign number_text = ticket.number | append: ''
+  graphql by_number = 'modules/support/tickets/search', id: ticket.id, query: number_text, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: by_number.records.total_entries, expected: 1, field_name: 'renamed ticket still found by number'
+  graphql by_subject = 'modules/support/tickets/search', id: ticket.id, query: 'Renamed subject', limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: by_subject.records.total_entries, expected: 1, field_name: 'renamed ticket found by new subject'
   assign retag = { "tags": ["other"] }
   function u2 = 'modules/support/commands/tickets/update_fields', ticket: u.ticket, fields: retag, actor: actor
   graphql by_old_tag = 'modules/support/tickets/search', id: ticket.id, query: 'portal', limit: 1

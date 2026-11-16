@@ -32,6 +32,11 @@
     function fresh = 'modules/support/commands/counters/next', key: 'ticket_number'
     assign values = { "number": null }
     assign values.number = fresh
+    # search_text starts with the number (tickets/create): search by #number must find the new one
+    assign old_prefix = number | append: ' '
+    assign new_prefix = fresh | append: ' '
+    assign text = ticket.search_text | default: old_prefix
+    assign values.search_text = text | replace_first: old_prefix, new_prefix
     function props = 'modules/support/helpers/props', values: values
     graphql _ = 'modules/support/records/update', id: ticket.id, properties: props
     function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'renumbered', from_value: number, to_value: fresh, reason: 'duplicate number'

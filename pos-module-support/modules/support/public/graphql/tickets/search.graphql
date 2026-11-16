@@ -75,6 +75,7 @@ query (
       solved_at: property(name: "solved_at")
       closed_at: property(name: "closed_at")
       confirm_notified_at: property(name: "confirm_notified_at")
+      search_text: property(name: "search_text")
       snooze_until: property(name: "snooze_until")
       assigned_at: property(name: "assigned_at")
       assignment_reason: property(name: "assignment_reason")

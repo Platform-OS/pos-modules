@@ -22,6 +22,15 @@
   function best = 'modules/support/commands/assignment/pick', agents: agents
   function contract = 'modules/tests/assertions/equal', contract: contract, given: best.profile_id, expected: 'z', field_name: 'never assigned goes first on a tie'
 
+  # last tie-break: lowest profile id as a number ("9" before "10")
+  assign p9 = { "profile_id": "9", "availability": "available", "open_count": 1, "max_open": 15, "last_assigned_at": null }
+  assign p10 = { "profile_id": "10", "availability": "available", "open_count": 1, "max_open": 15, "last_assigned_at": null }
+  assign agents = []
+  assign agents << p10
+  assign agents << p9
+  function best = 'modules/support/commands/assignment/pick', agents: agents
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: best.profile_id, expected: '9', field_name: 'numeric profile id tie-break'
+
   assign agents = []
   assign agents << d
   assign agents << e

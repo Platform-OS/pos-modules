@@ -9,6 +9,8 @@
   assign shared = first.ticket.number
   assign values = { "number": null }
   assign values.number = shared
+  # as tickets/create writes it: the number first
+  assign values.search_text = shared | append: ' Fixture ticket Test Requester'
   function props = 'modules/support/helpers/props', values: values
   graphql _ = 'modules/support/records/update', id: second.ticket.id, properties: props
 
@@ -23,4 +25,17 @@
   function contract = 'modules/tests/assertions/true', contract: contract, value: differs, field_name: 'newer ticket renumbered', object: null
   graphql same = 'modules/support/tickets/search', number: shared, limit: 10
   function contract = 'modules/tests/assertions/equal', contract: contract, given: same.records.total_entries, expected: 1, field_name: 'number unique again'
+  function t = 'modules/support/queries/tickets/find', id: second.ticket.id, number: null, member: null
+  assign new_prefix = moved | append: ' '
+  assign starts_new = false
+  if t.search_text contains new_prefix
+    assign starts_new = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: starts_new, field_name: 'search text carries the new number', object: null
+  assign old_prefix = shared | append: ' '
+  assign keeps_old = false
+  if t.search_text contains old_prefix
+    assign keeps_old = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: keeps_old, expected: false, field_name: 'search text drops the old number'
 %}
