@@ -66,14 +66,19 @@
       endif
     endif
   elsif ticket.requester_id != contact.id
-    # a new sender gets the ticket's replies only when they wrote to its signed
-    # reply address or belong to the requester's organization; a header match
-    # alone can be guessed, and the subject match already requires a known sender
+    # A new sender gets the ticket's replies (becomes a CC) only when their own
+    # address passed SPF/DKIM and they wrote to the ticket's signed reply
+    # address, used its subject tag (known senders only) or belong to the
+    # requester's organization. A header match alone never adds anyone: a
+    # Message-ID can be copied from any email in the thread.
+    function sender_ok = 'modules/support/helpers/email/sender_verified', email: email
     assign trusted = false
-    if reason == 'token' or reason == 'subject'
-      assign trusted = true
-    elsif contact.organization_id != blank and contact.organization_id == ticket.organization_id
-      assign trusted = true
+    if sender_ok
+      if reason == 'token' or reason == 'subject'
+        assign trusted = true
+      elsif contact.organization_id != blank and contact.organization_id == ticket.organization_id
+        assign trusted = true
+      endif
     endif
     if trusted
       function added = 'modules/support/commands/participants/add', ticket_id: ticket.id, email: sender, role: 'cc', contact_id: contact.id, profile_id: null
@@ -82,6 +87,15 @@
   endif
 
   function created = 'modules/support/commands/messages/create_inbound', ticket: ticket, email: email, contact: contact, inbound_email_id: inbound.id, match_reason: reason, flags: flags
+  # a reply on an existing ticket from an address that failed the checks is
+  # threaded (customers expect it) but never silent: the activity log says so,
+  # next to the "Unverified sender" badge on the message
+  if reason == 'header' or reason == 'token' or reason == 'subject'
+    function reply_verified = 'modules/support/helpers/email/sender_verified', email: email
+    unless reply_verified
+      function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'unverified_sender', from_value: null, to_value: sender, reason: reason
+    endunless
+  endif
   assign result.ticket_id = ticket.id
   assign result.message_id = created.message.id
   assign result.reason = reason

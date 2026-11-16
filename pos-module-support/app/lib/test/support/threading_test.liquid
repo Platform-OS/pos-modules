@@ -157,4 +157,20 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: two_from_verified, expected: false, field_name: 'two From lines are never verified'
   function m = 'modules/support/commands/inbound/match_ticket', email: parsed, contact: requester_of_g
   function contract = 'modules/tests/assertions/equal', contract: contract, given: m.reason, expected: 'new', field_name: 'two From lines thread by neither subject tag nor headers'
+
+  # an unverified sender on the requester's own domain (same organization)
+  # replying by header: threaded, but not added as CC, and the activity log
+  # says the sender failed the checks
+  assign neighbour = 'neighbour-' | append: suffix | append: '@' | append: victim_domain
+  assign raw = 'From: Neighbour <' | append: neighbour | append: '>' | append: nl | append: 'To: testfixtures@support-dev.platformos.com' | append: nl | append: 'Subject: Re: Fixture ticket' | append: nl | append: 'Message-ID: <neighbour-' | append: suffix | append: '@elsewhere.example>' | append: nl | append: 'In-Reply-To: ' | append: guess_id | append: nl | append: nl | append: 'Please also send it to me.' | append: nl
+  function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: neighbour, to: null, spf: 'fail'
+  graphql p = 'modules/support/participants/search', ticket_id: g.ticket.id, email: neighbour, role: null, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.records.total_entries, expected: 0, field_name: 'unverified same-domain sender not added as cc'
+  graphql flagged = 'modules/support/ticket_events/search', ticket_id: g.ticket.id, event_type: 'unverified_sender', actor_id: null, limit: 10
+  assign flagged_senders = flagged.records.results | map: 'to_value'
+  assign was_flagged = false
+  if flagged_senders contains neighbour
+    assign was_flagged = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: was_flagged, field_name: 'unverified reply recorded in the activity log', object: null
 %}

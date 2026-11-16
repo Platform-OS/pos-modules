@@ -38,7 +38,20 @@
   endif
 
   function agents = 'modules/support/queries/agents/available_in_department', department_id: ticket.department_id, at: null
-  function best = 'modules/support/commands/assignment/pick', agents: agents
+  # a burst of new tickets is assigned by parallel jobs reading the same
+  # counts: the unassigned new tickets of the last two minutes with a lower
+  # number count as assigned before this one (commands/assignment/pick)
+  assign ahead = 0
+  if replacing == blank
+    assign departments = []
+    assign departments << ticket.department_id
+    assign new_only = ["new"]
+    assign window_start = 'now' | add_to_time: -2, 'm' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+    assign below = ticket.number | append: ''
+    graphql burst = 'modules/support/tickets/search', department_ids: departments, categories: new_only, assigned: false, created_after: window_start, number_below: below, limit: 1
+    assign ahead = burst.records.total_entries
+  endif
+  function best = 'modules/support/commands/assignment/pick', agents: agents, ahead: ahead
   if best
     graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
     assign department = d.records.results.first

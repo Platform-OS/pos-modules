@@ -22,6 +22,36 @@
   function best = 'modules/support/commands/assignment/pick', agents: agents
   function contract = 'modules/tests/assertions/equal', contract: contract, given: best.profile_id, expected: 'z', field_name: 'never assigned goes first on a tie'
 
+  # a burst: 10 tickets assigned in parallel all read the same counts; each
+  # replays the tickets ahead of it, so two equal agents end 5 / 5
+  assign x = { "profile_id": "101", "availability": "available", "open_count": 2, "max_open": 15, "last_assigned_at": "2026-10-01T10:00:00Z" }
+  assign y = { "profile_id": "102", "availability": "available", "open_count": 2, "max_open": 15, "last_assigned_at": "2026-10-01T10:00:00Z" }
+  assign pair = []
+  assign pair << x
+  assign pair << y
+  assign to_x = 0
+  assign to_y = 0
+  for i in (0..9)
+    function chosen = 'modules/support/commands/assignment/pick', agents: pair, ahead: i
+    if chosen.profile_id == '101'
+      assign to_x = to_x | plus: 1
+    else
+      assign to_y = to_y | plus: 1
+    endif
+  endfor
+  assign split = to_x | append: '/' | append: to_y
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: split, expected: '5/5', field_name: 'burst of 10 spread over two equal agents'
+  # the cap still holds in a burst: one free place, then the other agent only
+  assign capped = { "profile_id": "103", "availability": "available", "open_count": 1, "max_open": 2, "last_assigned_at": null }
+  assign other = { "profile_id": "104", "availability": "available", "open_count": 5, "max_open": 15, "last_assigned_at": null }
+  assign pair = []
+  assign pair << capped
+  assign pair << other
+  function first_pick = 'modules/support/commands/assignment/pick', agents: pair, ahead: 0
+  function third_pick = 'modules/support/commands/assignment/pick', agents: pair, ahead: 2
+  assign picks = first_pick.profile_id | append: ',' | append: third_pick.profile_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: picks, expected: '103,104', field_name: 'burst respects max_open'
+
   # last tie-break: lowest profile id as a number ("9" before "10")
   assign p9 = { "profile_id": "9", "availability": "available", "open_count": 1, "max_open": 15, "last_assigned_at": null }
   assign p10 = { "profile_id": "10", "availability": "available", "open_count": 1, "max_open": 15, "last_assigned_at": null }

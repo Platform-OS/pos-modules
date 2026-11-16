@@ -9,7 +9,7 @@ A white-label support desk for platformOS apps. Customers email you; every email
 - Email to ticket through the email provider you choose at install (SendGrid in the first release), with threading by reply token, headers and subject.
 - Agent queue as a list (swim lanes) or a board (columns), grouped by priority or status; the layout and grouping stay as agents switch views; departments with live counts in the side navigation. Ticket page with replies and internal notes, saved replies, collision warnings and live updates.
 - Departments, statuses over six fixed categories, priorities P0–P3 with SLA targets and business hours.
-- Least-loaded auto-assignment with an escalation safety net.
+- Least-loaded auto-assignment with an escalation safety net. A new ticket goes to the available agent of its department with the fewest new/open tickets, under their cap (`max_open`). Tickets that arrive together (within two minutes, before any is assigned) are spread as if assigned one at a time; it is not a lock, so in rare races an agent can still end one ticket over the even share.
 - Push and email alerts for agents, each switchable per person.
 - Team managed inside the module: pick existing staff or invite people by email; invited outsiders get Support only.
 - Blocklist and Mark as spam, webhook secret rotation, audit log.
@@ -65,6 +65,11 @@ Settings → Email walks through these steps; each unlocks the next and its resu
 
 Outgoing mail: every customer email gets its own `Message-ID` (stored before sending) and a signed reply address (`<department>+t.<number>.<mac>@<inbound host>`) in `Reply-To`. Attachments are capped at 10 MB per email.
 
+Incoming mail and sender checks. A sender counts as **verified** when DKIM passed for the From domain, or SPF passed for an envelope sender on that domain; mail with more than one `From:` line never counts. Verification is per domain: any mailbox on a customer's domain is verified for that domain, which is how SPF and DKIM work.
+- A reply joins its ticket by the signed reply address, then by `In-Reply-To`/`References`, then by the `[#number]` subject tag (verified, known senders only). Two `From:` lines thread only by the signed reply address.
+- A reply on an existing ticket from an unverified sender is still threaded, shows an "Unverified sender" badge and writes an activity row.
+- A new sender becomes a CC only when verified and writing through the signed reply address, the subject tag, or as a member of the requester's organization; a header match alone never adds anyone. Agents can always add a CC by hand.
+
 ## Access
 
 The desk is a standalone section at `/support-desk` with its own sign-in at `/support-desk/sign-in`. Access comes only from the module's team membership records (`team_member`), never from the host's roles or permissions file:
@@ -74,6 +79,7 @@ The desk is a standalone section at `/support-desk` with its own sign-in at `/su
 - Holders of a host role listed in the `role_map` setting get that support role on first visit (off by default).
 - Invited people accept at `/support-desk/invites/:id`; anyone else signed in sees "You don't have access to Support" and can request access, which support admins approve in Settings → Team.
 - A disabled membership is never recreated.
+- Contacts and organizations are shared across the desk: every member can open them (ticket lists on those pages stay limited to the member's departments). Only managers and admins add a contact's email addresses, change its organization or merge contacts (decision D-29).
 
 Sign-in lock: 5 failed desk sign-ins for an email within 15 minutes lock it for the rest of that window. The module implements pos-module-user's `user_login` hook, so a sign-in through any other password form of the instance (such as the host's `/sessions`) while the lock is on is marked, and the desk signs that session out on its next desk page. Failed attempts on those other forms (and 2FA codes on `/sessions/2fa`) are not counted by the desk: rate-limit the host's own sign-in form, or remove it if desk users only sign in at `/support-desk/sign-in`.
 

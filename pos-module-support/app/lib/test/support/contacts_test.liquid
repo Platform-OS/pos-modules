@@ -61,4 +61,9 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: owner.records.total_entries, expected: 0, field_name: 'refused email not stored'
   function by_manager = 'modules/support/commands/contacts/update', contact: cf.contact, params: form, member: cf.manager_actor.member
   function contract = 'modules/tests/assertions/equal', contract: contract, given: by_manager.valid, expected: true, field_name: 'manager adds an email'
+
+  # an organization that does not exist is refused, even for a manager
+  assign details = { "change": "details", "name": "Test Requester", "organization_id": "999999999" }
+  function unknown_org = 'modules/support/commands/contacts/update', contact: cf.contact, params: details, member: cf.manager_actor.member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unknown_org.error, expected: 'modules/support/contacts.errors.unknown_organization', field_name: 'unknown organization refused'
 %}

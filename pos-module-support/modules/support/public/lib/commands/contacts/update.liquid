@@ -22,6 +22,14 @@
         assign result.error = 'modules/support/contacts.errors.identity_permission'
         return result
       endunless
+      # an organization that exists, or none (blank clears it)
+      if params.organization_id != blank
+        function organization = 'modules/support/queries/organizations/find', id: params.organization_id
+        if organization == blank
+          assign result.error = 'modules/support/contacts.errors.unknown_organization'
+          return result
+        endif
+      endif
       assign values.organization_id = params.organization_id
     endif
     function props = 'modules/support/helpers/props', values: values

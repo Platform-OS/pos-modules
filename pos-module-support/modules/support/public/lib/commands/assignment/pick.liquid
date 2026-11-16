@@ -2,44 +2,72 @@
   Picks the least-loaded available agent (06 §2): available and under their
   cap; fewest open tickets; tie → least recently assigned (never assigned
   first); tie → lowest profile id. Returns the agent or null.
+
+  Tickets that arrive together are assigned by parallel jobs that all read the
+  same counts, so each would pick the same agent. `ahead` is how many of
+  those tickets came before this one: the pick is replayed that many times on
+  the same counts (each replay adds one ticket to the chosen agent), so every
+  job reaches the answer a one-at-a-time assignment would give and a burst is
+  spread over the agents.
   @param {object[]} agents - From queries/agents/available_in_department
+  @param {number} [ahead] - Tickets of the same burst before this one (default 0)
 {% enddoc %}
 {% liquid
-  assign best = null
+  assign rounds = ahead | default: 0 | plus: 1
+  assign loads = {}
+  assign lasts = {}
   for agent in agents
-    if agent.availability != 'available' or agent.open_count >= agent.max_open
-      continue
-    endif
-    if best == null
-      assign best = agent
-      continue
-    endif
-    if agent.open_count < best.open_count
-      assign best = agent
-      continue
-    endif
-    if agent.open_count > best.open_count
-      continue
-    endif
-    assign agent_last = agent.last_assigned_at | default: '1970-01-01T00:00:00Z' | to_time | strftime: '%s' | plus: 0
-    assign best_last = best.last_assigned_at | default: '1970-01-01T00:00:00Z' | to_time | strftime: '%s' | plus: 0
-    if agent_last < best_last
-      assign best = agent
-    elsif agent_last == best_last
-      # ids are numbers kept as text: as text, "10" sorts before "9"
-      assign agent_numeric = agent.profile_id | matches: '\A\d+\z'
-      assign best_numeric = best.profile_id | matches: '\A\d+\z'
-      if agent_numeric and best_numeric
-        assign agent_id = agent.profile_id | plus: 0
-        assign best_id = best.profile_id | plus: 0
-      else
-        assign agent_id = agent.profile_id
-        assign best_id = best.profile_id
+    assign loads[agent.profile_id] = agent.open_count | default: 0 | plus: 0
+    assign lasts[agent.profile_id] = agent.last_assigned_at | default: '1970-01-01T00:00:00Z' | to_time | strftime: '%s' | plus: 0
+  endfor
+  # a replayed assignment counts as the most recent one
+  assign replayed_at = 'now' | to_time | strftime: '%s' | plus: 0
+
+  assign best = null
+  for round in (1..rounds)
+    assign best = null
+    for agent in agents
+      assign agent_load = loads[agent.profile_id]
+      if agent.availability != 'available' or agent_load >= agent.max_open
+        continue
       endif
-      if agent_id < best_id
+      if best == null
         assign best = agent
+        continue
       endif
+      assign best_load = loads[best.profile_id]
+      if agent_load < best_load
+        assign best = agent
+        continue
+      endif
+      if agent_load > best_load
+        continue
+      endif
+      assign agent_last = lasts[agent.profile_id]
+      assign best_last = lasts[best.profile_id]
+      if agent_last < best_last
+        assign best = agent
+      elsif agent_last == best_last
+        # ids are numbers kept as text: as text, "10" sorts before "9"
+        assign agent_numeric = agent.profile_id | matches: '\A\d+\z'
+        assign best_numeric = best.profile_id | matches: '\A\d+\z'
+        if agent_numeric and best_numeric
+          assign agent_id = agent.profile_id | plus: 0
+          assign best_id = best.profile_id | plus: 0
+        else
+          assign agent_id = agent.profile_id
+          assign best_id = best.profile_id
+        endif
+        if agent_id < best_id
+          assign best = agent
+        endif
+      endif
+    endfor
+    if best == null
+      break
     endif
+    assign loads[best.profile_id] = loads[best.profile_id] | plus: 1
+    assign lasts[best.profile_id] = replayed_at | plus: round
   endfor
   return best
 %}

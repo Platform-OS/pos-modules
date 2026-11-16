@@ -3,11 +3,13 @@
   @param {string} raw - The raw message
   @param {string} sender - Envelope sender
   @param {string} [to] - Envelope recipient, default testfixtures@support-dev.platformos.com
+  @param {string} [spf] - SPF result, default pass (the envelope sender is the From address)
 {% enddoc %}
 {% liquid
   assign to = to | default: 'testfixtures@support-dev.platformos.com'
+  assign spf = spf | default: 'pass'
   assign envelope = '{"to":["' | append: to | append: '"],"from":"' | append: sender | append: '"}'
-  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: 'pass', dkim: null, spam_score: '0.0', charsets: null
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: spf, dkim: null, spam_score: '0.0', charsets: null
   function outcome = 'modules/support/commands/inbound/process', inbound_email_id: stored.id
   return outcome
 %}

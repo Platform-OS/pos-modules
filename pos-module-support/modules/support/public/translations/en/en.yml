@@ -272,6 +272,7 @@ en:
       merge_self: Choose a different contact to merge into.
       merge_permission: Only a manager can merge contacts.
       identity_permission: Only a manager can change a contact's email addresses or organization.
+      unknown_organization: That organization doesn't exist.
       merge_target: No contact with that email address.
       domain: Enter domains like example.com.
   emails:
@@ -530,6 +531,7 @@ en:
     message_moved: moved a message
     linked: "linked %{to}"
     participant_added: "added %{to} as CC"
+    unverified_sender: "received a reply from %{to} that failed the sender checks (SPF/DKIM): it may not come from them"
     acknowledgement_sent: sent the acknowledgement
     confirmation_sent: asked the customer to confirm
     sla_due_soon: "SLA due soon (%{to})"
