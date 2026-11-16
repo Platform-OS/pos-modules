@@ -20,7 +20,12 @@ pos-cli deploy $POS_ENV
 if [ "${CI:-}" = "true" ] && [ -z "$POS_ENV" ]; then
   pos-cli constants set --name modules/support/EMAIL_API_KEY --value "ci-stub-key"
   for name in INBOUND_SECRET EVENTS_SECRET REPLY_TOKEN_SECRET; do
-    pos-cli constants set --name "modules/support/$name" --value "$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+    value="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+    pos-cli constants set --name "modules/support/$name" --value "$value"
+    # the smoke run (tests/ci-smoke.sh) posts emails to the inbound webhook
+    if [ "$name" = "INBOUND_SECRET" ]; then
+      printf '%s' "$value" > ./tests/e2e/.ci-inbound-secret
+    fi
   done
 fi
 

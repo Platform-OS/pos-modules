@@ -215,7 +215,7 @@ jobs:
               "module": "support",
               "path": "pos-module-support",
               "deploy-script": "./tests/data/seed/seed.sh",
-              "test-commands": "npm ci\nnpm run test:static\npos-cli test run ci"
+              "test-commands": "npm ci\nnpm run test:static\npos-cli test run ci\nsh ./tests/ci-smoke.sh"
             },
             "user": {
               "module": "user",

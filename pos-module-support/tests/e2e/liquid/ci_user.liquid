@@ -1,0 +1,22 @@
+{% liquid
+  # CI only (tests/ci-smoke.sh): a host user for the smoke run on a fresh
+  # instance. ROLE superadmin gets the desk through the superadmin mapping;
+  # ROLE agent gets an active agent membership (setup.liquid adds the E2E
+  # department). __EMAIL__, __PASSWORD__ and __ROLE__ are replaced first.
+  assign role = '__ROLE__'
+  assign roles = []
+  if role == 'superadmin'
+    assign roles << 'superadmin'
+  endif
+  function user = 'modules/user/commands/user/create', first_name: 'CI', last_name: role, email: '__EMAIL__', password: '__PASSWORD__', roles: roles, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  if role == 'agent'
+    assign object = { "role": "agent", "state": "active", "source": "invite", "availability": "available" }
+    assign object.profile_id = profile.id
+    assign object.department_ids = []
+    function _ = 'modules/support/commands/team_members/create', object: object
+  endif
+  assign out = { "profile_id": null }
+  assign out.profile_id = profile.id
+  echo out | json | html_safe
+%}
