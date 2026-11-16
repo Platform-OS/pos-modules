@@ -5,9 +5,7 @@ en:
     no_matches: No matches
   shell:
     navigation: Support desk
-    queue: Queue
     settings: Settings
-    profile: My profile
     sign_out: Sign out
     skip: Skip to content
     menu: Menu
@@ -53,7 +51,6 @@ en:
     missed: Missed
     paused: Paused
   queue:
-    title: Queue
     empty: Nothing here right now
     empty_help: New tickets in this view show up here as they arrive.
     empty_search: No tickets match these filters
@@ -93,8 +90,6 @@ en:
     bulk_status: Set status…
     bulk_priority: Set priority…
     bulk_apply: Apply to selected
-    bulk_done: Selected tickets updated.
-    bulk_partial: Some tickets could not be changed.
     bulk_started: Updating the selected tickets… The list refreshes as they change.
     bulk_too_many: Select at most 200 tickets at a time.
     bulk_expired: The page has expired. Reload it and try again.
@@ -124,12 +119,8 @@ en:
     pages: Pages
     previous: Previous
     next: Next
-    page_of: "Page %{page} of %{total}"
-    board: Board
   board:
     title: Board
-    list: List
-    show_closed: Show closed
     show_more: "Show more (%{count})"
     moved: Ticket moved.
     move_error: The ticket could not be moved.
@@ -353,7 +344,6 @@ en:
       send: Send test email to me
       sent: Test email sent.
       check_inbound: Check inbound
-      inbound_ok: "Inbound email arrived (%{at})."
       inbound_received: Inbound email arrived
       inbound_waiting: Waiting for the check email to arrive. Reload this page in a minute.
     step6:
@@ -403,8 +393,6 @@ en:
       not_merged: This ticket isn't merged.
       unmerge_expired: Merges can only be undone within 30 days.
       blank_body: Write a message first.
-      move: That message can't be moved there.
-      move_closed: Messages can't be moved into a closed ticket.
       github_url: "Paste a GitHub issue link, like https://github.com/owner/repo/issues/123."
       attachments_size: Attachments are limited to 10 MB in total.
       merge_permission: Only a manager can merge tickets.

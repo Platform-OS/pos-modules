@@ -62,6 +62,18 @@ if [ -n "$PARTIAL_DATA" ]; then
   echo "ci-static: partials calling queries, commands or GraphQL (pass the data in):"; echo "$PARTIAL_DATA"; FAIL=1
 fi
 
+# 6. Every webhook (pages under api/) authenticates by its secret path segment.
+for f in $(find "$ROOT/views/pages/api" -name '*.liquid' 2>/dev/null); do
+  if ! grep -q 'context.params.secret' "$f"; then
+    echo "ci-static: $f is a webhook that does not check context.params.secret"; FAIL=1
+  fi
+done
+
+# 7. Translation keys exist; events, hooks and settings keys are documented.
+if ! node ./tests/check-docs.mjs; then
+  FAIL=1
+fi
+
 if [ "$FAIL" -ne 0 ]; then
   exit 1
 fi

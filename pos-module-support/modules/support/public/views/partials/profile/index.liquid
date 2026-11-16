@@ -28,7 +28,7 @@
     endif
   endif
 %}
-<div class="pos-support-steps">
+<div class="pos-support-steps" data-support-save-error="{{ 'modules/support/ticket.not_saved' | t }}">
   <h1 class="pos-heading-2">{% if heading != blank %}{{ heading }}{% else %}{{ 'modules/support/profile.title' | t }}{% endif %}</h1>
 
   {% if editable %}

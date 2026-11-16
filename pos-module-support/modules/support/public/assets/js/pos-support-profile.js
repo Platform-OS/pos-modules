@@ -1,9 +1,14 @@
 // Notification switches (07 §3): each switch is a real form; with JS it
 // saves in place, flips at once and flips back if the save fails.
 (function () {
+  // the translated text comes from the page (profile/index); English only if it is missing
+  const saveError = () => {
+    const holder = document.querySelector('[data-support-save-error]');
+    return (holder && holder.dataset.supportSaveError) || 'Not saved. Try again.';
+  };
   const failed = () => {
     if (window.pos && window.pos.modules && window.pos.modules.toast) {
-      new window.pos.modules.toast('error', document.documentElement.dataset.supportSaveError || 'Not saved. Try again.');
+      new window.pos.modules.toast('error', saveError());
     }
   };
 
@@ -57,9 +62,9 @@
     } catch (error) {
       button.setAttribute('aria-checked', String(wasOn));
       if (window.pos && window.pos.modules && window.pos.modules.toast) {
-        new window.pos.modules.toast('error', document.documentElement.dataset.supportSaveError || 'Not saved. Try again.');
+        new window.pos.modules.toast('error', saveError());
       } else {
-        alert('Not saved. Try again.');
+        alert(saveError());
       }
     } finally {
       button.disabled = false;
