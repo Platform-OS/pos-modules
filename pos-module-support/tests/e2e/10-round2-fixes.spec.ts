@@ -78,7 +78,8 @@ test('FIX-09 an unreadable file stops the send; a refused large file does not bl
   await page.setInputFiles('[data-support-files]', { name: 'a.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
   await page.fill('#pos-support-body', unreadable);
   await page.click('[data-support-composer] button[type=submit]');
-  await page.waitForTimeout(3000);
+  // the send is refused with the desk's message at the file field (no fixed wait)
+  await expect(page.locator('[data-support-files]')).toHaveAttribute('aria-invalid', 'true');
   expect(page.url()).toContain(`/support-desk/tickets/${t.ticket.id}`);
   // nothing was stored as a reply (checked on the ticket, not in the provider stub)
   const stored = liquid(`{% liquid

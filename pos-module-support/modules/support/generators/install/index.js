@@ -12,7 +12,17 @@ import { execFileSync } from 'child_process';
 // the machine): they go to the environment in a GraphQL file readable only
 // by the current user, deleted as soon as pos-cli has sent it.
 
-const EMAIL_RE = /^[^@\s'"{}%<>|]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+// Temporary files holding a secret are removed even when the generator is
+// stopped (Ctrl-C ends Node without running `finally` blocks).
+const privateDirs = new Set();
+const removePrivateDirs = () => privateDirs.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
+process.on('exit', removePrivateDirs);
+['SIGINT', 'SIGTERM'].forEach((signal) => process.once(signal, () => {
+  removePrivateDirs();
+  process.exit(130);
+}));
+
+const EMAIL_RE =/^[^@\s'"{}%<>|]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 const HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 const ROLE_RE = /^[a-z0-9_-]+$/i;
 const SECRETS = ['INBOUND_SECRET', 'EVENTS_SECRET', 'REPLY_TOKEN_SECRET'];
@@ -208,12 +218,14 @@ export default class extends Generator {
   // valid GraphQL string literals.
   _privateGraphql(env, text) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'support-install-'));
+    privateDirs.add(dir);
     const file = path.join(dir, 'operation.graphql');
     try {
       fs.writeFileSync(file, text, { mode: 0o600 });
       return execFileSync('pos-cli', ['exec', 'graphql', env, '-f', file], { cwd: this.destinationPath(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+      privateDirs.delete(dir);
     }
   }
 

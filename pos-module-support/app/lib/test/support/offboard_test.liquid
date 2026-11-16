@@ -32,8 +32,13 @@
   graphql _ = 'modules/support/records/update', id: other.id, properties: props
   function _ = 'modules/support/commands/team_members/forget'
 
-  function moved = 'modules/support/commands/team/offboard_tickets', profile_id: agent_id, round: 1
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved, expected: 3, field_name: 'every open ticket processed'
+  # the chain, as the background jobs run it: pages of 2, so a second run is needed
+  # chain: false, so no background run races these two
+  function first_run = 'modules/support/commands/team/offboard_tickets', profile_id: agent_id, round: 1, per_page: 2, left_unassigned: 0, after_id: null, chain: false
+  # the second run continues after the first page (ids ascend in creation order)
+  function second_run = 'modules/support/commands/team/offboard_tickets', profile_id: agent_id, round: 2, per_page: 2, left_unassigned: 0, after_id: ticket_ids[1], chain: false
+  assign moved = first_run | plus: second_run
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved, expected: 3, field_name: 'every open ticket processed over two runs'
   assign with_other = 0
   assign single_assignment = 0
   for id in ticket_ids
@@ -51,6 +56,25 @@
   endfor
   function contract = 'modules/tests/assertions/equal', contract: contract, given: with_other, expected: 3, field_name: 'all tickets moved to the available agent'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: single_assignment, expected: 3, field_name: 'one assignment per moved ticket'
+
+  # re-enabled while the chain runs: the next run takes nothing
+  assign values = { "state": "active" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: f.actor.member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+  function back = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function _ = 'modules/support/commands/tickets/assign', ticket: back, assignee_id: agent_id, reason: null, actor: system
+  function after_enable = 'modules/support/commands/team/offboard_tickets', profile_id: agent_id, round: 3, per_page: 2, left_unassigned: 0
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after_enable, expected: 0, field_name: 're-enabled member keeps their tickets'
+
+  # team/offboard queues the job and reports how many open tickets it will move
+  assign values = { "state": "disabled" }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: f.actor.member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+  function disabled_member = 'modules/support/queries/team_members/find', profile_id: agent_id
+  function queued = 'modules/support/commands/team/offboard', member: disabled_member
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: queued, expected: 1, field_name: 'offboard queues the move of the open tickets'
 
   # the fixture agents must not take tickets in later tests
   assign values = { "state": "disabled" }

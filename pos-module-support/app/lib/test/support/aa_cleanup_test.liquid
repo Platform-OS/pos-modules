@@ -8,6 +8,18 @@
   graphql d = 'modules/support/departments/search', inbound_local_part: 'testfixtures', limit: 1
   assign department_id = d.records.results.first.id
   if department_id
+    # members an aborted test left active would take new fixture tickets
+    graphql active = 'modules/support/team_members/search', state: 'active', limit: 200
+    for member in active.records.results
+      if member.department_ids contains department_id
+        assign off = { "state": "disabled" }
+        function off_props = 'modules/support/helpers/props', values: off
+        # platformos-check-disable NestedGraphQLQuery
+        graphql _ = 'modules/support/records/update', id: member.id, properties: off_props
+        # platformos-check-enable NestedGraphQLQuery
+      endif
+    endfor
+    function _ = 'modules/support/commands/team_members/forget'
     graphql cleaned = 'support_test_helpers/cleanup', department_id: department_id
     assign scope = []
     assign scope << department_id

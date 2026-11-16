@@ -5,7 +5,13 @@ import path from 'path';
 import { BASE, choose, contentOf, contextFor, desk, inbound, liquid, newTicket, recipients, reply, stubBodies, ticketBySubject, ticketField, unique, users, waitForStub, waitForTicket } from './helpers';
 
 const state = () => JSON.parse(fs.readFileSync(path.join(__dirname, '.state.json'), 'utf8'));
-const settle = (ms = 20000) => new Promise((r) => setTimeout(r, ms));
+// inbound copies of one Message-ID set aside as duplicates
+const duplicatesOf = (messageId: string) => liquid(`{% liquid
+  graphql r = 'modules/support/inbound_emails/search', message_id_header: '${messageId}', state: 'ignored', limit: 5
+  assign out = { "count": 0 }
+  assign out.count = r.records.total_entries
+  echo out | json | html_safe
+%}`).count;
 const messages = (ticketId: string) => liquid(`{% liquid
   graphql r = 'modules/support/messages/search', ticket_id: '${ticketId}', limit: 50
   assign out = { "list": null }
@@ -220,8 +226,6 @@ test.describe('inbound and delivery', () => {
     const subject = unique('E2E auto reply');
     await inbound({ from: robot, to: 'e2e@support-dev.platformos.com', subject, body: 'I am out of office.', headers: ['Auto-Submitted: auto-replied'] });
     await waitForTicket(subject);
-    await settle();
-    expect(stubBodies().some((b) => recipients(b).includes(robot))).toBe(false);
 
     const dupSubject = unique('E2E duplicate');
     const id = `<${unique('dup')}@e2e.example>`;
@@ -229,9 +233,13 @@ test.describe('inbound and delivery', () => {
     await inbound({ from, to: 'e2e@support-dev.platformos.com', subject: dupSubject, body: 'once', messageId: id });
     const dup = await waitForTicket(dupSubject);
     await inbound({ from, to: 'e2e@support-dev.platformos.com', subject: dupSubject, body: 'once', messageId: id });
-    await settle();
+    // the second copy is processed and set aside as a duplicate (no fixed wait)
+    await expect.poll(() => duplicatesOf(id), { timeout: 60000, intervals: [2000] }).toBe(1);
     expect(messages(dup.id).filter((m) => m.author_type === 'customer').length).toBe(1);
     expect(ticketBySubject(dupSubject).count).toBe(1);
+    // the auto-reply got no acknowledgement (checked after the steps above, which
+    // take longer than the acknowledgement of a normal ticket)
+    expect(stubBodies().some((b) => recipients(b).includes(robot))).toBe(false);
   });
 
   test('B21. a provider bounce marks the reply bounced and warns in the composer', async ({ browser }) => {

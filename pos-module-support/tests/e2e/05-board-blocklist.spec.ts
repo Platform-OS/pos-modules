@@ -93,6 +93,8 @@ test('16. a blocked domain creates nothing, and after Mark as spam the next emai
 
   const nextSubject = unique('E2E spam again');
   const storedBefore = storedFrom(spammer);
+  // the count finds the spammer's first email, so the check below can fail
+  expect(storedBefore).toBeGreaterThan(0);
   await inbound({ from: spammer, to: 'e2e@support-dev.platformos.com', subject: nextSubject, body: 'Buy now again' });
   expect(storedFrom(spammer)).toBe(storedBefore);
   expect(ticketBySubject(nextSubject).count).toBe(0);

@@ -14,6 +14,7 @@ query (
   $solved_before: String
   $confirm_notified: Boolean
   $created_after: String
+  $id_after: ID
   $number_below: String
   $snoozed_before: String
   $due_before: String
@@ -29,7 +30,7 @@ query (
     page: $page
     per_page: $limit
     filter: {
-      id: { value: $id, value_in: $ids }
+      id: { value: $id, value_in: $ids, range: { gt: $id_after } }
       table: { value: "modules/support/ticket" }
       created_at: { gte: $created_after }
       properties: [

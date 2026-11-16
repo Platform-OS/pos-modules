@@ -111,8 +111,14 @@
   assign result.link_dark_hover = link_dark_hover
   assign result.white_contrast = white_original | round: 1
 
+  # a lazy cache, written the first time a colour is shown (the host's colour
+  # can change with any host deploy): at most 10 colours (host, override,
+  # theme previews); when full it starts again from this one
   assign cache = settings.brand_shift_cache | default: {}
   assign cache = cache | hash_merge: {}
+  if cache.size >= 10
+    assign cache = {}
+  endif
   assign cache[cache_key] = result
   function _ = 'modules/support/commands/settings/set', key: 'brand_shift_cache', value: cache
   return result

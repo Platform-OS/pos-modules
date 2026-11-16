@@ -14,6 +14,7 @@
     return null
   endif
   assign number = ticket.number
+  assign text = null
   assign own_id = ticket.id | plus: 0
   # at most 3 rounds, and only while the number is taken
   # platformos-check-disable NestedGraphQLQuery
@@ -35,8 +36,12 @@
     # search_text starts with the number (tickets/create): search by #number must find the new one
     assign old_prefix = number | append: ' '
     assign new_prefix = fresh | append: ' '
-    assign text = ticket.search_text | default: old_prefix
-    assign values.search_text = text | replace_first: old_prefix, new_prefix
+    # kept in `text` across rounds: a second collision starts from the number just written
+    if text == null
+      assign text = ticket.search_text | default: old_prefix
+    endif
+    assign text = text | replace_first: old_prefix, new_prefix
+    assign values.search_text = text
     function props = 'modules/support/helpers/props', values: values
     graphql _ = 'modules/support/records/update', id: ticket.id, properties: props
     function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'renumbered', from_value: number, to_value: fresh, reason: 'duplicate number'

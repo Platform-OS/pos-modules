@@ -61,6 +61,20 @@ PARTIAL_DATA=$(grep -rlE "function [a-z_]+ = 'modules/support/(queries|commands)
 if [ -n "$PARTIAL_DATA" ]; then
   echo "ci-static: partials calling queries, commands or GraphQL (pass the data in):"; echo "$PARTIAL_DATA"; FAIL=1
 fi
+# ...and the helpers partials call must not read or write data either, except
+# these (CLAUDE.md "Layering"): member_roles (one memoised read per request),
+# brand_shift (lazy colour cache, at most 10 entries), settings (memoised),
+# branding and status_icons (built from settings), department_color/palette.
+ALLOWED_HELPERS='member_roles|brand_shift|settings|branding|status_icons|department_color|department_palette|next_department_color'
+for helper in $(grep -rhoE "'modules/support/helpers/[a-z_/]+'" "$ROOT/views/partials" 2>/dev/null | tr -d "'" | sed 's#modules/support/helpers/##' | sort -u); do
+  case "$helper" in */*) continue ;; esac
+  if echo "$helper" | grep -qxE "$ALLOWED_HELPERS"; then continue; fi
+  file="$ROOT/lib/helpers/$helper.liquid"
+  [ -f "$file" ] || continue
+  if grep -qE "'modules/support/(queries|commands)/|^\s*graphql " "$file"; then
+    echo "ci-static: helpers/$helper is called from a partial but reads or writes data"; FAIL=1
+  fi
+done
 
 # 6. Every webhook (pages under api/) authenticates by its secret path segment.
 for f in $(find "$ROOT/views/pages/api" -name '*.liquid' 2>/dev/null); do

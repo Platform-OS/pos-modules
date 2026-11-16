@@ -46,12 +46,16 @@ test.describe.serial('email flow', () => {
 
   test('3. a customer reply with our token joins the ticket and the queue row updates live', async ({ browser }) => {
     const { context, page } = await contextFor(browser, users.agent);
+    // the live update is only heard once the queue room is subscribed: wait for
+    // the server's confirmation instead of a fixed pause
+    let subscribed = false;
+    page.on('websocket', (ws) => ws.on('framereceived', (f) => { if (String(f.payload).includes('confirm_subscription')) subscribed = true; }));
     // filtered to this ticket: earlier runs leave enough tickets to push it past the first page
     await page.goto(desk(`/support-desk?view=mine&q=${encodeURIComponent(subject)}`));
     const row = page.locator('.pos-support-row', { hasText: subject });
     await expect(row).toBeVisible();
     await expect(row.locator('.pos-support-needs-reply')).toHaveCount(0);
-    await page.waitForTimeout(2000);
+    await expect.poll(() => subscribed, { timeout: 15000 }).toBe(true);
     await inbound({ from: customer, to: replyTo, subject: `Re: ${subject}`, body: 'Thanks, one more question.' });
     await expect(row.locator('.pos-support-needs-reply')).toBeVisible({ timeout: 60000 });
     const after = await waitForTicket(subject);

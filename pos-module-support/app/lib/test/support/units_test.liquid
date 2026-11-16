@@ -1,0 +1,59 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # queries/tickets/scope: what a member may read
+  assign agent = { "role": "agent", "department_ids": ["d1", "d2"] }
+  assign manager = { "role": "manager", "department_ids": [] }
+  assign lonely = { "role": "agent", "department_ids": [] }
+  function s = 'modules/support/queries/tickets/scope', member: agent, department_id: null
+  assign joined = s | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: joined, expected: 'd1,d2', field_name: 'agent reads own departments'
+  function s = 'modules/support/queries/tickets/scope', member: agent, department_id: 'd2'
+  assign joined = s | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: joined, expected: 'd2', field_name: 'agent narrowed to one of them'
+  function s = 'modules/support/queries/tickets/scope', member: agent, department_id: 'd9'
+  assign joined = s | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: joined, expected: '__none__', field_name: 'agent asking for another department gets nothing'
+  function s = 'modules/support/queries/tickets/scope', member: lonely, department_id: null
+  assign joined = s | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: joined, expected: '__none__', field_name: 'agent without departments reads nothing'
+  function s = 'modules/support/queries/tickets/scope', member: manager, department_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: s, expected: null, field_name: 'manager reads everything'
+
+  # queries/team/can: permissions by membership role
+  function c = 'modules/support/queries/team/can', member: agent, do: 'support.tickets.reply'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: c, expected: true, field_name: 'agent may reply'
+  function c = 'modules/support/queries/team/can', member: agent, do: 'support.tickets.manage.all'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: c, expected: false, field_name: 'agent may not manage all'
+  function c = 'modules/support/queries/team/can', member: manager, do: 'support.settings.manage'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: c, expected: false, field_name: 'manager may not change settings'
+  assign admin = { "role": "admin", "state": "active" }
+  function c = 'modules/support/queries/team/can', member: admin, do: 'support.settings.manage'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: c, expected: true, field_name: 'admin may change settings'
+
+  # queries/sla/policy_for: organization, then department, then default
+  graphql all = 'modules/support/sla_policies/search', limit: 100
+  assign default_policy = all.records.results | where: 'is_default', true | first
+  assign no_links = { "organization_id": null, "department_id": null }
+  function p = 'modules/support/queries/sla/policy_for', ticket: no_links
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: p.id, expected: default_policy.id, field_name: 'no organization or department policy gives the default'
+
+  # helpers/email/decode_header: RFC 2047 encoded words
+  function d = 'modules/support/helpers/email/decode_header', value: '=?UTF-8?B?WmHFvMOzxYLEhyBnxJnFm2zEhSBqYcW6xYQ=?='
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: d, expected: 'Zażółć gęślą jaźń', field_name: 'base64 encoded word'
+  function d = 'modules/support/helpers/email/decode_header', value: '=?ISO-8859-1?Q?Caf=E9_cr=E8me?='
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: d, expected: 'Café crème', field_name: 'quoted-printable encoded word'
+  function d = 'modules/support/helpers/email/decode_header', value: 'Plain subject'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: d, expected: 'Plain subject', field_name: 'plain text unchanged'
+
+  # helpers/email/parse_addresses: names, lower-cased addresses, lists
+  function list = 'modules/support/helpers/email/parse_addresses', value: '"Doe, Jane" <Jane@Example.com>, bob@example.org, Ann <ann@x.example>'
+  assign emails = list | map: 'email' | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: emails, expected: 'jane@example.com,bob@example.org,ann@x.example', field_name: 'address list, lower-cased'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: list.first.name, expected: 'Doe, Jane', field_name: 'quoted display name with a comma'
+  function look_alike = 'modules/support/helpers/email/parse_addresses', value: '"fake@else.example" <real@x.example>'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: look_alike.first.email, expected: 'real@x.example', field_name: 'display name that looks like an address is not the address'
+  function none = 'modules/support/helpers/email/parse_addresses', value: ''
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: none.size, expected: 0, field_name: 'empty header gives no addresses'
+%}

@@ -189,8 +189,11 @@ const start = (root) => {
       button.setAttribute('aria-expanded', 'false');
     };
     root.querySelectorAll('[data-support-assign]').forEach(enhanceButton);
-    new MutationObserver(() => root.querySelectorAll('[data-support-assign]:not([role])').forEach(enhanceButton))
-      .observe(root, { childList: true, subtree: true });
+    new MutationObserver(() => {
+      root.querySelectorAll('[data-support-assign]:not([role])').forEach(enhanceButton);
+      // a card re-rendered under an open picker: the picker belonged to the old button
+      if (open && !open.button.isConnected) close(false);
+    }).observe(root, { childList: true, subtree: true });
 
     // the button's look and name before the server answers
     const showAssignee = (button, value) => {
@@ -379,6 +382,8 @@ const start = (root) => {
     root.addEventListener('click', (event) => {
       const button = event.target.closest('[data-support-assign]');
       if (!button || !root.contains(button)) return;
+      // without the dropdown script the button stays a link to the ticket's assignee field
+      if (!layer) return;
       event.preventDefault();
       if (open && open.button === button) close(true);
       else openPicker(button);
@@ -386,6 +391,7 @@ const start = (root) => {
     root.addEventListener('keydown', (event) => {
       const button = event.target.closest && event.target.closest('[data-support-assign]');
       if (!button) return;
+      if (!layer) return;
       if (event.key === ' ' || event.key === 'ArrowDown') {
         event.preventDefault();
         openPicker(button);
@@ -396,9 +402,9 @@ const start = (root) => {
   // Live: cards on the board follow changes made elsewhere; the card endpoint
   // decides from the board's view and filters whether a ticket belongs on it.
   const departments = (root.dataset.supportDepartments || '').split(',').filter(Boolean);
+  // several messages for one change are merged into one card fetch
+  const timers = new Map();
   if (departments.length && window.pos && window.pos.csrfToken) {
-    // several messages for one change are merged into one card fetch
-    const timers = new Map();
     const received = (data) => {
       if (!data.ticket_id) return;
       clearTimeout(timers.get(data.ticket_id));
@@ -412,6 +418,8 @@ const start = (root) => {
 
   return () => {
     subscriptions.forEach((subscription) => { if (subscription) subscription.unsubscribe(); });
+    timers.forEach((timer) => clearTimeout(timer));
+    timers.clear();
     const layer = window.pos && window.pos.supportLayer;
     if (layer) layer.close(false);
   };

@@ -1,0 +1,37 @@
+{% doc %}
+  One email to managers and admins after a member was disabled and nobody
+  was available to take some of their tickets: the tickets are unassigned
+  and waiting (instead of one escalation per ticket). Returns the number of
+  people emailed.
+  @param {string} profile_id - The disabled member's profile
+  @param {number} count - Tickets left unassigned
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  function person = 'modules/support/queries/team_members/person', profile_id: profile_id
+  assign name = person.name | default: person.email | default: profile_id
+  assign message = { "title": null, "body": null, "url": null, "link_label": "modules/support/notifications.open_unassigned" }
+  assign message.title = 'modules/support/notifications.offboard_unassigned' | t
+  assign message.body = 'modules/support/notifications.offboard_unassigned_body' | t: count: count, name: name
+  assign message.url = settings.base_url | append: '/support-desk?view=unassigned'
+
+  function members = 'modules/support/queries/team_members/all_active'
+  assign profile_ids = []
+  for member in members
+    if member.role != 'agent' and member.profile_id != blank
+      assign profile_ids << member.profile_id
+    endif
+  endfor
+  if profile_ids.size == 0
+    return 0
+  endif
+  graphql p = 'modules/user/profiles/search', ids: profile_ids, limit: 100
+  assign sent = 0
+  for profile in p.records.results
+    if profile.email != blank
+      function _ = 'modules/support/commands/notifications/send_alert_email', profile: profile, message: message
+      assign sent = sent | plus: 1
+    endif
+  endfor
+  return sent
+%}

@@ -26,4 +26,21 @@
   endif
   function contract = 'modules/tests/assertions/equal', contract: contract, given: twentieth_loop, expected: false, field_name: 'twenty emails are not a loop yet'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: last, expected: 'loop', field_name: 'the 21st email from one From address is a loop'
+
+  # the stored sender is the From address as the parser reads it:
+  # a folded From line, and a display name that looks like an address
+  assign folded_from = 'folded-' | append: suffix | append: '@loop-test.example'
+  assign raw = 'From: "A very long display name that wraps"' | append: nl | append: ' <' | append: folded_from | append: '>' | append: nl | append: 'To: testfixtures@support-dev.platformos.com' | append: nl | append: 'Subject: Folded' | append: nl | append: 'Message-ID: <folded-' | append: suffix | append: '@example.com>' | append: nl | append: nl | append: 'Body' | append: nl
+  assign envelope = '{"to":["testfixtures@support-dev.platformos.com"],"from":"bounce@mailer.example"}'
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: 'pass', dkim: null, spam_score: '0.0', charsets: null
+  graphql r = 'modules/support/inbound_emails/search', id: stored.id, limit: 1
+  assign params = r.records.results.first.params_json | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: params.sender, expected: folded_from, field_name: 'folded From line read as the parser does'
+
+  assign real_from = 'real-' | append: suffix | append: '@loop-test.example'
+  assign raw = 'From: "fake@else.example" <' | append: real_from | append: '>' | append: nl | append: 'To: testfixtures@support-dev.platformos.com' | append: nl | append: 'Subject: Display name' | append: nl | append: 'Message-ID: <display-' | append: suffix | append: '@example.com>' | append: nl | append: nl | append: 'Body' | append: nl
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: 'pass', dkim: null, spam_score: '0.0', charsets: null
+  graphql r = 'modules/support/inbound_emails/search', id: stored.id, limit: 1
+  assign params = r.records.results.first.params_json | parse_json
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: params.sender, expected: real_from, field_name: 'display name that looks like an address is not the sender'
 %}

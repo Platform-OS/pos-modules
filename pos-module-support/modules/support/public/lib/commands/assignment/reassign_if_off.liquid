@@ -1,6 +1,7 @@
 {% doc %}
-  Re-assigns a ticket when its assignee set themselves away or off more
-  than one business day ago (PRD AS-5: on leave or sick). Only the
+  Re-assigns a ticket when its assignee set themselves Off more than one
+  business day ago (PRD AS-5: on leave or sick). Away is a short absence and
+  keeps the ticket. Only the
   availability the agent saved counts: being outside working hours is not
   a reason, or a weekend reply would take the ticket from its owner when
   nobody is on shift. Measured from the availability_changed event that
@@ -17,7 +18,7 @@
   if member == blank
     return false
   endif
-  if member.availability == blank or member.availability == 'available'
+  if member.availability != 'off'
     return false
   endif
 

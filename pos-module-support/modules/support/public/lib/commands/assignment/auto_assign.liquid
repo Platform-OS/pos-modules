@@ -10,6 +10,7 @@
   @param {string} ticket_id - The ticket
   @param {string} [replacing] - Profile id the ticket may be taken from
   @param {string} [replace_reason] - Why it is taken from them
+  @param {boolean} [quiet] - With nobody available, schedule no escalation per ticket (offboarding sends one summary instead)
 {% enddoc %}
 {% liquid
   function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
@@ -69,6 +70,9 @@
     endif
   endif
 
+  if quiet
+    return null
+  endif
   function settings = 'modules/support/helpers/settings'
   assign alert_after = settings.unassigned_alert_minutes | default: 15
   if ticket.priority == 'p0'

@@ -22,10 +22,9 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: unknown.admin, expected: 'skipped', field_name: 'unknown user skipped'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: unknown.email_provider, expected: 'skipped', field_name: 'unknown provider skipped'
 
-  # the test admin must not stay active
+  # nothing is left behind: the membership and the user it was created for
   function member = 'modules/support/queries/team_members/find', profile_id: state.profile_id
-  assign values = { "state": "disabled" }
-  function props = 'modules/support/helpers/props', values: values
-  graphql _ = 'modules/support/records/update', id: member.id, properties: props
+  graphql _ = 'support_test_helpers/delete_record', id: member.id, table: 'modules/support/team_member'
   function _ = 'modules/support/commands/team_members/forget'
+  function _ = 'modules/user/commands/user/delete', id: user.id
 %}

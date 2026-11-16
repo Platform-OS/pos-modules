@@ -89,6 +89,15 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: waiting.records.total_entries, expected: 0, field_name: 'notified ticket left out of the sweep'
   graphql notified = 'modules/support/tickets/search', id: f.ticket.id, categories: solved_categories, confirm_notified: true, limit: 1
   function contract = 'modules/tests/assertions/equal', contract: contract, given: notified.records.total_entries, expected: 1, field_name: 'notified marker stored'
+  # notified before the marker existed (event only): the next sweep sets it
+  assign wipe = { "confirm_notified_at": null }
+  function wiped = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function _ = 'modules/support/commands/tickets/save', ticket: wiped, values: wipe
+  function legacy = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
+  function legacy_result = 'modules/support/commands/maintenance/confirmation_ended', ticket: legacy, mode: 'keep_open'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: legacy_result, expected: null, field_name: 'already notified ticket is not notified again'
+  graphql legacy_marked = 'modules/support/tickets/search', id: f.ticket.id, categories: solved_categories, confirm_notified: true, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: legacy_marked.records.total_entries, expected: 1, field_name: 'marker set for a ticket notified before it existed'
   # as the sweep does: the ticket as stored now, marker included
   function waiting_ticket = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
   function closed = 'modules/support/commands/maintenance/confirmation_ended', ticket: waiting_ticket, mode: 'auto_close'

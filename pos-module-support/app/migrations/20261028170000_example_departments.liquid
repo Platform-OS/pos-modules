@@ -5,7 +5,8 @@
   assign names = state.departments.results | map: 'name'
   assign policy = state.policies.results.first
 
-  assign wanted = [{ "name": "DOB", "short_code": "DOB", "inbound_local_part": "dob" }, { "name": "Accela", "short_code": "ACC", "inbound_local_part": "accela" }, { "name": "DesksNearMe", "short_code": "DNM", "inbound_local_part": "desksnearme" }]
+  # each with its own palette colour (token numbers 1-10, settings → departments)
+  assign wanted = [{ "name": "DOB", "short_code": "DOB", "inbound_local_part": "dob", "color": "3" }, { "name": "Accela", "short_code": "ACC", "inbound_local_part": "accela", "color": "6" }, { "name": "DesksNearMe", "short_code": "DNM", "inbound_local_part": "desksnearme", "color": "8" }]
   assign batch = []
   for department in wanted
     unless names contains department.name

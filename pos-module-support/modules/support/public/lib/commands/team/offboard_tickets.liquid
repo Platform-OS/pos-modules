@@ -1,31 +1,54 @@
 {% doc %}
   Background job after a member is disabled (PRD TA-7): moves every open
-  ticket of theirs to the least-loaded available agent, 100 per run, then
-  queues the next run while any remain. Each ticket gets one assignment
-  (auto_assign replaces the disabled assignee directly); with nobody
-  available it is unassigned and the usual escalation follows.
+  ticket of theirs to the least-loaded available agent, a page per run,
+  then queues the next run while any remain. Each ticket gets one assignment
+  (auto_assign replaces the disabled assignee directly). Stops as soon as the
+  member is no longer disabled (re-enabled while the chain runs). With nobody
+  available the ticket is unassigned without a per-ticket escalation; when
+  the chain ends, managers and admins get one summary alert for them all.
   @param {string} profile_id - The disabled member's profile
   @param {number} round - Run number; the chain stops after 200 runs
+  @param {number} [per_page] - Tickets per run, default 100 (tests use fewer)
+  @param {number} [left_unassigned] - Tickets left unassigned by earlier runs
+  @param {string} [after_id] - Continue after this ticket id (the last one the previous run handled)
+  @param {boolean} [chain] - Queue the next run (default true; tests run the pages themselves)
 {% enddoc %}
 {% liquid
+  function member = 'modules/support/queries/team_members/find', profile_id: profile_id
+  if member and member.state != 'disabled'
+    return 0
+  endif
+
+  assign size = per_page | default: 100
+  assign unassigned = left_unassigned | default: 0
   assign open_categories = ["new", "open", "pending", "on_hold"]
-  graphql t = 'modules/support/tickets/search', assignee_id: profile_id, categories: open_categories, limit: 100
+  # in id order from where the last run stopped: a search that has not caught up
+  # with the previous run's writes would otherwise hand back the same tickets
+  assign by_id = [{ "id": { "order": "ASC" } }]
+  graphql t = 'modules/support/tickets/search', assignee_id: profile_id, categories: open_categories, id_after: after_id, sort: by_id, limit: size
   assign actor = { "type": "system", "id": null, "member": null }
   assign reason = 'modules/support/team.reassigned_disabled' | t
   for ticket in t.records.results
-    function moved = 'modules/support/commands/assignment/auto_assign', ticket_id: ticket.id, replacing: profile_id, replace_reason: reason
+    function moved = 'modules/support/commands/assignment/auto_assign', ticket_id: ticket.id, replacing: profile_id, replace_reason: reason, quiet: true
     if moved == null
       function current = 'modules/support/queries/tickets/find', id: ticket.id, number: null, member: null
       if current.assignee_id == profile_id
         function _ = 'modules/support/commands/tickets/assign', ticket: current, assignee_id: null, reason: reason, actor: actor
+        assign unassigned = unassigned | plus: 1
       endif
     endif
   endfor
 
   assign left = t.records.total_entries | minus: t.records.results.size
+  assign last_id = t.records.results.last.id
   assign next_round = round | plus: 1
+  if left > 0 and chain == false
+    return t.records.results.size
+  endif
   if left > 0 and next_round <= 200
-    background _ = 'modules/support/commands/team/offboard_tickets', delay: 0, source_name: 'support_offboard', priority: 'low', profile_id: profile_id, round: next_round
+    background _ = 'modules/support/commands/team/offboard_tickets', delay: 0, source_name: 'support_offboard', priority: 'low', profile_id: profile_id, round: next_round, per_page: size, left_unassigned: unassigned, after_id: last_id
+  elsif unassigned > 0
+    function _ = 'modules/support/commands/notifications/alert_offboard_unassigned', profile_id: profile_id, count: unassigned
   endif
   return t.records.results.size
 %}

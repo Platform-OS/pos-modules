@@ -14,6 +14,13 @@
       assign notified_at = last.created_at | to_time
       assign solved_at = ticket.solved_at | to_time
       if notified_at > solved_at
+        # notified before the marker existed: set it now, or the sweep would
+        # keep reading this ticket and stall again after 100 of them
+        if ticket.confirm_notified_at == blank
+          assign marker = { "confirm_notified_at": null }
+          assign marker.confirm_notified_at = last.created_at | to_time
+          function _ = 'modules/support/commands/tickets/save', ticket: ticket, values: marker
+        endif
         return null
       endif
     endif

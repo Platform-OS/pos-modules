@@ -582,6 +582,9 @@ en:
     mail_loop: Mail loop detected
     mail_loop_body: "More than 20 emails in an hour came from one sender at %{domain}. Further emails from it are set aside until the hour passes; block it if it keeps on."
     open_blocklist: Open the blocklist
+    offboard_unassigned: Tickets waiting for an agent
+    offboard_unassigned_body: "%{name} was removed from the team and nobody was available for %{count} of their open tickets. They are unassigned now; assign them from the Unassigned view."
+    open_unassigned: Open Unassigned
     reassigned: "Ticket re-assigned while you were away · %{priority}"
     new: "New ticket · %{priority}"
     p0: "P0 ticket · act now"

@@ -43,12 +43,14 @@
         # remote images and other loads are blocked (tracking pixels would tell
         # the sender who opened the ticket and when); only this message's own
         # attachments and inline data: images load
+        # each attachment by its own file URL (a CSP source with a path matches
+        # that file only; the signature in the query string is not part of it)
         assign image_sources = 'data:'
         for attachment in attachments
           if attachment.file.url != blank
-            assign file_host = attachment.file.url | split: '/' | slice: 0, 3 | join: '/'
-            unless image_sources contains file_host
-              assign image_sources = image_sources | append: ' ' | append: file_host
+            assign file_source = attachment.file.url | split: '?' | first
+            unless image_sources contains file_source
+              assign image_sources = image_sources | append: ' ' | append: file_source
             endunless
           endif
         endfor

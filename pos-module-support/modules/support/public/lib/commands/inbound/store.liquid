@@ -20,10 +20,19 @@
   if parsed_envelope.from != blank
     assign senders << parsed_envelope.from
   endif
-  assign head = email | slice: 0, 65536
-  assign from_header = head | regex_matches: '^From:[^\n]*?([^\s<>"]+@[^\s<>",;]+)', 'i'
-  if from_header.size > 0
-    assign senders << from_header[0][0]
+  # the From address as inbound/process reads it: the header block only, with
+  # folded lines joined, through the same parser (a display name that looks
+  # like an address, "a@b" <real@x>, gives real@x)
+  assign blank_line = '%0A%0A' | url_decode
+  assign head = email | slice: 0, 65536 | replace_regex: '\r', '' | split: blank_line | first | replace_regex: '\n[ \t]+', ' '
+  assign from_line = head | regex_matches: '^From:[ \t]*(.*)$', 'i'
+  assign from_address = null
+  if from_line.size > 0
+    function from_list = 'modules/support/helpers/email/parse_addresses', value: from_line[0][0]
+    assign from_address = from_list.first.email
+  endif
+  if from_address != blank
+    assign senders << from_address
   endif
   function blocked = 'modules/support/queries/blocklist/match', addresses: senders
   if blocked
@@ -41,10 +50,7 @@
   assign params.charsets = charsets
   # the loop rule (inbound/process) counts by the From address; autoresponders
   # usually send from a different envelope (bounce) address
-  assign sender = parsed_envelope.from
-  if from_header.size > 0
-    assign sender = from_header[0][0]
-  endif
+  assign sender = from_address | default: parsed_envelope.from
   assign params.sender = sender | downcase
   assign params_json = params | json
   graphql c = 'modules/support/inbound_emails/create', params_json: params_json, raw_mime: email, state: 'received'

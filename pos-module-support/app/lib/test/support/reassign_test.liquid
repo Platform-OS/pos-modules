@@ -24,6 +24,15 @@
   function t = 'modules/support/queries/tickets/find', id: f.ticket.id, number: null, member: null
   function contract = 'modules/tests/assertions/equal', contract: contract, given: t.assignee_id, expected: agent_id, field_name: 'off shift assignee unchanged'
 
+  # Away (a short absence) keeps the ticket, however long ago it was set
+  assign values = { "availability": "away", "working_hours": null }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: f.actor.member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+  function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: agent_id, event_type: 'availability_changed', from_value: 'available', to_value: 'away', reason: null
+  function moved = 'modules/support/commands/assignment/reassign_if_off', ticket_id: f.ticket.id, at: month_later
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved, expected: false, field_name: 'away keeps the ticket'
+
   # set themselves off: not yet one business day later
   assign values = { "availability": "off", "working_hours": null }
   function props = 'modules/support/helpers/props', values: values
