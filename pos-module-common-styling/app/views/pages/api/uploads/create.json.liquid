@@ -1,0 +1,12 @@
+---
+slug: api/uploads
+method: post
+---
+{% comment %}
+  Stores a file uploaded on test/upload, the way an app does after an upload, and returns
+  the url platformOS serves it from - the tests read the uploaded files from there.
+{% endcomment %}
+{% liquid
+  graphql result = 'uploads/store', upload: context.params.upload
+  echo result.record_create.file
+%}

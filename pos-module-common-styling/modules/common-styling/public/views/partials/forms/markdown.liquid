@@ -6,12 +6,14 @@
   @param {string} name - name for the textarea
   @param {string} [value] - pre-filled content for the textarea
 
-  @param {object} [presigned_upload] - presigned upload data for file uploads
+  @param {object} [presigned_upload] - presigned upload data for file uploads, used for every image - images with the same name uploaded from one page view then get the same key and overwrite each other, use `presign_url` instead
+  @param {string} [presign_url] - URL of an endpoint returning a fresh presigned upload as JSON (`{ "upload_url": ..., "upload_url_payload": {...} }`, the result of a `property_upload_presigned_url` query), requested with GET for each image, so each gets its own key; used instead of `presigned_upload` when given
 
   @param {number} [minlength] - minimum number of characters allowed
   @param {number} [maxlength] - maximum number of characters allowed
 
   @param {string} [mention_search_url] - URL to search for @mentions, the typed query is appended to its end as is, e.g. `/api/v1/users/search?query=`
+  @param {string} [hashtag_search_url] - URL to search for #hashtags, the typed query is appended to its end as is, e.g. `/api/v1/hashtags/search?query=`, should return `{ "results": [{ "name": "hashtag" }] }`, the hashtag is inserted as plain `#hashtag` text
 
 
   @example
@@ -37,6 +39,7 @@
     rows="2"
     name="{{ name }}"
 
+    {% if presign_url %} data-presign-url="{{ presign_url }}" {% endif %}
     data-upload-url="{{ presigned_upload.upload_url }}"
     {% for field in presigned_upload.upload_url_payload %}
         data-request-{{ field[0] }}="{{ field[1] }}"
@@ -57,6 +60,20 @@
         </li>
       </template>
       <menu popover id="{{ id }}-mention-popover">
+      </menu>
+    </div>
+  {% endif %}
+
+  {% if hashtag_search_url %}
+    <div class="pos-popover pos-markdown-hashtag" data-url="{{ hashtag_search_url }}">
+      <template>
+        <li>
+          <button type="button">
+            <span class="pos-markdown-hashtag-name"></span>
+          </button>
+        </li>
+      </template>
+      <menu popover id="{{ id }}-hashtag-popover">
       </menu>
     </div>
   {% endif %}

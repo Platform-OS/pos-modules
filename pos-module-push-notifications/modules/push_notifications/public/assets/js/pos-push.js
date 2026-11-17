@@ -14,8 +14,20 @@
     serverSubscriptions
     urlBase64ToUint8Array
 
+  waiting for the module (from code that may run before this file is loaded):
+    const push = await pos.modules.push.ready;  // the 'pos-push' instance once initialized, or null
+                                                // when the page doesn't use push - see views/partials/init
+
 */
 
+
+
+window.pos.modules.active = window.pos.modules.active || {};
+
+// what was attached to pos.modules.push before this file was loaded - the `ready` promise of the
+// init partial, or the host app's own extensions (e.g. pos.modules.push.information) - the
+// constructor below replaces the object, the properties are copied back onto it at the end of the file
+const posPushNamespace = window.pos.modules.push || {};
 
 
 
@@ -70,27 +82,48 @@ window.pos.modules.push = function(userSettings){
   // to enable debug mode (bool)
   module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
 
+  // if the initialization finished - subscription and capabilities above are only known after it (bool)
+  module.settings.initialized = false;
+  // why the push api couldn't be initialized (e.g. the service worker failed to register), push
+  // doesn't work in this browser context when set (error)
+  module.settings.error = null;
+
+  // resolves with this instance once the initialization finished, also when it failed - check
+  // settings.error (promise)
+  let resolveReady;
+  module.ready = new Promise(resolve => { resolveReady = resolve; });
+
 
   // purpose:		initializes the component
   // ------------------------------------------------------------------------
   module.init = async () => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing push api', module.settings.container);
-    
-    await module.serviceWorker.register();
 
-    const registration = await pos.modules.push.readyRegistration();
-    const localEndpoint = await pos.modules.push.localEndpoint(registration);
-    const serverSubscriptions = await pos.modules.push.serverSubscriptions(module.settings.subscribeUrl);
-    const match = serverSubscriptions.find(subscription => subscription.endpoint === localEndpoint);
+    try {
+      await module.serviceWorker.register();
 
-    if(match){
-      module.settings.subscription.id = match.id;
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Found an existing subscription for current browser', module.settings.subscription);
-    } else {
-      module.settings.subscription.id = null
-      pos.modules.debug(module.settings.debug, module.settings.id, 'Current browser have no registered subscriptions');
-      module.detectCapabilities();
+      const registration = await pos.modules.push.readyRegistration();
+      const localEndpoint = await pos.modules.push.localEndpoint(registration);
+      const serverSubscriptions = await pos.modules.push.serverSubscriptions(module.settings.subscribeUrl);
+      const match = serverSubscriptions.find(subscription => subscription.endpoint === localEndpoint);
+
+      if(match){
+        module.settings.subscription.id = match.id;
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Found an existing subscription for current browser', module.settings.subscription);
+      } else {
+        module.settings.subscription.id = null
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Current browser have no registered subscriptions');
+        module.detectCapabilities();
+      }
+    } catch(error){
+      // e.g. the service worker can't be registered (private browsing, blocked by the browser or
+      // its settings) - the page keeps working, push just isn't available
+      module.settings.error = error;
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Push api could not be initialized', error);
     }
+
+    module.settings.initialized = true;
+    resolveReady(module);
 
     document.dispatchEvent(new CustomEvent('pos-push-initialized', { bubbles: true, detail: module.settings }));
     pos.modules.debug(module.settings.debug, 'event', 'pos-push-initialized', module.settings);
@@ -298,6 +331,10 @@ window.pos.modules.push.toggle = function(userSettings){
   module.settings.activeClass = 'pos-push-toggle-active';
   // class to add to the container when the permission were rejected (string)
   module.settings.blockedClass = 'pos-push-blocked';
+  // class to add to the container when the browser requires installing the site as an app for push (string)
+  module.settings.requiresInstallClass = 'pos-push-requires-install';
+  // class to add to the container when push isn't available in this browser context (string)
+  module.settings.unavailableClass = 'pos-push-unavailable';
   // class added to instruction element when instruction for given os/browser is needed (string)
   module.settings.instructionActiveClass = 'pos-push-toggle-instruction-active';
 
@@ -330,9 +367,9 @@ window.pos.modules.push.toggle = function(userSettings){
       });
     }
 
-    document.addEventListener('pos-push-initialized', () => {
-      module.setUIState();
-    });
+    // the promise, not the 'pos-push-initialized' event - a toggle created after the push api
+    // initialized would never get the event
+    pos.modules.active['pos-push'].ready.then(() => module.setUIState());
 
     document.addEventListener('pos-push-unsubscribed', module.setUIState);
     document.addEventListener('pos-push-subscribed', module.setUIState);
@@ -354,6 +391,15 @@ window.pos.modules.push.toggle = function(userSettings){
   // purpose:		syncs the toggle button state with the browser permission and server subscriptions
   // ------------------------------------------------------------------------
   module.setUIState = async () => {
+    if(pos.modules.active['pos-push'].settings.error){
+      // the buttons stay hidden, subscribing would fail
+      module.settings.container.classList.add(module.settings.unavailableClass);
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Push is not available in this browser context, the toggle stays hidden');
+
+      return;
+    }
+
     if(pos.modules.active['pos-push'].settings.requiresInstallForPush){
 
       module.settings.container.classList.add(module.settings.requiresInstallClass);
@@ -438,7 +484,7 @@ window.pos.modules.push.list = function(userSettings){
 
     if(!localEndpoint) return;
 
-    const serverSubscriptions = await pos.modules.push.serverSubscriptions(pos.modules.active['pos-push'].settings.subscribeUrl);
+    const serverSubscriptions = await pos.modules.push.serverSubscriptions(module.settings.subscribeUrl);
     const match = serverSubscriptions.find(subscription => subscription.endpoint === localEndpoint);
     if(!match){
       pos.modules.debug(module.settings.debug, module.settings.id, `Couldn't find current os/browser subscription on the list`);
@@ -567,3 +613,13 @@ window.pos.modules.push.urlBase64ToUint8Array = (base64String) => {
 
   return output;
 };
+
+
+
+// restore what was attached to the namespace before this file was loaded (see the top of the file),
+// without overwriting this file's own definitions
+for(const [key, value] of Object.entries(posPushNamespace)){
+  if(!Object.hasOwn(window.pos.modules.push, key)){
+    window.pos.modules.push[key] = value;
+  }
+}
