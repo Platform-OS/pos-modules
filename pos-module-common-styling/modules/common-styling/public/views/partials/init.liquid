@@ -97,10 +97,10 @@
     };
 
     /* popovers */
-    /* (@mention popovers are created by the markdown editor that owns them) */
-    if(document.querySelector('.pos-popover:not(.pos-markdown-mention)')){
+    /* (@mention and #hashtag popovers are created by the markdown editor that owns them) */
+    if(document.querySelector('.pos-popover:not(.pos-markdown-mention, .pos-markdown-hashtag)')){
       import('{{ 'modules/common-styling/js/pos-popover.js' | asset_url }}').then(module => {
-        document.querySelectorAll('.pos-popover:not(.pos-markdown-mention)').forEach((element, index) => {
+        document.querySelectorAll('.pos-popover:not(.pos-markdown-mention, .pos-markdown-hashtag)').forEach((element, index) => {
           const id = element.querySelector('[popover]').id;
 
           if(!window.pos.modules.active[id]){
@@ -189,8 +189,8 @@
     if(document.querySelector('.pos-markdown')){
       Promise.all([
         import('{{ 'modules/common-styling/js/pos-markdown.js' | asset_url }}'),
-        /* the editor creates its own @mention popover, so the popover module needs to be loaded first */
-        document.querySelector('.pos-markdown-mention') ? import('{{ 'modules/common-styling/js/pos-popover.js' | asset_url }}') : null
+        /* the editor creates its own @mention and #hashtag popovers, so the popover module needs to be loaded first */
+        document.querySelector('.pos-markdown-mention, .pos-markdown-hashtag') ? import('{{ 'modules/common-styling/js/pos-popover.js' | asset_url }}') : null
       ]).then(() => {
         document.querySelectorAll('.pos-markdown').forEach((element, index) => {
           window.pos.modules.active[element.id || `pos-markdown-${index}`] = new pos.modules.markdown({

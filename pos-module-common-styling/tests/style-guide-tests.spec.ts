@@ -405,3 +405,236 @@ test.describe('File upload', () => {
     expect(urls[0]).not.toBe(urls[1]);
   });
 });
+
+
+test.describe('Markdown editor @mentions', () => {
+
+  const editorId = 'styleguide-markdown-editor';
+
+  const openEditor = async (page: Page) => {
+    await page.goto('/style-guide');
+    await page.waitForFunction(id => (window as any).pos?.modules?.active?.[id]?.mention?.insert, editorId);
+    await page.locator(`#${editorId} .CodeMirror`).click();
+  };
+
+  const editorValue = (page: Page) => page.evaluate(id => (window as any).pos.modules.active[id].value(), editorId);
+
+  // what the user sees in the editor, without the collapsed markdown
+  const visibleText = (page: Page) => page.locator(`#${editorId} .CodeMirror-code`).innerText();
+
+  const popover = (page: Page) => page.locator(`#${editorId}-mention-popover`);
+
+  // codemirror splits a marked range into a span for each markdown token, so the text of all of them is joined
+  const markedText = async (page: Page) => (await page.locator(`#${editorId} .pos-markdown-mention-mark`).allInnerTexts()).join('');
+
+  test('the popup lists people with their avatars or initials', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('@J');
+    await expect(popover(page).getByRole('button')).toHaveCount(3);
+    await expect(popover(page).getByRole('button', { name: 'JJ Bragg' }).locator('img')).toHaveAttribute('src', /sm_/);
+    await expect(popover(page).getByRole('button', { name: /John Kowalski/ }).locator('.pos-markdown-mention-avatar-initials')).toHaveText('JK');
+  });
+
+  test('clicking a person inserts the mention, showing only @Name', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('Hi @Ja');
+    await popover(page).getByRole('button', { name: /Jane Doe/ }).click();
+
+    await expect(popover(page)).toBeHidden();
+    expect(await editorValue(page)).toBe('Hi @[Jane Doe](3) ');
+    expect((await visibleText(page)).trimEnd()).toBe('Hi @Jane Doe');
+    await expect.poll(() => markedText(page)).toBe('@Jane Doe');
+  });
+
+  test('Enter picks the first person', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('@J');
+    await expect(popover(page)).toBeVisible();
+    await page.keyboard.press('Enter');
+
+    await expect(popover(page)).toBeHidden();
+    expect(await editorValue(page)).toBe('@[JJ Bragg](6) ');
+    await expect.poll(() => markedText(page)).toBe('@JJ Bragg');
+  });
+
+  test('Escape closes the popup and keeps the typed text', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('@Ja');
+    await expect(popover(page)).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(popover(page)).toBeHidden();
+    expect(await editorValue(page)).toBe('@Ja');
+  });
+
+  test('a space closes the popup', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('@Ja');
+    await expect(popover(page)).toBeVisible();
+
+    await page.keyboard.type(' ');
+    await expect(popover(page)).toBeHidden();
+  });
+
+  test('an @ inside a word, like in an email, doesn\'t open the popup', async ({ page }) => {
+    await openEditor(page);
+
+    let searches = 0;
+    await page.route('**/api/users/search*', route => { searches++; return route.continue(); });
+
+    await page.keyboard.type('mail me at jane@example.com');
+    await page.waitForTimeout(500);
+
+    expect(searches).toBe(0);
+    await expect(popover(page)).toBeHidden();
+  });
+
+  test('deleting into a mention turns it back into plain text', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('@Ja');
+    await popover(page).getByRole('button', { name: /Jane Doe/ }).click();
+    expect(await editorValue(page)).toBe('@[Jane Doe](3) ');
+
+    // the space, then the hidden "](3)" as a whole
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
+
+    expect(await editorValue(page)).toBe('@Jane Doe');
+    await expect(page.locator(`#${editorId} .pos-markdown-mention-mark`)).toHaveCount(0);
+  });
+
+  test('mentions in a value set from code are shown as @Name', async ({ page }) => {
+    await openEditor(page);
+
+    await page.evaluate(id => (window as any).pos.modules.active[id].value('Hi @[Jane Doe](3) and @[John Kowalski](1)'), editorId);
+
+    expect((await visibleText(page)).trimEnd()).toBe('Hi @Jane Doe and @John Kowalski');
+    await expect.poll(() => markedText(page)).toBe('@Jane Doe@John Kowalski');
+  });
+
+  test('a slow response for an old query doesn\'t replace the results', async ({ page }) => {
+    await openEditor(page);
+
+    await page.route('**/api/users/search*', async route => {
+      const query = new URL(route.request().url()).searchParams.get('query');
+      if(query === 'J'){
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      await route.fulfill({ json: { results: [{ id: '9', name: query === 'J' ? 'Old Result' : 'New Result', avatar: null }] } });
+    });
+
+    await page.keyboard.type('@J');
+    await page.waitForTimeout(400);
+    await page.keyboard.type('a');
+
+    await expect(popover(page).getByRole('button', { name: /New Result/ })).toBeVisible();
+    await page.waitForTimeout(1500);
+    await expect(popover(page).getByRole('button', { name: /Old Result/ })).toHaveCount(0);
+  });
+});
+
+test.describe('Markdown editor #hashtags', () => {
+
+  const editorId = 'styleguide-markdown-editor';
+
+  const openEditor = async (page: Page) => {
+    await page.goto('/style-guide');
+    await page.waitForFunction(id => (window as any).pos?.modules?.active?.[id]?.hashtag?.insert, editorId);
+    await page.locator(`#${editorId} .CodeMirror`).click();
+  };
+
+  const editorValue = (page: Page) => page.evaluate(id => (window as any).pos.modules.active[id].value(), editorId);
+
+  const popover = (page: Page) => page.locator(`#${editorId}-hashtag-popover`);
+
+  // codemirror splits a marked range into a span for each markdown token, so the text of all of them is joined
+  const markedText = async (page: Page) => (await page.locator(`#${editorId} .pos-markdown-hashtag-mark`).allInnerTexts()).join('');
+
+  test('picking a hashtag from the popup inserts it as plain text', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('Hello #pla');
+    await expect(popover(page).getByRole('button', { name: 'platformos' })).toBeVisible();
+
+    await page.keyboard.press('Enter');
+    await expect(popover(page)).toBeHidden();
+    expect(await editorValue(page)).toBe('Hello #platformos ');
+    await expect.poll(() => markedText(page)).toBe('#platformos');
+  });
+
+  test('clicking a hashtag inserts it', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('#gr');
+    await popover(page).getByRole('button', { name: 'graphql' }).click();
+
+    await expect(popover(page)).toBeHidden();
+    expect(await editorValue(page)).toBe('#graphql ');
+    await expect.poll(() => markedText(page)).toBe('#graphql');
+  });
+
+  test('editing a hashtag removes its styling and searches again', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('#gr');
+    await popover(page).getByRole('button', { name: 'graphql' }).click();
+
+    // the space, then the last letter of the hashtag
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
+
+    expect(await editorValue(page)).toBe('#graphq');
+    await expect.poll(() => markedText(page)).toBe('');
+    await expect(popover(page)).toBeVisible();
+  });
+
+  test('hashtags in a value set from code are styled, headings and links to anchors aren\'t', async ({ page }) => {
+    await openEditor(page);
+
+    await page.evaluate(id => (window as any).pos.modules.active[id].value('# Title\n#liquid and [a link](#anchor) #graphql'), editorId);
+
+    await expect.poll(() => markedText(page)).toBe('#liquid#graphql');
+  });
+
+  test('Escape closes the popup and keeps the typed text', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('#gra');
+    await expect(popover(page)).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(popover(page)).toBeHidden();
+    expect(await editorValue(page)).toBe('#gra');
+  });
+
+  test('a heading or a # inside a word doesn\'t open the popup', async ({ page }) => {
+    await openEditor(page);
+
+    let searches = 0;
+    await page.route('**/api/hashtags/search*', route => { searches++; return route.continue(); });
+
+    await page.keyboard.type('## Heading C#x page#anchor');
+    await page.waitForTimeout(500);
+
+    expect(searches).toBe(0);
+    await expect(popover(page)).toBeHidden();
+  });
+
+  test('@mentions keep working next to #hashtags', async ({ page }) => {
+    await openEditor(page);
+
+    await page.keyboard.type('#pla');
+    await expect(popover(page)).toBeVisible();
+    await page.keyboard.press('Enter');
+
+    await page.keyboard.type('@Ja');
+    await expect(page.locator(`#${editorId}-mention-popover`).getByRole('button', { name: /Jane Doe/ })).toBeVisible();
+    await expect(popover(page)).toBeHidden();
+  });
+});

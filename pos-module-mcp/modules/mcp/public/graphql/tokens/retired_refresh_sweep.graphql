@@ -1,0 +1,11 @@
+mutation retired_refresh_sweep($now: String!) {
+  # Drop retired refresh digests of grants past their absolute lifetime (expires_at is
+  # unix seconds). Such a grant can no longer be refreshed, so reuse of its old tokens
+  # has nothing left to revoke; this only reclaims the rows.
+  deleted: records_delete_all(
+    table: "modules/mcp/mcp_refresh_retired"
+    filter: { properties: [{ name: "expires_at", range: { lt: $now } }] }
+  ) {
+    count
+  }
+}

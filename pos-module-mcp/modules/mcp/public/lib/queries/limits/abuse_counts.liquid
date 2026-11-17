@@ -1,0 +1,48 @@
+{%- comment -%}
+  Violation counts in the rolling abuse window (helpers/limits/abuse_window) for a set
+  of tokens. Reads the counters by EXACT key (one per token per slice), never a table
+  scan: O(1) for one token, so it is safe on the hot path (limits/enforce_abuse), and the
+  operator console reads the listed tokens in batches of 50.
+
+  @param {array} subjects - [{ principal_id, token_id }]
+  @return {object} { "<token_id>": count } — a token with no violations is absent (0)
+{%- endcomment -%}
+{% liquid
+  assign counts = {}
+  function win = 'modules/mcp/helpers/limits/abuse_window'
+  unless win.enabled
+    return counts
+  endunless
+  if subjects == blank
+    return counts
+  endif
+
+  assign batch = 50
+  assign batches = subjects.size | plus: batch | minus: 1 | divided_by: batch
+  for b in (1..batches)
+    assign off = b | minus: 1 | times: batch
+    assign keys = []
+    assign key_token = {}
+    for s in subjects limit: batch offset: off
+      assign tid = s.token_id | append: ''
+      for slice_id in win.ids
+        function key = 'modules/mcp/helpers/limits/abuse_key', principal_id: s.principal_id, token_id: tid, slice: slice_id
+        assign keys = keys | array_add: key
+        assign key_token[key] = tid
+      endfor
+    endfor
+    if keys.size > 0
+      # One query per batch of 50 tokens (one batch on the hot path), not per token.
+      # platformos-check-disable NestedGraphQLQuery
+      graphql res = 'modules/mcp/rate/by_keys', keys: keys, per_page: keys.size
+      # platformos-check-enable NestedGraphQLQuery
+      # Sum every row: a find-then-create race can leave two rows for one key.
+      for row in res.records.results
+        assign tid = key_token[row.key]
+        assign prev = counts[tid] | default: 0 | plus: 0
+        assign counts[tid] = row.count | plus: 0 | plus: prev
+      endfor
+    endif
+  endfor
+  return counts
+%}
