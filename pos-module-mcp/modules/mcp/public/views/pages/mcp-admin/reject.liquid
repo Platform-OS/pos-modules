@@ -5,7 +5,9 @@ layout: ''
 ---
 {%- comment -%}
   Operator rejects a pending action (spec §9.6). The action never runs; the
-  decision is recorded. Operator-gated. A POST without a valid form token changes
+  decision is recorded on the row and attested in the ledger (approval/claim:
+  execution_outcome rejected, authz_reason rejected_by:<user id>, linked to the
+  request by request_id). A request already past its window ends expired instead. Operator-gated. A POST without a valid form token changes
   nothing (403).
 {%- endcomment -%}
 {%- liquid
@@ -26,7 +28,7 @@ layout: ''
   graphql f = 'modules/mcp/approvals/find_by_handle', handle: handle
   assign rec = f.records.results.first
   if rec and rec.status == 'pending'
-    function _c = 'modules/mcp/commands/approval/claim', id: rec.id, handle: handle, status: 'rejected', decided_by: current_profile.user.id, result_summary: 'Rejected by operator.'
+    function _c = 'modules/mcp/commands/approval/claim', id: rec.id, handle: handle, status: 'rejected', decided_by: current_profile.user.id, result_summary: 'Rejected by operator.', ledger_reason: null
   endif
 
   redirect_to '/mcp-admin?tab=approvals'

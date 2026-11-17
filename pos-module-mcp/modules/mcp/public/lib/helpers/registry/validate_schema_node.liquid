@@ -9,18 +9,28 @@
   Enforced:
    - `type` present and one of object/string/integer/number/boolean/array. For an
      OUTPUT schema (`output: true`) `type` may also be a list of those types plus
-     "null", because a result field can be empty; the engine never validates
-     results against it, so the subset rule protects inputs only.
+     "null", because a result field can be empty. execute/run validates every
+     result against the output schema (validate/json_schema, output mode) before it
+     is served, so every keyword allowed here is enforced on results too.
    - Only supported keywords per node (union set below); any other key → error.
-   - additionalProperties, when present, must be boolean (it is FORCED to false at
-     validation time regardless — §7.2 — but must be declarable only as a boolean).
+   - additionalProperties, when present, must be boolean. In an input schema it is
+     FORCED to false at validation time regardless (§7.2); in an output schema it is
+     honoured as declared (false rejects undeclared result keys).
    - pattern is length-capped and rejects classic catastrophic-backtracking
-     nested-quantifier signatures (§16.4).
+     nested-quantifier signatures (§16.4). It must compile; it is evaluated with
+     ECMA-262 anchoring (validate/ecma_pattern), as clients evaluate it.
+   - Every node is a JSON object, and every keyword value has its JSON Schema 2020-12
+     type: numbers for minimum/maximum/exclusiveMinimum/exclusiveMaximum, non-negative
+     integers for minLength/maxLength/minItems/maxItems, an array of strings for
+     required, a non-empty array for enum, an object for properties and items, strings
+     for pattern/format/description/title. A wrong type would crash the validator or be
+     enforced differently from how a client reads it.
    - depth is capped (max_schema_depth) to bound validation cost (§10.1).
    - `format` in an INPUT schema must be one validate/json_schema enforces (uuid,
      email, date, date-time). Any other value would be silently ignored, so it is rejected;
-     enforcing a new format later then only affects tools that opt in. An output
-     schema is never validated against, so its formats are client hints only.
+     enforcing a new format later then only affects tools that opt in. In an output
+     schema those four formats are checked on results; any other format is a client
+     annotation (JSON Schema treats format as an annotation by default) and is not.
 
   Not enforced, reported: every `description` and `title` is model-read text, like the
   tool description, so each goes through registry/lint_description (§12.3). A hit is
@@ -49,12 +59,33 @@
     return out
   endif
 
+  # A schema node is a JSON object. Anything else (e.g. the tuple form `items: [...]`,
+  # which JSON Schema 2020-12 replaced with prefixItems) is rejected here, before any
+  # keyword is read from it.
+  assign node_kind = node | type_of
+  unless node_kind contains 'Hash'
+    assign msg = at | append: ': a schema must be a JSON object, got ' | append: node_kind
+    assign errors = errors | array_add: msg
+    assign out = {
+      "valid": false,
+      "errors": errors,
+      "lint": lint
+    }
+    return out
+  endunless
+
   assign text_keys = 'description,title' | split: ','
   for text_key in text_keys
     assign text = node[text_key]
     if text == blank
       continue
     endif
+    assign text_kind = text | type_of
+    unless text_kind == 'String'
+      assign msg = at | append: ': "' | append: text_key | append: '" must be a string'
+      assign errors = errors | array_add: msg
+      continue
+    endunless
     function text_lint = 'modules/mcp/helpers/registry/lint_description', text: text
     if text_lint.flagged
       assign hit_path = at | append: '.' | append: text_key
@@ -77,7 +108,91 @@
 
   assign output = output | default: false
 
-  unless output or node.format == blank
+  # Keyword VALUES must have the type JSON Schema 2020-12 gives them. A wrong type is an
+  # invalid schema: published to clients it may not compile, and here it would either
+  # crash the validator (a string compared with a number) or be enforced differently
+  # from how a client reads it (draft-4 `exclusiveMinimum: true`).
+  assign number_keys = 'minimum,maximum,exclusiveMinimum,exclusiveMaximum' | split: ','
+  for nk in number_keys
+    if keys contains nk
+      assign nv_kind = node[nk] | type_of
+      unless nv_kind == 'Integer' or nv_kind == 'Float'
+        assign msg = at | append: ': "' | append: nk | append: '" must be a number'
+        assign errors = errors | array_add: msg
+      endunless
+    endif
+  endfor
+  assign count_keys = 'minLength,maxLength,minItems,maxItems' | split: ','
+  for ck in count_keys
+    if keys contains ck
+      assign cv = node[ck]
+      assign cv_kind = cv | type_of
+      assign cv_ok = false
+      if cv_kind == 'Integer'
+        if cv >= 0
+          assign cv_ok = true
+        endif
+      endif
+      unless cv_ok
+        assign msg = at | append: ': "' | append: ck | append: '" must be a non-negative integer'
+        assign errors = errors | array_add: msg
+      endunless
+    endif
+  endfor
+  if keys contains 'required'
+    assign req_ok = false
+    assign req_kind = node.required | type_of
+    if req_kind == 'Array'
+      assign req_ok = true
+      for req in node.required
+        assign req_item_kind = req | type_of
+        unless req_item_kind == 'String'
+          assign req_ok = false
+        endunless
+      endfor
+    endif
+    unless req_ok
+      assign msg = at | append: ': "required" must be an array of strings'
+      assign errors = errors | array_add: msg
+    endunless
+  endif
+  if keys contains 'enum'
+    assign enum_kind = node.enum | type_of
+    assign enum_ok = false
+    if enum_kind == 'Array' and node.enum.size > 0
+      assign enum_ok = true
+    endif
+    unless enum_ok
+      assign msg = at | append: ': "enum" must be a non-empty array'
+      assign errors = errors | array_add: msg
+    endunless
+  endif
+  if keys contains 'properties'
+    assign props_kind = node.properties | type_of
+    unless props_kind contains 'Hash'
+      assign msg = at | append: ': "properties" must be an object'
+      assign errors = errors | array_add: msg
+    endunless
+  endif
+  if keys contains 'format'
+    assign format_kind = node.format | type_of
+    unless format_kind == 'String'
+      assign msg = at | append: ': "format" must be a string'
+      assign errors = errors | array_add: msg
+    endunless
+  endif
+  assign pattern_is_string = false
+  if keys contains 'pattern'
+    assign pattern_kind = node.pattern | type_of
+    if pattern_kind == 'String'
+      assign pattern_is_string = true
+    else
+      assign msg = at | append: ': "pattern" must be a string'
+      assign errors = errors | array_add: msg
+    endif
+  endif
+
+  unless output or node.format == blank or format_kind != 'String'
     assign supported_formats = 'uuid,email,date,date-time' | split: ','
     unless supported_formats contains node.format
       assign msg = at | append: ': unsupported format "' | append: node.format | append: '" (supported: uuid, email, date, date-time)'
@@ -125,9 +240,22 @@
     endunless
   endunless
 
-  # pattern safety (§16.4).
+  # pattern safety (§16.4), and the pattern must compile: validate/json_schema runs it
+  # (translated to ECMA-262 anchoring by validate/ecma_pattern) on every value.
   assign pat = node.pattern
-  unless pat == blank
+  if pattern_is_string and pat != blank
+    function ruby_pattern = 'modules/mcp/helpers/validate/ecma_pattern', pattern: pat
+    assign pattern_compiles = true
+    try
+      # A non-empty subject: matches skips a blank one without compiling the regex.
+      assign _probe = 'x' | matches: ruby_pattern
+    catch pattern_error
+      assign pattern_compiles = false
+    endtry
+    unless pattern_compiles
+      assign msg = at | append: ': pattern is not a valid regular expression'
+      assign errors = errors | array_add: msg
+    endunless
     assign plen = pat | size
     if plen > 200
       assign msg = at | append: ': pattern too long'
@@ -141,12 +269,17 @@
         break
       endif
     endfor
-  endunless
+  endif
 
   # Recurse: object properties.
   if node_types contains 'object'
     assign props = node.properties
-    unless props == blank
+    assign props_is_hash = false
+    assign props_type = props | type_of
+    if props_type contains 'Hash'
+      assign props_is_hash = true
+    endif
+    if props != blank and props_is_hash
       assign pkeys = props | hash_keys
       for pk in pkeys
         assign child = props[pk]
@@ -162,7 +295,7 @@
           assign lint = lint | array_add: l
         endfor
       endfor
-    endunless
+    endif
   endif
 
   # Recurse: array items (single schema).

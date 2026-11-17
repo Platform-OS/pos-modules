@@ -11,6 +11,14 @@
   Then execute inside a transaction and attest, linked to the original request by
   request_id.
 
+  EVERY outcome is attested (security-model §4.1, "every post-authentication
+  termination"): a refusal at execution time writes the entry the inline call would
+  have written at the same gate (unknown tool → invalid -32602, requester's access
+  revoked → denied -32001, arguments no longer valid → invalid -32602, policy denies →
+  denied -32001), and every entry names the approving operator in authz_reason:
+  `approved_by:<user id>` on success / rollback, `approved_by:<user id>;<why refused>`
+  on a refusal.
+
   The operator only DECIDES; the action runs with the requester's identity and
   scope, never the operator's. Returns an outcome the caller records on the approval
   row and shows the agent.
@@ -32,9 +40,19 @@
 
   assign fail = { "ok": false }
 
+  # Ledger entry shared by every outcome below: the requester, the tool and argument
+  # hash as recorded on the approval row, linked to the request by request_id.
+  function le = 'modules/mcp/helpers/approval/ledger_entry', rec: approval
+  assign approved_by = 'approved_by:' | append: decided_by
+
   # 1. Tool must still exist and be valid.
   function tool = 'modules/mcp/queries/registry/resolve_tool', name: approval.tool_name, allowed_tools: null
   if tool == blank
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['authz_reason'] = approved_by | append: ';unknown_tool'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
     assign err = {
       "code": -32602,
       "message": "Unknown tool"
@@ -44,6 +62,9 @@
     assign fail['error'] = err
     return fail
   endif
+  assign le['tool_name'] = tool.name
+  assign le['tool_version'] = tool.version
+  assign le['authz_policy'] = tool.authorization_policy
 
   # 1b. The requesting credential must still be able to make this call
   #     (identity/token_still_authorized). Rows queued before token_id was recorded
@@ -61,6 +82,11 @@
   endif
   unless cred.ok
     log cred.reason, type: 'mcp.approval_requester_revoked'
+    assign le['authz_decision'] = 'deny'
+    assign le['authz_reason'] = approved_by | append: ';' | append: cred.reason
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
     assign err = {
       "code": -32001,
       "message": "Forbidden"
@@ -76,6 +102,11 @@
   # 2. Re-validate the persisted arguments against the current schema.
   function val = 'modules/mcp/helpers/validate/json_schema', value: args, schema: tool.input_schema, depth: 1, max_depth: cfg.defaults.max_schema_depth, path: 'arguments'
   unless val.valid
+    assign le['authz_decision'] = 'not_applicable'
+    assign le['authz_reason'] = approved_by | append: ';invalid_arguments'
+    assign le['execution_outcome'] = 'invalid'
+    assign le['error_code'] = -32602
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
     function invalid_result = 'modules/mcp/helpers/rpc/invalid_arguments_result', errors: val.errors, tool: tool
     assign fail['outcome'] = 'failed'
     assign fail['summary'] = 'Arguments no longer valid.'
@@ -93,6 +124,11 @@
   # 4. Re-authorize against the original principal (fail-closed).
   function authz = 'modules/mcp/commands/authorize/evaluate', policy: tool.authorization_policy, principal: principal, agent: agent, arguments: args, tool: tool, delegation_mode: 'direct'
   unless authz.allow
+    assign le['authz_decision'] = 'deny'
+    assign le['authz_reason'] = approved_by | append: ';' | append: authz.reason
+    assign le['execution_outcome'] = 'denied'
+    assign le['error_code'] = -32001
+    function _ = 'modules/mcp/commands/ledger/append', entry: le
     assign err = {
       "code": -32001,
       "message": "Forbidden"
@@ -104,19 +140,8 @@
   endunless
 
   # 5. Attestation for the deferred execution, linked to the request by request_id.
-  assign le = {
-    "method": "tools/call",
-    "tool_name": tool.name,
-    "tool_version": tool.version,
-    "principal_id": approval.principal_id,
-    "agent_id": approval.requested_by_agent,
-    "delegation_mode": "direct",
-    "input_sha256": approval.input_sha256,
-    "authz_policy": tool.authorization_policy,
-    "authz_decision": "allow"
-  }
-  assign le['authz_reason'] = 'approved_by:' | append: decided_by
-  assign le['request_id'] = approval.request_id
+  assign le['authz_decision'] = 'allow'
+  assign le['authz_reason'] = approved_by
 
   assign context_meta = {
     "tool_name": tool.name,

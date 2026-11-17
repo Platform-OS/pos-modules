@@ -34,33 +34,58 @@ window.pos.modules.markdown = function(settings){
   // class name that hides error on the list (string)
   module.settings.errorDisabledClass = 'pos-markdown-error-disabled';
   
-  // @mention object (object)
-  module.mention = {};
-  // @mention settings (object)
-  module.settings.mention = {};
-  // container with @mentions (dom node)
-  module.settings.mention.container = settings.mention?.container || module.settings.container.querySelector('.pos-markdown-mention');
-  // list with @mention results (dom node)
-  module.settings.mention.results = module.settings.mention.container?.querySelector('[popover]') || null;
-  // instance of the popover with @mentions (object)
-  module.settings.mention.popover = (module.settings.mention.results && pos.modules.active[module.settings.mention.results.id]) || null;
-  // url of the api to fetch mention results (string)
-  module.settings.mention.url = module.settings.mention.container?.dataset.url || null;
-  // active @mention state { query, line, atCh } or null
-  module.settings.mention.state = null;
-  // template for @mention result (dom node)
-  module.settings.mention.template = module.settings.mention.container?.querySelector('template') || null;
-  // controller used to abort the in-flight search request (AbortController)
-  module.settings.mention.searchController = null;
-  // async function(query, signal) => [{ id, name }] — function to fetch mention results, returns array of objects with id, name and avatar
-  module.settings.mention.search = settings.mention?.search || async function(query, signal){
-    const response = await fetch(module.settings.mention.url + encodeURIComponent(query), { signal });
-    if(!response.ok){
-      throw new Error(`@mention search failed with status ${response.status}`);
-    }
-    const data = await response.json();
-    return data.results;
+  // purpose:   settings of an autocomplete (@mentions, #hashtags) that opens a popup with search results
+  //            when its trigger character is typed, see module.autocomplete
+  // arguments: name of the autocomplete, also used in the class of its container (string)
+  //            character that opens the popup (string)
+  //            settings passed to the module for this autocomplete, can override the container and search (object)
+  // returns:   settings of the autocomplete (object)
+  // ------------------------------------------------------------------------
+  const autocompleteSettings = (name, trigger, options) => {
+    const autocomplete = {};
+    // character that opens the popup (string)
+    autocomplete.trigger = trigger;
+    // name used in debug messages, e.g. '@mention' (string)
+    autocomplete.label = trigger + name;
+    // container with the popup (dom node)
+    autocomplete.container = options?.container || module.settings.container.querySelector(`.pos-markdown-${name}`);
+    // list with results (dom node)
+    autocomplete.results = autocomplete.container?.querySelector('[popover]') || null;
+    // instance of the popover with results (object)
+    autocomplete.popover = (autocomplete.results && pos.modules.active[autocomplete.results.id]) || null;
+    // url of the api to fetch results, the query is appended to it (string)
+    autocomplete.url = autocomplete.container?.dataset.url || null;
+    // active state { query, line, ch } where ch is the position of the trigger character, or null
+    autocomplete.state = null;
+    // template for a result (dom node)
+    autocomplete.template = autocomplete.container?.querySelector('template') || null;
+    // controller used to abort the in-flight search request (AbortController)
+    autocomplete.searchController = null;
+    // async function(query, signal) => [results] — fetches the results
+    autocomplete.search = options?.search || async function(query, signal){
+      const response = await fetch(autocomplete.url + encodeURIComponent(query), { signal });
+      if(!response.ok){
+        throw new Error(`${autocomplete.label} search failed with status ${response.status}`);
+      }
+      const data = await response.json();
+      return data.results;
+    };
+
+    return autocomplete;
   };
+
+  // names of the autocompletes, each has its settings in module.settings[name] and its behavior in module[name] (array)
+  module.settings.autocompletes = ['mention', 'hashtag'];
+  // origin of the editor changes made by the autocompletes, so the change listener can tell them from typing (string)
+  module.settings.autocompleteOrigin = 'pos-markdown-autocomplete';
+
+  // @mention settings (object), search returns [{ id, name, avatar }]
+  module.settings.mention = autocompleteSettings('mention', '@', settings.mention);
+
+  // #hashtag settings (object), search returns [{ name }] or plain strings
+  module.settings.hashtag = autocompleteSettings('hashtag', '#', settings.hashtag);
+  // characters allowed in a hashtag, anything else ends it (regex)
+  module.settings.hashtag.allowed = /^[\p{L}\p{N}_-]+$/u;
 
   // debug mode enabled (bool)
   module.settings.debug = typeof settings.debug === 'boolean' ? settings.debug : false;
@@ -79,16 +104,20 @@ window.pos.modules.markdown = function(settings){
     
     pos.modules.debug(module.settings.debug, module.settings.id, 'Initializing rich text editor', module.settings.container);
 
-    // create @mention popover if mentions are enabled and it doesn't exist yet
-    if(module.settings.mention.results && !module.settings.mention.popover){
-      if(typeof pos.modules.popover === 'function'){
-        pos.modules.debug(module.settings.debug, module.settings.id, 'No @mentions popover instance detected, creating one');
+    // create the popovers of the enabled autocompletes (@mentions, #hashtags) if they don't exist yet
+    module.settings.autocompletes.forEach(name => {
+      const autocomplete = module.settings[name];
 
-        module.settings.mention.popover = pos.modules.active[module.settings.mention.results.id] = new pos.modules.popover(module.settings.mention.container);
-      } else {
-        console.error(`[${module.settings.id}] pos-popover.js is not loaded, @mentions are disabled`);
+      if(autocomplete.results && !autocomplete.popover){
+        if(typeof pos.modules.popover === 'function'){
+          pos.modules.debug(module.settings.debug, module.settings.id, `No ${autocomplete.label}s popover instance detected, creating one`);
+
+          autocomplete.popover = pos.modules.active[autocomplete.results.id] = new pos.modules.popover(autocomplete.container);
+        } else {
+          console.error(`[${module.settings.id}] pos-popover.js is not loaded, ${autocomplete.label}s are disabled`);
+        }
       }
-    }
+    });
 
     module.startEasyMde();
 
@@ -149,10 +178,8 @@ window.pos.modules.markdown = function(settings){
       }
     }, true); // capture phase — fires before codemirror's listener on the inner textarea
 
-    // purpose: sets up @mention detection and popup
-    if(module.settings.mention.url && module.settings.mention.popover){
-      module.mention.start();
-    }
+    // purpose: sets up @mention and #hashtag detection and popups
+    module.autocomplete.start();
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'EasyMDE instance created', module.settings.easyMde);
   };
@@ -270,7 +297,7 @@ window.pos.modules.markdown = function(settings){
   module.value = (value) => {
     if(value){
       module.settings.easyMde.value(value);
-      module.mention.reapplyMarks();
+      module.autocomplete.reapplyMarks();
 
       pos.modules.debug(module.settings.debug, module.settings.id, 'Changed editor content', value);
       // dispatch custom event
@@ -308,7 +335,7 @@ window.pos.modules.markdown = function(settings){
   //            use when removing the editor from the page without reloading it
   // ------------------------------------------------------------------------
   module.destroy = () => {
-    module.mention.hide();
+    module.autocomplete.hideAll();
     module.settings.listeners.abort();
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Markdown editor destroyed', module.settings.container);
@@ -354,92 +381,100 @@ window.pos.modules.markdown = function(settings){
   };
 
 
-  // purpose:   sets up @mention detection and popup
+  // purpose:   autocompletes (@mentions, #hashtags) open a popup with search results when their trigger
+  //            character is typed, this is the part they share; what differs is defined in module[name]:
+  //              isValidQuery(query)         whether the text typed after the trigger is a query (bool)
+  //              prepare(results)            optional, normalizes and filters the search results (array)
+  //              renderResult(item, result)  fills the cloned template with a result
+  //              text(result)                text that replaces the trigger and the query (string)
+  //              mark(line, ch, result)      marks the inserted text, ch is the position of the trigger
+  //              cleanupIfEditingMark()      runs on each typed change, undoes the marks the change edited
+  //              reapplyMarks()              marks the existing content
+  //              markWhenDisabled            whether the content is marked even without the search (bool)
   // ------------------------------------------------------------------------
-  module.mention.start = () => {
-    module.settings.easyMde.codemirror.on('change', () => {
-      if (module.mention.cleaningUp) return;
+  module.autocomplete = {};
 
-      module.mention.cleanupIfEditingMark();
 
-      const cursor = module.settings.easyMde.codemirror.getCursor();
-      const textBefore = module.settings.easyMde.codemirror.getLine(cursor.line).slice(0, cursor.ch);
-      const atIdx = textBefore.lastIndexOf('@');
+  // purpose:   lists the autocompletes that have a search url and a popover
+  // returns:   names of the enabled autocompletes (array)
+  // ------------------------------------------------------------------------
+  module.autocomplete.enabled = () => {
+    return module.settings.autocompletes.filter(name => module.settings[name].url && module.settings[name].popover);
+  };
 
-      if(atIdx === -1){
-        module.mention.hide();
+
+  // purpose:   finds the autocomplete with its popup opened
+  // returns:   name of the autocomplete (string) or null
+  // ------------------------------------------------------------------------
+  module.autocomplete.opened = () => {
+    return module.settings.autocompletes.find(name => module.settings[name].popover?.settings.opened) || null;
+  };
+
+
+  // purpose:   sets up the detection and the popups of the enabled autocompletes
+  // ------------------------------------------------------------------------
+  module.autocomplete.start = () => {
+    const enabled = module.autocomplete.enabled();
+    const cm = module.settings.easyMde.codemirror;
+
+    if(!enabled.length){
+      return;
+    }
+
+    cm.on('change', (cm, change) => {
+      // the autocompletes' own changes (an inserted result, a cleaned up mark) are not typing - when a result
+      // is picked with Enter, this runs after the insert has marked it, so it would undo the fresh mark
+      if(change.origin === module.settings.autocompleteOrigin){
         return;
       }
 
-      const charBefore = atIdx > 0 ? textBefore[atIdx - 1] : ' ';
-      const query = textBefore.slice(atIdx + 1);
+      enabled.forEach(name => module[name].cleanupIfEditingMark());
 
-      if(!/\s/.test(charBefore) && atIdx > 0){
-        module.mention.hide();
-        return;
-      }
-      if(query.length < 1 || /\s/.test(query)){
-        module.mention.hide();
-        return;
-      }
+      const cursor = cm.getCursor();
+      const textBefore = cm.getLine(cursor.line).slice(0, cursor.ch);
 
-      module.settings.mention.state = { query, line: cursor.line, atCh: atIdx };
-      module.mention.cancelSearch();
-      module.mention.searchTimeout = setTimeout(async () => {
-        const controller = module.settings.mention.searchController = new AbortController();
-
-        try {
-          const results = await module.settings.mention.search(query, controller.signal);
-
-          // drop responses for a query that is no longer being typed (user moved on or closed the popup)
-          if(controller.signal.aborted || module.settings.mention.state?.query !== query){
-            return;
-          }
-
-          module.mention.renderPopup(results);
-        } catch(error) {
-          if(error.name === 'AbortError'){
-            return;
-          }
-
-          pos.modules.debug(module.settings.debug, module.settings.id, 'Searching for @mentions failed', error);
-          module.mention.hide();
-        }
-      }, 300);
+      // at most one of them finds a query: a trigger has to start a word and a query can't contain whitespace
+      enabled.forEach(name => module.autocomplete.detect(name, textBefore, cursor));
     });
 
     document.addEventListener('click', e => {
-      if(!module.settings.mention.results.contains(e.target)){
-        module.mention.hide();
-      }
+      enabled.forEach(name => {
+        if(!module.settings[name].results.contains(e.target)){
+          module.autocomplete.hide(name);
+        }
+      });
     }, { signal: module.settings.listeners.signal });
 
-    module.settings.easyMde.codemirror.addKeyMap({
+    cm.addKeyMap({
       'Esc': () => {
-        if(!module.settings.mention.popover.settings.opened){
-          return module.settings.easyMde.codemirror.constructor.Pass;
+        const name = module.autocomplete.opened();
+
+        if(!name){
+          return cm.constructor.Pass;
         }
 
-        module.mention.hide();
+        module.autocomplete.hide(name);
       },
-      'Up':  () => {
-        if(!module.settings.mention.popover.settings.opened){
-          return module.settings.easyMde.codemirror.constructor.Pass;
+      'Up': () => {
+        if(!module.autocomplete.opened()){
+          return cm.constructor.Pass;
         }
       },
       'Down': () => {
-        if(!module.settings.mention.popover.settings.opened){
-          return module.settings.easyMde.codemirror.constructor.Pass;
+        if(!module.autocomplete.opened()){
+          return cm.constructor.Pass;
         }
       },
       'Enter': () => {
-        if(!module.settings.mention.popover.settings.opened){
-          return module.settings.easyMde.codemirror.constructor.Pass;
+        const name = module.autocomplete.opened();
+
+        if(!name){
+          return cm.constructor.Pass;
         }
 
         // the editor still has focus (arrow keys move focus into the menu, where the button handles Enter itself),
         // so pick the first result
-        module.settings.mention.popover.settings.focusable[0]?.click();
+        module.settings[name].popover.settings.focusable[0]?.click();
       }
     });
 
@@ -447,103 +482,257 @@ window.pos.modules.markdown = function(settings){
     // along with the page natively — no listener needed for window/page scrolling. What still
     // needs a manual reposition is the editor's own internal scroll (typing pushes lines up
     // inside CodeMirror's viewport without the page itself scrolling)...
-    module.settings.easyMde.codemirror.on('scroll', () => {
-      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+    cm.on('scroll', () => {
+      const name = module.autocomplete.opened();
+      if(name) module.autocomplete.updatePopupPosition(name);
     });
 
     // ...and the on-screen keyboard showing/hiding, which can reflow the editor (e.g. line
     // wrapping changes) even though the page didn't scroll.
     window.visualViewport?.addEventListener('resize', () => {
-      if(module.settings.mention.popover?.settings.opened) module.mention.updatePopupPosition();
+      const name = module.autocomplete.opened();
+      if(name) module.autocomplete.updatePopupPosition(name);
     }, { passive: true, signal: module.settings.listeners.signal });
 
-    module.mention.reapplyMarks();
+    module.autocomplete.reapplyMarks(enabled);
 
-    pos.modules.debug(module.settings.debug, module.settings.id, 'Activated @mentions', module.settings.mention);
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Activated autocompletes', enabled);
   };
 
 
-  // purpose:   renders mention results in the popup, positioned at the cursor
+  // purpose:   opens the autocomplete's popup when the text before the cursor ends with its trigger and a query,
+  //            searching after a pause in typing, otherwise hides it
+  // arguments: name of the autocomplete (string)
+  //            text of the line before the cursor (string)
+  //            cursor position (object)
   // ------------------------------------------------------------------------
-  module.mention.renderPopup = (results) => {
-    pos.modules.debug(module.settings.debug, module.settings.id, 'Rendering @mention results in the popover', results);
+  module.autocomplete.detect = (name, textBefore, cursor) => {
+    const autocomplete = module.settings[name];
+    const triggerIdx = textBefore.lastIndexOf(autocomplete.trigger);
 
-    module.settings.mention.results.innerHTML = '';
-
-    if(!results?.length){
-      module.mention.hide();
+    if(triggerIdx === -1){
+      module.autocomplete.hide(name);
       return;
     }
 
-    results.forEach(person => {
-      const template = module.settings.mention.template.content.cloneNode(true);
+    const charBefore = triggerIdx > 0 ? textBefore[triggerIdx - 1] : ' ';
+    const query = textBefore.slice(triggerIdx + 1);
 
-      if(person.avatar){
-        template.querySelector('img').src = person.avatar.photo.versions.sm;
-        template.querySelector('.pos-markdown-mention-avatar-initials').remove();
-      } else {
-        template.querySelector('img').remove();
-        const initials = (person.name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(name => name[0]).join('');
-        template.querySelector('.pos-markdown-mention-avatar-initials').textContent = initials.toUpperCase();
+    // the trigger has to start a word, so emails, 'C#' or 'page#anchor' don't open the popup
+    if(!/\s/.test(charBefore)){
+      module.autocomplete.hide(name);
+      return;
+    }
+    if(query.length < 1 || !module[name].isValidQuery(query)){
+      module.autocomplete.hide(name);
+      return;
+    }
+
+    autocomplete.state = { query, line: cursor.line, ch: triggerIdx };
+    module.autocomplete.cancelSearch(name);
+    autocomplete.searchTimeout = setTimeout(async () => {
+      const controller = autocomplete.searchController = new AbortController();
+
+      try {
+        const results = await autocomplete.search(query, controller.signal);
+
+        // drop responses for a query that is no longer being typed (user moved on or closed the popup)
+        if(controller.signal.aborted || autocomplete.state?.query !== query){
+          return;
+        }
+
+        module.autocomplete.renderPopup(name, results);
+      } catch(error) {
+        if(error.name === 'AbortError'){
+          return;
+        }
+
+        pos.modules.debug(module.settings.debug, module.settings.id, `Searching for ${autocomplete.label}s failed`, error);
+        module.autocomplete.hide(name);
       }
-      template.querySelector('.pos-markdown-mention-name').textContent = person.name;
+    }, 300);
+  };
 
-      template.querySelector('button').addEventListener('click', e => {
+
+  // purpose:   renders the results in the autocomplete's popup, positioned at the trigger
+  // arguments: name of the autocomplete (string)
+  //            search results (array)
+  // ------------------------------------------------------------------------
+  module.autocomplete.renderPopup = (name, results) => {
+    const autocomplete = module.settings[name];
+
+    pos.modules.debug(module.settings.debug, module.settings.id, `Rendering ${autocomplete.label} results in the popover`, results);
+
+    autocomplete.results.innerHTML = '';
+
+    results = results || [];
+    if(module[name].prepare){
+      results = module[name].prepare(results);
+    }
+
+    if(!results.length){
+      module.autocomplete.hide(name);
+      return;
+    }
+
+    results.forEach(result => {
+      const item = autocomplete.template.content.cloneNode(true);
+
+      module[name].renderResult(item, result);
+
+      item.querySelector('button').addEventListener('click', e => {
         e.preventDefault();
-        module.mention.insert(person);
+        module.autocomplete.insert(name, result);
       });
 
-      module.settings.mention.results.appendChild(template);
+      autocomplete.results.appendChild(item);
     });
 
-    module.mention.updatePopupPosition();
+    module.autocomplete.updatePopupPosition(name);
 
-    module.settings.mention.popover.buildFocusableMenuItems();
+    autocomplete.popover.buildFocusableMenuItems();
 
-    module.settings.mention.popover.open();
+    autocomplete.popover.open();
   };
 
 
-  // purpose:   recalculates popup position anchored to the @ character (document-relative,
+  // purpose:   recalculates the popup position anchored to the trigger character (document-relative,
   //            since the popup is `position: absolute` — see pos-markdown.css)
+  // arguments: name of the autocomplete (string)
   // ------------------------------------------------------------------------
-  module.mention.updatePopupPosition = () => {
-    if(!module.settings.mention.state){
+  module.autocomplete.updatePopupPosition = (name) => {
+    const autocomplete = module.settings[name];
+
+    if(!autocomplete.state){
       return;
     }
 
-    pos.modules.debug(module.settings.debug, module.settings.id, 'Updating @mention popover position', module.settings.mention.state);
+    pos.modules.debug(module.settings.debug, module.settings.id, `Updating ${autocomplete.label} popover position`, autocomplete.state);
 
-    const atPos = { line: module.settings.mention.state.line, ch: module.settings.mention.state.atCh };
+    const triggerPos = { line: autocomplete.state.line, ch: autocomplete.state.ch };
     // 'page' mode bakes the document scroll offset into the coordinates, matching a
     // `position: absolute` element — the browser then keeps it aligned with the caret on
     // scroll natively, instead of us recomputing viewport-relative ('window' mode) coordinates
     // on every scroll frame, which is what broke on mobile Safari with the keyboard open.
-    const coords = module.settings.easyMde.codemirror.charCoords(atPos, 'page');
+    const coords = module.settings.easyMde.codemirror.charCoords(triggerPos, 'page');
 
-    module.settings.mention.results.style.left = coords.left + 'px';
-    module.settings.mention.results.style.top = (coords.bottom + 4) + 'px';
+    autocomplete.results.style.left = coords.left + 'px';
+    autocomplete.results.style.top = (coords.bottom + 4) + 'px';
   };
 
 
-  // purpose:   hides the mention popup and clears state
+  // purpose:   hides the autocomplete's popup and clears its state
+  // arguments: name of the autocomplete (string)
   // ------------------------------------------------------------------------
-  module.mention.hide = () => {
-    module.mention.cancelSearch();
+  module.autocomplete.hide = (name) => {
+    const autocomplete = module.settings[name];
 
-    if(module.settings.mention.popover && module.settings.mention.popover.settings.opened){
-      module.settings.mention.popover.close();
+    module.autocomplete.cancelSearch(name);
+
+    if(autocomplete.popover && autocomplete.popover.settings.opened){
+      autocomplete.popover.close();
     }
-    module.settings.mention.state = null;
+    autocomplete.state = null;
   };
 
 
-  // purpose:   cancels the scheduled and in-flight @mention search
+  // purpose:   hides the popups of all the autocompletes
   // ------------------------------------------------------------------------
-  module.mention.cancelSearch = () => {
-    clearTimeout(module.mention.searchTimeout);
-    module.settings.mention.searchController?.abort();
-    module.settings.mention.searchController = null;
+  module.autocomplete.hideAll = () => {
+    module.settings.autocompletes.forEach(name => module.autocomplete.hide(name));
+  };
+
+
+  // purpose:   cancels the autocomplete's scheduled and in-flight search
+  // arguments: name of the autocomplete (string)
+  // ------------------------------------------------------------------------
+  module.autocomplete.cancelSearch = (name) => {
+    const autocomplete = module.settings[name];
+
+    clearTimeout(autocomplete.searchTimeout);
+    autocomplete.searchController?.abort();
+    autocomplete.searchController = null;
+  };
+
+
+  // purpose:   replaces the trigger and the query with the picked result
+  // arguments: name of the autocomplete (string)
+  //            picked result (object)
+  // ------------------------------------------------------------------------
+  module.autocomplete.insert = (name, result) => {
+    const autocomplete = module.settings[name];
+
+    pos.modules.debug(module.settings.debug, module.settings.id, `Inserting ${autocomplete.label} to the editor`, result);
+
+    const cm = module.settings.easyMde.codemirror;
+    const s = autocomplete.state;
+    if (!s) return;
+    const cursor = cm.getCursor();
+    cm.replaceRange(
+      module[name].text(result),
+      { line: s.line, ch: s.ch },
+      { line: cursor.line, ch: cursor.ch },
+      module.settings.autocompleteOrigin
+    );
+    module[name].mark(s.line, s.ch, result);
+    module.autocomplete.hide(name);
+    cm.focus();
+  };
+
+
+  // purpose:   marks the existing content (init or programmatic value set)
+  // arguments: names of the autocompletes, by default the enabled ones and the ones marking without the search (array)
+  // ------------------------------------------------------------------------
+  module.autocomplete.reapplyMarks = (names) => {
+    const enabled = module.autocomplete.enabled();
+
+    names = names || module.settings.autocompletes.filter(name => enabled.includes(name) || module[name].markWhenDisabled);
+    names.forEach(name => module[name].reapplyMarks());
+  };
+
+
+
+  // purpose:   @mentions, inserted as @[Name](id) with "[" and "](id)" hidden in the editor
+  // ------------------------------------------------------------------------
+  module.mention = {};
+
+  // @[Name](id) can't be mistaken for anything else, so it's shown as @Name even without the search
+  module.mention.markWhenDisabled = true;
+
+
+  // purpose:   a mention query is anything up to a whitespace
+  // ------------------------------------------------------------------------
+  module.mention.isValidQuery = (query) => {
+    return !/\s/.test(query);
+  };
+
+
+  // purpose:   fills the result template with the person's avatar (or initials) and name
+  // ------------------------------------------------------------------------
+  module.mention.renderResult = (item, person) => {
+    if(person.avatar){
+      item.querySelector('img').src = person.avatar.photo.versions.sm;
+      item.querySelector('.pos-markdown-mention-avatar-initials').remove();
+    } else {
+      item.querySelector('img').remove();
+      const initials = (person.name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(name => name[0]).join('');
+      item.querySelector('.pos-markdown-mention-avatar-initials').textContent = initials.toUpperCase();
+    }
+    item.querySelector('.pos-markdown-mention-name').textContent = person.name;
+  };
+
+
+  // purpose:   markdown of the picked person
+  // ------------------------------------------------------------------------
+  module.mention.text = (person) => {
+    return `@[${person.name}](${person.id}) `;
+  };
+
+
+  // purpose:   marks the inserted mention
+  // ------------------------------------------------------------------------
+  module.mention.mark = (line, ch, person) => {
+    module.mention.applyMark(line, ch, person.name, person.id);
   };
 
 
@@ -601,11 +790,9 @@ window.pos.modules.markdown = function(settings){
 
     mentionMark.clear();
 
-    // replace @[name](id) with plain @name; guard flag prevents re-entry on the change this fires
+    // replace @[name](id) with plain @name; the origin keeps the change listener from handling this change
     const origCh = cursor.ch;
-    module.mention.cleaningUp = true;
-    cm.replaceRange('@' + displayName, range.from, endPos);
-    module.mention.cleaningUp = false;
+    cm.replaceRange('@' + displayName, range.from, endPos, module.settings.autocompleteOrigin);
 
     // restore cursor: removing the hidden '[' shifts positions after it back by one
     const newCh = origCh > range.from.ch + 1 ? origCh - 1 : origCh;
@@ -638,7 +825,7 @@ window.pos.modules.markdown = function(settings){
   };
 
 
-  // purpose:   re-applies mention marks on existing content (init or programmatic value set)
+  // purpose:   re-applies mention marks on existing content
   // ------------------------------------------------------------------------
   module.mention.reapplyMarks = () => {
     pos.modules.debug(module.settings.debug, module.settings.id, 'Re-applying @mention marks', module.settings.mention);
@@ -655,24 +842,131 @@ window.pos.modules.markdown = function(settings){
   };
 
 
-  // purpose:   replaces the @query text with the selected mention
+
+  // purpose:   #hashtags, inserted as plain #name text
   // ------------------------------------------------------------------------
-  module.mention.insert = (person) => {
-    pos.modules.debug(module.settings.debug, module.settings.id, 'Inserting @mention to the editor', person);
+  module.hashtag = {};
+
+  // a plain #word is only a hashtag when hashtags are enabled
+  module.hashtag.markWhenDisabled = false;
+
+
+  // purpose:   a hashtag query is made of the allowed characters only
+  // ------------------------------------------------------------------------
+  module.hashtag.isValidQuery = (query) => {
+    return module.settings.hashtag.allowed.test(query);
+  };
+
+
+  // purpose:   normalizes a search result to the hashtag name without the leading '#'
+  // arguments: result from the search, an object with name or a string
+  // returns:   hashtag name (string)
+  // ------------------------------------------------------------------------
+  module.hashtag.name = (result) => {
+    return String(typeof result === 'string' ? result : result?.name || '').trim().replace(/^#+/, '');
+  };
+
+
+  // purpose:   turns the search results into hashtag names, leaving out the ones that can't be typed as a
+  //            hashtag, as they wouldn't be recognized as one later
+  // ------------------------------------------------------------------------
+  module.hashtag.prepare = (results) => {
+    return results.map(module.hashtag.name).filter(name => module.settings.hashtag.allowed.test(name));
+  };
+
+
+  // purpose:   fills the result template with the hashtag name
+  // ------------------------------------------------------------------------
+  module.hashtag.renderResult = (item, name) => {
+    item.querySelector('.pos-markdown-hashtag-name').textContent = name;
+  };
+
+
+  // purpose:   text of the picked hashtag
+  // ------------------------------------------------------------------------
+  module.hashtag.text = (name) => {
+    return `#${name} `;
+  };
+
+
+  // purpose:   marks the inserted hashtag
+  // ------------------------------------------------------------------------
+  module.hashtag.mark = (line, ch, name) => {
+    module.hashtag.applyMark(line, ch, name);
+  };
+
+
+  // purpose:   when a change touches an existing hashtag mark, removes the styling unless the text is still
+  //            the same hashtag standing on its own - the hashtag is plain '#name' text, so there is no
+  //            hidden markdown to strip, and typing on re-opens the popup for the edited name
+  // ------------------------------------------------------------------------
+  module.hashtag.cleanupIfEditingMark = () => {
+    const cm = module.settings.easyMde.codemirror;
+    const cursor = cm.getCursor();
+
+    // also check one char left to catch right-edge deletions
+    const positions = [cursor];
+    if (cursor.ch > 0) positions.push({ line: cursor.line, ch: cursor.ch - 1 });
+
+    for (const pos of positions) {
+      for (const hashtagMark of cm.findMarksAt(pos).filter(m => m.className === 'pos-markdown-hashtag-mark')) {
+        const range = hashtagMark.find();
+        if (!range) continue;
+
+        const line = cm.getLine(range.from.line);
+        const charBefore = range.from.ch > 0 ? line[range.from.ch - 1] : ' ';
+        const charAfter = line[range.to.ch] || ' ';
+        const unchanged = cm.getRange(range.from, range.to) === '#' + hashtagMark.hashtagName;
+
+        if (!unchanged || !/\s/.test(charBefore) || module.settings.hashtag.allowed.test(charAfter)) {
+          hashtagMark.clear();
+        }
+      }
+    }
+  };
+
+
+  // purpose:   styles a single '#name' hashtag
+  // ------------------------------------------------------------------------
+  module.hashtag.applyMark = (line, hashCh, name) => {
+    const hashtagMark = module.settings.easyMde.codemirror.markText(
+      { line, ch: hashCh },
+      { line, ch: hashCh + 1 + name.length },
+      { className: 'pos-markdown-hashtag-mark' }
+    );
+    // to tell later whether the marked text was edited
+    hashtagMark.hashtagName = name;
+  };
+
+
+  // purpose:   re-applies hashtag marks on existing content
+  // ------------------------------------------------------------------------
+  module.hashtag.reapplyMarks = () => {
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Re-applying #hashtag marks', module.settings.hashtag);
 
     const cm = module.settings.easyMde.codemirror;
-    const s = module.settings.mention.state;
-    if (!s) return;
-    const cursor = cm.getCursor();
-    cm.replaceRange(
-      `@[${person.name}](${person.id}) `,
-      { line: s.line, ch: s.atCh },
-      { line: cursor.line, ch: cursor.ch }
-    );
-    module.mention.applyMark(s.line, s.atCh, person.name, person.id);
-    module.mention.hide();
-    cm.focus();
+    // a '#' starting a word, followed by allowed characters (so not '# heading', '##heading' or 'page#anchor')
+    const regex = /(^|\s)#([\p{L}\p{N}_-]+)/gu;
+    for (let line = 0; line < cm.lineCount(); line++) {
+      regex.lastIndex = 0;
+      let match;
+      while ((match = regex.exec(cm.getLine(line))) !== null) {
+        module.hashtag.applyMark(line, match.index + match[1].length, match[2]);
+      }
+    }
   };
+
+
+
+  // purpose:   shortcuts to the shared functions for each autocomplete, e.g. module.mention.hide()
+  // ------------------------------------------------------------------------
+  module.settings.autocompletes.forEach(name => {
+    module[name].renderPopup = results => module.autocomplete.renderPopup(name, results);
+    module[name].updatePopupPosition = () => module.autocomplete.updatePopupPosition(name);
+    module[name].hide = () => module.autocomplete.hide(name);
+    module[name].cancelSearch = () => module.autocomplete.cancelSearch(name);
+    module[name].insert = result => module.autocomplete.insert(name, result);
+  });
 
 
 

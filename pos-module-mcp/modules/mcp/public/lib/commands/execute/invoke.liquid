@@ -207,6 +207,10 @@
     # Steps 8+9, READ: execute, then attest the outcome.
     function exec = 'modules/mcp/commands/execute/run', tool: tool, arguments: val_args, principal: principal, agent: agent, context_meta: context_meta
     assign le['execution_outcome'] = exec.outcome
+    # A result that broke the tool's output_schema is a server-side fault (-32603).
+    unless exec.error_code == blank
+      assign le['error_code'] = exec.error_code
+    endunless
     unless exec.subject_type == blank
       assign le['subject_type'] = exec.subject_type
       assign le['subject_id'] = exec.subject_id

@@ -1,7 +1,10 @@
 {%- comment -%}
   MCP `tasks/cancel` (Tasks extension, "Task Cancellation"). The requester withdraws
   its own approval-gated action. A PENDING approval moves to cancelled under the row
-  lock (approval/claim), so it can no longer be approved and its queue slot is freed.
+  lock (approval/claim), so it can no longer be approved and its queue slot is freed;
+  the claim attests the withdrawal in the ledger (execution_outcome cancelled,
+  authz_reason cancelled_by:requester, linked to the request by request_id). A request
+  already past its window ends expired instead.
   Cancellation is cooperative: an approval an operator already decided, or that is
   already running, keeps its outcome; the request is still acknowledged with an empty
   result. Self-scoped (tasks/find_owned).
@@ -18,7 +21,7 @@
 
   assign rec = found.rec
   if rec.status == 'pending'
-    function _claim = 'modules/mcp/commands/approval/claim', id: rec.id, handle: rec.handle, status: 'cancelled', decided_by: 'agent:self', result_summary: 'Cancelled by requester'
+    function _claim = 'modules/mcp/commands/approval/claim', id: rec.id, handle: rec.handle, status: 'cancelled', decided_by: 'agent:self', result_summary: 'Cancelled by requester', ledger_reason: 'cancelled_by:requester'
   endif
 
   assign ack = {}

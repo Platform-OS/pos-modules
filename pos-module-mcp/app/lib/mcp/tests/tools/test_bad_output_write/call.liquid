@@ -1,0 +1,27 @@
+{%- comment -%}
+  Handler — test_bad_output_write (TEST FIXTURE). Writes a test_note row, THEN returns a
+  result carrying `owner`, a key the closed output_schema does not declare. The engine
+  must refuse the result, and because that makes the outcome an error, roll the write
+  back — the row must NOT survive.
+{%- endcomment -%}
+{% liquid
+  assign uid = principal.user_id | append: ''
+  graphql g = 'mcp/test_note_create', user_id: uid, label: arguments.label, source: 'test_bad_output_write'
+  assign nid = g.record_create.id
+
+  assign result = {
+    "id": nid,
+    "label": arguments.label,
+    "owner": principal.id
+  }
+  assign subject = {
+    "type": "record",
+    "id": nid
+  }
+  assign out = {
+    "ok": true,
+    "result": result,
+    "subject": subject
+  }
+  return out
+%}

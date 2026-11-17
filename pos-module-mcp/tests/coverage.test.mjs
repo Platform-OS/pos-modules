@@ -47,6 +47,12 @@ async function ledgerFor(principalId) {
   const r = await adm.gql(`{ records(per_page: 200, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }] }, sort: [{ id: { order: ASC } }]) { results { outcome: property(name: "execution_outcome") tool: property(name: "tool_name") authz: property(name: "authz_decision") } } }`);
   return r?.data?.records?.results || [];
 }
+// The newest ledger rows of one principal for one tool (DESC, so a long ledger never
+// pushes them off the page).
+async function recentLedgerFor(principalId, toolName, perPage = 50) {
+  const r = await adm.gql(`{ records(per_page: ${perPage}, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "tool_name", value: "${toolName}" }] }, sort: [{ id: { order: DESC } }]) { results { id outcome: property(name: "execution_outcome") code: property(name: "error_code") } } }`);
+  return r?.data?.records?.results || [];
+}
 async function pendingFor(principalId) {
   const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }) { results { id } } }`);
   return r?.data?.records?.results || [];
@@ -59,6 +65,17 @@ async function clearAbuse(principal) {
   const r = await adm.gql(`{ records(per_page: 200, filter: { table: { value: "modules/mcp/mcp_rate_counter" } properties: [{ name: "key", starts_with: "abuse:${principal}" }] }) { results { id } } }`);
   for (const row of (r?.data?.records?.results || [])) await adm.recordDelete('modules/mcp/mcp_rate_counter', row.id);
 }
+async function suspendEntriesFor(principalId) {
+  const r = await adm.gql(`{ records(per_page: 50, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "method", value: "security/suspend" }] }, sort: [{ id: { order: DESC } }]) { results { subject_type: property(name: "subject_type") subject_id: property(name: "subject_id") audit_json: property(name: "audit_json") } } }`);
+  return r?.data?.records?.results || [];
+}
+// The instance's clock (unix seconds), from the Date header of a response: the abuse
+// window is computed on the server, so a test aimed at a boundary must use its clock.
+function serverNowFrom(res) {
+  const d = Date.parse(res.headers.get('date') || '');
+  return Number.isNaN(d) ? Date.now() / 1000 : d / 1000 + 0.5; // header has 1 s resolution
+}
+const isSuspended = (r) => r.status === 401 || r.json?.error?.code === -32001;
 // Clear a principal's idempotency records — the fixed fixtures use FIXED keys, so a prior
 // run's cached result would otherwise replay (no new write) and break re-runs.
 async function clearIdempotencyFor(principalId) {
@@ -66,9 +83,25 @@ async function clearIdempotencyFor(principalId) {
   for (const row of (r?.data?.records?.results || [])) await adm.recordDelete('modules/mcp/mcp_idempotency', row.id);
 }
 async function pendingRecordsFor(principalId) {
-  const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }, sort: [{ id: { order: DESC } }]) { results { id handle: property(name: "handle") } } }`);
+  const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }, sort: [{ id: { order: DESC } }]) { results { id handle: property(name: "handle") request_id: property(name: "request_id") } } }`);
   return r?.data?.records?.results || [];
 }
+// Every ledger entry of one approval-gated request, oldest first. The request_id on the
+// approval row links the pending_approval entry to the entry recording how it ended.
+async function ledgerForRequest(requestId) {
+  if (!requestId) return [];
+  const r = await adm.gql(`{ records(per_page: 20, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "request_id", value: "${requestId}" }] }, sort: [{ id: { order: ASC } }]) { results { outcome: property(name: "execution_outcome") authz: property(name: "authz_decision") reason: property(name: "authz_reason") code: property(name: "error_code") principal: property(name: "principal_id") tool: property(name: "tool_name") } } }`);
+  return r?.data?.records?.results || [];
+}
+// The request's ledger story: pending_approval first, then exactly one entry for how it ended.
+function endedAs(entries, outcome) {
+  return entries.length === 2 && entries[0].outcome === 'pending_approval' && entries[1].outcome === outcome;
+}
+async function requestIdOf(handle) {
+  const r = await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "handle", value: "${handle}" }] }) { results { request_id: property(name: "request_id") } } }`);
+  return r?.data?.records?.results?.[0]?.request_id;
+}
+const showLedger = (entries) => JSON.stringify(entries.map(e => [e.outcome, e.authz, e.reason, e.code]));
 async function recordUpdate(table, id, props) {
   const p = Object.entries(props).map(([k, v]) => `{ name: "${k}", value: ${JSON.stringify(String(v))} }`).join(' ');
   const r = await adm.gql(`mutation { record_update(id: ${id}, record: { table: "${table}" properties: [ ${p} ] }) { id } }`);
@@ -133,7 +166,7 @@ async function purgeUserRecords(userId) {
 }
 
 // ---- fixture handles (resolved in beforeAll) ----
-let op, mem, out, rate, abuseA, abuseB, abuseC, validator, narrowTok, revokeTok;
+let op, mem, out, rate, abuseA, abuseB, abuseC, abuseD, validator, narrowTok, revokeTok;
 
 describe('coverage · multi-principal governance planes', () => {
   beforeAll(async () => {
@@ -141,7 +174,7 @@ describe('coverage · multi-principal governance planes', () => {
     // Deterministic fixtures (TASK-5): (re-)import the fixed users/profiles/tokens to baseline.
     await applyReset(adm.gql);
     op = FIXT.users.operator; mem = FIXT.users.member; out = FIXT.users.outsider;
-    rate = FIXT.users.rate; abuseA = FIXT.users.abuseA; abuseB = FIXT.users.abuseB; abuseC = FIXT.users.abuseC; validator = FIXT.users.validator;
+    rate = FIXT.users.rate; abuseA = FIXT.users.abuseA; abuseB = FIXT.users.abuseB; abuseC = FIXT.users.abuseC; abuseD = FIXT.users.abuseD; validator = FIXT.users.validator;
     narrowTok = mem.tokens.find(t => t.label === 'fixt-narrow');   // pre-seeded, allowed_tools:[test_public]
     revokeTok = mem.tokens.find(t => t.label === 'fixt-revoke');   // pre-seeded, revoked+reset per run
   });
@@ -149,7 +182,7 @@ describe('coverage · multi-principal governance planes', () => {
   afterAll(async () => {
     // ---- reset transient state + restore fixtures to baseline (no user teardown) ----
     await unsetConstant('MCP_CONFIG');
-    const principals = [op, mem, out, rate, abuseA, abuseB, abuseC, validator];
+    const principals = [op, mem, out, rate, abuseA, abuseB, abuseC, abuseD, validator];
     for (const h of principals) { if (!h) continue; try { await deleteNotesFor(h.userId); } catch {} try { await clearPendingFor(h.principal); } catch {} try { await pruneRate(adm, h.principal); } catch {} try { await clearAbuse(h.principal); } catch {} try { await clearIdempotencyFor(h.principal); } catch {} }
     for (const h of [out, mem]) { try { await purgeUserRecords(h.userId); } catch {} }
     try { await applyReset(adm.gql); } catch {}
@@ -282,6 +315,8 @@ describe('coverage · multi-principal governance planes', () => {
       const opNotes = (await notesFor(op.userId)).filter(x => x.source === 'test_approve');
       ok('approved action EXECUTED (row now exists)', memNotes.length === 1 && memNotes[0].label === 'execnow', 'member rows=' + memNotes.length);
       ok('executed AS THE ORIGINAL PRINCIPAL (member owns it, not the operator)', memNotes.length === 1 && opNotes.length === 0, 'op rows=' + opNotes.length);
+      const led = await ledgerForRequest(pend[0]?.request_id);
+      ok('ledger: pending_approval, then success naming the approver', endedAs(led, 'success') && led[1].reason === 'approved_by:' + op.userId && led[1].principal === mem.principal, showLedger(led));
     }
   });
 
@@ -301,6 +336,8 @@ describe('coverage · multi-principal governance planes', () => {
       ok('approval of a revoked requester does NOT execute', rows.length === 0, 'rows=' + rows.length);
       const st = (await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_PENDING}" } id: { value: "${pend[0]?.id}" } }) { results { status: property(name: "status") summary: property(name: "result_summary") } } }`))?.data?.records?.results?.[0];
       ok('approval is failed with "access was revoked"', st?.status === 'failed' && /access was revoked/.test(st?.summary || ''), JSON.stringify(st));
+      const led = await ledgerForRequest(pend[0]?.request_id);
+      ok('ledger: the refusal at execution is attested as denied -32001, naming the approver and the cause', endedAs(led, 'denied') && led[1].authz === 'deny' && Number(led[1].code) === -32001 && led[1].reason === 'approved_by:' + op.userId + ';token_revoked' && led[1].principal === mem.principal, showLedger(led));
     } finally {
       await recordUpdate('modules/mcp/mcp_token', revokeTok.id, { status: 'active' }); // seeded baseline; the lifecycle test revokes it later
       await clearPendingFor(mem.principal);
@@ -330,13 +367,18 @@ describe('coverage · multi-principal governance planes', () => {
     await callTool(mem.rawToken, 'test_approve', { label: 'bulk1' });
     await callTool(mem.rawToken, 'test_approve', { label: 'bulk2' });
     {
-      ok('two pending queued', (await pendingFor(mem.principal)).length === 2, 'pending=' + (await pendingFor(mem.principal)).length);
+      const pend = await pendingRecordsFor(mem.principal);
+      ok('two pending queued', pend.length === 2, 'pending=' + pend.length);
       ok('operator reaches the console (login ok)', await operatorLogin(op));
       const tok = _formTok(await (await webGet('mcp-admin')).text());
       const r = await webPost('mcp-admin/reject-principal', { authenticity_token: tok, principal_id: mem.principal });
       ok('reject-principal POST accepted', r.status === 302 || r.status === 200, 'status=' + r.status);
       ok('no pending left for the principal', (await pendingFor(mem.principal)).length === 0, 'pending=' + (await pendingFor(mem.principal)).length);
       ok('bulk-rejected actions never executed', (await notesFor(mem.userId)).filter(x => x.source === 'test_approve').length === 0);
+      for (const p of pend) {
+        const led = await ledgerForRequest(p.request_id);
+        ok('ledger: each bulk-rejected request is attested as rejected by the operator', endedAs(led, 'rejected') && led[1].authz === 'deny' && led[1].reason === 'bulk_rejected_by:' + op.userId && led[1].principal === mem.principal, showLedger(led));
+      }
     }
   });
 
@@ -352,6 +394,49 @@ describe('coverage · multi-principal governance planes', () => {
       ok('reject POST accepted', rejectRes.status === 302 || rejectRes.status === 200, 'status=' + rejectRes.status);
       const memNotes = (await notesFor(mem.userId)).filter(x => x.source === 'test_approve' && x.label === 'rejectme');
       ok('rejected action NEVER executed (no row)', memNotes.length === 0, 'rows=' + memNotes.length);
+      const led = await ledgerForRequest(pend[0]?.request_id);
+      ok('ledger: pending_approval, then rejected naming the operator', endedAs(led, 'rejected') && led[1].authz === 'deny' && led[1].reason === 'rejected_by:' + op.userId && led[1].principal === mem.principal && led[1].tool === 'test_approve', showLedger(led));
+      const again = await webPost('mcp-admin/reject', { authenticity_token: _formTok(adminPage), handle });
+      ok('rejecting again changes nothing and is not ledgered twice', (again.status === 302 || again.status === 200) && (await ledgerForRequest(pend[0]?.request_id)).length === 2);
+    }
+  });
+
+  // Two requests to the same tool from the same token differ only in their arguments; the
+  // operator must see those arguments (escaped) to tell a routine action from a harmful one.
+  it('Approval — the console shows each pending request\'s arguments, escaped (§9.6)', async () => {
+    await clearPendingFor(mem.principal);
+    await deleteNotesFor(mem.userId);
+    const ROUTINE = 'Team meeting moved to 3pm in the main hall.';
+    const PHISH = 'Locked! Log in at https://evil.example/?a=1&b=2 "now" \'please\'';
+    const decode = (t) => t.replace(/&quot;/g, '"').replace(/&#39;|&#x27;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    // The <dl> rendered for one handle (data-approval-args marks it), or ''.
+    const argsBlock = (html, handle) => {
+      const i = html.indexOf(`data-approval-args="${handle}"`);
+      if (i < 0) return '';
+      const end = html.indexOf('</dl>', i);
+      return html.slice(i, end < 0 ? i + 4000 : end);
+    };
+    try {
+      await callTool(mem.rawToken, 'test_approve', { label: ROUTINE });
+      await callTool(mem.rawToken, 'test_approve', { label: PHISH });
+      const rows = await adm.gql(`{ records(per_page: 10, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${mem.principal}" }, { name: "status", value: "pending" }] }) { results { handle: property(name: "handle") args: property(name: "arguments_json") } } }`);
+      const pend = rows?.data?.records?.results || [];
+      const hRoutine = pend.find(r => (r.args || '').includes('3pm'))?.handle;
+      const hPhish = pend.find(r => (r.args || '').includes('evil.example'))?.handle;
+      ok('two pending requests queued', pend.length === 2 && !!hRoutine && !!hPhish, 'pending=' + pend.length);
+
+      ok('operator reaches the console (login ok)', await operatorLogin(op));
+      const page = await (await webGet('mcp-admin?tab=approvals')).text();
+      const routine = argsBlock(page, hRoutine);
+      const phish = argsBlock(page, hPhish);
+      ok('the routine request shows its arguments', routine.includes('<dt>label</dt>') && decode(routine).includes(ROUTINE), routine.slice(0, 300));
+      ok('the harmful request shows its arguments', phish.includes('<dt>label</dt>') && decode(phish).includes(PHISH), phish.slice(0, 300));
+      ok('each row shows only its own arguments', !routine.includes('evil.example') && !phish.includes('3pm'));
+      ok('argument text is HTML-escaped (no raw quote or ampersand)', !phish.includes('"now"') && !phish.includes('&b=2') && phish.includes('&amp;b=2'), phish.slice(0, 300));
+      ok('the confirmation names the tool and principal', page.includes(`Approve and EXECUTE test_approve as ${mem.principal} with the arguments shown?`));
+      ok('showing the arguments ran nothing', (await notesFor(mem.userId)).filter(x => x.source === 'test_approve').length === 0);
+    } finally {
+      await clearPendingFor(mem.principal);
     }
   });
 
@@ -410,6 +495,31 @@ describe('coverage · multi-principal governance planes', () => {
       await webPost('mcp-admin/approve', { authenticity_token: _formTok(adminPage), handle: pend[0].handle });
       const memNotes = (await notesFor(mem.userId)).filter(x => x.source === 'test_approve' && x.label === 'expireme');
       ok('approving an EXPIRED approval does NOT execute (no row)', memNotes.length === 0, 'rows=' + memNotes.length);
+      const led = await ledgerForRequest(pend[0].request_id);
+      ok('ledger: pending_approval, then expired', endedAs(led, 'expired') && led[1].authz === 'not_applicable' && led[1].reason === 'expired', showLedger(led));
+    }
+  });
+
+  it('Approval — an expired request is closed and attested without an operator decision (§9.6)', async () => {
+    await clearPendingFor(mem.principal);
+    await deleteNotesFor(mem.userId);
+    await callTool(mem.rawToken, 'test_approve', { label: 'expirequiet' });
+    {
+      const pend = await pendingRecordsFor(mem.principal);
+      ok('one pending to expire', pend.length === 1, 'pending=' + pend.length);
+      await recordUpdate(T_PENDING, pend[0].id, { expires_at: '1' });
+      // Opening the console closes approvals past their window (approval/expire_due);
+      // nobody approves or rejects.
+      ok('operator reaches the console (login ok)', await operatorLogin(op));
+      const page = await (await webGet('mcp-admin?tab=approvals')).text();
+      ok('the expired request is no longer listed as pending', !page.includes(pend[0].handle));
+      const st = (await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_PENDING}" } id: { value: "${pend[0].id}" } }) { results { status: property(name: "status") decided_by: property(name: "decided_by") } } }`))?.data?.records?.results?.[0];
+      ok('the row is marked expired by the system', st?.status === 'expired' && st?.decided_by === 'system:expiry', JSON.stringify(st));
+      const led = await ledgerForRequest(pend[0].request_id);
+      ok('ledger: pending_approval, then expired', endedAs(led, 'expired') && led[1].reason === 'expired' && led[1].principal === mem.principal, showLedger(led));
+      await webGet('mcp-admin?tab=approvals');
+      ok('a second console load does not attest it again', (await ledgerForRequest(pend[0].request_id)).length === 2);
+      ok('nothing executed', (await notesFor(mem.userId)).filter(x => x.label === 'expirequiet').length === 0);
     }
   });
 
@@ -515,6 +625,9 @@ describe('coverage · multi-principal governance planes', () => {
   });
 
   it('Validation matrix (§10, strict, no coercion)', async () => {
+    // Each rejected argument is a policy violation; the matrix has more cases than the
+    // default abuse threshold (20), so raise it for this test (afterEach unsets it).
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 100 } }));
     const V = (args) => callTool(validator.rawToken, 'test_validate', args); // dedicated: its many arg-rejections don't accrue on `member`
     const rej = (r) => r.status === 200 && r.json?.result?.isError === true && Array.isArray(r.json.result.structuredContent?.validation_errors);
     const valid = { kind: 'alpha', count: 5, ratio: 0.5, email: 'a@b.co', uid: '123e4567-e89b-12d3-a456-426614174000', when: '2026-01-01T00:00:00Z', tags: ['x'], code: 'abc' };
@@ -528,6 +641,11 @@ describe('coverage · multi-principal governance planes', () => {
     await bad('format email: bad value rejected', { email: 'not-an-email' });
     await bad('format uuid: bad value rejected', { uid: 'nope' });
     await bad('format date-time: bad value rejected', { when: 'yesterday' });
+    ok('format date-time: an offset time zone accepted', isOkResult(await V({ ...valid, when: '2026-01-01T10:00:00.5+02:00' })));
+    await bad('format date-time: missing time zone rejected', { when: '2026-01-01T00:00:00' });
+    await bad('format date-time: trailing text rejected', { when: '2026-01-01T00:00:00Zjunk' });
+    await bad('format date-time: hour 25 rejected', { when: '2026-01-01T25:00:00Z' });
+    await bad('format date-time: impossible day rejected', { when: '2026-02-30T00:00:00Z' });
     ok('format date: a real calendar day accepted (leap day 2024-02-29)', isOkResult(await V({ ...valid, day: '2024-02-29' })));
     await bad('format date: impossible day rejected (2026-02-31)', { day: '2026-02-31' });
     await bad('format date: not a leap year rejected (1900-02-29)', { day: '1900-02-29' });
@@ -539,6 +657,7 @@ describe('coverage · multi-principal governance planes', () => {
     await bad('array: item type rejected', { tags: [1, 2] });
     await bad('string: minLength rejected', { code: 'a' });
     await bad('string: pattern rejected', { code: 'AB' });
+    await bad('string: ^…$ anchors the whole value, not a line (ECMA-262)', { code: 'ab\nc' });
     ok('additionalProperties:false → unknown key rejected', rej(await V({ ...valid, surprise: 1 })));
   });
 
@@ -565,16 +684,16 @@ describe('coverage · multi-principal governance planes', () => {
     await pruneRate(adm, rate.principal);
   });
 
-  it('Abuse — windowed counter resets across windows (§12.4)', async () => {
+  it('Abuse — violations older than the window drop out (§12.4)', async () => {
     await clearAbuse(abuseB.principal); // dedicated principal = clean slate
     await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 3, abuse_window_seconds: 1 } }));
     await callTool(abuseB.rawToken, 'test_admin', {}); // deny = violation (window A)
     await callTool(abuseB.rawToken, 'test_admin', {});
-    await new Promise(r => setTimeout(r, 1500)); // roll to window B
+    await new Promise(r => setTimeout(r, 1500)); // the first two are now older than the 1 s window
     await callTool(abuseB.rawToken, 'test_admin', {}); // window B
     await callTool(abuseB.rawToken, 'test_admin', {});
     const after = await callTool(abuseB.rawToken, 'test_public', {});
-    ok('violations split across windows do NOT accumulate to suspend', after.status === 200, 'status=' + after.status);
+    ok('violations older than the rolling window do NOT accumulate to suspend', after.status === 200, 'status=' + after.status);
     await unsetConstant('MCP_CONFIG');
   });
 
@@ -584,6 +703,79 @@ describe('coverage · multi-principal governance planes', () => {
     for (let i = 0; i < 4; i++) await callTool(abuseC.rawToken, 'no_such_tool_xyz', {}); // unknown-tool violations
     const after = await callTool(abuseC.rawToken, 'test_public', {});
     ok('repeated unknown-tool attempts → token suspended (401)', after.status === 401, 'status=' + after.status);
+    await unsetConstant('MCP_CONFIG');
+  });
+
+  it('Rate limiting — per token: one agent exhausting its bucket does not throttle the person\'s other tokens (§12.4)', async () => {
+    const [mainTok, narrowD] = abuseD.tokens;
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 3 } }));
+    await pruneRate(adm, abuseD.principal);
+    await awaitFreshRateWindow();
+    {
+      const codes = [];
+      for (let i = 0; i < 4; i++) { const r = await callTool(narrowD.raw, 'test_public', {}); codes.push(r.json?.error?.code ?? r.status); }
+      ok('the chatty token exhausts its own bucket → -32004', codes.slice(0, 3).every(c => c === 200) && codes[3] === -32004, codes.join(','));
+      const other = await callTool(mainTok.raw, 'test_public', {});
+      ok('another token of the SAME person still has its own budget', isOkResult(other), other.text.slice(0, 200));
+    }
+    await unsetConstant('MCP_CONFIG');
+    await pruneRate(adm, abuseD.principal);
+    await clearAbuse(abuseD.principal);
+  });
+
+  it('Abuse — only the token that made the violations is suspended (§12.4)', async () => {
+    // Regression: violations were counted per person and the token making the NEXT call
+    // was revoked, so a narrowed token's bad calls got the person's main token revoked.
+    const [mainTok, narrowD] = abuseD.tokens;
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 3, abuse_window_seconds: 600 } }));
+    await clearAbuse(abuseD.principal);
+    await pruneRate(adm, abuseD.principal);
+    {
+      ok('main token works', isOkResult(await callTool(mainTok.raw, 'test_public', {})));
+      for (let i = 0; i < 3; i++) await callTool(narrowD.raw, 'test_member', {}); // outside its allowed_tools → violation
+      const main1 = await callTool(mainTok.raw, 'test_public', {});
+      const main2 = await callTool(mainTok.raw, 'test_public', {});
+      ok('the innocent main token is NOT suspended by the narrowed token\'s violations', isOkResult(main1) && isOkResult(main2), main1.text.slice(0, 200) + ' | ' + main2.text.slice(0, 200));
+      const bad = await callTool(narrowD.raw, 'test_public', {});
+      ok('the narrowed token that misbehaved IS suspended', bad.json?.error?.code === -32001 && bad.json?.error?.message === 'Access suspended', bad.text.slice(0, 200));
+      const badAgain = await callTool(narrowD.raw, 'test_public', {});
+      ok('…and stays revoked (401)', badAgain.status === 401, 'status=' + badAgain.status);
+      const main3 = await callTool(mainTok.raw, 'test_public', {});
+      ok('the main token keeps working after the suspension', isOkResult(main3), main3.text.slice(0, 200));
+      const rows = await tokensFor(abuseD.userId);
+      const st = Object.fromEntries(rows.map(t => [String(t.id), t.status]));
+      ok('token statuses: main active, narrowed revoked', st[mainTok.id] === 'active' && st[narrowD.id] === 'revoked', JSON.stringify(st));
+      const entry = (await suspendEntriesFor(abuseD.principal))[0];
+      ok('security/suspend ledger entry names the revoked token', entry?.subject_type === 'token' && String(entry?.subject_id) === narrowD.id, JSON.stringify(entry || {}));
+      let audit = {}; try { audit = JSON.parse(entry?.audit_json || '{}'); } catch {}
+      ok('…with the token, its count and the threshold in audit_json', String(audit.token_id) === narrowD.id && Number(audit.violations) >= 3 && Number(audit.threshold) === 3, entry?.audit_json);
+    }
+    await unsetConstant('MCP_CONFIG');
+  });
+
+  it('Abuse — the window rolls: violations either side of a clock boundary add up (§12.4)', async () => {
+    // Regression: the window was a clock-aligned bucket, so violations split by a
+    // boundary never accumulated. With a 10 s window, 2 violations just before a
+    // multiple of 10 s (server clock) and 2 just after must suspend at threshold 3.
+    await clearAbuse(abuseB.principal);
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 3, abuse_window_seconds: 10 } }));
+    {
+      const probe = await callTool(abuseB.rawToken, 'test_public', {});
+      ok('token works before the test', isOkResult(probe), probe.text.slice(0, 200));
+      const offset = serverNowFrom(probe) - Date.now() / 1000;
+      const serverNow = () => Date.now() / 1000 + offset;
+      const sleepUntil = async (t) => { const ms = (t - serverNow()) * 1000; if (ms > 0) await new Promise(r => setTimeout(r, ms)); };
+      let boundary = Math.ceil(serverNow() / 10) * 10;
+      if (boundary - serverNow() < 4) boundary += 10;
+      await sleepUntil(boundary - 3.5);
+      await callTool(abuseB.rawToken, 'test_admin', {}); // deny = violation, before the boundary
+      await callTool(abuseB.rawToken, 'test_admin', {});
+      await sleepUntil(boundary + 1.5);
+      await callTool(abuseB.rawToken, 'test_admin', {}); // after the boundary
+      await callTool(abuseB.rawToken, 'test_admin', {});
+      const after = await callTool(abuseB.rawToken, 'test_public', {});
+      ok('violations straddling a boundary still suspend the token', isSuspended(after), 'status=' + after.status + ' ' + after.text.slice(0, 200));
+    }
     await unsetConstant('MCP_CONFIG');
   });
 
@@ -613,6 +805,49 @@ describe('coverage · multi-principal governance planes', () => {
     ok('a malformed annotation excludes the tool from tools/list', tools.length > 0 && !tools.some(t => t.name === 'test_bad_annotations'), tools.map(t => t.name).join(','));
     const call = await callTool(mem.rawToken, 'test_bad_annotations', {});
     ok('the excluded tool cannot be called', call.json?.error?.code === -32602 || call.json?.result?.isError === true, JSON.stringify(call.json?.error || call.json?.result || {}).slice(0, 120));
+  });
+
+  it('Output contract — a result that breaks the declared outputSchema is never served (MCP: servers MUST conform)', async () => {
+    const r = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, mem.rawToken);
+    const listed = (r.json?.result?.tools || []).find(t => t.name === 'test_bad_output');
+    ok('the probe advertises its closed outputSchema', listed?.outputSchema?.additionalProperties === false && listed?.outputSchema?.properties?.count?.type === 'integer', JSON.stringify(listed?.outputSchema || {}).slice(0, 200));
+    const names = (r.json?.result?.tools || []).map(t => t.name);
+    for (const invalid of ['test_bad_schema_crash', 'test_bad_schema_values']) {
+      ok(`a schema with keyword values of the wrong type is excluded from tools/list, the others still listed (${invalid})`, names.includes('test_bad_output') && !names.includes(invalid), names.join(','));
+      const ex = await callTool(mem.rawToken, invalid, {});
+      ok(`the excluded tool cannot be called (${invalid})`, ex.json?.error?.code === -32602 || ex.json?.result?.isError === true, JSON.stringify(ex.json?.error || ex.json?.result || {}).slice(0, 120));
+    }
+
+    const call = (mode) => callTool(mem.rawToken, 'test_bad_output', { mode });
+    const good = await call('ok');
+    const sc = good.json?.result?.structuredContent;
+    ok('a conforming result (null where "null" is listed) is served as a success', isOkResult(good) && good.json?.result?.isError === false && sc?.count === 1 && sc?.label === null && Array.isArray(sc?.tags), JSON.stringify(good.json?.result || {}).slice(0, 200));
+    ok('enum, pattern and date-time values that conform are served (null where the enum lists null too)', sc?.status === 'open' && sc?.phase === null && sc?.code === 'abc' && sc?.at === '2026-01-01T00:00:00Z', JSON.stringify(sc || {}).slice(0, 200));
+
+    const ledgerStart = Math.max(0, ...(await recentLedgerFor(mem.principal, 'test_bad_output', 1)).map(x => Number(x.id)));
+    const wLedgerStart = Math.max(0, ...(await recentLedgerFor(mem.principal, 'test_bad_output_write', 1)).map(x => Number(x.id)));
+    const refused = (res) => res.status === 200 && res.json?.result?.isError === true && res.json.result.structuredContent === undefined && /does not match its declared output schema/.test(res.json.result.content?.[0]?.text || '');
+    // enum_null: null is listed in `type` but not in `enum` (both keywords apply).
+    // pattern_newline: ^[a-z]+$ anchors the whole string for clients (ECMA-262), so a
+    // second line after a matching first line does not conform.
+    // datetime_no_tz: an RFC 3339 date-time needs a time zone.
+    const BAD_MODES = ['type', 'extra', 'missing', 'null', 'item', 'minimum', 'enum_null', 'pattern_newline', 'datetime_no_tz'];
+    for (const mode of BAD_MODES) {
+      const res = await call(mode);
+      ok(`non-conforming result (${mode}) → tool error, no structuredContent`, refused(res), JSON.stringify(res.json || {}).slice(0, 240));
+      if (mode === 'extra') ok('the refused result does not leak the undeclared field or its value', !/secret|leaked-internal-value/.test(res.text || JSON.stringify(res.json || {})));
+    }
+    const rows = (await recentLedgerFor(mem.principal, 'test_bad_output')).filter(x => Number(x.id) > ledgerStart);
+    ok('each refused result is in the ledger as error -32603', rows.length === BAD_MODES.length && rows.every(x => x.outcome === 'error' && String(x.code) === '-32603'), JSON.stringify(rows));
+
+    // Mutating: the refused result turns the call into an error, so the write rolls back.
+    await deleteNotesFor(mem.userId);
+    const w = await callTool(mem.rawToken, 'test_bad_output_write', { label: 'outcontract' });
+    ok('mutating tool with a non-conforming result → tool error, no structuredContent', refused(w), JSON.stringify(w.json || {}).slice(0, 240));
+    const notes = (await notesFor(mem.userId)).filter(x => x.source === 'test_bad_output_write');
+    ok('its write is rolled back → NO row persisted', notes.length === 0, 'rows=' + notes.length);
+    const wrows = (await recentLedgerFor(mem.principal, 'test_bad_output_write')).filter(x => Number(x.id) > wLedgerStart);
+    ok('the ledger records the mutating call as rolled_back', wrows.some(x => x.outcome === 'rolled_back'), JSON.stringify(wrows));
   });
 
   it('MCP Apps — a tool declares its UI and visibility; app-only tools are hidden from the model; malformed ui excludes the tool', async () => {
@@ -807,8 +1042,10 @@ describe('coverage · multi-principal governance planes', () => {
     ok('task is cancelled with an explanation', after.status === 'cancelled' && /withdrew/.test(after.statusMessage || ''), JSON.stringify(after).slice(0, 160));
     ok('cancelled task carries neither result nor error', after.result === undefined && after.error === undefined);
     ok('cancel frees the pending queue slot', (await pendingFor(mem.principal)).length === 0);
+    const led = await ledgerForRequest(await requestIdOf(taskId));
+    ok('ledger: pending_approval, then cancelled by the requester', endedAs(led, 'cancelled') && led[1].authz === 'not_applicable' && led[1].reason === 'cancelled_by:requester' && led[1].principal === mem.principal, showLedger(led));
     const c2 = await send('tasks/cancel', { taskId }, { token: mem.rawToken, capabilities: TASKS_CAPABILITY });
-    ok('cancelling again is still acknowledged and changes nothing', c2.status === 200 && (await getTask(send, taskId)).json?.result?.status === 'cancelled');
+    ok('cancelling again is still acknowledged and changes nothing', c2.status === 200 && (await getTask(send, taskId)).json?.result?.status === 'cancelled' && (await ledgerForRequest(await requestIdOf(taskId))).length === 2);
     ok('operator reaches the console (login ok)', await operatorLogin(op));
     ok('approving a cancelled task does nothing', (await decide('approve', taskId)) && (await notesFor(mem.userId)).filter(x => x.label === 'task-cancel').length === 0 && (await getTask(send, taskId)).json?.result?.status === 'cancelled');
     await clearPendingFor(mem.principal);
@@ -850,6 +1087,8 @@ describe('coverage · multi-principal governance planes', () => {
     await decide('approve', gone.taskId);
     const g = (await getTask(send, gone.taskId)).json?.result || {};
     ok('tool removed before approval → failed with -32602 Unknown tool', g.status === 'failed' && g.error?.code === -32602 && g.error?.message === 'Unknown tool' && g.result === undefined, JSON.stringify(g).slice(0, 200));
+    const gl = await ledgerForRequest(await requestIdOf(gone.taskId));
+    ok('ledger: the refusal at execution is attested as invalid -32602, naming the approver', endedAs(gl, 'invalid') && Number(gl[1].code) === -32602 && gl[1].reason === 'approved_by:' + op.userId + ';unknown_tool', showLedger(gl));
 
     const broken = await createTask(send, 'task-handler-error');
     await recordUpdate(T_PENDING, await recId(broken.taskId), { tool_name: 'test_fail' });
@@ -857,6 +1096,8 @@ describe('coverage · multi-principal governance planes', () => {
     const b = (await getTask(send, broken.taskId)).json?.result || {};
     ok('handler failure → completed with an isError tool result (not failed)', b.status === 'completed' && b.result?.isError === true && Array.isArray(b.result?.content) && b.error === undefined, JSON.stringify(b).slice(0, 200));
     ok('the failed handler left no row (rolled back)', (await notesFor(mem.userId)).filter(x => x.label === 'task-handler-error').length === 0);
+    const bl = await ledgerForRequest(await requestIdOf(broken.taskId));
+    ok('ledger: the rolled-back execution is attested, naming the approver', endedAs(bl, 'rolled_back') && bl[1].reason === 'approved_by:' + op.userId, showLedger(bl));
 
     const late = await createTask(send, 'task-expired');
     const lateId = await recId(late.taskId);
@@ -867,6 +1108,8 @@ describe('coverage · multi-principal governance planes', () => {
     await decide('approve', late.taskId);
     const e2 = (await getTask(send, late.taskId)).json?.result || {};
     ok('approving after the window still reports expired, nothing ran', e2.status === 'failed' && e2.error?.code === -32005 && (await notesFor(mem.userId)).filter(x => x.label === 'task-expired').length === 0);
+    const el = await ledgerForRequest(await requestIdOf(late.taskId));
+    ok('ledger: pending_approval, then expired (once)', endedAs(el, 'expired') && el[1].reason === 'expired', showLedger(el));
     await clearPendingFor(mem.principal);
   });
 
@@ -1106,6 +1349,35 @@ describe('coverage · multi-principal governance planes', () => {
     memTools = await (await webGet('mcp-tools')).text();
     await webPost('mcp-tools/revoke', { authenticity_token: _formTok(memTools), id: victim?.id });
     ok('owner CAN revoke their own token', (await tokensFor(mem.userId)).find(t => t.id === victim?.id)?.status === 'revoked');
+  });
+
+  it('Token console — operator revoke changes MCP tokens only, never another table (§20)', async () => {
+    // The seeded community event 90401 (tests/seed/seed.mjs, E + 1). record_update is keyed
+    // by id alone, so the page must refuse any id that is not an mcp_token row.
+    const EVENT_ID = '90401';
+    const eventRow = async () => {
+      const r = await adm.gql(`{ records(per_page: 1, filter: { id: { value: "${EVENT_ID}" } }) { results { table status: property(name: "status") } } }`);
+      return r?.data?.records?.results?.[0];
+    };
+    const before = await eventRow();
+    ok('fixture event exists', before?.table === 'modules/community/event', JSON.stringify(before));
+
+    ok('operator reaches the console (login ok)', await operatorLogin(op));
+    let tokensTab = await (await webGet('mcp-admin?tab=tokens')).text();
+    await webPost('mcp-admin/token-revoke', { authenticity_token: _formTok(tokensTab), id: EVENT_ID });
+    const after = await eventRow();
+    ok('operator revoke with a non-token id → the record is unchanged', after?.status === before?.status && after?.status !== 'revoked', JSON.stringify(after));
+
+    // The kill switch still works on a real token.
+    await sessionLogin(mem);
+    const memTools = await (await webGet('mcp-tools')).text();
+    await webPost('mcp-tools/mint', { authenticity_token: _formTok(memTools), label: 'ci-op-revoke' });
+    const target = (await tokensFor(mem.userId)).find(t => t.label === 'ci-op-revoke' && t.status === 'active');
+    ok('member minted a token for the operator to revoke', !!target);
+    await operatorLogin(op);
+    tokensTab = await (await webGet('mcp-admin?tab=tokens')).text();
+    await webPost('mcp-admin/token-revoke', { authenticity_token: _formTok(tokensTab), id: target?.id });
+    ok('operator revoke with a token id → the token is revoked', (await tokensFor(mem.userId)).find(t => t.id === target?.id)?.status === 'revoked');
   });
 
   it('Token console — a label names one agent, so a label in use is refused', async () => {

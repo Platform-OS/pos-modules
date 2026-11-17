@@ -8,6 +8,7 @@ query find_by_refresh_digest($digest: String!) {
   ) {
     results {
       id
+      created_at
       user_id: property(name: "user_id")
       label: property(name: "label")
       status: property(name: "status")

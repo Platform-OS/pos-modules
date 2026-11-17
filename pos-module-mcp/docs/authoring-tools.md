@@ -260,7 +260,7 @@ curl -s -X POST https://<host>/mcp -H 'Content-Type: application/json' \
 | `idempotent` | no | Declares safe retry (Phase 2 idempotency keys). |
 | `title` | no | Display name shown by clients (`tools/list` `title`). String. |
 | `annotations` | no | MCP behaviour hints served in `tools/list`: `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`, each boolean; any other key or a non-boolean value makes the manifest invalid. Hints only — the engine enforces nothing from them. |
-| `output_schema` | no | Served as `outputSchema`. The root must be `type: object`. Checked at load in output mode: a field may list several types including `"null"` (`{"type":["string","null"]}`), and the depth limit is `defaults.max_output_schema_depth` (8). Never used to validate results, so keep every result the handler returns conforming — clients may validate `structuredContent` against it. |
+| `output_schema` | no | Served as `outputSchema`. The root must be `type: object`. Checked at load in output mode: a field may list several types including `"null"` (`{"type":["string","null"]}`), and the depth limit is `defaults.max_output_schema_depth` (8). **Every successful result is validated against it before it is served** (MCP: a server MUST return structured results that conform); a result that does not conform is refused as a tool error. See [Output-schema reference](#output-schema-reference). |
 | `audit_fields` | no | Argument keys recorded verbatim in the ledger (must be non-sensitive). |
 | `timeout_ms` | no | **Reserved.** Type-checked (integer) but not enforced: handlers run without a time limit. A later version may enforce it for tools that set it; tools that omit it will stay unlimited. |
 | `deprecated` | no | Still callable; flagged with a sunset note in `tools/list`. |
@@ -279,7 +279,7 @@ never declare a constraint the engine does not enforce):
 
 - `type`: `object` | `string` | `integer` | `number` | `boolean` | `array`
 - object: `properties`, `required`, `additionalProperties` (always treated as `false`)
-- string: `minLength`, `maxLength`, `pattern` (bounded — no catastrophic backtracking), `enum`, `format` (`date` (a real `YYYY-MM-DD` day) | `date-time` | `email` | `uuid` — any other value makes the manifest invalid, because the engine would not enforce it; use a `pattern` instead)
+- string: `minLength`, `maxLength`, `pattern` (bounded — no catastrophic backtracking; it must compile, and `^`/`$` anchor the whole value as in ECMA-262, the dialect clients use, never a single line), `enum`, `format` (`date` (a real `YYYY-MM-DD` day) | `date-time` (RFC 3339: a real day, time fields in range, time zone `Z` or `±hh:mm` required) | `email` | `uuid` — the whole value must match; any other value makes the manifest invalid, because the engine would not enforce it; use a `pattern` instead)
 - number/integer: `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `enum`
 - array: `items` (single schema), `minItems`, `maxItems`
 - annotations: `description`, `title`, `default`. A `description` or `title` is read by
@@ -287,10 +287,56 @@ never declare a constraint the engine does not enforce):
   (in `input_schema` and `output_schema`); a hit is a warning, reported by the operator
   eval, and does not exclude the tool.
 
+Every keyword value must have its JSON Schema 2020-12 type, or the manifest is invalid:
+numbers for `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum` (not the draft-4
+`true`/`false` form), non-negative integers for `minLength`/`maxLength`/`minItems`/
+`maxItems`, an array of strings for `required`, a non-empty array for `enum`, an object
+for `properties` and `items` (not the tuple form `items: [...]`), strings for
+`pattern`, `format`, `description` and `title`.
+
 Validation is **strict, no coercion**: `"5"` is rejected for an `integer`, a null value
 for a typed field is rejected, unknown keys are rejected. Depth is capped
 (`max_schema_depth`, default 5). Agents emit well-formed JSON; strictness surfaces
 their errors instead of hiding them.
+
+---
+
+## Output-schema reference
+
+`output_schema` uses the same keywords as `input_schema`, with three differences:
+
+- `type` may be a list, and may include `"null"`: `{"type": ["string", "null"]}` for a
+  field that can be empty. Without `"null"` in the list, a null value is rejected. If
+  the field also has an `enum`, null must be in the enum too
+  (`{"type": ["string", "null"], "enum": ["open", "closed", null]}`), as JSON Schema
+  applies both keywords.
+- `additionalProperties` is honoured as declared. `false` rejects any key the schema
+  does not list, which turns the schema into an allowlist of the fields that may leave
+  the server (a guard against a handler returning another user's email or internal ids).
+  Absent or `true`, undeclared keys are allowed, as in standard JSON Schema.
+- `format` may be any value. `uuid`, `email`, `date` and `date-time` are checked; any
+  other format is an annotation for clients and is not checked.
+
+The engine validates the handler's `result` against `output_schema` on every
+successful call, after a JSON round trip, so it checks what the client would receive
+(`structuredContent`). The checks are as strict as for arguments: no coercion
+(`"5"` is not an `integer`), `required` keys must be present, and `enum`, lengths,
+`pattern`, ranges and item counts apply. A result that does not conform is **never
+served**:
+
+- the caller gets a tool error (`isError: true`) with the generic text "The tool
+  produced a result that does not match its declared output schema, so it was not
+  returned." and no `structuredContent`. The message names no field, so an undeclared
+  key the handler leaked is not revealed to the caller;
+- the platform log gets `mcp.output_schema_mismatch` with the tool, its version, the
+  request id and the list of violations (paths and constraints, no values), which is
+  what the author reads to fix the handler;
+- the ledger records the call as `error` with `error_code -32603` (read tools), or as
+  `rolled_back` (`-32003`) for a mutating tool, whose write is rolled back with it — a
+  write is never kept when its result breaks the published contract.
+
+Test your handler's results against your schema, including empty and null cases; a
+mismatch fails the call for every client, not only for clients that validate.
 
 ---
 
@@ -312,7 +358,9 @@ It returns a hash:
 { "ok": false, "error": { "code": 409, "message": "Order not cancellable", "retryable": false } }   # business failure
 ```
 
-- On `ok: true`, `result` becomes the MCP `structuredContent` and a text rendering.
+- On `ok: true`, `result` becomes the MCP `structuredContent` and a text rendering. If
+  the tool declares an `output_schema`, `result` must conform to it, or the call is
+  refused as a tool error (see [Output-schema reference](#output-schema-reference)).
 - On `ok: false`, the engine returns an MCP **tool error** (`isError: true`) — the
   agent can reason about it. Business *state* checks (e.g. "already shipped") belong
   here; authorization does **not** (the policy already ran).

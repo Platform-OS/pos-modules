@@ -48,6 +48,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Results are checked against the tool's `output_schema` before they are served.** The
+  module published `output_schema` as `outputSchema` but never checked results against
+  it, so a handler result that broke it (a string where the schema says integer, a
+  missing required key, a key outside `additionalProperties: false`) was served as a
+  success, against the MCP rule that a server MUST return conforming structured results.
+  `execute/run` now validates every `ok: true` result of a tool with an `output_schema`
+  (`validate/json_schema` gains an output mode: type lists with `"null"`,
+  `additionalProperties` honoured as declared, formats other than uuid/email/date/
+  date-time left as annotations). A result that does not conform is not served: the
+  caller gets a generic tool error (`isError: true`, no `structuredContent`, no field
+  names), the log gets `mcp.output_schema_mismatch` with the violations, and the ledger
+  records `error` with `error_code -32603`; a mutating call is rolled back
+  (`rolled_back`, `-32003`). Tools without `output_schema` are unaffected. A tool whose
+  handler returned non-conforming results before now fails those calls, so check
+  results against the schema (docs/authoring-tools.md, "Output-schema reference").
+  New gated test fixtures `test_bad_output` and `test_bad_output_write`.
+- **Schema checks follow JSON Schema where they used to differ** (arguments and results).
+  - A null result value for `{"type": ["string","null"], "enum": [...]}` is accepted
+    only if the enum lists null too.
+  - `pattern` is evaluated with ECMA-262 anchoring (new `helpers/validate/ecma_pattern`):
+    `^` and `$` anchor the whole value, as clients read them, instead of any line (see
+    Security).
+  - `format` checks match the whole value: a valid `uuid` or `date` followed by a
+    newline and more text is rejected. `date-time` is a full RFC 3339 date-time: a real
+    calendar day, hours/minutes/seconds in range, and a required time zone (`Z` or
+    `±hh:mm`). An argument such as `2026-01-01T00:00:00` without a zone is now rejected.
+  - At load, every schema node must be an object and every keyword value must have its
+    JSON Schema type (numbers for the range keywords, non-negative integers for the
+    length and item counts, an array of strings for `required`, a non-empty array for
+    `enum`, objects for `properties` and `items`, strings for `pattern`, `format`,
+    `description` and `title`), and `pattern` must compile. Such a schema used to load
+    and then crash the validator (`"maximum": "10"`, a `pattern` that does not compile,
+    `items: [...]`) or be enforced differently from how clients read it (draft-4
+    `"exclusiveMinimum": true`). A tool with such a schema is now excluded from
+    `tools/list`. New gated fixtures `test_bad_schema_crash`, `test_bad_schema_values`.
+
+### Security
+
+- **A `pattern` no longer passes a value whose first line matches.** Patterns were
+  evaluated with Ruby regex semantics, where `^` and `$` match at every line, so
+  `^[^<>]*$`, the HTML guard the docs recommend, accepted `"ok\n<script>"` as an
+  argument. Patterns now anchor the whole value (ECMA-262, as JSON Schema specifies).
+- **The Approvals tab shows the arguments each pending action will run with.** The
+  queue showed only the tool, the requesting token's label (chosen by its owner) and the
+  principal, so two requests to the same tool from the same user looked identical, and an
+  operator approved a phishing broadcast or a destructive change blind.
+  `graphql/approvals/list` now selects `arguments_json` and `tool_version`, and each
+  pending row in `/mcp-admin?tab=approvals` lists every argument in full under the
+  request (strings as text, other values as JSON), HTML-escaped and never truncated. The
+  confirmation names the tool and the principal, and the "requested by" column is marked
+  as the token label.
+- **Every outcome of an approval-gated request is in the ledger.** Only the request
+  (`pending_approval`) and an approved execution that ran or rolled back were ledgered;
+  every other outcome lived only on the editable `mcp_pending_approval` row. Now each one
+  is a ledger entry with the request's `request_id` and who decided in `authz_reason`:
+  an operator rejection (`rejected`, `rejected_by:<user id>`), a bulk rejection
+  (`bulk_rejected_by:<user id>`), a `tasks/cancel` withdrawal (`cancelled`,
+  `cancelled_by:requester`), an expiry (`expired`), and an approved request refused at
+  execution time because the tool is gone, the requester's access was revoked, the
+  arguments no longer validate or the policy denies (`invalid` -32602 / `denied` -32001,
+  `approved_by:<user id>;<cause>`), as docs/security-model.md §4.1 already promised.
+  `approval/claim` attests a rejection, withdrawal or expiry in the same transaction as
+  the status change, and turns any decision on a request past its window into `expired`
+  under the row lock. Requests nobody decides are closed as `expired` by the new
+  `approval/expire_due`, which runs on each operator-console load and in the maintenance
+  sweep; before, a request was marked expired only when an operator clicked Approve on
+  it. Metrics count the new outcomes, and operator rejections count as denials.
+- **The operator's token revoke changes MCP tokens only.** `/mcp-admin/token-revoke`
+  passed the posted id straight to `tokens/revoke`, whose `record_update` is keyed by id
+  alone, so an `mcp_operator` could set `status = "revoked"` on a record from any table
+  (for example hide a community event). The page now looks the id up in
+  `modules/mcp/mcp_token` (`tokens/find_by_id`) and revokes only a token it found; any
+  other id changes nothing. `tokens/revoke` and `tokens/suspend` also name the
+  `mcp_token` table.
+- **Reusing any old refresh token revokes the grant, and grants have a maximum
+  lifetime.** Only the refresh token from the immediately previous rotation was
+  recognised as reuse: a token two or more rotations old got a plain `invalid_grant` and
+  the grant stayed active. Someone holding a stolen refresh token could refresh twice,
+  and the rightful client's stale token then revoked nothing. Every rotated-away refresh
+  token is now recorded (new `mcp_refresh_retired` table, digests only, swept with the
+  other maintenance tables), and presenting any of them revokes the whole grant. Rotation
+  also slid the refresh expiry 30 days forward forever; a grant now ends
+  `oauth.grant_max_lifetime_seconds` (new, default `7776000` = 90 days) after it was
+  authorized, however often it is refreshed, and the client must re-authorize. The cap
+  is counted from the grant's creation, so it also applies to existing grants: grants
+  authorized more than 90 days before the upgrade stop refreshing.
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400
@@ -87,6 +173,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns a `kind` (`gap`, `linkage`, `integrity`, `truncated`, `head`, `checkpoint`,
   `version`), and the console says which: entries deleted (with the missing seqs), the
   preceding entry rewritten, an edited entry, the newest entries deleted, and so on.
+- **Abuse auto-suspend revokes only the token that misbehaved.** Violations (unknown or
+  disallowed tools, invalid arguments, policy denials, rate-limit hits, duplicate or
+  excess approval requests) were counted per person, and at the threshold the token that
+  made the *next* call was revoked. A narrowed token given to a less-trusted agent could
+  make 20 bad calls and get the person's main token revoked for good while staying active
+  itself. Violations are now counted per token (`abuse:<principal>:tok:<token id>:<slice>`),
+  and `limits/enforce_abuse` suspends a token only when its own count reaches
+  `abuse_threshold`; the person's other tokens and OAuth grants keep working. The
+  `security/suspend` ledger entry names the revoked token (`subject_type: token`,
+  `subject_id`, and `audit_json` with the count, threshold and window), and the
+  `/mcp-admin` watchlist shows each token's own count.
+- **The abuse window rolls.** `abuse_window_seconds` was a clock-aligned bucket that reset
+  at every boundary, so 19 violations before it and 19 after never suspended. The count
+  now covers the last `abuse_window_seconds`, summed from counters a tenth of the window
+  long (`helpers/limits/abuse_window`, `queries/limits/abuse_counts`). Defaults are
+  unchanged (20 in 300 s).
+- **The rate limit is per token.** `rate_limit_per_min` was one bucket per person, so one
+  chatty agent used up the budget of every other agent of that person, and each of their
+  refused calls counted as a violation. Each token (or OAuth grant) now has its own
+  bucket (scope `principal:<id>:token:<token id>`), on `tools/call` and provider
+  `resources/read` alike. The default (60) is unchanged; it now applies per token.
+
+### Security
+
+- **Markdown pages protected by `authorization_policies` are no longer exposed.** With
+  `resources.expose_markdown_pages` on, `resources/list` listed (title, description,
+  public URL) and `resources/read` served the full source of every markdown page under
+  an exposed prefix, including pages the website refuses through `authorization_policies`,
+  to any caller — anonymous ones too while `oauth.challenge_initialize` is off. A page
+  policy is evaluated for a website request, so the engine cannot evaluate it for an MCP
+  caller; `queries/resources/page_allowed` now excludes every page that has a policy, for
+  every caller, and `resources/read` answers it `-32002 Resource not found`. Serve
+  restricted content to signed-in callers through the app's resource provider.
 
 ## [0.2.0] - 2026-10-23
 
