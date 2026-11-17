@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The operator's token revoke changes MCP tokens only.** `/mcp-admin/token-revoke`
+  passed the posted id straight to `tokens/revoke`, whose `record_update` is keyed by id
+  alone, so an `mcp_operator` could set `status = "revoked"` on a record from any table
+  (for example hide a community event). The page now looks the id up in
+  `modules/mcp/mcp_token` (`tokens/find_by_id`) and revokes only a token it found; any
+  other id changes nothing. `tokens/revoke` and `tokens/suspend` also name the
+  `mcp_token` table.
 - **Reusing any old refresh token revokes the grant, and grants have a maximum
   lifetime.** Only the refresh token from the immediately previous rotation was
   recognised as reuse: a token two or more rotations old got a plain `invalid_grant` and
