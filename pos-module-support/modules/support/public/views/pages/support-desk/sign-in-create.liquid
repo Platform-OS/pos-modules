@@ -11,26 +11,41 @@ layout: modules/support/support
   endunless
 
   # 5 failed attempts for an email within 15 minutes lock it for the rest of
-  # that window; a locked email is refused without checking the password
+  # that window; a locked email is refused without checking the password.
+  # Each attempt is stored as a failure before anything is checked, and the
+  # lock counts the stored attempts up to this one, so attempts sent at the
+  # same moment cannot all get their password checked (QA round 2). The row
+  # is removed again when the password is right or the email was locked.
   function form = 'modules/support/helpers/text_params', params: context.params, names: 'email,password'
-  function locked = 'modules/support/queries/sign_in/locked', email: form.email
+  function attempt_id = 'modules/support/commands/sign_in/record_failure', email: form.email
+  function locked = 'modules/support/queries/sign_in/locked', email: form.email, attempt_id: attempt_id
   if locked
+    function _ = 'modules/support/commands/sign_in/forget_attempt', attempt_id: attempt_id
     response_status 429
     render 'modules/support/auth/sign_in', failed: true, email: form.email, locked: true
     break
   endif
   if form.email == blank or form.password == blank
-    function _ = 'modules/support/commands/sign_in/record_failure', email: form.email
     response_status 422
     render 'modules/support/auth/sign_in', failed: true, email: form.email, locked: false
     break
   endif
 
+  # the password first, while this attempt still counts; the session after
+  # the row is gone, so the sign-in hook (hook_user_login) does not count it
+  function checked = 'modules/user/commands/user/verify_password', email: form.email, password: form.password
+  unless checked.valid
+    response_status 422
+    render 'modules/support/auth/sign_in', failed: true, email: form.email, locked: false
+    break
+  endunless
+  function _ = 'modules/support/commands/sign_in/forget_attempt', attempt_id: attempt_id
+
   if context.session.return_to == blank
     session return_to = '/support-desk'
   endif
 
-  function res = 'modules/user/commands/session/create', email: form.email, password: form.password, hook_params: context.params, validate_password: true, skip_otp: null, user_id: null
+  function res = 'modules/user/commands/session/create', email: null, password: null, hook_params: context.params, validate_password: false, skip_otp: null, user_id: checked.id
   if res.valid and res.otp_required
     render 'modules/user/2fa/verify', object: context.params
   elsif res.valid and res.email_verification_required
@@ -49,7 +64,6 @@ layout: modules/support/support
     session return_to = null
     redirect_to target
   else
-    function _ = 'modules/support/commands/sign_in/record_failure', email: form.email
     response_status 422
     render 'modules/support/auth/sign_in', failed: true, email: form.email, locked: false
   endif

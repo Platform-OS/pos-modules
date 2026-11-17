@@ -97,6 +97,33 @@
   assign good_svg.content_base64 = svg
   function e = 'modules/support/commands/branding/check_image', key: 'logo_url', file: good_svg
   function contract = 'modules/tests/assertions/equal', contract: contract, given: e, expected: null, field_name: 'plain svg logo accepted'
+
+  # QA round 2 (Rafał): forms the old check missed are refused; ordinary SVG features still pass
+  assign o = '<'
+  assign tricks = []
+  assign trick = o | append: 'svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">' | append: o | append: 'h:script>document.title=1' | append: o | append: '/h:script>' | append: o | append: '/svg>'
+  assign tricks << trick
+  assign trick = o | append: 'svg xmlns="http://www.w3.org/2000/svg">' | append: o | append: 'a href="&#106;avascript:x">' | append: o | append: 'rect width="10" height="10"/>' | append: o | append: '/a>' | append: o | append: '/svg>'
+  assign tricks << trick
+  assign trick = o | append: 'svg xmlns="http://www.w3.org/2000/svg">' | append: o | append: 'image href="//evil.example/p.png" width="10" height="10"/>' | append: o | append: '/svg>'
+  assign tricks << trick
+  assign trick = o | append: 'svg xmlns="http://www.w3.org/2000/svg">' | append: o | append: 'style>@import url(https://evil.example/x.css);' | append: o | append: '/style>' | append: o | append: '/svg>'
+  assign tricks << trick
+  assign refused = 0
+  for t in tricks
+    assign trick_file = { "content_type": "image/svg+xml", "filename": "x.svg" }
+    assign trick_file.content_base64 = t | base64_encode
+    function e = 'modules/support/commands/branding/check_image', key: 'logo_url', file: trick_file
+    if e == 'modules/support/settings.errors.image_unsafe'
+      assign refused = refused | plus: 1
+    endif
+  endfor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refused, expected: 4, field_name: 'namespaced script, encoded javascript link, protocol-relative image and @import refused'
+  assign rich = o | append: 'svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10">' | append: o | append: 'defs>' | append: o | append: 'linearGradient id="g"/>' | append: o | append: '/defs>' | append: o | append: 'rect fill="url(#g)" width="10" height="10"/>' | append: o | append: 'use xlink:href="#g"/>' | append: o | append: 'text>A &amp; B' | append: o | append: '/text>' | append: o | append: '/svg>'
+  assign rich_file = { "content_type": "image/svg+xml", "filename": "x.svg" }
+  assign rich_file.content_base64 = rich | base64_encode
+  function e = 'modules/support/commands/branding/check_image', key: 'logo_url', file: rich_file
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: e, expected: null, field_name: 'gradients, in-file links and &amp; still accepted'
   function e = 'modules/support/commands/branding/check_image', key: 'icon_url', file: good_svg
   function contract = 'modules/tests/assertions/equal', contract: contract, given: e, expected: 'modules/support/settings.errors.image_type', field_name: 'svg app icon refused (PNG only)'
 

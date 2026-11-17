@@ -28,6 +28,23 @@
   endif
   function contract = 'modules/tests/assertions/true', contract: contract, value: shows_closed, field_name: 'Closed view shows the Closed column', object: null
 
+  # the board of All open says how many of its tickets are waiting: the rest
+  # is exactly what the list of All open counts (QA round 2)
+  function statuses = 'modules/support/queries/statuses/all'
+  assign pending_status = statuses.list | where: 'category', 'pending' | first
+  function waiting_ticket = 'support_test_helpers/ticket_fixture', label: 'board-waiting'
+  function _ = 'modules/support/commands/tickets/change_status', ticket: waiting_ticket.ticket, status_key: pending_status.key, actor: waiting_ticket.actor
+  function board = 'modules/support/queries/tickets/groups', member: manager, view: 'all_open', filters: filters, by: 'status', layout: 'board', expand: null
+  function list = 'modules/support/queries/tickets/groups', member: manager, view: 'all_open', filters: filters, by: 'status', layout: 'list', expand: null
+  assign has_waiting = false
+  if board.waiting > 0
+    assign has_waiting = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: has_waiting, field_name: 'board counts its waiting tickets', object: null
+  assign board_open = board.total | minus: board.waiting
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: board_open, expected: list.total, field_name: 'board total minus waiting equals the list total'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: list.waiting, expected: null, field_name: 'the list has no waiting split'
+
   # priority grouping: one column per priority
   function by_priority = 'modules/support/queries/tickets/groups', member: manager, view: 'all_open', filters: filters, by: 'priority', layout: 'board', expand: null
   assign priority_keys = by_priority.groups | map: 'key' | join: ','

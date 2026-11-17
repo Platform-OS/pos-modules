@@ -1,0 +1,13 @@
+{% doc %}
+  Removes an attempt row recorded before the password was checked, when the
+  attempt turned out not to be a failure (right password) or was refused
+  without a check (already locked).
+  @param {string} attempt_id - The row from commands/sign_in/record_failure
+{% enddoc %}
+{% liquid
+  if attempt_id == blank
+    return null
+  endif
+  graphql r = 'modules/support/sign_in_failures/delete', id: attempt_id
+  return r.record.id
+%}

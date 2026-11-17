@@ -2,7 +2,9 @@
   Tickets of a queue view split into groups: one per priority (P0–P3) or
   one per active status that belongs to the view. The list shows the groups
   as swim lanes, the board as columns. Returns
-  { groups: [{ key, label, priority, status, tickets, total }], lookup, total, by }.
+  { groups: [{ key, label, priority, status, tickets, total }], lookup, total, by,
+  waiting } (waiting: how many of total are waiting tickets, on the board of
+  All open only; null elsewhere).
   @param {object} member - The acting team_member
   @param {string} view - Queue view key
   @param {object} filters - { department_id, priority, status_key, assignee_id, q, sort }
@@ -75,8 +77,14 @@
     endfor
   endif
 
-  assign result = { "groups": [], "lookup": null, "total": 0, "by": null }
+  assign result = { "groups": [], "lookup": null, "total": 0, "by": null, "waiting": null }
   assign result.by = by
+  # the board of All open counts waiting tickets too: say how many, so its
+  # total can be compared with the list's (QA round 2)
+  if include_waiting
+    function waiting = 'modules/support/queries/tickets/search', member: member, view: 'waiting', filters: filters, page: 1, per_page: 1, skip_lookup: true, include_waiting: false
+    assign result.waiting = waiting.total_entries
+  endif
   assign all_tickets = []
 
   # the four priority lanes of the list in one request; an expanded or

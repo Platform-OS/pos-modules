@@ -1,7 +1,13 @@
 {% doc %}
   True when an email has had 5 failed desk sign-ins in the last 15 minutes.
   Only a digest of the lower-cased address is stored.
+  With attempt_id (the desk sign-in form records each attempt before it
+  checks the password, commands/sign_in/record_failure), the attempt counts
+  only the rows up to and including its own: the 6th and later attempts in
+  the window are locked, also when they arrive at the same moment, since
+  every attempt is stored before any password is checked.
   @param {string} email - The address typed on the sign-in form
+  @param {string} [attempt_id] - This request's own attempt row
 {% enddoc %}
 {% liquid
   if email == blank
@@ -9,7 +15,14 @@
   endif
   assign digest = email | strip | downcase | digest: 'sha256'
   assign since = 'now' | add_to_time: -15, 'minutes' | strftime: '%Y-%m-%dT%H:%M:%S%z'
-  graphql r = 'modules/support/sign_in_failures/count', email_digest: digest, since: since
+  if attempt_id != blank
+    graphql r = 'modules/support/sign_in_failures/count', email_digest: digest, since: since, up_to_id: attempt_id
+    if r.records.total_entries > 5
+      return true
+    endif
+    return false
+  endif
+  graphql r = 'modules/support/sign_in_failures/count', email_digest: digest, since: since, up_to_id: null
   if r.records.total_entries >= 5
     return true
   endif

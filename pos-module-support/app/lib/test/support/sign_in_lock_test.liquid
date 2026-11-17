@@ -19,6 +19,29 @@
   function other_locked = 'modules/support/queries/sign_in/locked', email: other
   function contract = 'modules/tests/assertions/equal', contract: contract, given: other_locked, expected: false, field_name: 'other email not locked'
 
+  # attempts sent at the same moment (QA round 2): all are stored before any
+  # password is checked, and each counts the attempts up to its own, so only
+  # the first 5 get their password checked
+  assign burst = 'burst-' | append: suffix | append: '@example.com'
+  assign attempt_ids = []
+  for i in (1..7)
+    function attempt_id = 'modules/support/commands/sign_in/record_failure', email: burst
+    assign attempt_ids << attempt_id
+  endfor
+  assign checked = 0
+  for attempt_id in attempt_ids
+    function burst_locked = 'modules/support/queries/sign_in/locked', email: burst, attempt_id: attempt_id
+    unless burst_locked
+      assign checked = checked | plus: 1
+    endunless
+  endfor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: checked, expected: 5, field_name: 'simultaneous attempts: only 5 passwords checked'
+  # a right password removes its own attempt row
+  function _ = 'modules/support/commands/sign_in/forget_attempt', attempt_id: attempt_ids[6]
+  function _ = 'modules/support/commands/sign_in/forget_attempt', attempt_id: attempt_ids[5]
+  function after_forget = 'modules/support/queries/sign_in/locked', email: burst, attempt_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after_forget, expected: true, field_name: '5 failures still lock after the extra rows are removed'
+
   # a sign-in on another form (host /sessions) is undone while the lock is on
   assign hook_params = { "user": { "email": null }, "hook_params": {} }
   assign hook_params.user.email = email

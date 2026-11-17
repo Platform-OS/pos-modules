@@ -1122,6 +1122,13 @@
     color: var(--pos-support-rail-muted);
   }
 
+  /* board of All open: how its total splits into open and waiting tickets */
+  .pos-support-count-split {
+    color: var(--pos-support-text-muted);
+    font-size: var(--pos-support-text-meta);
+    font-weight: 400;
+  }
+
   .pos-support-count-chip {
     display: inline-flex;
     align-items: center;
@@ -2145,7 +2152,11 @@
   .pos-support-attention-deploy { --hue: var(--pos-support-status-onhold-eng-fg); }
   .pos-support-attention-zero { --hue: var(--pos-support-text-muted); color: var(--pos-support-text-muted); }
 
+  /* above the queue's sticky table head (z-index 2), so the tooltips of its
+     icon buttons ("Reset all filters") are not painted over */
   .pos-support-toolbar {
+    position: relative;
+    z-index: 3;
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -2565,7 +2576,11 @@
     background: var(--pos-support-bg-subtle);
   }
 
+  /* the column scrolls (fixed ticket header): its blocks keep their height
+     instead of shrinking to fit, or a long message squeezed the reply box
+     and cut off its Send row with nothing left to scroll */
   .pos-support-ticket-main > * {
+    flex-shrink: 0;
     inline-size: 100%;
     max-inline-size: 50rem;
     margin-inline: auto;

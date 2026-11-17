@@ -31,7 +31,13 @@
     unless text contains '<svg'
       return 'modules/support/settings.errors.image_type'
     endunless
-    assign unsafe = text | matches: '<script|<foreignobject|javascript:|\son[a-z]+\s*=|<iframe|<embed|<object|xlink:href\s*=\s*["\x27]?https?:|href\s*=\s*["\x27]?https?:'
+    # refused (QA round 2): a script or embedding element in any XML namespace
+    # (h:script); javascript: links; event handlers; any character reference
+    # (&#106; hides "javascript:") and named entities other than the five XML
+    # ones; a link or source that is not an in-file #id or an embedded image
+    # (protocol-relative //host, http:, https:); @import and url() outside
+    # the file. The atomic groups stop backtracking past an opening quote.
+    assign unsafe = text | matches: '<(?:[a-z0-9_.-]+:)?(?:script|foreignobject|iframe|embed|object|handler|listener)\b|javascript:|\son[a-z]+\s*=|&#|&(?!amp;|lt;|gt;|quot;|apos;)[a-z][a-z0-9]*;|(?:href|src)\s*=(?>\s*["\x27]?\s*)(?!#|data:image/(?:png|jpe?g|gif|webp)[;,])|@import|url\s*\((?>\s*["\x27]?\s*)(?!#)'
     if unsafe
       return 'modules/support/settings.errors.image_unsafe'
     endif

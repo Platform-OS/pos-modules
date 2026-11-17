@@ -128,3 +128,51 @@ test('Q7. team settings: Edit opens the form in view, and an admin role hides th
   await expect(departments.locator('[data-support-role-help="agent"]')).toBeHidden();
   await admin.context.close();
 });
+
+test('Q8. the board of All open shows how its total splits into open and waiting; the reset tooltip is on top', async ({ browser }) => {
+  await newTicket('E2E QA board split');
+  const admin = await contextFor(browser, users.superadmin);
+  const page = admin.page;
+  await page.goto(desk('/support-desk/board?view=all_open'));
+  await expect(page.locator('[data-support-count-split]')).toContainText(/\d+ open \+ \d+ waiting/);
+  await page.goto(desk('/support-desk?view=all_open&layout=list'));
+  await expect(page.locator('[data-support-count-split]')).toHaveCount(0);
+
+  await page.goto(desk('/support-desk?view=all_open&layout=list&priority=p2'));
+  const reset = page.locator('[data-support-reset-filters]');
+  await reset.hover();
+  await page.waitForTimeout(600);
+  // the tooltip (pointer-events: none, so not hit-testable) is painted in the toolbar's layer, which sits above the sticky table head
+  const layers = await page.evaluate(() => {
+    const toolbar = document.querySelector('[data-support-reset-filters]')!.closest('.pos-support-toolbar')!;
+    const head = document.querySelector('.pos-support-table thead th');
+    return [Number(getComputedStyle(toolbar).zIndex), head ? Number(getComputedStyle(head).zIndex) : 0];
+  });
+  expect(layers[0]).toBeGreaterThan(layers[1]);
+  await expect(reset).toHaveCSS('position', 'relative');
+  await admin.context.close();
+});
+
+test('Q9. a ticket with a long message scrolls, and the reply box keeps its Send row', async ({ browser }) => {
+  const long = Array.from({ length: 80 }, (_, i) => `Line ${i + 1} of a long customer message.`).join('\n');
+  const { ticket } = await newTicket('E2E QA long');
+  const admin = await contextFor(browser, users.superadmin);
+  const page = admin.page;
+  await page.setViewportSize({ width: 1600, height: 800 });
+  await page.goto(desk(`/support-desk/tickets/${ticket.id}`));
+  // a long thread: make the first message long in the browser, as a long email renders
+  await page.evaluate((text) => {
+    const body = document.querySelector('.pos-support-thread');
+    const filler = document.createElement('pre');
+    filler.textContent = text;
+    body?.prepend(filler);
+  }, long);
+  const composer = page.locator('[data-support-composer]');
+  const sendRow = page.locator('[data-support-send]');
+  const sizes = await page.locator('.pos-support-composer').evaluate((el) => [el.clientHeight, el.scrollHeight]);
+  expect(sizes[0]).toBeGreaterThanOrEqual(sizes[1] - 1);
+  await sendRow.scrollIntoViewIfNeeded();
+  await expect(sendRow).toBeInViewport();
+  await expect(composer).toBeVisible();
+  await admin.context.close();
+});

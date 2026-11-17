@@ -85,6 +85,7 @@ en:
     any_department: Any department
     department_prefix: "Department:"
     reset_filters: Reset all filters
+    board_split: "%{open} open + %{waiting} waiting"
     status: Status
     any_status: Any status
     apply: Filter
