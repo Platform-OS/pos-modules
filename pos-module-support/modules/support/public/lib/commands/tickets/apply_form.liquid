@@ -80,7 +80,7 @@
     endunless
 
     if change_status
-      function r = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: params.status_key, actor: actor
+      function r = 'modules/support/commands/tickets/set_status', ticket: ticket, status_key: params.status_key, actor: actor
       assign ticket = r.ticket | default: ticket
     endif
     if change_priority

@@ -1,0 +1,122 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # QA round 2 (Rafał): invites to existing accounts, disabled members,
+  # resending closed invites, impersonated sessions. Mail goes to the stub.
+  assign stub = 'https://' | append: context.location.host | append: '/test/sendgrid-stub'
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: stub
+  assign suffix = 8 | random_string | downcase
+  assign admin_profile = 'test-access-admin-' | append: suffix
+  assign object = { "role": "admin", "state": "active", "source": "invite", "availability": "away" }
+  assign object.profile_id = admin_profile
+  function admin = 'modules/support/commands/team_members/create', object: object
+  assign actor = { "id": null, "member": null }
+  assign actor.id = admin_profile
+  assign actor.member = admin
+  graphql fd = 'modules/support/departments/search', inbound_local_part: 'testfixtures', limit: 1
+  assign departments = []
+  assign departments << fd.records.results.first.id
+  assign disabled_values = { "state": "disabled" }
+  function disabled_props = 'modules/support/helpers/props', values: disabled_values
+
+  # 1. an existing account is invited, not added: joining needs that account signed in
+  assign existing_email = 'claimed-' | append: suffix | append: '@example.com'
+  assign no_roles = []
+  function existing_user = 'modules/user/commands/user/create', first_name: 'Claimed', last_name: 'Address', email: existing_email, password: 'password-12345678', roles: no_roles, hook_params: null
+  function existing_profile = 'modules/user/queries/profiles/find', user_id: existing_user.id, id: null, uuid: null, first_name: null, last_name: null
+  function invited = 'modules/support/commands/team/invite', email: existing_email, role: 'admin', department_ids: departments, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: invited.member.state, expected: 'invited', field_name: 'existing account is only invited'
+  graphql inv = 'modules/support/team_invites/search', email: existing_email, limit: 1
+  assign invite = inv.records.results.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: invite.existing_account, expected: true, field_name: 'invite marked as for an existing account'
+  assign token = 'access-token-' | append: suffix
+  function digest = 'modules/support/helpers/team/token_digest', token: token
+  assign values = { "token_digest": null }
+  assign values.token_digest = digest
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: invite.id, properties: props
+  function signed_out = 'modules/support/commands/team/accept_invite', invite_id: invite.id, token: token, password: null, name: null, complete: true, signed_in_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: signed_out.error, expected: 'modules/support/team.invite_sign_in', field_name: 'signed out: the link alone does not add the account'
+  function other = 'modules/support/commands/team/accept_invite', invite_id: invite.id, token: token, password: null, name: null, complete: true, signed_in_id: 'someone-else'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: other.valid, expected: false, field_name: 'another signed-in account cannot accept'
+  function member = 'modules/support/queries/team_members/find', profile_id: existing_profile.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.state, expected: 'invited', field_name: 'still invited after refused attempts'
+  function joined = 'modules/support/commands/team/accept_invite', invite_id: invite.id, token: token, password: null, name: null, complete: true, signed_in_id: existing_profile.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: joined.valid, expected: true, field_name: 'the invited account accepts while signed in'
+  function member = 'modules/support/queries/team_members/find', profile_id: existing_profile.id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: member.state, expected: 'active', field_name: 'active after accepting'
+  graphql _ = 'modules/support/records/update', id: member.id, properties: disabled_props
+  function _ = 'modules/support/commands/team_members/forget'
+
+  # 2. resend is refused for an accepted or a revoked invite
+  assign resend = { "op": "resend", "invite_id": null }
+  assign resend.invite_id = invite.id
+  function resent = 'modules/support/commands/team/apply_form', params: resend, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: resent.error, expected: 'modules/support/team.errors.invite_closed', field_name: 'accepted invite cannot be resent'
+  graphql inv = 'modules/support/team_invites/search', id: invite.id, limit: 1
+  assign still_accepted = false
+  if inv.records.results.first.accepted_at != blank
+    assign still_accepted = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: still_accepted, expected: true, field_name: 'accepted invite stays accepted'
+
+  assign new_email = 'fresh-' | append: suffix | append: '@example.com'
+  function fresh = 'modules/support/commands/team/invite', email: new_email, role: 'agent', department_ids: departments, actor: actor
+  graphql inv = 'modules/support/team_invites/search', email: new_email, limit: 1
+  assign fresh_invite = inv.records.results.first
+  assign revoke = { "op": "revoke", "invite_id": null }
+  assign revoke.invite_id = fresh_invite.id
+  function _ = 'modules/support/commands/team/apply_form', params: revoke, actor: actor
+  assign resend.invite_id = fresh_invite.id
+  function resent = 'modules/support/commands/team/apply_form', params: resend, actor: actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: resent.error, expected: 'modules/support/team.errors.invite_closed', field_name: 'revoked invite cannot be resent'
+
+  # 3. a member disabled before accepting cannot get in through the open invite
+  assign late_email = 'late-' | append: suffix | append: '@example.com'
+  function late = 'modules/support/commands/team/invite', email: late_email, role: 'agent', department_ids: departments, actor: actor
+  graphql inv = 'modules/support/team_invites/search', email: late_email, limit: 1
+  assign late_invite = inv.records.results.first
+  graphql _ = 'modules/support/records/update', id: late_invite.id, properties: props
+  graphql _ = 'modules/support/records/update', id: late.member.id, properties: disabled_props
+  function _ = 'modules/support/commands/team_members/forget'
+  function refused = 'modules/support/commands/team/accept_invite', invite_id: late_invite.id, token: token, password: 'a-long-password-123', name: 'Late Comer', complete: true, signed_in_id: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refused.valid, expected: false, field_name: 'disabled member cannot accept'
+  function late_member = 'modules/support/queries/team_members/find', profile_id: late.member.profile_id
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: late_member.state, expected: 'disabled', field_name: 'disabled member stays disabled'
+
+  # disabling through Settings revokes the open invite
+  assign other_email = 'other-' | append: suffix | append: '@example.com'
+  function other_invited = 'modules/support/commands/team/invite', email: other_email, role: 'agent', department_ids: departments, actor: actor
+  assign params = { "state": "disabled" }
+  function _ = 'modules/support/commands/team/update_member', member: other_invited.member, params: params, actor: actor
+  graphql inv = 'modules/support/team_invites/search', email: other_email, limit: 1
+  assign revoked = false
+  if inv.records.results.first.revoked_at != blank
+    assign revoked = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: revoked, expected: true, field_name: 'disabling revokes the open invite'
+
+  # 4. an impersonated session never resolves to a desk member
+  assign admin_lookup = { "id": null, "roles": [] }
+  assign admin_lookup.id = existing_profile.id
+  assign active_values = { "state": "active" }
+  function active_props = 'modules/support/helpers/props', values: active_values
+  graphql _ = 'modules/support/records/update', id: member.id, properties: active_props
+  function _ = 'modules/support/commands/team_members/forget'
+  function normal = 'modules/support/helpers/resolve_member', profile: admin_lookup
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: normal.state, expected: 'active', field_name: 'normal session resolves the member'
+  # a background run (/_tests/run_async, CI) has no session to mark; the
+  # check runs where there is one (pos-cli test run <name>, /_tests/run)
+  session original_user_id = 'impersonator'
+  if context.session.original_user_id == 'impersonator'
+    function impersonated = 'modules/support/helpers/resolve_member', profile: admin_lookup
+    session original_user_id = null
+    function contract = 'modules/tests/assertions/equal', contract: contract, given: impersonated, expected: null, field_name: 'impersonated session gets no desk member'
+  endif
+  graphql _ = 'modules/support/records/update', id: member.id, properties: disabled_props
+  graphql _ = 'modules/support/records/update', id: admin.id, properties: disabled_props
+  function _ = 'modules/support/commands/team_members/forget'
+
+  function _ = 'modules/support/commands/settings/set', key: 'email_api_base_url', value: null
+%}

@@ -1,16 +1,25 @@
 {% doc %}
-  Checks an invite link (D-25) and, with a password, completes it: sets the
-  password and name, marks the invite accepted, activates the membership
-  and signs the user in. Any problem returns the same generic refusal, except
-  a link already used with its right token (used: true, to offer sign-in).
-  Returns { valid, invite, error, used }.
+  Checks an invite link (D-25) and, when complete is true, accepts it. Any
+  problem returns the same generic refusal, except a link already used with
+  its right token (used: true, to offer sign-in). A disabled membership is
+  never re-activated.
+  - New account (created by the invite): sets the password and name, marks
+    the invite accepted, activates the membership and signs the user in;
+    two-factor authentication is never skipped and the account's address is
+    never changed.
+  - Existing account (existing_account): the account must be signed in
+    (signed_in_id); accepting changes nothing on the account. Signed out,
+    the result says sign_in_needed.
+  Returns { valid, invite, error, used, existing, sign_in_needed, signed_in }.
   @param {string} invite_id - The invite
   @param {string} token - Token from the link
-  @param {string} [password] - New password (12+ characters); blank = only check
-  @param {string} [name] - Display name
+  @param {string} [password] - New password (12+ characters), new accounts only
+  @param {string} [name] - Display name, new accounts only
+  @param {boolean} [complete] - Accept now (default: when a password is given)
+  @param {string} [signed_in_id] - Profile id of the signed-in user, if any
 {% enddoc %}
 {% liquid
-  assign result = { "valid": false, "invite": null, "error": "modules/support/team.invite_invalid", "used": false }
+  assign result = { "valid": false, "invite": null, "error": "modules/support/team.invite_invalid", "used": false, "existing": false, "sign_in_needed": false, "signed_in": false }
   if invite_id == blank or token == blank
     return result
   endif
@@ -40,38 +49,68 @@
   if expires <= now
     return result
   endif
-  assign result.invite = invite
-  if password == blank
-    assign result.valid = true
-    assign result.error = null
+  function member = 'modules/support/queries/team_members/find', profile_id: invite.profile_id
+  if member.state == 'disabled' or member.state == 'active'
     return result
   endif
 
-  if password.size < 12
-    assign result.error = 'modules/support/team.errors.password'
-    return result
+  assign result.invite = invite
+  assign result.existing = invite.existing_account | default: false
+  if result.existing and signed_in_id != invite.profile_id
+    assign result.sign_in_needed = true
   endif
+  if complete == null
+    assign complete = false
+    if password != blank
+      assign complete = true
+    endif
+  endif
+  unless complete
+    assign result.valid = true
+    assign result.error = null
+    return result
+  endunless
+
   function profile = 'modules/user/queries/profiles/find', id: invite.profile_id, user_id: null, uuid: null, first_name: null, last_name: null
-  function updated = 'modules/user/commands/user/update', id: profile.user_id, email: invite.email, password: password, hook_params: null
-  if name != blank
-    assign parts = name | strip | split: ' '
-    assign first = parts.first
-    assign last = parts | slice: 1, parts.size | join: ' '
-    graphql p = 'modules/support/team/update_profile_name', id: profile.id, first_name: first, last_name: last, name: name
+  if result.existing
+    if result.sign_in_needed
+      assign result.error = 'modules/support/team.invite_sign_in'
+      return result
+    endif
+  else
+    if password.size < 12
+      assign result.error = 'modules/support/team.errors.password'
+      return result
+    endif
+    # password only: the account's address stays as it is
+    assign password_args = { "id": null, "password": null }
+    assign password_args.id = profile.user_id
+    assign password_args.password = password
+    graphql updated = 'modules/user/user/update_password', args: password_args
+    if name != blank
+      assign parts = name | strip | split: ' '
+      assign first = parts.first
+      assign last = parts | slice: 1, parts.size | join: ' '
+      graphql p = 'modules/support/team/update_profile_name', id: profile.id, first_name: first, last_name: last, name: name
+    endif
   endif
 
   assign invite_values = { "accepted_at": null }
   assign invite_values.accepted_at = now
   function props = 'modules/support/helpers/props', values: invite_values
   graphql u = 'modules/support/records/update', id: invite.id, properties: props
-  function member = 'modules/support/queries/team_members/find', profile_id: invite.profile_id
   if member
     assign member_values = { "state": "active" }
     function props = 'modules/support/helpers/props', values: member_values
     graphql m = 'modules/support/records/update', id: member.id, properties: props
     function _ = 'modules/support/commands/team_members/forget'
   endif
-  function session = 'modules/user/commands/session/create', email: null, password: null, hook_params: null, validate_password: false, skip_otp: true, user_id: profile.user_id
+  unless result.existing
+    function session = 'modules/user/commands/session/create', email: null, password: null, hook_params: null, validate_password: false, skip_otp: false, user_id: profile.user_id
+    if session.valid and session.otp_required != true
+      assign result.signed_in = true
+    endif
+  endunless
   function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: invite.profile_id, event_type: 'team_joined', from_value: null, to_value: invite.email, reason: null
   assign result.valid = true
   assign result.error = null

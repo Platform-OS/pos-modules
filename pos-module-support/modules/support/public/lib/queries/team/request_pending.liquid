@@ -1,0 +1,14 @@
+{% doc %}
+  Whether the profile has an access request waiting for an admin.
+  @param {string} profile_id - The profile
+{% enddoc %}
+{% liquid
+  if profile_id == blank
+    return false
+  endif
+  graphql r = 'modules/support/access_requests/search', profile_id: profile_id, limit: 1
+  if r.records.results.first.state == 'pending'
+    return true
+  endif
+  return false
+%}

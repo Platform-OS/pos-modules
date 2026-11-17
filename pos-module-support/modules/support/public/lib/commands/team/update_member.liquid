@@ -79,6 +79,20 @@
 
   if values.state == 'disabled' and member.state != 'disabled'
     function _ = 'modules/support/commands/team/offboard', member: member
+    # an open invitation must not bring the person back (a blank filter would match every invite)
+    assign open_list = []
+    if member.profile_id != blank
+      graphql open_invites = 'modules/support/team_invites/search', profile_id: member.profile_id, closed: false, limit: 20
+      assign open_list = open_invites.records.results
+    endif
+    for open_invite in open_list
+      assign revoke_values = { "revoked_at": null }
+      assign revoke_values.revoked_at = 'now' | to_time
+      function revoke_props = 'modules/support/helpers/props', values: revoke_values
+      # platformos-check-disable NestedGraphQLQuery
+      graphql _ = 'modules/support/records/update', id: open_invite.id, properties: revoke_props
+      # platformos-check-enable NestedGraphQLQuery
+    endfor
     function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: 'team_disabled', from_value: null, to_value: member.profile_id, reason: null
   elsif values.role != blank and values.role != member.role
     function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: 'team_role_changed', from_value: member.role, to_value: values.role, reason: member.profile_id

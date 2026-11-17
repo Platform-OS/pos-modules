@@ -1,0 +1,17 @@
+{% doc %}
+  A status chosen by an agent (status menu, reply's "then", bulk edit, board
+  column). Spam goes through mark_spam (D-27), so choosing Spam anywhere also
+  blocks the sender, as the "Mark as spam" button does; every other status
+  goes to change_status. Returns { valid, errors, ticket }.
+  @param {object} ticket - Ticket loaded through queries/tickets/find
+  @param {string} status_key - Target status key
+  @param {object} actor - { type, id, member }
+{% enddoc %}
+{% liquid
+  if status_key == 'spam'
+    function result = 'modules/support/commands/tickets/mark_spam', ticket: ticket, actor: actor
+  else
+    function result = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: status_key, actor: actor
+  endif
+  return result
+%}

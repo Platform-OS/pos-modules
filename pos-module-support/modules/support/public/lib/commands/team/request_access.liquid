@@ -1,12 +1,23 @@
 {% doc %}
   "Request access" from a signed-in non-member (D-24): one pending request
-  per profile; refused within 24 h of a decline and for disabled members.
+  per profile; refused within 24 h of a decline, for disabled members, for an
+  unconfirmed address (commands/auth/send_verification_link) and for an
+  impersonated session.
   Notifies support admins by email. Returns { valid, error }.
   @param {object} profile - The signed-in profile
   @param {string} [note] - Optional note, max 500 characters
 {% enddoc %}
 {% liquid
   assign result = { "valid": false, "error": null }
+  if context.session.original_user_id != blank
+    assign result.error = 'modules/support/no_access.impersonated'
+    return result
+  endif
+  # admins approve an address: the requester must have shown they hold it
+  if profile.email_verified_at == blank
+    assign result.error = 'modules/support/no_access.unverified'
+    return result
+  endif
   function member = 'modules/support/queries/team_members/find', profile_id: profile.id
   if member
     assign result.error = 'modules/support/team.errors.request_member'

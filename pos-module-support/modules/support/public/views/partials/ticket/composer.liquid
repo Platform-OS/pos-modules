@@ -12,7 +12,7 @@
 {% enddoc %}
 <section class="pos-support-composer" aria-labelledby="pos-support-composer-title">
   <h2 id="pos-support-composer-title" class="pos-support-sr-only">{{ 'modules/support/ticket.respond' | t }}</h2>
-  <form action="{{ message_action }}" method="post" enctype="multipart/form-data" class="pos-form" data-support-composer data-sending="{{ 'modules/support/ticket.sending' | t }}" data-preparing="{{ 'modules/support/ticket.preparing_files' | t }}" data-unsaved="{{ 'modules/support/ticket.unsaved' | t }}" data-too-large="{{ 'modules/support/ticket.attach_too_large' | t }}" data-unreadable="{{ 'modules/support/ticket.attach_unreadable' | t }}" data-send-label="{{ 'modules/support/ticket.send' | t }}" data-note-label="{{ 'modules/support/ticket.add_note' | t }}">
+  <form action="{{ message_action }}" method="post" enctype="multipart/form-data" class="pos-form" data-support-composer data-sending="{{ 'modules/support/ticket.sending' | t }}" data-preparing="{{ 'modules/support/ticket.preparing_files' | t }}" data-unsaved="{{ 'modules/support/ticket.unsaved' | t }}" data-too-large="{{ 'modules/support/ticket.attach_too_large' | t }}" data-unreadable="{{ 'modules/support/ticket.attach_unreadable' | t }}" data-remove-file="{{ 'modules/support/ticket.attach_remove' | t }}" data-send-label="{{ 'modules/support/ticket.send' | t }}" data-note-label="{{ 'modules/support/ticket.add_note' | t }}">
     <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
     {%- liquid
       # the newest customer message this page showed: a reply to an older state needs the acknowledgement below
@@ -60,6 +60,10 @@
 
     <label for="pos-support-body" class="pos-support-sr-only">{{ 'modules/support/ticket.message' | t }}</label>
     <textarea id="pos-support-body" name="body" rows="6" required placeholder="{{ 'modules/support/ticket.body_placeholder' | t }}">{{ kept_draft }}</textarea>
+    {%- comment -%} colleagues an internal note can @mention: active members who see this department (queries/notes/mentioned_ids matches the same names) {%- endcomment -%}
+    <ul class="pos-support-mentions" id="pos-support-mentions" role="listbox" aria-label="{{ 'modules/support/ticket.mention_list' | t }}" hidden data-support-mentions>
+      {% for m in data.members %}{% unless m.outside or m.profile_id == data.me or m.name == blank %}<li role="option" id="pos-support-mention-{{ forloop.index }}" data-name="{{ m.name | strip }}">{% render 'modules/support/avatar', name: m.name, email: m.email, size: 'xs', labelled: false, role: m.role, profile_id: null, presence: false %} {{ m.name }}</li>{% endunless %}{% endfor %}
+    </ul>
     <div class="pos-support-composer-files" data-support-files-list></div>
     <div data-support-files-fields></div>
 
@@ -82,10 +86,11 @@
         </span>
         <select id="pos-support-then" name="then_status" data-support-reply-only>
           <option value="">{{ 'modules/support/ticket.then_keep' | t }}</option>
-          {% for s in data.statuses.list %}{% if s.active %}<option value="{{ s.key }}" {% if s.key == 'progress' %}selected{% endif %}>{{ s.label }}</option>{% endif %}{% endfor %}
+          {% for s in data.statuses.list %}{% if s.active %}<option value="{{ s.key }}" {% if s.key == 'progress' %}selected{% endif %}>{{ s.label }}{% if s.customer_label != blank and s.customer_label != s.label %} ({{ 'modules/support/ticket.customer_sees' | t: label: s.customer_label }}){% endif %}</option>{% endif %}{% endfor %}
         </select>
         <div hidden data-support-options-for="pos-support-then">
-          {% for s in data.statuses.list %}{% if s.active %}<span data-value="{{ s.key }}">{% render 'modules/support/badges/status', status: s %}</span>{% endif %}{% endfor %}
+          {% comment %} the customer's email shows the status's customer label (Settings → Statuses) {% endcomment %}
+          {% for s in data.statuses.list %}{% if s.active %}<span data-value="{{ s.key }}">{% render 'modules/support/badges/status', status: s %}{% if s.customer_label != blank and s.customer_label != s.label %} <span class="pos-support-customer-sees">{{ 'modules/support/ticket.customer_sees' | t: label: s.customer_label }}</span>{% endif %}</span>{% endif %}{% endfor %}
         </div>
         <button type="submit" class="pos-button pos-button-primary" data-support-send title="{{ 'modules/support/ticket.send_shortcut' | t }}">{% render 'modules/support/icon', name: 'send', size: 'sm' %}<span data-support-send-label>{{ 'modules/support/ticket.send' | t }}</span></button>
       </div>

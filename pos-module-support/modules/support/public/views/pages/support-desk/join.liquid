@@ -1,0 +1,13 @@
+---
+slug: support-desk/join
+layout: modules/support/support
+---
+{% liquid
+  # "Request to join" from the sign-in page (public)
+  function current_profile = 'modules/user/helpers/current_profile'
+  if current_profile.user
+    redirect_to '/support-desk'
+    break
+  endif
+  render 'modules/support/auth/join', sent: false, errors: null, values: null
+%}

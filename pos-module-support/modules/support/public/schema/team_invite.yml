@@ -18,3 +18,7 @@ properties:
     type: datetime
   - name: invited_by_id
     type: string
+  # the address already had an account when it was invited: accepting needs
+  # that account signed in, and never changes its password or address
+  - name: existing_account
+    type: boolean

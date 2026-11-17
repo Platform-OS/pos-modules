@@ -6,6 +6,12 @@ layout: modules/support/support
   # Invite link (D-25). Public: the token is the credential. Any problem
   # shows the same generic page.
   function form = 'modules/support/helpers/text_params', params: context.params, names: 'id,token'
-  function check = 'modules/support/commands/team/accept_invite', invite_id: form.id, token: form.token, password: null, name: null
-  render 'modules/support/team/invite_accept', valid: check.valid, invite_id: form.id, token: form.token, error: null, used: check.used
+  function current_profile = 'modules/user/helpers/current_profile'
+  function check = 'modules/support/commands/team/accept_invite', invite_id: form.id, token: form.token, password: null, name: null, complete: false, signed_in_id: current_profile.id
+  if check.sign_in_needed
+    # back to this link after signing in to the invited account
+    assign back = '/support-desk/invites/' | append: form.id | append: '?token=' | append: form.token
+    session return_to = back
+  endif
+  render 'modules/support/team/invite_accept', valid: check.valid, invite_id: form.id, token: form.token, error: null, used: check.used, existing: check.existing, sign_in_needed: check.sign_in_needed, invite_email: check.invite.email, signed_in_email: current_profile.email
 %}

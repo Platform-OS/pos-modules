@@ -10,4 +10,5 @@
     <h1 class="pos-heading-2">{{ 'modules/support/no_access.title' | t }}</h1>
     <p>{{ result.error | t }}</p>
   {% endif %}
+  {% render 'modules/support/auth/sign_out_form' %}
 </section>

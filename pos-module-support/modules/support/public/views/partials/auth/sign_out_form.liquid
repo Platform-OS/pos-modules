@@ -1,0 +1,9 @@
+{% doc %}
+  "Sign out" for people who are signed in but can't open the desk.
+{% enddoc %}
+<form action="/sessions" method="post" class="pos-support-gate-signout">
+  <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+  <input type="hidden" name="_method" value="delete">
+  <input type="hidden" name="redirect_to" value="/support-desk/sign-in">
+  <button type="submit" class="pos-button pos-button-small">{% render 'modules/support/icon', name: 'log-out', size: 'sm' %}{{ 'modules/support/shell.sign_out' | t }}</button>
+</form>

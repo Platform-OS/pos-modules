@@ -1,0 +1,16 @@
+---
+slug: support-desk/join/verify
+layout: modules/support/support
+---
+{% liquid
+  # the "confirm your email" link (public: the token is the credential)
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'token,email'
+  function result = 'modules/support/commands/auth/verify_email', token: form.token, email: form.email
+  if result.valid and result.signed_in
+    redirect_to '/support-desk'
+  elsif result.valid
+    redirect_to '/support-desk/sign-in'
+  else
+    render 'modules/support/auth/join', sent: false, errors: null, values: null, expired: true
+  endif
+%}

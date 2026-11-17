@@ -1,0 +1,29 @@
+{% doc %}
+  Emails a 24-hour link to /support-desk/join/verify that confirms the person
+  holds the address, through the desk's email provider. Only a confirmed
+  address can ask for desk access (commands/team/request_access), so nobody
+  can request access with an address they don't own. Returns true when sent.
+  @param {string} email - The account's address
+{% enddoc %}
+{% liquid
+  assign address = email | strip | downcase
+  if address == blank
+    return false
+  endif
+  function user = 'modules/user/queries/user/find', email: address, with_token: true, id: null, expires_in: 24
+  if user.token == blank
+    return false
+  endif
+  function settings = 'modules/support/helpers/settings'
+  assign encoded_email = address | url_encode
+  assign url = settings.base_url | append: '/support-desk/join/verify?token=' | append: user.token | append: '&email=' | append: encoded_email
+  function brand = 'modules/support/helpers/branding'
+  assign heading = 'modules/support/join.email_heading' | t: brand: brand.app_name
+  assign body = 'modules/support/join.email_body' | t
+  assign label = 'modules/support/join.email_button' | t
+  capture html
+    render 'modules/support/emails/team', brand: brand, heading: heading, body: body, link: url, link_label: label
+  endcapture
+  function _ = 'modules/support/commands/email/send_simple', to_email: address, to_name: null, subject: heading, html: html, text: url
+  return true
+%}

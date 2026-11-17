@@ -1,0 +1,7 @@
+{% doc %}
+  What a member's departments do, per role. pos-support-ui.js shows the line
+  for the chosen role and hides the whole list for admins, whose departments
+  are ignored. Without JavaScript both lines show.
+{% enddoc %}
+<p class="pos-supplementary" data-support-role-help="agent">{{ 'modules/support/team.departments_agent' | t }}</p>
+<p class="pos-supplementary" data-support-role-help="manager">{{ 'modules/support/team.departments_manager' | t }}</p>

@@ -50,6 +50,14 @@
   function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: null, dkim: null, spam_score: null, charsets: null
   function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.blocked, expected: false, field_name: 'unblocked address accepted'
   function contract = 'modules/tests/assertions/presence', contract: contract, field_name: 'id', object: stored
+
+  # an address in the display name does not hide the real sender (QA round 2),
+  # whatever envelope sender the mail claims
+  assign real_sender = 'spam2@' | append: domain
+  assign raw = 'From: "ok@fine.example" <' | append: real_sender | append: '>' | append: nl | append: 'Subject: x' | append: nl | append: nl | append: 'x'
+  assign envelope = '{"to":["testfixtures@support-dev.platformos.com"],"from":"bounce@other.example"}'
+  function stored = 'modules/support/commands/inbound/store', email: raw, envelope: envelope, spf: null, dkim: null, spam_score: null, charsets: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stored.blocked, expected: true, field_name: 'blocked domain refused behind an address-like display name'
   function _ = 'modules/support/commands/blocklist/remove', id: d.record.id
 
   # Mark as spam: Spam status, address row only, contact blocked; Undo restores
@@ -75,4 +83,12 @@
   function contract = 'modules/tests/assertions/equal', contract: contract, given: rows.records.total_entries, expected: 0, field_name: 'undo removes the row'
   graphql c = 'modules/support/contacts/search', ids: ids, limit: 1
   function contract = 'modules/tests/assertions/not_true', contract: contract, value: c.records.results.first.blocked, field_name: 'undo unblocks the contact', object: null
+
+  # choosing Spam as a status (reply's "then", status menu, bulk, board) blocks the sender too (QA round 2)
+  function g = 'support_test_helpers/ticket_fixture', label: 'spamstatus'
+  function chosen = 'modules/support/commands/tickets/set_status', ticket: g.ticket, status_key: 'spam', actor: g.manager_actor
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: chosen.ticket.category, expected: 'closed', field_name: 'spam chosen as a status'
+  graphql rows = 'modules/support/blocked_senders/search', ticket_id: g.ticket.id, source: 'spam_mark', limit: 10
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: rows.records.total_entries, expected: 1, field_name: 'spam chosen as a status blocks the sender'
+  function _ = 'modules/support/commands/tickets/unmark_spam', ticket: chosen.ticket, actor: g.manager_actor
 %}

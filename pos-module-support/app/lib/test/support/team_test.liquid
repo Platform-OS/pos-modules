@@ -45,7 +45,7 @@
   function capital_user = 'modules/user/commands/user/create', first_name: 'Cap', last_name: 'Test', email: capital_email, password: 'password-12345678', roles: no_roles, hook_params: null
   assign lower_email = capital_email | downcase
   function added = 'modules/support/commands/team/invite', email: lower_email, role: 'agent', department_ids: departments, actor: actor
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: added.member.state, expected: 'active', field_name: 'existing user with capitals added at once'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: added.member.state, expected: 'invited', field_name: 'existing user with capitals found, and invited (not active until they accept)'
   # an active agent in the fixtures department would take fixture tickets in other tests
   assign disabled_values = { "state": "disabled" }
   function disabled_props = 'modules/support/helpers/props', values: disabled_values
@@ -103,8 +103,11 @@
   function contract = 'modules/tests/assertions/true', contract: contract, value: has_editor, field_name: 'editor role holder is a candidate', object: null
 
   # access request: approve gives the chosen role and departments
-  assign requester = { "email": "requester@example.com" }
+  assign requester = { "email": "requester@example.com", "email_verified_at": null }
   assign requester.id = 'test-req-' | append: suffix
+  function unconfirmed = 'modules/support/commands/team/request_access', profile: requester, note: 'please'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unconfirmed.error, expected: 'modules/support/no_access.unverified', field_name: 'unconfirmed address cannot ask for access'
+  assign requester.email_verified_at = 'now' | to_time
   function req = 'modules/support/commands/team/request_access', profile: requester, note: 'please'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: req.valid, expected: true, field_name: 'request created'
   function dup = 'modules/support/commands/team/request_access', profile: requester, note: 'again'

@@ -182,6 +182,30 @@
     if (box && event.target.value.trim() !== '') box.checked = false;
   });
 
+  // Settings → Team: an admin's departments are ignored, so the list is hidden
+  // for that role; agents and managers see what their departments do
+  const syncRole = (select) => {
+    const form = select.form;
+    const departments = form && form.querySelector('[data-support-departments]');
+    if (!departments) return;
+    departments.hidden = select.value === 'admin';
+    departments.querySelectorAll('[data-support-role-help]').forEach((help) => {
+      help.hidden = help.dataset.supportRoleHelp !== select.value;
+    });
+  };
+  document.querySelectorAll('select[data-support-role]').forEach(syncRole);
+  document.addEventListener('change', (event) => {
+    if (event.target.matches && event.target.matches('select[data-support-role]')) syncRole(event.target);
+  });
+
+  // a section opened by a link to it (Settings → Team "Edit") takes the focus,
+  // so the form is in view and screen readers start there
+  const jump = document.querySelector('[data-support-focus-on-load]');
+  if (jump && window.location.hash === `#${jump.id}`) {
+    jump.scrollIntoView({ block: 'start' });
+    jump.focus({ preventScroll: true });
+  }
+
   // the brand logo follows the background it actually sits on: a brand-coloured
   // (dark) rail gets the dark-background logo in either colour scheme. A canvas
   // parses any CSS colour the browser supports (hex, rgb, color-mix, oklch…).

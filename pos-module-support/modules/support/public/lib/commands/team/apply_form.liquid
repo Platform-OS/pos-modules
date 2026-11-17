@@ -23,7 +23,12 @@
       return result
     endif
     if params.op == 'resend'
-      function _ = 'modules/support/commands/team/send_invite', email: invite.email, profile_id: invite.profile_id, role: invite.role, department_ids: invite.department_ids, actor_id: actor.id, invite_id: invite.id
+      # an accepted or revoked invite stays closed: a new token would make it valid again
+      if invite.accepted_at != blank or invite.revoked_at != blank
+        assign result.error = 'modules/support/team.errors.invite_closed'
+        return result
+      endif
+      function _ = 'modules/support/commands/team/send_invite', email: invite.email, profile_id: invite.profile_id, role: invite.role, department_ids: invite.department_ids, actor_id: actor.id, invite_id: invite.id, existing_account: invite.existing_account
       assign result.notice = 'modules/support/team.notices.resent'
     else
       assign values = { "revoked_at": null }

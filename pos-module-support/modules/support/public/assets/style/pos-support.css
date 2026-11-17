@@ -983,6 +983,75 @@
   .pos-support-priority-p2 { color: var(--pos-support-priority-p2-fg); background: var(--pos-support-priority-p2-bg); }
   .pos-support-priority-p3 { color: var(--pos-support-priority-p3-fg); background: var(--pos-support-priority-p3-bg); }
 
+  /* a section a link jumps to (Settings → Team "Edit"): clear of the sticky
+     header, and no focus ring when the page put the focus there */
+  .pos-support-jump-target {
+    scroll-margin-block-start: 5rem;
+  }
+
+  .pos-support-jump-target:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* @mention suggestions under the note (pos-support-ticket.js) */
+  .pos-support-mentions {
+    max-block-size: 12rem;
+    margin: 0;
+    padding: 0.25rem;
+    overflow-y: auto;
+    list-style: none;
+    border-block-start: 1px solid var(--pos-support-border);
+    background: var(--pos-support-bg);
+  }
+
+  .pos-support-mentions [role="option"] {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--pos-support-radius-control);
+    font-size: var(--pos-support-text-meta);
+    cursor: pointer;
+  }
+
+  .pos-support-mentions [role="option"][hidden] {
+    display: none;
+  }
+
+  .pos-support-mentions [role="option"]:hover,
+  .pos-support-mentions [aria-selected="true"] {
+    background: var(--pos-support-bg-subtle);
+  }
+
+  /* status options: the label the customer's email shows instead */
+  .pos-support-customer-sees {
+    color: var(--pos-support-text-muted);
+    font-size: var(--pos-support-text-small);
+  }
+
+  /* remove one chosen attachment (pos-support-ticket.js) */
+  .pos-support-chip-remove {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin-inline-end: -0.25rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--pos-support-radius-pill);
+    background: transparent;
+    color: inherit;
+    font-size: 0.875rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .pos-support-chip-remove:hover,
+  .pos-support-chip-remove:focus-visible {
+    background: var(--pos-support-bg-subtle);
+    color: var(--pos-support-text);
+  }
+
   .pos-support .pos-tag,
   .pos-support-chip {
     display: inline-flex;
@@ -1777,6 +1846,12 @@
   .pos-support-gate :is(input, select, textarea),
   .pos-support-gate .pos-button {
     inline-size: 100%;
+  }
+
+  /* sign out for people who are signed in but can't open the desk */
+  .pos-support-gate-signout {
+    padding-block-start: 1rem;
+    border-block-start: 1px solid var(--pos-support-border);
   }
 
   .pos-support-label-row {

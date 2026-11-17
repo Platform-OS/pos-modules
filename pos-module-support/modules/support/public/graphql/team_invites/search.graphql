@@ -1,4 +1,4 @@
-query ($id: ID, $email: String, $invited_by_id: String, $since: String, $closed: Boolean, $limit: Int = 50) {
+query ($id: ID, $email: String, $profile_id: String, $invited_by_id: String, $since: String, $closed: Boolean, $limit: Int = 50) {
   records(
     per_page: $limit
     filter: {
@@ -7,6 +7,7 @@ query ($id: ID, $email: String, $invited_by_id: String, $since: String, $closed:
       created_at: { gte: $since }
       properties: [
         { name: "email", value: $email }
+        { name: "profile_id", value: $profile_id }
         { name: "invited_by_id", value: $invited_by_id }
         { name: "accepted_at", exists: $closed }
         { name: "revoked_at", exists: $closed }
@@ -27,6 +28,7 @@ query ($id: ID, $email: String, $invited_by_id: String, $since: String, $closed:
       accepted_at: property(name: "accepted_at")
       revoked_at: property(name: "revoked_at")
       invited_by_id: property(name: "invited_by_id")
+      existing_account: property_boolean(name: "existing_account")
     }
   }
 }

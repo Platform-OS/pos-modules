@@ -1,0 +1,22 @@
+{% doc %}
+  Opens a link from send_verification_link: marks the address confirmed and
+  signs the person in (two-factor authentication still applies). Returns
+  { valid, signed_in }.
+  @param {string} token - Token from the link
+  @param {string} email - Address from the link
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "signed_in": false }
+  function user = 'modules/user/helpers/user_from_temporary_token', token: token, email: email
+  unless user
+    return result
+  endunless
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function _ = 'modules/user/commands/email_verifications/confirm', user: user, profile: profile
+  function session = 'modules/user/commands/session/create', email: null, password: null, hook_params: null, validate_password: false, skip_otp: false, user_id: user.id
+  if session.valid and session.otp_required != true
+    assign result.signed_in = true
+  endif
+  assign result.valid = true
+  return result
+%}

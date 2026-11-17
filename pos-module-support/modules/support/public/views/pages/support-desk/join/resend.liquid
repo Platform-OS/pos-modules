@@ -1,0 +1,20 @@
+---
+slug: support-desk/join/resend
+method: post
+layout: modules/support/support
+---
+{% liquid
+  # "Confirm your email" from the no-access page: signed-in non-members only
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+  function profile = 'modules/user/helpers/current_profile'
+  if profile.user == null
+    redirect_to '/support-desk/sign-in'
+    break
+  endif
+  function _ = 'modules/support/commands/auth/send_verification_link', email: profile.email
+  render 'modules/support/auth/join', sent: true, errors: null, values: null
+%}

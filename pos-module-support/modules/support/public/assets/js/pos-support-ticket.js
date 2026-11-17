@@ -75,13 +75,39 @@
     return item;
   };
 
-  // A refused or unreadable choice is cleared and explained at the file field.
-  // The message is shown once and not kept as a validity error: the field is
-  // empty again, so it must not block sending the reply without a file.
-  const refuseFiles = (message) => {
-    files.value = '';
+  // Every file chosen so far: choosing again adds to the list instead of
+  // replacing it, and each chip has its own remove button. The posted fields
+  // are rebuilt from this list.
+  let attached = [];
+  const renderAttached = () => {
     holder.textContent = '';
     if (list) list.textContent = '';
+    attached.forEach((entry) => {
+      holder.append(hidden('attachments[][filename]', entry.file.name));
+      holder.append(hidden('attachments[][content_type]', entry.file.type || 'application/octet-stream'));
+      holder.append(hidden('attachments[][content_base64]', entry.content));
+      if (!list) return;
+      const item = chip(entry.file);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'pos-support-chip-remove';
+      remove.setAttribute('aria-label', `${form.dataset.removeFile || 'Remove'} ${entry.file.name}`);
+      remove.textContent = '×';
+      remove.addEventListener('click', () => {
+        attached = attached.filter((other) => other !== entry);
+        renderAttached();
+        files.focus();
+      });
+      item.append(remove);
+      list.append(item);
+    });
+  };
+
+  // A refused or unreadable choice is explained at the file field; files
+  // already attached stay. The message is shown once and not kept as a
+  // validity error, so it never blocks sending the reply.
+  const refuseFiles = (message) => {
+    files.value = '';
     // the desk's inline message (pos-support-ui.js), not a browser bubble
     const fieldError = window.pos && window.pos.supportFieldError;
     if (fieldError) fieldError.show(files, message);
@@ -91,25 +117,25 @@
   if (files) {
     files.addEventListener('change', () => {
       if (window.pos && window.pos.supportFieldError) window.pos.supportFieldError.clear(files);
-      holder.textContent = '';
-      if (list) list.textContent = '';
       readFailed = false;
-      const chosen = Array.from(files.files);
-      const total = chosen.reduce((sum, file) => sum + file.size, 0);
+      const same = (a, b) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+      const chosen = Array.from(files.files).filter((file) => !attached.some((entry) => same(entry.file, file)));
+      // the same file can be chosen again after it was removed
+      files.value = '';
+      const total = attached.concat(chosen.map((file) => ({ file }))).reduce((sum, entry) => sum + entry.file.size, 0);
       if (total > MAX_BYTES) {
         refuseFiles(form.dataset.tooLarge || 'Attachments are limited to 10 MB in total.');
         return;
       }
-      reading = (async () => {
+      reading = reading.then(async () => {
         for (const file of chosen) {
           const content = await readFile(file);
-          holder.append(hidden('attachments[][filename]', file.name));
-          holder.append(hidden('attachments[][content_type]', file.type || 'application/octet-stream'));
-          holder.append(hidden('attachments[][content_base64]', content));
-          if (list) list.append(chip(file));
+          attached.push({ file, content });
         }
-      })().catch(() => {
+        renderAttached();
+      }).catch(() => {
         readFailed = true;
+        renderAttached();
       });
     });
   }
@@ -141,6 +167,89 @@
     window.removeEventListener('beforeunload', warn);
     HTMLFormElement.prototype.submit.call(form);
   });
+
+  // @mentions in an internal note: typing "@" and the start of a name lists
+  // the colleagues who can see this ticket; choosing one writes their full
+  // name, which is what the server matches (queries/notes/mentioned_ids).
+  const mentions = form.querySelector('[data-support-mentions]');
+  if (mentions) {
+    const options = Array.from(mentions.querySelectorAll('[role="option"]'));
+    let shown = [];
+    let active = -1;
+    let start = -1;
+    body.setAttribute('aria-autocomplete', 'list');
+    body.setAttribute('aria-controls', mentions.id);
+    const isNote = () => form.querySelector('input[name="mode"]:checked').value === 'note';
+    const close = () => {
+      mentions.hidden = true;
+      body.removeAttribute('aria-activedescendant');
+      body.setAttribute('aria-expanded', 'false');
+      shown = [];
+      active = -1;
+      start = -1;
+    };
+    const highlight = (index) => {
+      active = index;
+      shown.forEach((option, i) => option.setAttribute('aria-selected', String(i === index)));
+      if (shown[index]) {
+        body.setAttribute('aria-activedescendant', shown[index].id);
+        shown[index].scrollIntoView({ block: 'nearest' });
+      }
+    };
+    const choose = (option) => {
+      const name = option.dataset.name;
+      const before = body.value.slice(0, start);
+      const after = body.value.slice(body.selectionStart);
+      body.value = `${before}@${name} ${after.replace(/^\S*/, '')}`;
+      const caret = before.length + name.length + 2;
+      body.setSelectionRange(caret, caret);
+      close();
+      body.focus();
+    };
+    const update = () => {
+      if (!isNote()) return close();
+      const upto = body.value.slice(0, body.selectionStart);
+      const match = upto.match(/(?:^|\s)@([\p{L}\p{N}.'-]*(?: [\p{L}\p{N}.'-]*)?)$/u);
+      if (!match) return close();
+      const typed = match[1].toLowerCase();
+      start = upto.length - match[1].length - 1;
+      shown = options.filter((option) => {
+        const name = option.dataset.name.toLowerCase();
+        const matches = name.startsWith(typed) || name.split(' ').some((part) => part.startsWith(typed));
+        option.hidden = !matches;
+        return matches;
+      });
+      if (shown.length === 0) return close();
+      mentions.hidden = false;
+      body.setAttribute('aria-expanded', 'true');
+      highlight(0);
+    };
+    body.addEventListener('input', update);
+    body.addEventListener('blur', () => window.setTimeout(close, 150));
+    form.querySelectorAll('input[name="mode"]').forEach((input) => input.addEventListener('change', close));
+    options.forEach((option) => {
+      // mousedown keeps the focus in the textarea
+      option.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        choose(option);
+      });
+    });
+    body.addEventListener('keydown', (event) => {
+      if (mentions.hidden || shown.length === 0) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        highlight((active + step + shown.length) % shown.length);
+      } else if ((event.key === 'Enter' || event.key === 'Tab') && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        choose(shown[active]);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        close();
+      }
+    });
+  }
 
   body.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {

@@ -1,0 +1,53 @@
+{% doc %}
+  "Request to join" from the sign-in page: creates an account with no host
+  roles and emails a link that confirms the address; after confirming, the
+  person is signed in and asks for access on the no-access page. An address
+  that already has an account gets a password-reset link instead, and the
+  page says the same thing in both cases, so it never tells whether an
+  account exists. Returns { valid, errors } (errors: field => translation key).
+  @param {string} name - Display name
+  @param {string} email - Work email
+  @param {string} password - 12+ characters
+  @param {string} password_confirmation - The same password again
+  @param {object} hcaptcha_params - Request params (hCaptcha, when on)
+{% enddoc %}
+{% liquid
+  assign result = { "valid": false, "errors": {} }
+  assign address = email | strip | downcase
+  assign clean_name = name | strip | truncate: 80, ''
+  if clean_name == blank
+    assign result.errors.name = 'modules/support/join.errors.name'
+  endif
+  assign looks_like_email = address | matches: '\A[^@\s]+@[^@\s]+\.[^@\s]+\z'
+  unless looks_like_email
+    assign result.errors.email = 'modules/support/team.errors.email'
+  endunless
+  if password.size < 12
+    assign result.errors.password = 'modules/support/team.errors.password'
+  elsif password != password_confirmation
+    assign result.errors.password_confirmation = 'modules/support/password.mismatch'
+  endif
+  if result.errors.size > 0
+    return result
+  endif
+
+  function existing = 'modules/user/queries/user/find', email: address, id: null, with_token: false, expires_in: null
+  if existing
+    function _ = 'modules/support/commands/auth/send_password_link', email: address, hcaptcha_params: hcaptcha_params
+    assign result.valid = true
+    return result
+  endif
+
+  assign parts = clean_name | split: ' '
+  assign first_name = parts.first
+  assign last_name = parts | slice: 1, parts.size | join: ' '
+  assign no_roles = []
+  function user = 'modules/user/commands/user/create', first_name: first_name, last_name: last_name, email: address, password: password, roles: no_roles, hook_params: hcaptcha_params
+  if user.id == blank
+    assign result.errors.email = 'modules/support/team.errors.email'
+    return result
+  endif
+  function _ = 'modules/support/commands/auth/send_verification_link', email: address
+  assign result.valid = true
+  return result
+%}

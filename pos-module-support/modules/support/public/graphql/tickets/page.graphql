@@ -5,6 +5,7 @@ query (
   $ticket_record_id: ID!
   $requester_id: ID!
   $requester_key: String!
+  $department_ids: [String!]
   $message_limit: Int = 30
   $message_page: Int = 1
   $message_order: SortOrderEnum = DESC
@@ -114,7 +115,8 @@ query (
     filter: {
       id: { not_value_in: [$ticket_record_id] }
       table: { value: "modules/support/ticket" }
-      properties: [{ name: "requester_id", value: $requester_key }]
+      # department scope: null for managers and admins (every department)
+      properties: [{ name: "requester_id", value: $requester_key }, { name: "department_id", value_in: $department_ids }]
     }
     sort: [{ created_at: { order: DESC } }]
   ) {

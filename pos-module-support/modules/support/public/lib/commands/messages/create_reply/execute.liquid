@@ -33,7 +33,7 @@
   function ticket = 'modules/support/commands/tickets/save', ticket: ticket, values: ticket_values
 
   if object.then_status_key != blank
-    function changed = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: object.then_status_key, actor: actor
+    function changed = 'modules/support/commands/tickets/set_status', ticket: ticket, status_key: object.then_status_key, actor: actor
     if changed.valid
       assign ticket = changed.ticket
     endif

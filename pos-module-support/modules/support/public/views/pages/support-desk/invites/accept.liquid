@@ -6,13 +6,19 @@ layout: modules/support/support
 {% liquid
   unless context.csrf_request_valid
     response_status 422
-    render 'modules/support/team/invite_accept', valid: false, invite_id: null, token: null, error: null
+    render 'modules/support/team/invite_accept', valid: false, invite_id: null, token: null, error: null, used: false, existing: false, sign_in_needed: false, invite_email: null, signed_in_email: null
     break
   endunless
   function form = 'modules/support/helpers/text_params', params: context.params, names: 'id,token,password,name'
-  function result = 'modules/support/commands/team/accept_invite', invite_id: form.id, token: form.token, password: form.password, name: form.name
+  function current_profile = 'modules/user/helpers/current_profile'
+  function result = 'modules/support/commands/team/accept_invite', invite_id: form.id, token: form.token, password: form.password, name: form.name, complete: true, signed_in_id: current_profile.id
   if result.valid
-    redirect_to '/support-desk'
+    if result.existing or result.signed_in
+      redirect_to '/support-desk'
+    else
+      # two-factor authentication is on for the account: sign in as usual
+      redirect_to '/support-desk/sign-in'
+    endif
     break
   endif
   response_status 422
@@ -20,5 +26,5 @@ layout: modules/support/support
   if result.invite
     assign still_valid = true
   endif
-  render 'modules/support/team/invite_accept', valid: still_valid, invite_id: form.id, token: form.token, error: result.error, used: result.used
+  render 'modules/support/team/invite_accept', valid: still_valid, invite_id: form.id, token: form.token, error: result.error, used: result.used, existing: result.existing, sign_in_needed: result.sign_in_needed, invite_email: result.invite.email, signed_in_email: current_profile.email
 %}

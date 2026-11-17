@@ -177,6 +177,27 @@ en:
     request_access: Request access
     disabled: Your access to Support has been turned off. Ask a support admin if you need it back.
     invited: You've been invited. Use the link in your invitation email to join.
+    pending: "Your request to join (as %{email}) is waiting for a support admin. You'll get an email when they decide."
+    confirm_first: "Before you can ask for access, confirm that %{email} is your address. We'll email you a link."
+    send_confirmation: Email me a confirmation link
+    unverified: Confirm your email address before asking for access.
+    impersonated: You're impersonating another user. The support desk can't be used while impersonating.
+    stop_impersonating: Stop impersonating
+  join:
+    title: Request to join Support
+    lede: Create your account. After you confirm your email, a support admin decides whether you get access.
+    submit: Create account
+    no_account: New to the support team?
+    link: Request to join
+    have_account: Already have an account?
+    sent_title: Check your email
+    sent: We've emailed you a link. Open it to confirm your address, then ask for access. If you already had an account, the email explains how to sign in.
+    expired: Confirmation links work for 24 hours. Sign in and ask for a new one.
+    email_heading: "Confirm your email for %{brand} Support"
+    email_body: Open this link within 24 hours to confirm your address. Then you can ask the support admins for access.
+    email_button: Confirm my email
+    errors:
+      name: Enter your name.
   forbidden:
     title: You can't open this page
     body: Your support role doesn't include this page.
@@ -189,6 +210,8 @@ en:
     decline_confirm: Decline this access request?
     role: Role
     departments: Departments
+    departments_agent: An agent sees only tickets in these departments and is auto-assigned tickets from them.
+    departments_manager: A manager sees every department; these are the ones they are auto-assigned tickets from.
     source: Added by
     alerts: Alerts
     on_duty: on duty
@@ -214,6 +237,10 @@ en:
     invite_invalid_help: Ask a support admin to send you a new invitation.
     invite_used: This invitation has already been used
     invite_used_help: Your account is set up. Sign in with the password you chose.
+    invite_sign_in: Sign in to the invited account to accept.
+    invite_sign_in_help: "This invitation is for %{invited}, which already has an account. Sign in to that account to accept it; if you don't know its password, use \"Forgot your password?\" on the sign-in page."
+    invite_other_account: "You're signed in as %{email}, but this invitation is for %{invited}. Sign out, then sign in to the invited account."
+    invite_join_help: "Join the support team as %{invited}."
     sign_in: Sign in
     request_sent: Request sent
     request_sent_help: The support admins have been told. You'll get an email when they decide.
@@ -244,8 +271,7 @@ en:
       invite_heading: "You're invited to %{brand} Support"
       invite_body: Set your password to start answering tickets. The link works for 7 days.
       invite_button: Accept invitation
-      added_heading: "You've been added to %{brand} Support"
-      added_body: You can now open the support desk with your usual sign-in.
+      invite_body_existing: Open the link while signed in to your account with this address to join. The link works for 7 days.
       open_desk: Open the support desk
       request_heading: "%{name} asks for access to Support"
       request_body: "%{email} would like to join the support team."
@@ -257,6 +283,7 @@ en:
     errors:
       already_member: is already on the support team
       already_member_message: This person is already on the support team.
+      invite_closed: This invitation was already accepted or revoked. Send a new one instead.
       agent_departments: Choose at least one department for an agent, or they will see no tickets.
       not_allowed: Only a support admin can change the team.
       role: Choose agent, manager or admin.
@@ -472,6 +499,9 @@ en:
     cc_placeholder: Comma-separated email addresses
     attach: Attachments
     attach_help: Up to 10 MB in total.
+    attach_remove: Remove
+    customer_sees: "customer sees: %{label}"
+    mention_list: Colleagues you can mention
     then: Then set status
     then_keep: Keep current status
     send: Send

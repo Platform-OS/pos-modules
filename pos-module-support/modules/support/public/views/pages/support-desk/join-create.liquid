@@ -1,0 +1,23 @@
+---
+slug: support-desk/join
+method: post
+layout: modules/support/support
+---
+{% liquid
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/auth/join', sent: false, errors: null, values: null
+    break
+  endunless
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'name,email,password,password_confirmation'
+  function result = 'modules/support/commands/auth/join', name: form.name, email: form.email, password: form.password, password_confirmation: form.password_confirmation, hcaptcha_params: context.params
+  if result.valid
+    render 'modules/support/auth/join', sent: true, errors: null, values: null
+  else
+    response_status 422
+    assign values = { "name": null, "email": null }
+    assign values.name = form.name
+    assign values.email = form.email
+    render 'modules/support/auth/join', sent: false, errors: result.errors, values: values
+  endif
+%}

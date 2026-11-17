@@ -7,7 +7,8 @@
   @param {string} role - agent | manager | admin
   @param {string[]} [department_ids] - Departments
   @param {string} actor_id - Profile id of the inviting admin
-  @param {string} [invite_id] - Existing invite to renew (resend)
+  @param {string} [invite_id] - Existing invite to renew (resend); the caller checks it is still open
+  @param {boolean} [existing_account] - The address had an account before it was invited
 {% enddoc %}
 {% liquid
   assign token = 40 | random_string
@@ -20,6 +21,7 @@
   assign values.token_digest = digest
   assign values.expires_at = 'now' | add_to_time: 7, 'd'
   assign values.invited_by_id = actor_id
+  assign values.existing_account = existing_account | default: false
   function props = 'modules/support/helpers/props', values: values
   if invite_id != blank
     graphql r = 'modules/support/records/update', id: invite_id, properties: props
@@ -33,7 +35,11 @@
   function brand = 'modules/support/helpers/branding'
   assign link = settings.base_url | append: '/support-desk/invites/' | append: id | append: '?token=' | append: token
   assign heading = 'modules/support/team.emails.invite_heading' | t: brand: brand.app_name
-  assign body = 'modules/support/team.emails.invite_body' | t
+  if values.existing_account
+    assign body = 'modules/support/team.emails.invite_body_existing' | t
+  else
+    assign body = 'modules/support/team.emails.invite_body' | t
+  endif
   assign label = 'modules/support/team.emails.invite_button' | t
   capture html
     render 'modules/support/emails/team', brand: brand, heading: heading, body: body, link: link, link_label: label

@@ -1,0 +1,54 @@
+{% doc %}
+  "Request to join" form, the "check your email" confirmation, or the
+  expired-link message.
+  @param {boolean} [sent] - The form was submitted
+  @param {object} [errors] - Field => translation key
+  @param {object} [values] - { name, email } typed earlier
+  @param {boolean} [expired] - A confirmation link that no longer works
+{% enddoc %}
+<section class="pos-support-gate" aria-labelledby="pos-support-join-title">
+  {% if expired %}
+    <div>
+      <h1 id="pos-support-join-title" class="pos-support-title">{{ 'modules/support/password.expired_title' | t }}</h1>
+      <p class="pos-support-page-lede">{{ 'modules/support/join.expired' | t }}</p>
+    </div>
+    <p><a class="pos-button pos-button-primary" href="/support-desk/sign-in">{{ 'modules/support/team.sign_in' | t }}</a></p>
+  {% elsif sent %}
+    <div>
+      <h1 id="pos-support-join-title" class="pos-support-title">{{ 'modules/support/join.sent_title' | t }}</h1>
+    </div>
+    <p class="pos-support-callout" role="status">{% render 'modules/support/icon', name: 'mail', size: null %}{{ 'modules/support/join.sent' | t }}</p>
+    <p><a href="/support-desk/sign-in">{{ 'modules/support/password.back' | t }}</a></p>
+  {% else %}
+    <div>
+      <h1 id="pos-support-join-title" class="pos-support-title">{{ 'modules/support/join.title' | t }}</h1>
+      <p class="pos-support-page-lede">{{ 'modules/support/join.lede' | t }}</p>
+    </div>
+    <form action="/support-desk/join" method="post" class="pos-form" novalidate>
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <fieldset>
+        <label for="pos-support-join-name">{{ 'modules/support/team.your_name' | t }}</label>
+        <input name="name" id="pos-support-join-name" value="{{ values.name }}" autocomplete="name" maxlength="80" required {% if errors.name %}aria-invalid="true" aria-describedby="pos-support-join-name-error"{% endif %}>
+        {% if errors.name %}<p id="pos-support-join-name-error" class="pos-support-error">{{ errors.name | t }}</p>{% endif %}
+      </fieldset>
+      <fieldset>
+        <label for="pos-support-join-email">{{ 'modules/support/sign_in.email' | t }}</label>
+        <input type="email" name="email" id="pos-support-join-email" value="{{ values.email }}" autocomplete="username" spellcheck="false" required {% if errors.email %}aria-invalid="true" aria-describedby="pos-support-join-email-error"{% endif %}>
+        {% if errors.email %}<p id="pos-support-join-email-error" class="pos-support-error">{{ errors.email | t }}</p>{% endif %}
+      </fieldset>
+      <fieldset>
+        <label for="pos-support-join-password">{{ 'modules/support/team.choose_password' | t }}</label>
+        <input type="password" name="password" id="pos-support-join-password" minlength="12" autocomplete="new-password" required aria-describedby="pos-support-join-password-help{% if errors.password %} pos-support-join-password-error{% endif %}" {% if errors.password %}aria-invalid="true"{% endif %}>
+        <p id="pos-support-join-password-help" class="pos-supplementary">{{ 'modules/support/team.password_help' | t }}</p>
+        {% if errors.password %}<p id="pos-support-join-password-error" class="pos-support-error">{{ errors.password | t }}</p>{% endif %}
+      </fieldset>
+      <fieldset>
+        <label for="pos-support-join-confirm">{{ 'modules/support/password.confirm' | t }}</label>
+        <input type="password" name="password_confirmation" id="pos-support-join-confirm" minlength="12" autocomplete="new-password" required {% if errors.password_confirmation %}aria-invalid="true" aria-describedby="pos-support-join-confirm-error"{% endif %}>
+        {% if errors.password_confirmation %}<p id="pos-support-join-confirm-error" class="pos-support-error">{{ errors.password_confirmation | t }}</p>{% endif %}
+      </fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/join.submit' | t }}</button>
+    </form>
+    <p>{{ 'modules/support/join.have_account' | t }} <a href="/support-desk/sign-in">{{ 'modules/support/team.sign_in' | t }}</a></p>
+  {% endif %}
+</section>

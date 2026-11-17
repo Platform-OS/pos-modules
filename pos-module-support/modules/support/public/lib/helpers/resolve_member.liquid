@@ -8,6 +8,12 @@
   if profile.id == blank
     return null
   endif
+  # an impersonated session (pos-module-user) never acts in the desk: desk
+  # access is granted by the desk's own admins, never by a host permission
+  if context.session.original_user_id != blank
+    log context.session.original_user_id, type: 'support: desk refused an impersonated session'
+    return null
+  endif
 
   function member = 'modules/support/queries/team_members/find', profile_id: profile.id
   if member

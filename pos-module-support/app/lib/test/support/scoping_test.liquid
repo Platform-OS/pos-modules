@@ -45,5 +45,21 @@
   endif
   function contract = 'modules/tests/assertions/equal', contract: contract, given: leaked, expected: false, field_name: 'queue search stays in the agent departments'
 
+  # ticket page "Other tickets" (the same requester): only departments the member reads
+  function agent_page = 'modules/support/queries/tickets/page_data', ticket: f.ticket, member: f.actor.member, profile: null, all_messages: false
+  assign agent_other_ids = agent_page.other_tickets | map: 'id'
+  assign leaked = false
+  if agent_other_ids contains other.id
+    assign leaked = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: leaked, expected: false, field_name: 'other tickets list stays in the agent departments'
+  function manager_page = 'modules/support/queries/tickets/page_data', ticket: f.ticket, member: f.manager_actor.member, profile: null, all_messages: false
+  assign manager_other_ids = manager_page.other_tickets | map: 'id'
+  assign listed = false
+  if manager_other_ids contains other.id
+    assign listed = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: listed, expected: true, field_name: 'manager sees the other department ticket in other tickets'
+
   graphql _ = 'support_test_helpers/cleanup', department_id: other_department_id
 %}

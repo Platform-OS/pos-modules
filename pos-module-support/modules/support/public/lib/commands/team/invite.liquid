@@ -1,8 +1,10 @@
 {% doc %}
-  Adds someone to the support team (D-25, 09 §1.4). An existing user gets an
-  active membership at once and a "you've been added" email; a new address
-  gets a user with no host roles (roles: [] so USER_DEFAULT_ROLE is never
-  applied), an invited membership and an invite email. Refused: invalid
+  Adds someone to the support team (D-25, 09 §1.4). Every invite is pending
+  until the link sent to the address is opened. An existing user gets an
+  invited membership and an invite that they accept while signed in to that
+  account; a new address gets a user with no host roles (roles: [] so
+  USER_DEFAULT_ROLE is never applied), an invited membership and an invite
+  email where they set a password. Refused: invalid
   email, already a member, actor without support.team.manage, more than 50
   invites an hour, an agent without a department. Returns { valid, error, member }.
   @param {string} email - The address
@@ -59,19 +61,13 @@
       assign result.error = 'modules/support/team.errors.already_member_message'
       return result
     endif
+    # an account can hold an address its owner never proved, so the person
+    # joins only by opening the link sent to that address while signed in
+    # to the account
     assign object.profile_id = profile.id
-    assign object.state = 'active'
+    assign object.state = 'invited'
     function member = 'modules/support/commands/team_members/create', object: object
-    function brand = 'modules/support/helpers/branding'
-    function settings = 'modules/support/helpers/settings'
-    assign heading = 'modules/support/team.emails.added_heading' | t: brand: brand.app_name
-    assign body = 'modules/support/team.emails.added_body' | t
-    assign label = 'modules/support/team.emails.open_desk' | t
-    assign link = settings.base_url | append: '/support-desk'
-    capture html
-      render 'modules/support/emails/team', brand: brand, heading: heading, body: body, link: link, link_label: label
-    endcapture
-    function _ = 'modules/support/commands/email/send_simple', to_email: email, to_name: profile.name, subject: heading, html: html, text: heading
+    function _ = 'modules/support/commands/team/send_invite', email: email, profile_id: profile.id, role: role, department_ids: object.department_ids, actor_id: actor.id, invite_id: null, existing_account: true
   else
     assign password = 32 | random_string
     assign no_roles = []
@@ -86,7 +82,7 @@
     assign object.profile_id = created_profile.id
     assign object.state = 'invited'
     function member = 'modules/support/commands/team_members/create', object: object
-    function _ = 'modules/support/commands/team/send_invite', email: email, profile_id: created_profile.id, role: role, department_ids: object.department_ids, actor_id: actor.id, invite_id: null
+    function _ = 'modules/support/commands/team/send_invite', email: email, profile_id: created_profile.id, role: role, department_ids: object.department_ids, actor_id: actor.id, invite_id: null, existing_account: false
   endif
 
   function _ = 'modules/support/commands/ticket_events/log', ticket_id: null, actor_type: 'user', actor_id: actor.id, event_type: 'team_invited', from_value: null, to_value: email, reason: role

@@ -22,8 +22,13 @@
   function support_member = 'modules/support/helpers/resolve_member', profile: current_profile
   export support_member, current_profile, namespace: 'support'
   if support_member == null or support_member.state != 'active'
+    assign impersonated = false
+    if context.session.original_user_id != blank
+      assign impersonated = true
+    endif
+    function request_pending = 'modules/support/queries/team/request_pending', profile_id: current_profile.id
     response_status 403
-    render 'modules/support/no_access', member: support_member, current_profile: current_profile
+    render 'modules/support/no_access', member: support_member, current_profile: current_profile, impersonated: impersonated, request_pending: request_pending
     break
   endif
 

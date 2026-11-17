@@ -22,7 +22,9 @@
   endif
   # a blank id filter is ignored and would return the first contact
   assign requester_id = ticket.requester_id | default: '0'
-  graphql r = 'modules/support/tickets/page', ticket_id: ticket.id, ticket_record_id: ticket.id, requester_id: requester_id, requester_key: requester_id, message_limit: message_limit, message_page: 1, message_order: message_order
+  # "Other tickets" lists only tickets the member may open
+  function scope = 'modules/support/queries/tickets/scope', member: member, department_id: null
+  graphql r = 'modules/support/tickets/page', ticket_id: ticket.id, ticket_record_id: ticket.id, requester_id: requester_id, requester_key: requester_id, department_ids: scope, message_limit: message_limit, message_page: 1, message_order: message_order
 
   if all_messages
     assign messages = r.messages.results

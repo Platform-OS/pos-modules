@@ -11,6 +11,10 @@
   if profile.id == blank or room_id == blank
     return null
   endif
+  # impersonated sessions never use the desk (helpers/resolve_member)
+  if context.session.original_user_id != blank
+    return null
+  endif
   function member = 'modules/support/queries/team_members/find', profile_id: profile.id
   if member == blank or member.state != 'active'
     return null

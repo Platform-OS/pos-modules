@@ -33,7 +33,7 @@ metadata:
       elsif form.priority != blank
         function result = 'modules/support/commands/tickets/set_priority', ticket: ticket, priority: form.priority, actor: actor
       else
-        function result = 'modules/support/commands/tickets/change_status', ticket: ticket, status_key: form.status_key, actor: actor
+        function result = 'modules/support/commands/tickets/set_status', ticket: ticket, status_key: form.status_key, actor: actor
       endif
     endif
   endif

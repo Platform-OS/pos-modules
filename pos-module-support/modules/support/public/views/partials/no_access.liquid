@@ -1,13 +1,32 @@
 {% doc %}
+  The desk for a signed-in person without an active membership: why, what
+  they can do next, and always a way to sign out.
   @param {object} [member] - The disabled or invited membership, if any
   @param {object} current_profile - The signed-in profile
+  @param {boolean} [impersonated] - An impersonated session (pos-module-user)
+  @param {boolean} [request_pending] - An access request is waiting for an admin
 {% enddoc %}
 <section class="pos-card pos-support-gate" aria-labelledby="pos-support-no-access-title">
   <h1 id="pos-support-no-access-title" class="pos-heading-2">{{ 'modules/support/no_access.title' | t }}</h1>
-  {% if member.state == 'disabled' %}
+  {% if impersonated %}
+    <p>{{ 'modules/support/no_access.impersonated' | t }}</p>
+    <form action="/sessions/impersonations" method="post">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <input type="hidden" name="_method" value="delete">
+      <button type="submit" class="pos-button">{{ 'modules/support/no_access.stop_impersonating' | t }}</button>
+    </form>
+  {% elsif member.state == 'disabled' %}
     <p>{{ 'modules/support/no_access.disabled' | t }}</p>
   {% elsif member.state == 'invited' %}
     <p>{{ 'modules/support/no_access.invited' | t }}</p>
+  {% elsif request_pending %}
+    <p>{{ 'modules/support/no_access.pending' | t: email: current_profile.email }}</p>
+  {% elsif current_profile.email_verified_at == blank %}
+    <p>{{ 'modules/support/no_access.confirm_first' | t: email: current_profile.email }}</p>
+    <form action="/support-desk/join/resend" method="post">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <button type="submit" class="pos-button pos-button-primary">{% render 'modules/support/icon', name: 'mail', size: 'sm' %}{{ 'modules/support/no_access.send_confirmation' | t }}</button>
+    </form>
   {% else %}
     <p>{{ 'modules/support/no_access.body' | t: email: current_profile.email }}</p>
     <form action="/support-desk/request-access" method="post" class="pos-form pos-support-settings-form">
@@ -16,4 +35,5 @@
       <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/no_access.request_access' | t }}</button>
     </form>
   {% endif %}
+  {% render 'modules/support/auth/sign_out_form' %}
 </section>

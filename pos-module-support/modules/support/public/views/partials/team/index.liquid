@@ -21,8 +21,8 @@
           <input type="hidden" name="request_id" value="{{ request.id }}">
           <p><strong>{{ person.name | default: person.email }}</strong> {{ person.email }}{% if request.note != blank %} – “{{ request.note }}”{% endif %}</p>
           <label for="rq-role-{{ request.id }}">{{ 'modules/support/team.role' | t }}</label>
-          <select id="rq-role-{{ request.id }}" name="role">{% for r in roles %}<option value="{{ r }}">{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select>
-          <fieldset><legend>{{ 'modules/support/team.departments' | t }}</legend>{% for d in data.departments %}{% if d.active %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}"> {{ d.name }}</label>{% endif %}{% endfor %}</fieldset>
+          <select id="rq-role-{{ request.id }}" name="role" data-support-role>{% for r in roles %}<option value="{{ r }}">{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select>
+          <fieldset data-support-departments><legend>{{ 'modules/support/team.departments' | t }}</legend>{% render 'modules/support/team/departments_help' %}{% for d in data.departments %}{% if d.active %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}"> {{ d.name }}</label>{% endif %}{% endfor %}</fieldset>
           <button type="submit" name="op" value="approve" class="pos-button pos-button-primary">{{ 'modules/support/team.approve' | t }}</button>
           <button type="submit" name="op" value="decline" class="pos-button pos-button-danger" data-support-confirm="{{ 'modules/support/team.decline_confirm' | t }}">{{ 'modules/support/team.decline' | t }}</button>
         </form>
@@ -47,7 +47,7 @@
               <td>{{ 'modules/support/team.states.' | append: member.state | t }}</td>
               <td>{% if member.state == 'active' %}<span class="pos-support-presence-dot pos-support-presence-{{ availability }}"></span> {{ 'modules/support/availability.' | append: availability | t }}{% endif %}</td>
               <td>{{ source_key | t: default: other_source }}</td>
-              <td><a href="/support-desk/settings/team?edit={{ member.id }}">{{ 'modules/support/settings.edit' | t }}</a> · <a href="/support-desk/settings/agents/{{ member.profile_id }}">{{ 'modules/support/team.alerts' | t }}</a></td>
+              <td><a href="/support-desk/settings/team?edit={{ member.id }}#tm-edit-section">{{ 'modules/support/settings.edit' | t }}</a> · <a href="/support-desk/settings/agents/{{ member.profile_id }}">{{ 'modules/support/team.alerts' | t }}</a></td>
             </tr>
           {% else %}
             {% comment %} the user behind this membership was deleted: listed so it can be disabled {% endcomment %}
@@ -58,7 +58,7 @@
               <td>{{ 'modules/support/team.states.' | append: member.state | t }}</td>
               <td></td>
               <td>{{ source_key | t: default: other_source }}</td>
-              <td><a href="/support-desk/settings/team?edit={{ member.id }}">{{ 'modules/support/settings.edit' | t }}</a></td>
+              <td><a href="/support-desk/settings/team?edit={{ member.id }}#tm-edit-section">{{ 'modules/support/settings.edit' | t }}</a></td>
             </tr>
           {% endif %}
         {% endfor %}
@@ -68,14 +68,15 @@
 
   {% if edit %}
     {% assign person = data.profiles[edit.profile_id] %}
-    <section class="pos-card pos-support-step" aria-labelledby="tm-edit">
+    {%- comment -%} the Edit links jump here; focus moves into it (pos-support-ui.js) {%- endcomment -%}
+    <section class="pos-card pos-support-step pos-support-jump-target" id="tm-edit-section" tabindex="-1" aria-labelledby="tm-edit" data-support-focus-on-load>
       <h2 id="tm-edit" class="pos-heading-3">{{ 'modules/support/settings.edit' | t }}: {% if person %}{{ person.name | default: person.email }}{% else %}{{ 'modules/support/team.deleted_user' | t }}{% endif %}</h2>
       <form action="/support-desk/settings/team" method="post" class="pos-form pos-support-settings-form">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="op" value="update">
         <input type="hidden" name="member_id" value="{{ edit.id }}">
-        <fieldset><label for="tm-role">{{ 'modules/support/team.role' | t }}</label><select id="tm-role" name="role">{% for r in roles %}<option value="{{ r }}" {% if edit.role == r %}selected{% endif %}>{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select></fieldset>
-        <fieldset><legend>{{ 'modules/support/team.departments' | t }}</legend>{% for d in data.departments %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}" {% if edit.department_ids contains d.id %}checked{% endif %}> {{ d.name }}</label>{% endfor %}</fieldset>
+        <fieldset><label for="tm-role">{{ 'modules/support/team.role' | t }}</label><select id="tm-role" name="role" data-support-role>{% for r in roles %}<option value="{{ r }}" {% if edit.role == r %}selected{% endif %}>{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select></fieldset>
+        <fieldset data-support-departments><legend>{{ 'modules/support/team.departments' | t }}</legend>{% render 'modules/support/team/departments_help' %}{% for d in data.departments %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}" {% if edit.department_ids contains d.id %}checked{% endif %}> {{ d.name }}</label>{% endfor %}</fieldset>
         <fieldset><label for="tm-title">{{ 'modules/support/team.job_title' | t }}</label><input id="tm-title" name="job_title" value="{{ edit.job_title }}"></fieldset>
         <fieldset><label><input type="checkbox" name="on_duty_manager" value="true" {% if edit.on_duty_manager %}checked{% endif %}> {{ 'modules/support/team.on_duty_help' | t }}</label></fieldset>
         <fieldset><label for="tm-state">{{ 'modules/support/settings.state' | t }}</label><select id="tm-state" name="state"><option value="active" {% if edit.state != 'disabled' %}selected{% endif %}>{{ 'modules/support/team.states.active' | t }}</option><option value="disabled" {% if edit.state == 'disabled' %}selected{% endif %}>{{ 'modules/support/team.states.disabled' | t }}</option></select></fieldset>
@@ -102,8 +103,8 @@
         </fieldset>
       {% endif %}
       <fieldset><label for="tm-email">{{ 'modules/support/team.email' | t }}</label><input id="tm-email" type="email" name="email" required data-support-pick-target></fieldset>
-      <fieldset><label for="tm-new-role">{{ 'modules/support/team.role' | t }}</label><select id="tm-new-role" name="role">{% for r in roles %}<option value="{{ r }}">{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select></fieldset>
-      <fieldset><legend>{{ 'modules/support/team.departments' | t }}</legend>{% for d in data.departments %}{% if d.active %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}"> {{ d.name }}</label>{% endif %}{% endfor %}</fieldset>
+      <fieldset><label for="tm-new-role">{{ 'modules/support/team.role' | t }}</label><select id="tm-new-role" name="role" data-support-role>{% for r in roles %}<option value="{{ r }}">{{ 'modules/support/team.roles.' | append: r | t }}</option>{% endfor %}</select></fieldset>
+      <fieldset data-support-departments><legend>{{ 'modules/support/team.departments' | t }}</legend>{% render 'modules/support/team/departments_help' %}{% for d in data.departments %}{% if d.active %}<label><input type="checkbox" name="department_ids[]" value="{{ d.id }}"> {{ d.name }}</label>{% endif %}{% endfor %}</fieldset>
       <p class="pos-supplementary">{{ 'modules/support/team.invite_help' | t }}</p>
       <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/team.add' | t }}</button>
     </form>
