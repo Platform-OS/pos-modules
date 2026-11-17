@@ -64,7 +64,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `approval/expire_due`, which runs on each operator-console load and in the maintenance
   sweep; before, a request was marked expired only when an operator clicked Approve on
   it. Metrics count the new outcomes, and operator rejections count as denials.
-
+- **The operator's token revoke changes MCP tokens only.** `/mcp-admin/token-revoke`
+  passed the posted id straight to `tokens/revoke`, whose `record_update` is keyed by id
+  alone, so an `mcp_operator` could set `status = "revoked"` on a record from any table
+  (for example hide a community event). The page now looks the id up in
+  `modules/mcp/mcp_token` (`tokens/find_by_id`) and revokes only a token it found; any
+  other id changes nothing. `tokens/revoke` and `tokens/suspend` also name the
+  `mcp_token` table.
+- **Reusing any old refresh token revokes the grant, and grants have a maximum
+  lifetime.** Only the refresh token from the immediately previous rotation was
+  recognised as reuse: a token two or more rotations old got a plain `invalid_grant` and
+  the grant stayed active. Someone holding a stolen refresh token could refresh twice,
+  and the rightful client's stale token then revoked nothing. Every rotated-away refresh
+  token is now recorded (new `mcp_refresh_retired` table, digests only, swept with the
+  other maintenance tables), and presenting any of them revokes the whole grant. Rotation
+  also slid the refresh expiry 30 days forward forever; a grant now ends
+  `oauth.grant_max_lifetime_seconds` (new, default `7776000` = 90 days) after it was
+  authorized, however often it is refreshed, and the client must re-authorize. The cap
+  is counted from the grant's creation, so it also applies to existing grants: grants
+  authorized more than 90 days before the upgrade stop refreshing.
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400
@@ -85,6 +103,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authorization endpoint read only the preferred method and refused it with "Only public
   clients … are supported". A document is now a public client when either field allows
   `none`; a document that does not allow `none` is still refused.
+- **Abuse auto-suspend revokes only the token that misbehaved.** Violations (unknown or
+  disallowed tools, invalid arguments, policy denials, rate-limit hits, duplicate or
+  excess approval requests) were counted per person, and at the threshold the token that
+  made the *next* call was revoked. A narrowed token given to a less-trusted agent could
+  make 20 bad calls and get the person's main token revoked for good while staying active
+  itself. Violations are now counted per token (`abuse:<principal>:tok:<token id>:<slice>`),
+  and `limits/enforce_abuse` suspends a token only when its own count reaches
+  `abuse_threshold`; the person's other tokens and OAuth grants keep working. The
+  `security/suspend` ledger entry names the revoked token (`subject_type: token`,
+  `subject_id`, and `audit_json` with the count, threshold and window), and the
+  `/mcp-admin` watchlist shows each token's own count.
+- **The abuse window rolls.** `abuse_window_seconds` was a clock-aligned bucket that reset
+  at every boundary, so 19 violations before it and 19 after never suspended. The count
+  now covers the last `abuse_window_seconds`, summed from counters a tenth of the window
+  long (`helpers/limits/abuse_window`, `queries/limits/abuse_counts`). Defaults are
+  unchanged (20 in 300 s).
+- **The rate limit is per token.** `rate_limit_per_min` was one bucket per person, so one
+  chatty agent used up the budget of every other agent of that person, and each of their
+  refused calls counted as a violation. Each token (or OAuth grant) now has its own
+  bucket (scope `principal:<id>:token:<token id>`), on `tools/call` and provider
+  `resources/read` alike. The default (60) is unchanged; it now applies per token.
+
+### Security
+
+- **Markdown pages protected by `authorization_policies` are no longer exposed.** With
+  `resources.expose_markdown_pages` on, `resources/list` listed (title, description,
+  public URL) and `resources/read` served the full source of every markdown page under
+  an exposed prefix, including pages the website refuses through `authorization_policies`,
+  to any caller — anonymous ones too while `oauth.challenge_initialize` is off. A page
+  policy is evaluated for a website request, so the engine cannot evaluate it for an MCP
+  caller; `queries/resources/page_allowed` now excludes every page that has a policy, for
+  every caller, and `resources/read` answers it `-32002 Resource not found`. Serve
+  restricted content to signed-in callers through the app's resource provider.
 
 ## [0.2.0] - 2026-10-23
 

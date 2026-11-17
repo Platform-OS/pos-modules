@@ -1,0 +1,13 @@
+mutation store($upload: String!) {
+  record_create(
+    record: {
+      table: "uploads", properties: [{ name: "upload", value: $upload }]
+    }
+  ) {
+    id
+    file: property_upload(name: "upload", expires_in: 600) {
+      file_name
+      url
+    }
+  }
+}

@@ -96,7 +96,7 @@ every request — no redeploy needed.
 |---|---|---|
 | `server_name` | `pos-module-mcp` | `serverInfo.name` + the `claude mcp add <name>` alias on `/mcp-tools` |
 | `tools_list_scope` | `open` | `open` advertises every tool to any caller (MCP-default open discovery); `principal` scopes `tools/list` to what the caller may actually call — restricted tools aren't leaked to unauthorized/anonymous callers (least-disclosure). Execution is authorized per-call either way. |
-| `defaults.rate_limit_per_min` | `60` | per-principal fixed-window rate limit |
+| `defaults.rate_limit_per_min` | `60` | per-token fixed-window (per-minute) rate limit; each agent's token or OAuth grant has its own bucket |
 | `defaults.max_input_bytes` | `65536` | request body size cap |
 | `defaults.max_schema_depth` | `5` | argument-validation nesting cap |
 | `defaults.idempotency_window_seconds` | `86400` | how long an idempotency key can replay |
@@ -105,6 +105,9 @@ every request — no redeploy needed.
 | `defaults.max_output_schema_depth` | `8` | nesting cap for a tool's declared `output_schema` |
 | `defaults.task_poll_interval_ms` | `30000` | `pollIntervalMs` suggested to Tasks-extension clients |
 | `defaults.abuse_threshold` / `defaults.abuse_window_seconds` | `20` / `300` | violations within the window that auto-suspend a token (`0` disables) |
+| `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle. Only pages declaring `handler: markdown` in front matter are exposed — a Liquid page is never served as a resource. A page with `authorization_policies` is never exposed, to any caller (see [Resources](#resources-layer-2)) |
+| `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist; matched on a `/` boundary, markdown GET pages without `authorization_policies` only) |
+| `defaults.abuse_threshold` / `defaults.abuse_window_seconds` | `20` / `300` | violations made with one token within the rolling window that auto-suspend (revoke) **that token only** — the person's other tokens keep working. The window rolls in steps of a tenth of its length (`0` disables) |
 | `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle. Only pages declaring `handler: markdown` in front matter are exposed — a Liquid page is never served as a resource |
 | `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist; matched on a `/` boundary, markdown GET pages only) |
 | `oauth.*` | see [OAuth](#oauth-authorization-server) | built-in authorization server |
@@ -324,7 +327,15 @@ signed-in `prompts/list` is cached `private`.
 Two sources serve `resources/*`:
 
 - **Markdown pages** (`mcp+page:///<slug>`), off by default — see `resources.*` in
-  [Configuration](#configuration). Open to any caller.
+  [Configuration](#configuration). Open to any caller, like the website: anonymous
+  callers can read them while `oauth.challenge_initialize` is off. Only public pages
+  are served: a page with `authorization_policies` in its front matter is never listed
+  or read over MCP, whoever asks, because a page policy is evaluated for a website
+  request (its session and params) and the engine cannot evaluate it for an MCP caller.
+  To give agents content that is restricted on the website, serve it through the
+  provider below, which applies your access rules to the principal. Page reads are not
+  rate-limited or written to the ledger; they return only the page's raw markdown,
+  never rendered Liquid output or data.
 - **The app's resource provider**, `app/lib/mcp/resources.liquid`
   (`resources_partial`), for a signed-in caller only. It receives `operation`, `uri`,
   `cursor`, `principal` and `agent` and returns:
@@ -341,7 +352,7 @@ Two sources serve `resources/*`:
   dropped. `next_cursor` becomes `nextCursor` and comes back as `cursor`.
 
 A `resources/read` of a provider URI runs the same controls as a tool call:
-auto-suspend, the per-principal rate limit, the `mcp:read` scope, and a ledger entry
+auto-suspend, the per-token rate limit, the `mcp:read` scope, and a ledger entry
 (`method: resources/read`, URI hashed). "Not found" and "not allowed" give the same
 answer, so a probe learns nothing. A provider that raises or returns malformed contents
 is logged and answered with a generic `-32603`. For a signed-in caller the lists and
@@ -403,7 +414,8 @@ token: on a `401` they discover the instance's OAuth 2.1 authorization server, r
 sign-in and a consent page at `/oauth/authorize`, and exchange the code (PKCE `S256`) at
 `/oauth/token`. Access tokens last an hour and are bound to the client, to this
 instance's `/mcp` URL and to a scope (`mcp:read`, plus `mcp:write` for mutating tools);
-refresh tokens rotate and last 30 days. Authorizing a client needs the same
+refresh tokens rotate and last 30 days, and a grant ends 90 days after it was
+authorized. Authorizing a client needs the same
 `mcp.tokens.manage` permission as minting a token. On by default; turn it off with
 `MCP_CONFIG {"oauth":{"authorization_server":false}}`. Endpoints, configuration and
 security notes: [`docs/oauth.md`](./docs/oauth.md). An external
@@ -416,7 +428,7 @@ Tools & config) that preserves context on switch. Shows: hash-chain verification
 status; metrics (calls, denial/rollback rate, schema rejections, rate-limited,
 approval throttle/dup, by-tool); **pending approvals** (approve/reject, plus
 per-principal bulk-drain); **active tokens** with an abuse watchlist (violation count
-per principal) and one-click revoke; **MCP access** (approve requests, make admin/user,
+per token) and one-click revoke; **MCP access** (approve requests, make admin/user,
 revoke, grant by id); **registered tools** (name/version/read|write/approval/policy +
 excluded manifests); the **tool-surface eval** (Run + latest result); and a filterable
 ledger with security-lens quick filters and a paginated JSON export.
@@ -445,7 +457,8 @@ ledger with security-lens quick filters and a paginated JSON export.
   as the original principal, re-authorized.
 - **Least leakage** — denials return a stable generic message; specifics go to the
   ledger, not the wire.
-- **Bounded blast radius** — per-principal rate limiting; size and depth caps.
+- **Bounded blast radius** — per-token rate limiting; auto-suspend of the one token that
+  keeps violating policy; size and depth caps.
 - **Console forms check the form token** — every POST page of `/mcp-tools` and
   `/mcp-admin` refuses a request without a valid `authenticity_token` (403, nothing
   changed), and the OAuth consent decision answers 400 without redirecting.

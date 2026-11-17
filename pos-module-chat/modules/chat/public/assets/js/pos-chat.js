@@ -226,18 +226,29 @@ window.pos.modules.chat = function(userSettings = {}){
       }
     });
 
-    // remember if the user is reading the newest messages, so loading images can keep them in view
+    // remember if the user is reading the newest messages, so loading images can keep them in view.
+    // Only scrolling up leaves the bottom: the chat's own smooth scroll down passes through
+    // positions far from it, and an image loading meanwhile must still bring the list down
+    let lastScrollTop = module.settings.messagesListContainer?.scrollTop;
     module.settings.messagesListContainer?.addEventListener('scroll', () => {
       const container = module.settings.messagesListContainer;
-      module.settings.atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= module.settings.atBottomThreshold;
+      if(container.scrollHeight - container.scrollTop - container.clientHeight <= module.settings.atBottomThreshold){
+        module.settings.atBottom = true;
+      } else if(container.scrollTop < lastScrollTop){
+        module.settings.atBottom = false;
+      }
+      lastScrollTop = container.scrollTop;
     }, { passive: true });
 
-    // scroll to bottom after a new image loads in the chat - only when the user is at the bottom
+    // keep the newest messages in view when an image loads - only when the user is at the bottom
     // already, images load lazily, so the ones higher up load while the user scrolls through
-    // the history and must not pull them back down
+    // the history and must not pull them back down. Images without known dimensions only take
+    // their space now (the others have it from the start). Jumps instead of scrolling smoothly,
+    // so the list is at the bottom right away and a smooth scroll doesn't stop short of it
     module.settings.messagesList?.addEventListener('load', (event) => {
       if(event.target.tagName === 'IMG' && module.settings.atBottom){
-        scrollBottom('smooth');
+        const container = module.settings.messagesListContainer;
+        container.scrollTop = container.scrollHeight - container.clientHeight;
       }
     }, true);
 
@@ -545,8 +556,16 @@ window.pos.modules.chat = function(userSettings = {}){
           mediaElement = imageTemplate.cloneNode(true);
           const img = mediaElement.querySelector('img');
           img.src = item.url;
-          img.width = item.width;
-          img.height = item.height;
+          // the image is sized by these (see the CSS), as in message.liquid - without them
+          // it takes its own size once loaded
+          if(item.width > 0 && item.height > 0){
+            img.width = item.width;
+            img.height = item.height;
+            mediaElement.style.setProperty('--pos-chat-image-ratio', `${item.width} / ${item.height}`);
+          } else {
+            img.removeAttribute('width');
+            img.removeAttribute('height');
+          }
         } else {
           mediaElement = fileTemplate.cloneNode(true);
           mediaElement.querySelector('a').href = item.url;

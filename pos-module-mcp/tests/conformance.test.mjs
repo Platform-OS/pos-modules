@@ -37,7 +37,7 @@ const { setConstant, unsetConstant } = makeConstants(adm);
 const ok = (name, cond, detail) => expect.soft(cond === true || cond === false ? cond : !!cond, detail ? `${name} — ${detail}` : name).toBe(true);
 
 async function pruneRate() {
-  // Rate keys are "principal:<id>:<window>" — match the full scope prefix.
+  // Rate keys are "principal:<id>:token:<token_id>:<window>" — match the principal prefix.
   const r = await gql(`{ records(per_page: 200, filter: { table: { value: "${TABLE_RATE}" } properties: [{ name: "key", starts_with: "principal:${CONF_PRINCIPAL}" }] }) { results { id } } }`);
   for (const row of r?.data?.records?.results || []) await adm.recordDelete(TABLE_RATE, row.id);
 }
@@ -209,6 +209,26 @@ describe('conformance · protocol + governance pipeline', () => {
     ok('prefix without path boundary → not listed', !onRes.some(r => r.uri === boundaryUri));
     const bnd = await rpc({ jsonrpc: '2.0', id: 6, method: 'resources/read', params: { uri: boundaryUri } });
     ok('prefix without path boundary → read not found', bnd.json?.error?.code === -32002 && !bnd.text.includes(boundaryMarker));
+
+    // A markdown page under the prefix that the WEBSITE protects with an authorization
+    // policy (app/views/pages/docs/mcp-conformance-protected.md + the deny-all
+    // app/authorization_policies/mcp_test_deny_all.liquid) is never listed or read —
+    // not anonymously, and not for a signed-in caller either: the engine can't evaluate a
+    // page policy for an MCP caller, so it fails closed.
+    const protSlug = 'docs/mcp-conformance-protected';
+    const protUri = 'mcp+page:///' + protSlug;
+    const protMarker = 'mcp-conformance-protected-fixture';
+    const web = await fetch(base.replace(/\/$/, '') + '/' + protSlug, { redirect: 'manual' });
+    ok('protected fixture is refused by the website (policy deployed)', web.status === 403, 'status=' + web.status);
+    ok('policy-protected page → not listed (anonymous)', !onRes.some(r => r.uri === protUri) && !JSON.stringify(onRes).includes('MCP conformance protected doc'));
+    const prot = await rpc({ jsonrpc: '2.0', id: 7, method: 'resources/read', params: { uri: protUri } });
+    ok('policy-protected page → read not found (anonymous)', prot.json?.error?.code === -32002 && !prot.text.includes(protMarker));
+    const authedList = await rpc({ jsonrpc: '2.0', id: 8, method: 'resources/list' }, { token: RAW_TOKEN });
+    const authedRes = authedList.json?.result?.resources || [];
+    ok('signed-in resources/list still lists the public docs page', authedRes.some(r => r.uri === docUri));
+    ok('policy-protected page → not listed (signed in)', !authedRes.some(r => r.uri === protUri));
+    const protAuthed = await rpc({ jsonrpc: '2.0', id: 9, method: 'resources/read', params: { uri: protUri } }, { token: RAW_TOKEN });
+    ok('policy-protected page → read not found (signed in)', protAuthed.json?.error?.code === -32002 && !protAuthed.text.includes(protMarker));
     await unsetConstant('MCP_CONFIG');
   });
 
