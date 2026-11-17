@@ -48,6 +48,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Results are checked against the tool's `output_schema` before they are served.** The
+  module published `output_schema` as `outputSchema` but never checked results against
+  it, so a handler result that broke it (a string where the schema says integer, a
+  missing required key, a key outside `additionalProperties: false`) was served as a
+  success, against the MCP rule that a server MUST return conforming structured results.
+  `execute/run` now validates every `ok: true` result of a tool with an `output_schema`
+  (`validate/json_schema` gains an output mode: type lists with `"null"`,
+  `additionalProperties` honoured as declared, formats other than uuid/email/date/
+  date-time left as annotations). A result that does not conform is not served: the
+  caller gets a generic tool error (`isError: true`, no `structuredContent`, no field
+  names), the log gets `mcp.output_schema_mismatch` with the violations, and the ledger
+  records `error` with `error_code -32603`; a mutating call is rolled back
+  (`rolled_back`, `-32003`). Tools without `output_schema` are unaffected. A tool whose
+  handler returned non-conforming results before now fails those calls, so check
+  results against the schema (docs/authoring-tools.md, "Output-schema reference").
+  New gated test fixtures `test_bad_output` and `test_bad_output_write`.
+- **Schema checks follow JSON Schema where they used to differ** (arguments and results).
+  - A null result value for `{"type": ["string","null"], "enum": [...]}` is accepted
+    only if the enum lists null too.
+  - `pattern` is evaluated with ECMA-262 anchoring (new `helpers/validate/ecma_pattern`):
+    `^` and `$` anchor the whole value, as clients read them, instead of any line (see
+    Security).
+  - `format` checks match the whole value: a valid `uuid` or `date` followed by a
+    newline and more text is rejected. `date-time` is a full RFC 3339 date-time: a real
+    calendar day, hours/minutes/seconds in range, and a required time zone (`Z` or
+    `±hh:mm`). An argument such as `2026-01-01T00:00:00` without a zone is now rejected.
+  - At load, every schema node must be an object and every keyword value must have its
+    JSON Schema type (numbers for the range keywords, non-negative integers for the
+    length and item counts, an array of strings for `required`, a non-empty array for
+    `enum`, objects for `properties` and `items`, strings for `pattern`, `format`,
+    `description` and `title`), and `pattern` must compile. Such a schema used to load
+    and then crash the validator (`"maximum": "10"`, a `pattern` that does not compile,
+    `items: [...]`) or be enforced differently from how clients read it (draft-4
+    `"exclusiveMinimum": true`). A tool with such a schema is now excluded from
+    `tools/list`. New gated fixtures `test_bad_schema_crash`, `test_bad_schema_values`.
+
+### Security
+
+- **A `pattern` no longer passes a value whose first line matches.** Patterns were
+  evaluated with Ruby regex semantics, where `^` and `$` match at every line, so
+  `^[^<>]*$`, the HTML guard the docs recommend, accepted `"ok\n<script>"` as an
+  argument. Patterns now anchor the whole value (ECMA-262, as JSON Schema specifies).
 - **The Approvals tab shows the arguments each pending action will run with.** The
   queue showed only the tool, the requesting token's label (chosen by its owner) and the
   principal, so two requests to the same tool from the same user looked identical, and an

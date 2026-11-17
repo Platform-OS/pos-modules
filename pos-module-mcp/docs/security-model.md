@@ -203,7 +203,7 @@ Appends serialize on a singleton `mcp_chain_lock` row: inside the append transac
 | `-32005` | — | approval expired (Tasks `failed` error, never a direct response) |
 | `-32020` / `-32021` / `-32022` | 400 | modern only: header mismatch / missing client capability / unsupported protocol version |
 
-Not protocol errors (HTTP 200, `result.isError: true`): **argument-schema violations** (`structuredContent.validation_errors`, so the model can correct its call — MCP 2025-11-25, SEP-1303), a handler business error, and a **rolled-back mutation** (ledgered as `-32003`).
+Not protocol errors (HTTP 200, `result.isError: true`): **argument-schema violations** (`structuredContent.validation_errors`, so the model can correct its call — MCP 2025-11-25, SEP-1303), a handler business error, a **result that does not conform to the tool's `output_schema`** (never served; ledgered as `-32603`, logged as `mcp.output_schema_mismatch`), and a **rolled-back mutation** (ledgered as `-32003`).
 
 ---
 

@@ -1,0 +1,22 @@
+{%- comment -%}
+  Tool manifest — test_bad_schema_crash (TEST FIXTURE, app-owned). Registered ONLY when the
+  MCP_ENABLE_TEST_TOOLS constant is set (see registry). Negative control for the schema
+  meta-check: keyword values that used to crash the checks: a string "maximum" and "minLength" (compared with a number), a "pattern" that does not compile, and the tuple form "items": [...].
+  The engine must exclude this tool from tools/list (and keep serving the others)
+  instead of publishing a schema it cannot enforce.
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_bad_schema_crash",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): declares an invalid schema and must never be served.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "output_schema": {"type":"object","properties":{"n":{"type":"integer","maximum":"10"},"s":{"type":"string","minLength":"5","pattern":"["},"t":{"type":"array","items":[{"type":"string"}]}}},
+    "mutating": false,
+    "authorization_policy": "public_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "mcp/tests/tools/test_bad_schema_crash/call"
+  }
+  return m
+%}

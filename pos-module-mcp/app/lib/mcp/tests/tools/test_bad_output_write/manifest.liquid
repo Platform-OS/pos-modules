@@ -1,0 +1,23 @@
+{%- comment -%}
+  Tool manifest — test_bad_output_write (TEST FIXTURE, app-owned; gated by
+  MCP_ENABLE_TEST_TOOLS). MUTATING, policy test_principal_member. The handler writes a
+  test_note row and THEN returns a result with a key its closed output_schema does not
+  declare. A correct engine refuses the result and ROLLS BACK the write: the coverage
+  suite asserts the call is isError, no test_bad_output_write row persists, and the
+  ledger records a 'rolled_back' outcome. Not idempotent (each attempt must re-run).
+{%- endcomment -%}
+{% liquid
+  assign m = {
+    "name": "test_bad_output_write",
+    "version": "1.0.0",
+    "description": "TEST FIXTURE (not a production tool): writes a row then returns a result outside its output schema, to prove the write is rolled back.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["label"],"properties":{"label":{"type":"string","minLength":1,"maxLength":100,"pattern":"^[^<>]*$","description":"label stored on the row"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["id"],"properties":{"id":{"type":"string"},"label":{"type":"string"}}},
+    "mutating": true,
+    "authorization_policy": "test_principal_member",
+    "requires_approval": false,
+    "idempotent": false,
+    "handler": "mcp/tests/tools/test_bad_output_write/call"
+  }
+  return m
+%}

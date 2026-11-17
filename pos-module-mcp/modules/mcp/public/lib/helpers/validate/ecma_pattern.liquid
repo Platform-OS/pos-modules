@@ -1,0 +1,56 @@
+{%- comment -%}
+  Translate a JSON-Schema `pattern` (ECMA-262 regex, which is what JSON Schema and MCP
+  clients use) into a regex that the platform's `matches` filter (Ruby) evaluates the
+  same way.
+
+  Why: in ECMA-262 without the `m` flag, `^` and `$` match only at the start and end of
+  the whole string. In Ruby they match at every line boundary, so `^[a-z]+$` accepts
+  "abc\n123", which every validating client rejects. Outside a character class, an
+  unescaped `^` becomes `\A` and an unescaped `$` becomes `\z`. Escapes (`\^`, `\$`,
+  `\\`) and character classes (`[^a-z$]`) are copied unchanged.
+
+  Other differences between the two dialects are not translated. The pattern subset
+  that registry/validate_schema_node accepts keeps such patterns rare.
+
+  @param {string} pattern - the schema's pattern
+  @return {string} the equivalent pattern for `matches`
+{%- endcomment -%}
+{% liquid
+  assign out = ''
+  assign in_class = false
+  assign escaped = false
+  # A one-backslash string ('\' does not parse: the lexer reads \' as an escape).
+  assign backslash_list = ["\\"]
+  assign backslash = backslash_list.first
+  assign chars = pattern | split: ''
+  for ch in chars
+    if escaped
+      assign out = out | append: ch
+      assign escaped = false
+      continue
+    endif
+    if ch == backslash
+      assign out = out | append: ch
+      assign escaped = true
+      continue
+    endif
+    if in_class
+      if ch == ']'
+        assign in_class = false
+      endif
+      assign out = out | append: ch
+      continue
+    endif
+    if ch == '['
+      assign in_class = true
+      assign out = out | append: ch
+    elsif ch == '^'
+      assign out = out | append: '\A'
+    elsif ch == '$'
+      assign out = out | append: '\z'
+    else
+      assign out = out | append: ch
+    endif
+  endfor
+  return out
+%}

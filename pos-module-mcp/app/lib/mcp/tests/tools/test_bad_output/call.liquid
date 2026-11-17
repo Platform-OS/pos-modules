@@ -1,0 +1,48 @@
+{%- comment -%}
+  Handler — test_bad_output (TEST FIXTURE). Read-only. Returns a result that conforms to
+  the declared output_schema (mode "ok") or breaks it in exactly one way.
+{%- endcomment -%}
+{% liquid
+  assign tags = 'a' | split: ','
+  assign result = {
+    "count": 1,
+    "label": null,
+    "tags": tags,
+    "status": "open",
+    "phase": null,
+    "code": "abc",
+    "at": "2026-01-01T00:00:00Z"
+  }
+  case arguments.mode
+    when 'type'
+      assign result['count'] = 'many'
+    when 'extra'
+      assign result['secret'] = 'leaked-internal-value'
+    when 'missing'
+      assign result = {
+        "label": "no count",
+        "tags": tags
+      }
+    when 'null'
+      assign result['count'] = null
+    when 'item'
+      assign bad_tags = []
+      assign bad_tags = bad_tags | array_add: 1
+      assign result['tags'] = bad_tags
+    when 'minimum'
+      assign result['count'] = -1
+    when 'enum_null'
+      assign result['status'] = null
+    when 'pattern_newline'
+      # A JSON literal: \n decodes to a real newline, so the value is two lines.
+      assign two_lines = ["abc\n123"]
+      assign result['code'] = two_lines.first
+    when 'datetime_no_tz'
+      assign result['at'] = '2026-01-01T00:00:00'
+  endcase
+  assign out = {
+    "ok": true,
+    "result": result
+  }
+  return out
+%}

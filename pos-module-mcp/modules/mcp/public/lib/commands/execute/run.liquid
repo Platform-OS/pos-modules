@@ -10,6 +10,15 @@
      no server internals.
    - A handler that throws, or returns a malformed shape, is caught and mapped to a
      generic tool error (fail-safe) and flagged for the caller via outcome 'error'.
+   - ok:true from a tool that declares an output_schema is checked against it
+     (validate/json_schema, output mode) BEFORE it is served: MCP says a server MUST
+     return structured results that conform to the advertised outputSchema. A result
+     that does not conform is never served; it becomes a generic tool error (outcome
+     'error', error_code -32603 for the ledger) and the mismatch is logged as
+     mcp.output_schema_mismatch for the tool author. The wire message names no field,
+     so a result that leaked an undeclared key does not reveal it to the caller. For a
+     mutating tool outcome 'error' rolls the transaction back, so a write whose result
+     breaks the contract is not kept.
 
   Phase 1 is read-only. For mutating tools (Phase 2) this is where the
   {% transaction %} wrap + rollback-on-error + attest-inside-tx will live; the
@@ -21,7 +30,8 @@
   @param {object} agent        - calling agent
   @param {object} context_meta - { tool_name, tool_version, request_id }
   @return {object} { outcome:'success'|'error', content:[...], isError:boolean,
-                     structured?, subject_type?, subject_id?, error_message? }
+                     structured?, subject_type?, subject_id?, error_message?,
+                     error_code? }
 {%- endcomment -%}
 {% liquid
   assign handler = tool.handler
@@ -84,6 +94,34 @@
   if structured == blank
     assign structured = {}
   endif
+
+  # Output contract: validate exactly what the client will receive. The JSON round trip
+  # turns platform objects (times, indifferent hashes) into the JSON values the wire
+  # carries, so the check sees the serialized result.
+  unless tool.output_schema == blank
+    function cfg = 'modules/mcp/helpers/config'
+    assign structured_json = structured | json
+    assign wire_value = structured_json | parse_json: raw_text: true
+    function oval = 'modules/mcp/helpers/validate/json_schema', value: wire_value, schema: tool.output_schema, depth: 1, max_depth: cfg.defaults.max_output_schema_depth, path: 'structuredContent', output: true
+    unless oval.valid
+      assign _oerrs = oval.errors | join: '; '
+      assign _om = context_meta.tool_name | append: ' ' | append: context_meta.tool_version | append: ' (request ' | append: context_meta.request_id | append: '): ' | append: _oerrs
+      log _om, type: 'mcp.output_schema_mismatch'
+      assign content = []
+      assign item = {
+        "type": "text",
+        "text": "The tool produced a result that does not match its declared output schema, so it was not returned."
+      }
+      assign content = content | array_add: item
+      assign out['outcome'] = 'error'
+      assign out['isError'] = true
+      assign out['content'] = content
+      assign out['error_message'] = 'output_schema_mismatch'
+      assign out['error_code'] = -32603
+      return out
+    endunless
+  endunless
+
   assign content = []
   assign item = { "type": "text" }
   assign item['text'] = structured | json

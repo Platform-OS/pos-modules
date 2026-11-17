@@ -105,8 +105,9 @@
     "max_input_bytes": 65536,
     "max_schema_depth": 5
   }
-  # Depth cap for a tool's output_schema (declared for clients, never used to validate
-  # input), which describes nested results such as lists of objects with lists.
+  # Depth cap for a tool's output_schema (published to clients and enforced on every
+  # result by execute/run), which describes nested results such as lists of objects
+  # with lists.
   assign d['max_output_schema_depth'] = 8
   # Per-token (per agent) requests per minute on tools/call and provider resources/read.
   assign d['rate_limit_per_min'] = 60

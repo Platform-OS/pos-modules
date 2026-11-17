@@ -47,6 +47,12 @@ async function ledgerFor(principalId) {
   const r = await adm.gql(`{ records(per_page: 200, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }] }, sort: [{ id: { order: ASC } }]) { results { outcome: property(name: "execution_outcome") tool: property(name: "tool_name") authz: property(name: "authz_decision") } } }`);
   return r?.data?.records?.results || [];
 }
+// The newest ledger rows of one principal for one tool (DESC, so a long ledger never
+// pushes them off the page).
+async function recentLedgerFor(principalId, toolName, perPage = 50) {
+  const r = await adm.gql(`{ records(per_page: ${perPage}, filter: { table: { value: "${T_LEDGER}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "tool_name", value: "${toolName}" }] }, sort: [{ id: { order: DESC } }]) { results { id outcome: property(name: "execution_outcome") code: property(name: "error_code") } } }`);
+  return r?.data?.records?.results || [];
+}
 async function pendingFor(principalId) {
   const r = await adm.gql(`{ records(per_page: 100, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }) { results { id } } }`);
   return r?.data?.records?.results || [];
@@ -496,6 +502,9 @@ describe('coverage · multi-principal governance planes', () => {
   });
 
   it('Validation matrix (§10, strict, no coercion)', async () => {
+    // Each rejected argument is a policy violation; the matrix has more cases than the
+    // default abuse threshold (20), so raise it for this test (afterEach unsets it).
+    await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { abuse_threshold: 100 } }));
     const V = (args) => callTool(validator.rawToken, 'test_validate', args); // dedicated: its many arg-rejections don't accrue on `member`
     const rej = (r) => r.status === 200 && r.json?.result?.isError === true && Array.isArray(r.json.result.structuredContent?.validation_errors);
     const valid = { kind: 'alpha', count: 5, ratio: 0.5, email: 'a@b.co', uid: '123e4567-e89b-12d3-a456-426614174000', when: '2026-01-01T00:00:00Z', tags: ['x'], code: 'abc' };
@@ -509,6 +518,11 @@ describe('coverage · multi-principal governance planes', () => {
     await bad('format email: bad value rejected', { email: 'not-an-email' });
     await bad('format uuid: bad value rejected', { uid: 'nope' });
     await bad('format date-time: bad value rejected', { when: 'yesterday' });
+    ok('format date-time: an offset time zone accepted', isOkResult(await V({ ...valid, when: '2026-01-01T10:00:00.5+02:00' })));
+    await bad('format date-time: missing time zone rejected', { when: '2026-01-01T00:00:00' });
+    await bad('format date-time: trailing text rejected', { when: '2026-01-01T00:00:00Zjunk' });
+    await bad('format date-time: hour 25 rejected', { when: '2026-01-01T25:00:00Z' });
+    await bad('format date-time: impossible day rejected', { when: '2026-02-30T00:00:00Z' });
     ok('format date: a real calendar day accepted (leap day 2024-02-29)', isOkResult(await V({ ...valid, day: '2024-02-29' })));
     await bad('format date: impossible day rejected (2026-02-31)', { day: '2026-02-31' });
     await bad('format date: not a leap year rejected (1900-02-29)', { day: '1900-02-29' });
@@ -520,6 +534,7 @@ describe('coverage · multi-principal governance planes', () => {
     await bad('array: item type rejected', { tags: [1, 2] });
     await bad('string: minLength rejected', { code: 'a' });
     await bad('string: pattern rejected', { code: 'AB' });
+    await bad('string: ^…$ anchors the whole value, not a line (ECMA-262)', { code: 'ab\nc' });
     ok('additionalProperties:false → unknown key rejected', rej(await V({ ...valid, surprise: 1 })));
   });
 
@@ -667,6 +682,49 @@ describe('coverage · multi-principal governance planes', () => {
     ok('a malformed annotation excludes the tool from tools/list', tools.length > 0 && !tools.some(t => t.name === 'test_bad_annotations'), tools.map(t => t.name).join(','));
     const call = await callTool(mem.rawToken, 'test_bad_annotations', {});
     ok('the excluded tool cannot be called', call.json?.error?.code === -32602 || call.json?.result?.isError === true, JSON.stringify(call.json?.error || call.json?.result || {}).slice(0, 120));
+  });
+
+  it('Output contract — a result that breaks the declared outputSchema is never served (MCP: servers MUST conform)', async () => {
+    const r = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, mem.rawToken);
+    const listed = (r.json?.result?.tools || []).find(t => t.name === 'test_bad_output');
+    ok('the probe advertises its closed outputSchema', listed?.outputSchema?.additionalProperties === false && listed?.outputSchema?.properties?.count?.type === 'integer', JSON.stringify(listed?.outputSchema || {}).slice(0, 200));
+    const names = (r.json?.result?.tools || []).map(t => t.name);
+    for (const invalid of ['test_bad_schema_crash', 'test_bad_schema_values']) {
+      ok(`a schema with keyword values of the wrong type is excluded from tools/list, the others still listed (${invalid})`, names.includes('test_bad_output') && !names.includes(invalid), names.join(','));
+      const ex = await callTool(mem.rawToken, invalid, {});
+      ok(`the excluded tool cannot be called (${invalid})`, ex.json?.error?.code === -32602 || ex.json?.result?.isError === true, JSON.stringify(ex.json?.error || ex.json?.result || {}).slice(0, 120));
+    }
+
+    const call = (mode) => callTool(mem.rawToken, 'test_bad_output', { mode });
+    const good = await call('ok');
+    const sc = good.json?.result?.structuredContent;
+    ok('a conforming result (null where "null" is listed) is served as a success', isOkResult(good) && good.json?.result?.isError === false && sc?.count === 1 && sc?.label === null && Array.isArray(sc?.tags), JSON.stringify(good.json?.result || {}).slice(0, 200));
+    ok('enum, pattern and date-time values that conform are served (null where the enum lists null too)', sc?.status === 'open' && sc?.phase === null && sc?.code === 'abc' && sc?.at === '2026-01-01T00:00:00Z', JSON.stringify(sc || {}).slice(0, 200));
+
+    const ledgerStart = Math.max(0, ...(await recentLedgerFor(mem.principal, 'test_bad_output', 1)).map(x => Number(x.id)));
+    const wLedgerStart = Math.max(0, ...(await recentLedgerFor(mem.principal, 'test_bad_output_write', 1)).map(x => Number(x.id)));
+    const refused = (res) => res.status === 200 && res.json?.result?.isError === true && res.json.result.structuredContent === undefined && /does not match its declared output schema/.test(res.json.result.content?.[0]?.text || '');
+    // enum_null: null is listed in `type` but not in `enum` (both keywords apply).
+    // pattern_newline: ^[a-z]+$ anchors the whole string for clients (ECMA-262), so a
+    // second line after a matching first line does not conform.
+    // datetime_no_tz: an RFC 3339 date-time needs a time zone.
+    const BAD_MODES = ['type', 'extra', 'missing', 'null', 'item', 'minimum', 'enum_null', 'pattern_newline', 'datetime_no_tz'];
+    for (const mode of BAD_MODES) {
+      const res = await call(mode);
+      ok(`non-conforming result (${mode}) → tool error, no structuredContent`, refused(res), JSON.stringify(res.json || {}).slice(0, 240));
+      if (mode === 'extra') ok('the refused result does not leak the undeclared field or its value', !/secret|leaked-internal-value/.test(res.text || JSON.stringify(res.json || {})));
+    }
+    const rows = (await recentLedgerFor(mem.principal, 'test_bad_output')).filter(x => Number(x.id) > ledgerStart);
+    ok('each refused result is in the ledger as error -32603', rows.length === BAD_MODES.length && rows.every(x => x.outcome === 'error' && String(x.code) === '-32603'), JSON.stringify(rows));
+
+    // Mutating: the refused result turns the call into an error, so the write rolls back.
+    await deleteNotesFor(mem.userId);
+    const w = await callTool(mem.rawToken, 'test_bad_output_write', { label: 'outcontract' });
+    ok('mutating tool with a non-conforming result → tool error, no structuredContent', refused(w), JSON.stringify(w.json || {}).slice(0, 240));
+    const notes = (await notesFor(mem.userId)).filter(x => x.source === 'test_bad_output_write');
+    ok('its write is rolled back → NO row persisted', notes.length === 0, 'rows=' + notes.length);
+    const wrows = (await recentLedgerFor(mem.principal, 'test_bad_output_write')).filter(x => Number(x.id) > wLedgerStart);
+    ok('the ledger records the mutating call as rolled_back', wrows.some(x => x.outcome === 'rolled_back'), JSON.stringify(wrows));
   });
 
   it('MCP Apps — a tool declares its UI and visibility; app-only tools are hidden from the model; malformed ui excludes the tool', async () => {
