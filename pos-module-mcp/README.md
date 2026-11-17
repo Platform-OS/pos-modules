@@ -401,7 +401,8 @@ token: on a `401` they discover the instance's OAuth 2.1 authorization server, r
 sign-in and a consent page at `/oauth/authorize`, and exchange the code (PKCE `S256`) at
 `/oauth/token`. Access tokens last an hour and are bound to the client, to this
 instance's `/mcp` URL and to a scope (`mcp:read`, plus `mcp:write` for mutating tools);
-refresh tokens rotate and last 30 days. Authorizing a client needs the same
+refresh tokens rotate and last 30 days, and a grant ends 90 days after it was
+authorized. Authorizing a client needs the same
 `mcp.tokens.manage` permission as minting a token. On by default; turn it off with
 `MCP_CONFIG {"oauth":{"authorization_server":false}}`. Endpoints, configuration and
 security notes: [`docs/oauth.md`](./docs/oauth.md). An external

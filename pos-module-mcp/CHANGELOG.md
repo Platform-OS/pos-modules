@@ -48,6 +48,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Reusing any old refresh token revokes the grant, and grants have a maximum
+  lifetime.** Only the refresh token from the immediately previous rotation was
+  recognised as reuse: a token two or more rotations old got a plain `invalid_grant` and
+  the grant stayed active. Someone holding a stolen refresh token could refresh twice,
+  and the rightful client's stale token then revoked nothing. Every rotated-away refresh
+  token is now recorded (new `mcp_refresh_retired` table, digests only, swept with the
+  other maintenance tables), and presenting any of them revokes the whole grant. Rotation
+  also slid the refresh expiry 30 days forward forever; a grant now ends
+  `oauth.grant_max_lifetime_seconds` (new, default `7776000` = 90 days) after it was
+  authorized, however often it is refreshed, and the client must re-authorize. The cap
+  is counted from the grant's creation, so it also applies to existing grants: grants
+  authorized more than 90 days before the upgrade stop refreshing.
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400

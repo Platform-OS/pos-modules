@@ -41,6 +41,7 @@ const T_TOKEN = 'modules/mcp/mcp_token';
 const T_CODE = 'modules/mcp/mcp_oauth_code';
 const T_CLIENT = 'modules/mcp/mcp_oauth_client';
 const T_RATE = 'modules/mcp/mcp_rate_counter';
+const T_RETIRED = 'modules/mcp/mcp_refresh_retired';
 const T_PROFILE = 'modules/user/profile';
 const T_NOTE = 'test_note';
 
@@ -227,6 +228,11 @@ describe('oauth · built-in OAuth 2.1 authorization server', () => {
   afterAll(async () => {
     // Everything keyed by the clients we registered: tokens (grants), codes, the clients.
     for (const cid of createdClients) {
+      // Retired refresh digests hang off the grant rows: drop them before the grants.
+      try {
+        const g = await adm.gql(`{ records(per_page: 200, filter: { table: { value: "${T_TOKEN}" } properties: [{ name: "client_id", value: ${JSON.stringify(cid)} }] }) { results { id } } }`);
+        for (const row of g?.data?.records?.results || []) await deleteWhere(T_RETIRED, 'token_id', String(row.id));
+      } catch {}
       try { await deleteWhere(T_TOKEN, 'client_id', cid); } catch {}
       try { await deleteWhere(T_CODE, 'client_id', cid); } catch {}
       try { await deleteWhere(T_CLIENT, 'client_id', cid); } catch {}
@@ -699,6 +705,62 @@ describe('oauth · built-in OAuth 2.1 authorization server', () => {
     const dead = await token({ grant_type: 'refresh_token', refresh_token: t2.refresh_token, client_id: clientA });
     ok('the CURRENT refresh token is dead too → invalid_grant', tokenErr(dead, 'invalid_grant'), dead.text.slice(0, 120));
     ok('missing refresh_token → invalid_request', tokenErr(await token({ grant_type: 'refresh_token', client_id: clientA }), 'invalid_request'));
+  });
+
+  it('Refresh — reusing a refresh token two rotations old revokes the whole grant', async () => {
+    // A thief holding t1 refreshes twice (t1 → t2 → t3); the rightful client then
+    // presents its stale t1. That must still be detected as reuse (OAuth 2.1 §4.3.1),
+    // not just a plain invalid_grant that leaves the thief's grant alive.
+    const t1 = (await mintTokens()).json || {};
+    ok('initial pair minted', !!t1.access_token && !!t1.refresh_token);
+    const r2 = await token({ grant_type: 'refresh_token', refresh_token: t1.refresh_token, client_id: clientA });
+    const t2 = r2.json || {};
+    ok('first refresh → 200', r2.status === 200 && !!t2.refresh_token, r2.text.slice(0, 120));
+    const r3 = await token({ grant_type: 'refresh_token', refresh_token: t2.refresh_token, client_id: clientA });
+    const t3 = r3.json || {};
+    ok('second refresh → 200', r3.status === 200 && !!t3.access_token && !!t3.refresh_token, r3.text.slice(0, 120));
+    const row = await tokenRowByAccess(t3.access_token || 'x');
+    ok('grant row found', !!row?.id && row.status === 'active', JSON.stringify(row));
+
+    const reuse = await token({ grant_type: 'refresh_token', refresh_token: t1.refresh_token, client_id: clientA });
+    ok('two-rotations-old refresh token → invalid_grant', tokenErr(reuse, 'invalid_grant'), reuse.text.slice(0, 120));
+    const rowAfter = (await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_TOKEN}" } id: { value: "${row?.id}" } }) { results { status: property(name: "status") } } }`))?.data?.records?.results?.[0];
+    ok('reuse revoked the grant row', rowAfter?.status === 'revoked', JSON.stringify(rowAfter));
+    const killed = await callTool(t3.access_token, 'test_public', {});
+    ok('the CURRENT access token now → 401 invalid_token', isInvalidToken401(killed), 'status=' + killed.status);
+    const dead = await token({ grant_type: 'refresh_token', refresh_token: t3.refresh_token, client_id: clientA });
+    ok('the CURRENT refresh token is dead too → invalid_grant', tokenErr(dead, 'invalid_grant'), dead.text.slice(0, 120));
+  });
+
+  it('Refresh — the grant has a maximum lifetime that rotation never extends', async () => {
+    const now = () => Math.floor(Date.now() / 1000);
+    const grantRow = async (raw) => (await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_TOKEN}" } properties: [{ name: "token_digest", value: "${sha256hex(raw)}" }] }) { results { id created_at expires_at: property(name: "expires_at") refresh_expires_at: property(name: "refresh_expires_at") } } }`))?.data?.records?.results?.[0] || null;
+    try {
+      // A 1-hour cap, shorter than the 30-day refresh TTL: both tokens are clamped to it.
+      await setOauthConfig({ grant_max_lifetime_seconds: 3600, access_token_ttl_seconds: 7200 });
+      const t = (await mintTokens()).json || {};
+      ok('pair minted under the cap', !!t.refresh_token, JSON.stringify(t).slice(0, 120));
+      ok('expires_in clamped to the grant lifetime', t.expires_in > 0 && t.expires_in <= 3600, String(t.expires_in));
+      const r = await token({ grant_type: 'refresh_token', refresh_token: t.refresh_token, client_id: clientA });
+      ok('refresh under the cap → 200', r.status === 200 && !!r.json?.refresh_token, r.text.slice(0, 120));
+      ok('refreshed expires_in clamped too', r.json?.expires_in > 0 && r.json?.expires_in <= 3600, String(r.json?.expires_in));
+      const row = await grantRow(r.json?.access_token || 'x');
+      const created = Math.floor(Date.parse(row?.created_at) / 1000);
+      ok('refresh_expires_at never past created_at + cap', Number(row?.refresh_expires_at) <= created + 3600 + 1, JSON.stringify(row));
+      ok('access expires_at never past created_at + cap', Number(row?.expires_at) <= created + 3600 + 1, JSON.stringify(row));
+
+      // A grant older than the cap cannot be refreshed, even with a valid refresh expiry.
+      await setOauthConfig({ grant_max_lifetime_seconds: 2 });
+      const t2 = (await mintTokens()).json || {};
+      ok('second pair minted', !!t2.refresh_token, JSON.stringify(t2).slice(0, 120));
+      await new Promise((res) => setTimeout(res, 3500));
+      const row2 = await grantRow(t2.access_token || 'x');
+      if (row2?.id) await setProps(T_TOKEN, row2.id, { refresh_expires_at: now() + 86400 });
+      const late = await token({ grant_type: 'refresh_token', refresh_token: t2.refresh_token, client_id: clientA });
+      ok('grant past its maximum lifetime → invalid_grant', tokenErr(late, 'invalid_grant'), late.text.slice(0, 120));
+    } finally {
+      await setOauthConfig();
+    }
   });
 
   it('Refresh — wrong client_id → invalid_grant (grant left intact)', async () => {
