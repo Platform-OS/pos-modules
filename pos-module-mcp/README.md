@@ -260,8 +260,8 @@ review as security-relevant.
   serialized so only one executes. If the handler succeeds but the transaction rolls
   back, the agent gets `isError: true`, never a success.
 - **`requires_approval: true`** → the tool never runs inline. The call records an
-  intent and returns an opaque **handle** + `pending_approval`; an operator approves
-  in `/mcp-admin`, and it then executes **as the original principal** (re-validated
+  intent and returns an opaque **handle** + `pending_approval`; an operator reviews
+  the arguments and approves in `/mcp-admin`, and it then executes **as the original principal** (re-validated
   and re-authorized; the requesting token must still be active and allowed the tool), with the execution ledger entry linked to the request by
   `request_id`. Every other ending — rejected, bulk-rejected, withdrawn, expired, or
   refused at execution — is ledgered the same way, with who decided
@@ -426,6 +426,9 @@ authorization server is not supported yet.
 Gated to `admin`; a tabbed console (Overview · Approvals · Tokens & access · Ledger ·
 Tools & config) that preserves context on switch. Shows: hash-chain verification
 status; metrics (calls, denial/rollback rate, schema rejections, rate-limited,
+approval throttle/dup, by-tool); **pending approvals** (each with the full arguments
+it will run with; approve/reject, plus per-principal bulk-drain); **active tokens** with an abuse watchlist (violation count
+per principal) and one-click revoke; **MCP access** (approve requests, make admin/user,
 approval throttle/dup, by-tool); **pending approvals** (approve/reject, plus
 per-principal bulk-drain); **active tokens** with an abuse watchlist (violation count
 per token) and one-click revoke; **MCP access** (approve requests, make admin/user,

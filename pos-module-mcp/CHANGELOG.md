@@ -48,6 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Approvals tab shows the arguments each pending action will run with.** The
+  queue showed only the tool, the requesting token's label (chosen by its owner) and the
+  principal, so two requests to the same tool from the same user looked identical, and an
+  operator approved a phishing broadcast or a destructive change blind.
+  `graphql/approvals/list` now selects `arguments_json` and `tool_version`, and each
+  pending row in `/mcp-admin?tab=approvals` lists every argument in full under the
+  request (strings as text, other values as JSON), HTML-escaped and never truncated. The
+  confirmation names the tool and the principal, and the "requested by" column is marked
+  as the token label.
 - **Every outcome of an approval-gated request is in the ledger.** Only the request
   (`pending_approval`) and an approved execution that ran or rolled back were ledgered;
   every other outcome lived only on the editable `mcp_pending_approval` row. Now each one

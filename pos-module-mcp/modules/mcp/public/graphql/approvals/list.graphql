@@ -12,6 +12,8 @@ query list($status: String, $per_page: Int!) {
       id
       handle: property(name: "handle")
       tool_name: property(name: "tool_name")
+      tool_version: property(name: "tool_version")
+      arguments_json: property(name: "arguments_json")
       principal_id: property(name: "principal_id")
       requested_by_agent: property(name: "requested_by_agent")
       status: property(name: "status")
