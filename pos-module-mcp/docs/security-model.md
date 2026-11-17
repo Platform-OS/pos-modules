@@ -108,6 +108,22 @@ Every decision (`allow`/`deny`/`not_applicable`) and its `reason` are recorded o
 
 `ledger/append` writes **one row per governed request outcome** — success **and** denial, validation failure, rate-limit, rollback, pending-approval. It runs on **every post-authentication termination**. Each row (table `mcp_ledger`) carries: `seq`, `occurred_at`, `method`, `tool_name`/`version`, `client_id`/`agent_id`/`principal_id`, `delegation_mode`, `input_sha256` + `input_bytes`, `authz_policy`/`decision`/`reason`, `execution_outcome`, `error_code`, `duration_ms`, `subject_type`/`subject_id`, `idempotency_key`, `request_id`, `audit_json`, and the chain fields `prev_entry_hash` + `entry_hash`.
 
+**Approval-gated requests** are ledgered from request to end. The request writes `pending_approval`; how it ended is a second entry with the same `request_id`, so the ledger alone answers "what happened to this request?" — never only the editable `mcp_pending_approval` row. `authz_reason` names who decided:
+
+| How it ended | `execution_outcome` | `authz_decision` | `authz_reason` | Written by |
+|---|---|---|---|---|
+| Approved, ran | `success` | `allow` | `approved_by:<user id>` | `approval/execute` (inside the action's transaction) |
+| Approved, rolled back | `rolled_back` (`-32003`) | `allow` | `approved_by:<user id>` | `approval/execute` |
+| Approved, refused at execution | `invalid` (`-32602`) or `denied` (`-32001`) — what the inline call would record at the same gate | `not_applicable` / `deny` | `approved_by:<user id>;<cause>` — `unknown_tool`, `invalid_arguments`, the credential check's reason (`token_revoked`, `permission_revoked`, …) or the policy's reason | `approval/execute` |
+| Operator rejected | `rejected` | `deny` | `rejected_by:<user id>` | `approval/claim` |
+| Operator bulk-rejected the principal's queue | `rejected` | `deny` | `bulk_rejected_by:<user id>` | `approval/claim` |
+| Requester withdrew (`tasks/cancel`) | `cancelled` | `not_applicable` | `cancelled_by:requester` | `approval/claim` |
+| Window closed with no decision | `expired` | `not_applicable` | `expired` | `approval/claim` |
+
+A decision that ends the request is attested inside the same transaction as the row's status change (`approval/claim`): if the append fails, the row stays `pending`. A request past its window becomes `expired` whatever decision arrives, under the row lock. Requests nobody decides are closed by `approval/expire_due`, run on every operator-console load and by the periodic maintenance sweep, so an expiry is ledgered even if no operator acts on it; until one of those runs, a lapsed request has only its `pending_approval` entry (`tasks/get` already reports it as expired).
+
+Other operator actions (role changes, token revokes, OAuth grants) are not yet ledgered.
+
 ### 4.2 Privacy posture — what is hashed vs. plaintext
 
 - **Raw tool arguments are NEVER stored.** Only `input_sha256` (the hash of the canonical arguments) + `input_bytes`. So the ledger proves *which* arguments were used (anyone can recompute the hash from a candidate input) without retaining their content.

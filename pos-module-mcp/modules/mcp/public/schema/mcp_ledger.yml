@@ -33,7 +33,7 @@ properties:
   - name: authz_policy
   - name: authz_decision    # allow | deny | not_applicable
   - name: authz_reason
-  - name: execution_outcome # success | error | rolled_back | pending_approval | denied | invalid
+  - name: execution_outcome # success | error | rolled_back | pending_approval | denied | invalid | replayed | suspended | approval_duplicate | approval_throttled | rejected | cancelled | expired
   - name: error_code
     type: integer
   - name: duration_ms

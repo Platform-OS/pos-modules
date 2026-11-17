@@ -255,7 +255,9 @@ A `pending_approval` from Gate 6 sits until an operator decides in the console (
 3. **re-authorize** against the original principal (rights or policy may have changed since the request),
 4. execute inside a transaction and **attest**, linked to the original request by `request_id`.
 
-The operator only *decides*; the action runs with the requester's identity and scope, never the operator's. An expired or already-decided approval cannot execute. The agent learns the outcome by polling `mcp_approval_status` (self-scoped: unknown handle and someone-else's handle both return an identical "not found", so handles can't be enumerated).
+The operator only *decides*; the action runs with the requester's identity and scope, never the operator's. An expired or already-decided approval cannot execute.
+
+Every ending is ledgered with the request's `request_id` and who decided in `authz_reason`: a refusal in steps 1–3 writes the entry the inline call would write at the same gate (`invalid` -32602 or `denied` -32001, reason `approved_by:<user id>;<cause>`); a rejection, bulk rejection, withdrawal (`tasks/cancel`) or expiry is attested by `approval/claim` in the same transaction as the status change (`rejected` / `cancelled` / `expired`). Requests nobody decides are closed as `expired` by `approval/expire_due` (each console load and the maintenance sweep). See [security-model.md §4.1](./security-model.md#41-what-is-recorded-and-when). The agent learns the outcome by polling `mcp_approval_status` (self-scoped: unknown handle and someone-else's handle both return an identical "not found", so handles can't be enumerated).
 
 ---
 
@@ -275,6 +277,9 @@ Every authenticated ending writes one chained entry (`ledger/append`: stamps `se
 | `success` | `allow` | — | 200 | Gate 8 executed & committed |
 | `rolled_back` | `allow` | `-32003` | 200* | Gate 8 mutating handler/append failed |
 | `security/suspend` | `deny` | — | 200 | Gate 1b auto-suspend (separate entry) |
+| `rejected` | `deny` | — | — | §5: operator rejected or bulk-rejected the request (`rejected_by:` / `bulk_rejected_by:<user id>`) |
+| `cancelled` | `not_applicable` | — | — | §5: requester withdrew it (`tasks/cancel`) |
+| `expired` | `not_applicable` | — | — | §5: the approval window closed with no decision |
 
 \* A `rolled_back` mutation still returns the handler's tool-error result (`isError:true`, HTTP 200) — the *protocol* call succeeded; the *action* did not.
 
