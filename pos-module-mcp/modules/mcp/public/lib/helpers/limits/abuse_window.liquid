@@ -1,0 +1,49 @@
+{%- comment -%}
+  The rolling abuse window (spec §12.4), cut into slices. A violation is counted in the
+  slice it happened in; the count for "the last abuse_window_seconds" is the sum of the
+  last `slices` slices, the current one included. So the window rolls in steps of one
+  slice (a tenth of the window, at least one second) instead of resetting at a
+  clock-aligned boundary: violations made just before and just after a boundary still
+  add up. The covered span is the window give or take one slice.
+
+  Counter keys are per TOKEN (helpers/limits/abuse_key): the token that made the bad
+  call is the one that gets suspended, never another token of the same person.
+
+  @return {object} { enabled:boolean, slice_seconds:int, current:int, ids:[int] }
+                   ids are the slice numbers to sum, oldest first; enabled is false when
+                   abuse_window_seconds <= 0 (abuse tracking off)
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign win_len = cfg.defaults.abuse_window_seconds | plus: 0
+  assign out = {
+    "enabled": false,
+    "slice_seconds": 0,
+    "current": 0,
+    "ids": []
+  }
+  if win_len <= 0
+    return out
+  endif
+
+  assign slice_len = win_len | divided_by: 10
+  if slice_len < 1
+    assign slice_len = 1
+  endif
+  # ceil(win_len / slice_len): the slices that together cover the whole window.
+  assign slices = win_len | plus: slice_len | minus: 1 | divided_by: slice_len
+
+  assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
+  assign current = now_unix | divided_by: slice_len
+  assign first = current | minus: slices | plus: 1
+  assign ids = []
+  for s in (first..current)
+    assign ids = ids | array_add: s
+  endfor
+
+  assign out['enabled'] = true
+  assign out['slice_seconds'] = slice_len
+  assign out['current'] = current
+  assign out['ids'] = ids
+  return out
+%}

@@ -335,14 +335,15 @@
   {% render 'modules/common-styling/forms/markdown',
     id: 'styleguide-markdown-editor',
     name: 'styleguide-markdown-editor',
-    mention_search_url: '/api/users/search?query='
+    mention_search_url: '/api/users/search?query=',
+    hashtag_search_url: '/api/hashtags/search?query='
   %}
 
 {% capture code %}{% raw %}
 {% render 'modules/common-styling/forms/markdown',
   id: 'styleguide-markdown-editor',
   name: 'styleguide-markdown-editor',
-  presigned_upload: presigned_upload
+  presign_url: '/api/uploads/presign'
 %}
 {% endraw %}{% endcapture %}
     <div class="styleguide-code">

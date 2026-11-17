@@ -9,6 +9,8 @@ layout: ''
   the token owner has on /mcp-tools, but exposed to operators for ANY token (the
   console's kill-switch for a misbehaving agent). Idempotent: revoking an already
   revoked token is a no-op. The token digest is never exposed here — only its id.
+  The posted id is looked up in the mcp_token table first: an id from any other table
+  (or one that does not exist) changes nothing.
   A POST without a valid form token changes nothing (403).
 {%- endcomment -%}
 {%- liquid
@@ -27,7 +29,11 @@ layout: ''
 
   assign tid = context.params.id
   if tid != blank
-    graphql _ = 'modules/mcp/tokens/revoke', id: tid
+    graphql found = 'modules/mcp/tokens/find_by_id', id: tid
+    assign hit = found.records.results.first
+    if hit
+      graphql _ = 'modules/mcp/tokens/revoke', id: hit.id
+    endif
   endif
 
   redirect_to '/mcp-admin?tab=tokens'

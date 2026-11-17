@@ -1,0 +1,31 @@
+{%- comment -%}
+  Close the approvals whose window has passed (spec §9.6). Each pending row past its
+  expires_at moves to `expired` through approval/claim, which takes the row lock (a
+  concurrent operator decision is never overwritten) and attests the expiry in the
+  ledger (execution_outcome expired, linked to the request by request_id). Without
+  this, a request nobody decided stays `pending` on its row and the ledger never
+  records how it ended.
+
+  Called from maintenance/sweep and on each operator console load. Bounded per call
+  (oldest first); a larger backlog drains over later calls. Normally there is nothing
+  to do, which costs one query.
+
+  @param {integer} limit - max rows closed per call (default 20)
+  @return {integer} the number of rows moved to expired
+{%- endcomment -%}
+{% liquid
+  assign per_page = limit | default: 20 | plus: 0
+  assign now_s = 'now' | to_time | strftime: '%s'
+  graphql due = 'modules/mcp/approvals/expired_pending', now: now_s, per_page: per_page
+
+  assign closed = 0
+  for a in due.records.results
+    # One claim per expired row is inherent (each takes its own row lock and ledger
+    # entry); bounded by per_page.
+    function c = 'modules/mcp/commands/approval/claim', id: a.id, handle: a.handle, status: 'expired', decided_by: 'system:expiry', result_summary: 'Expired before decision.', ledger_reason: null
+    if c.claimed
+      assign closed = closed | plus: 1
+    endif
+  endfor
+  return closed
+%}

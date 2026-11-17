@@ -333,14 +333,16 @@ class Chat {
   }
 
   // the upload button opens the system file picker, so files are set on its input instead
-  async attachFiles(fileNames: string[]) {
+  // files are names in tests/data/files, or files made by the test
+  async attachFiles(files: (string | { name: string, mimeType: string, buffer: Buffer })[]) {
     await this.messageInputFieldEnabled.waitFor();
 
-    for (const fileName of fileNames) {
+    for (const file of files) {
+      const fileName = typeof file === 'string' ? file : file.name;
       // the file goes to S3 first, then its record is saved - a failure there only shows
       // as a generic toast, so the response is checked here to report why
       const recordSaved = this.page.waitForResponse(response => response.url().includes('/api/chat/uploads') && response.request().method() === 'POST');
-      await this.uploadInput.setInputFiles(path.join(__dirname, '..', 'data', 'files', fileName));
+      await this.uploadInput.setInputFiles(typeof file === 'string' ? path.join(__dirname, '..', 'data', 'files', file) : file);
       await this.uploader.waitForUploadComplete(fileName);
 
       const response = await recordSaved;
