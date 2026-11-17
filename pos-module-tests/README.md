@@ -285,7 +285,7 @@ The module provides endpoints to inspect emails sent during test execution.
 
 ### Viewing Sent Emails
 
-Navigate to `/_tests/sent_mails` to see a paginated list of all sent emails.
+Navigate to `/_tests/sent_mails` to see a paginated list of all sent emails. Only a signed-in host superadmin may open it (sent emails hold password-reset links); an instance whose browser tests read the mailbox anonymously and that holds no real accounts sets the constant `modules/tests/SENT_MAILS_PUBLIC` to `true`.
 
 To view details of a specific email, click on it or navigate to `/_tests/sent_mails/:id`.
 

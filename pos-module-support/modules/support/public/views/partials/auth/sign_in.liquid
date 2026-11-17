@@ -2,6 +2,7 @@
   @param {boolean} [failed] - Whether the last attempt failed
   @param {string} [email] - The email to prefill
   @param {boolean} [locked] - Too many failed attempts for this email
+  @param {boolean} [reset] - A new password was just set
 {% enddoc %}
 <section class="pos-support-gate" aria-labelledby="pos-support-sign-in-title">
   <div>
@@ -12,6 +13,8 @@
     <p class="pos-support-callout pos-support-callout-danger" role="alert">{% render 'modules/support/icon', name: 'triangle-alert', size: null %}{{ 'modules/support/sign_in.locked' | t }}</p>
   {% elsif failed %}
     <p class="pos-support-callout pos-support-callout-danger" role="alert">{% render 'modules/support/icon', name: 'triangle-alert', size: null %}{{ 'modules/support/sign_in.invalid' | t }}</p>
+  {% elsif reset %}
+    <p class="pos-support-callout" role="status">{% render 'modules/support/icon', name: 'circle-check', size: null %}{{ 'modules/support/password.done' | t }}</p>
   {% endif %}
   <form action="/support-desk/sign-in" method="post" class="pos-form">
     <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
@@ -22,7 +25,7 @@
     <fieldset>
       <span class="pos-support-label-row">
         <label for="pos-support-password">{{ 'modules/support/sign_in.password' | t }}</label>
-        <a href="/passwords/reset">{{ 'modules/support/sign_in.forgot' | t }}</a>
+        <a href="/support-desk/password">{{ 'modules/support/sign_in.forgot' | t }}</a>
       </span>
       <input type="password" name="password" id="pos-support-password" autocomplete="current-password" required>
     </fieldset>

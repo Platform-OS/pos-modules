@@ -1,0 +1,16 @@
+---
+slug: support-desk/password/new
+layout: modules/support/support
+---
+{% liquid
+  # the reset link from the email (public: the token is the credential)
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'token,email'
+  function user = 'modules/user/helpers/user_from_temporary_token', token: form.token, email: form.email
+  if user
+    session support_password_user_id = user.id
+    render 'modules/support/auth/password_new', valid: true, error: null
+  else
+    session support_password_user_id = null
+    render 'modules/support/auth/password_new', valid: false, error: null
+  endif
+%}

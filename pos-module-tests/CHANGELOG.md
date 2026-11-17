@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Breaking:** `/_tests/sent_mails` and `/_tests/sent_mails/:id` were open to anonymous visitors on
+  every staging and development instance, and sent emails hold password-reset and verification
+  links: anyone who knew a user's address could request a reset and read the link. Both pages now
+  answer 404 unless a signed-in host superadmin (pos-module-user profile role) is asking. An
+  instance whose browser tests read the mailbox without signing in, and that holds no real
+  accounts, sets the constant `modules/tests/SENT_MAILS_PUBLIC` to `true` to keep the old access
+  (`pos-cli constants set --name modules/tests/SENT_MAILS_PUBLIC --value true <env>`).
+- `/_tests/run` and `/_tests/run_async` still run tests for anonymous visitors on staging, because
+  `pos-cli test run` calls them with an instance token that Liquid cannot check. A test must never
+  render secrets into its assertion messages.
+
 ### Fixed
 - A test that raised ended the whole run and every other test's result was discarded with it,
   including tests that had already completed. The runner collects each contract in a variable and

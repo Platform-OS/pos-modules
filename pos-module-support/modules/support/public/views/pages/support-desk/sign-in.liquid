@@ -9,5 +9,9 @@ layout: modules/support/support
     break
   endif
 
-  render 'modules/support/auth/sign_in', failed: false, email: null, locked: false
+  assign reset = false
+  if context.params.reset == '1'
+    assign reset = true
+  endif
+  render 'modules/support/auth/sign_in', failed: false, email: null, locked: false, reset: reset
 %}

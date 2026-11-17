@@ -1,0 +1,26 @@
+---
+slug: support-desk/password/new
+method: post
+layout: modules/support/support
+---
+{% liquid
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/auth/password_new', valid: false, error: null
+    break
+  endunless
+  assign user_id = context.session.support_password_user_id
+  if user_id == blank
+    render 'modules/support/auth/password_new', valid: false, error: null
+    break
+  endif
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'password,password_confirmation'
+  function result = 'modules/support/commands/auth/set_password', user_id: user_id, password: form.password, password_confirmation: form.password_confirmation
+  if result.valid
+    session support_password_user_id = null
+    redirect_to '/support-desk/sign-in?reset=1'
+  else
+    response_status 422
+    render 'modules/support/auth/password_new', valid: true, error: result.error
+  endif
+%}

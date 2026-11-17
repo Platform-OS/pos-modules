@@ -2,6 +2,12 @@
 layout: modules/tests/test
 ---
 {% liquid
+  # sent emails hold password-reset links: superadmins only (helpers/can_read_sent_mails)
+  function allowed = 'modules/tests/helpers/can_read_sent_mails'
+  unless allowed
+    response_status 404
+    break
+  endunless
   if context.environment == 'staging' or context.environment == 'development'
     assign page = context.params.page | to_positive_integer: 1
     function mails = 'modules/tests/queries/sent_mails/search', limit: 20, page: page
