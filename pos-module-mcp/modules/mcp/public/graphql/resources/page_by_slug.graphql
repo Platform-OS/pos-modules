@@ -14,6 +14,9 @@ query page_by_slug($slug: String!) {
       content
       content_updated_at
       metadata
+      authorization_policies {
+        id
+      }
     }
   }
 }

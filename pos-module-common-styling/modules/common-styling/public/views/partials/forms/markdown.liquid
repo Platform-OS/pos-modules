@@ -13,6 +13,7 @@
   @param {number} [maxlength] - maximum number of characters allowed
 
   @param {string} [mention_search_url] - URL to search for @mentions, the typed query is appended to its end as is, e.g. `/api/v1/users/search?query=`
+  @param {string} [hashtag_search_url] - URL to search for #hashtags, the typed query is appended to its end as is, e.g. `/api/v1/hashtags/search?query=`, should return `{ "results": [{ "name": "hashtag" }] }`, the hashtag is inserted as plain `#hashtag` text
 
 
   @example
@@ -59,6 +60,20 @@
         </li>
       </template>
       <menu popover id="{{ id }}-mention-popover">
+      </menu>
+    </div>
+  {% endif %}
+
+  {% if hashtag_search_url %}
+    <div class="pos-popover pos-markdown-hashtag" data-url="{{ hashtag_search_url }}">
+      <template>
+        <li>
+          <button type="button">
+            <span class="pos-markdown-hashtag-name"></span>
+          </button>
+        </li>
+      </template>
+      <menu popover id="{{ id }}-hashtag-popover">
       </menu>
     </div>
   {% endif %}

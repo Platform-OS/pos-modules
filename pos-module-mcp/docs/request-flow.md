@@ -121,7 +121,7 @@ None of the open-method branches write to the hash-chained ledger — they take 
 A `resources/read` of an app resource returns app data, so it runs a short version of the `tools/call` gates for the signed-in caller (`rpc/dispatch` already resolved the bearer):
 
 1. **Auto-suspend** — `limits/enforce_abuse`; a suspended token gets `403 / -32001 "Access suspended"`.
-2. **Rate limit** — the same per-principal window as `tools/call`; over it → `429 / -32002` with `Retry-After`, ledgered, counted as a violation.
+2. **Rate limit** — the same per-token window as `tools/call`; over it → `429 / -32002` with `Retry-After`, ledgered, counted as a violation.
 3. **Scope** — the token needs `mcp:read`; otherwise `403 / -32001 "Insufficient scope"` with an `insufficient_scope` challenge, ledgered.
 4. **Provider read** — `resources/provider` with `operation: read`, `principal` and `agent`. The provider applies the app's access rules and returns nil for anything the caller may not read, so a forbidden resource and a missing one both answer `-32002 "Resource not found"` (`-32602` for a modern request), ledgered as `invalid`. A provider that raises, or whose contents are not `[{ uri, text | blob, mimeType? }]`, is logged and answered `-32603 "Internal error"`, ledgered as `error`. Success is ledgered as `success`.
 
@@ -194,9 +194,9 @@ flowchart TD
 
 **Key policy — pre-auth failures are NOT ledgered.** On any of the above, `tools_call` writes to the **platform log only** (`log auth.reason, type:'mcp.auth_denied'`) and returns the `401`. There is no accountable identity, so anonymous probes can't spam or grow the tamper-evident chain (that would be a DoS / integrity-noise vector). Every gate *after* this point has an authenticated identity and *does* ledger. On success, the token's `last_used_at` is best-effort stamped (throttled to ≤1 write/min/token).
 
-**Gate 1b — Abuse auto-suspend (`limits/enforce_abuse`).** Reads the principal's O(1) windowed violation counter. If it has crossed the threshold, the command **revokes the token** (status → suspended) and writes a `security/suspend` ledger entry, and this call returns `-32001 "Access suspended"` (HTTP 200). Every subsequent call then fails Gate 1 as `token_revoked`. This is a real containment control, not a warning — and it never scans the ledger on the hot path (an earlier version did and blew the per-request budget).
+**Gate 1b — Abuse auto-suspend (`limits/enforce_abuse`).** Reads the calling token's O(1) violation count over the rolling abuse window (`abuse_window_seconds`, summed from counters a tenth of the window long, so it never resets at a clock boundary). Violations are counted **per token**: if this token's own count has reached the threshold, the command **revokes this token** (status → revoked) and writes a `security/suspend` ledger entry naming it (`subject_type: token`, `subject_id: <token id>`, `audit_json` with the count, threshold and window), and this call returns `-32001 "Access suspended"` (HTTP 200). Every subsequent call with that token then fails Gate 1 as `token_revoked`. The person's other tokens and OAuth grants are untouched: a narrowed token given to a less-trusted agent cannot get the person's main token revoked. This is a real containment control, not a warning — and it never scans the ledger on the hot path (an earlier version did and blew the per-request budget).
 
-**Gate 2 — Rate limit (`limits/check`, scope `principal:<id>`).** Fixed per-minute window against `cfg.defaults.rate_limit_per_min`. Over the limit: **write a ledger entry** (`execution_outcome: error`, `error_code: -32004`), call `note_violation` (feeding Gate 1b), and return `-32004 "Rate limit exceeded"` with HTTP 200, the `Retry-After` header and `error.data.retryAfter` (seconds). `-32004` is implementation-defined; `-32002` means "resource not found" in MCP. This is the first *authenticated* exit, so it *is* ledgered.
+**Gate 2 — Rate limit (`limits/check`, scope `principal:<id>:token:<token id>`).** Fixed per-minute window against `cfg.defaults.rate_limit_per_min`, per token, so one chatty agent never uses up the budget of the person's other agents. Over the limit: **write a ledger entry** (`execution_outcome: error`, `error_code: -32004`), call `note_violation` (feeding Gate 1b), and return `-32004 "Rate limit exceeded"` with HTTP 200, the `Retry-After` header and `error.data.retryAfter` (seconds). `-32004` is implementation-defined; `-32002` means "resource not found" in MCP. This is the first *authenticated* exit, so it *is* ledgered.
 
 **Argument hashing.** Past the limits, the arguments are serialized and `input_sha256 = sha256(args_json)` is computed. **Raw arguments are never stored** — only the digest + byte count go into the ledger (plus any handler-declared `audit_json`). A `request_id` (uuid) and the base ledger entry `le` are assembled here and filled in per outcome.
 
@@ -257,7 +257,9 @@ A `pending_approval` from Gate 6 sits until an operator decides in the console (
 3. **re-authorize** against the original principal (rights or policy may have changed since the request),
 4. execute inside a transaction and **attest**, linked to the original request by `request_id`.
 
-The operator only *decides*; the action runs with the requester's identity and scope, never the operator's. An expired or already-decided approval cannot execute. The agent learns the outcome by polling `mcp_approval_status` (self-scoped: unknown handle and someone-else's handle both return an identical "not found", so handles can't be enumerated).
+The operator only *decides*; the action runs with the requester's identity and scope, never the operator's. An expired or already-decided approval cannot execute.
+
+Every ending is ledgered with the request's `request_id` and who decided in `authz_reason`: a refusal in steps 1–3 writes the entry the inline call would write at the same gate (`invalid` -32602 or `denied` -32001, reason `approved_by:<user id>;<cause>`); a rejection, bulk rejection, withdrawal (`tasks/cancel`) or expiry is attested by `approval/claim` in the same transaction as the status change (`rejected` / `cancelled` / `expired`). Requests nobody decides are closed as `expired` by `approval/expire_due` (each console load and the maintenance sweep). See [security-model.md §4.1](./security-model.md#41-what-is-recorded-and-when). The agent learns the outcome by polling `mcp_approval_status` (self-scoped: unknown handle and someone-else's handle both return an identical "not found", so handles can't be enumerated).
 
 ---
 
@@ -279,6 +281,9 @@ Every authenticated ending writes one chained entry (`ledger/append`: stamps `se
 | `error` | `allow` | — | 200 | Gate 8 read tool's handler failed or returned `ok:false` (`isError` result) |
 | `rolled_back` | `allow` | `-32003` | 200* | Gate 8 mutating handler/append failed, or its result did not conform to its `output_schema` |
 | `security/suspend` | `deny` | — | 200 | Gate 1b auto-suspend (separate entry) |
+| `rejected` | `deny` | — | — | §5: operator rejected or bulk-rejected the request (`rejected_by:` / `bulk_rejected_by:<user id>`) |
+| `cancelled` | `not_applicable` | — | — | §5: requester withdrew it (`tasks/cancel`) |
+| `expired` | `not_applicable` | — | — | §5: the approval window closed with no decision |
 
 \* A `rolled_back` mutation still returns the handler's tool-error result (`isError:true`, HTTP 200) — the *protocol* call succeeded; the *action* did not.
 

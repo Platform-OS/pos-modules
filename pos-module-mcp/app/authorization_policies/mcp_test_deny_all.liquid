@@ -1,0 +1,10 @@
+---
+name: mcp_test_deny_all
+http_status: 403
+---
+{%- comment -%}
+  TEST FIXTURE — refuses every website request. Protects
+  app/views/pages/docs/mcp-conformance-protected.md, which must never be listed or read
+  over MCP (tests/conformance.test.mjs, "Resources").
+{%- endcomment -%}
+false

@@ -52,7 +52,7 @@
   # Step 1b — auto-suspend on abuse (a real control, not a message). If this
   # principal has crossed the violation threshold in the window, its token is
   # suspended (revoked) and this call is rejected; subsequent calls fail auth.
-  function abuse = 'modules/mcp/commands/limits/enforce_abuse', token_id: auth.token_id, principal_id: auth.principal.id, agent_id: auth.agent.id
+  function abuse = 'modules/mcp/commands/limits/enforce_abuse', token_id: auth.token_id, principal_id: auth.principal.id, agent_id: auth.agent.id, client_id: auth.agent.client_id
   if abuse.suspended
     function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32001, message: 'Access suspended'
     assign out['http_status'] = 200
@@ -60,12 +60,15 @@
     return out
   endif
 
-  # Step 2 (post-auth) — per-principal rate limit (spec §12.4). Bounds blast
-  # radius per identity. Rejected calls are ledgered (accountable identity) and
-  # carry Retry-After (header and error.data.retryAfter, in seconds). The code is
-  # -32004, in the implementation-defined range: -32002 is "resource not found".
+  # Step 2 (post-auth) — per-token rate limit (spec §12.4). Bounds blast radius per
+  # agent: each token (manual token or OAuth grant) has its own bucket, so one chatty
+  # agent cannot use up the budget of the person's other agents, and the rate-limit
+  # violation it earns counts against its own token only (limits/note_violation).
+  # Rejected calls are ledgered (accountable identity) and carry Retry-After (header
+  # and error.data.retryAfter, in seconds). The code is -32004, in the
+  # implementation-defined range: -32002 is "resource not found".
   function cfg = 'modules/mcp/helpers/config'
-  assign rl_scope = 'principal:' | append: auth.principal.id
+  assign rl_scope = 'principal:' | append: auth.principal.id | append: ':token:' | append: auth.token_id
   function rl = 'modules/mcp/commands/limits/check', scope: rl_scope, limit: cfg.defaults.rate_limit_per_min
   unless rl.allowed
     assign rle = {
@@ -82,7 +85,7 @@
     assign rle['request_id'] = '' | uuid
     assign rle['_start_ms'] = start_ms
     function _ = 'modules/mcp/commands/ledger/append', entry: rle
-    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id, token_id: auth.token_id
     assign hdrs_retry_after = rl.retry_after | append: ''
     assign hdrs = { "Retry-After": hdrs_retry_after }
     assign out['headers'] = hdrs
@@ -136,7 +139,7 @@
     assign le['execution_outcome'] = 'invalid'
     assign le['error_code'] = -32602
     function _ = 'modules/mcp/commands/ledger/append', entry: le
-    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id, token_id: auth.token_id
     function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32602, message: 'Unknown tool'
     assign out['http_status'] = 200
     assign out['body'] = body
@@ -183,7 +186,7 @@
     assign le['execution_outcome'] = 'invalid'
     assign le['error_code'] = -32602
     function _ = 'modules/mcp/commands/ledger/append', entry: le
-    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id, token_id: auth.token_id
     # A tool execution error, not a protocol error (MCP 2025-11-25, SEP-1303): the
     # model sees it and can correct its arguments. Validation errors are argument-
     # shape facts (which key, which constraint) and carry no server internals.
@@ -203,7 +206,7 @@
     assign le['execution_outcome'] = 'denied'
     assign le['error_code'] = -32001
     function _ = 'modules/mcp/commands/ledger/append', entry: le
-    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id, token_id: auth.token_id
     # Stable, generic wire message — the specific reason is in the ledger, not the
     # response (§13.2). Denials never leak policy internals.
     function body = 'modules/mcp/helpers/rpc/error', id: id, code: -32001, message: 'Forbidden'
@@ -248,7 +251,7 @@
       endif
 
       if is_dup or over_cap
-        function _v = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id
+        function _v = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id, token_id: auth.token_id
         if is_dup
           assign le['execution_outcome'] = 'approval_duplicate'
           assign reject_msg = 'An identical proposal is already awaiting operator approval. It was NOT re-queued. Poll mcp_approval_status for the existing handle instead of resubmitting.'

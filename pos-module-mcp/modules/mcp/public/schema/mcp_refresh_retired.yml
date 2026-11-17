@@ -1,0 +1,12 @@
+name: mcp_refresh_retired
+# Every refresh token an OAuth grant has rotated away (docs/oauth.md, OAuth 2.1
+# §4.3.1). Presenting ANY of them again is refresh-token reuse: the grant is revoked
+# (commands/oauth/token_refresh). One row per rotation, so the hot mcp_token row stays
+# small. Only the SHA-256 digest is stored. Rows are swept once the grant they belong
+# to has reached its absolute lifetime (oauth.grant_max_lifetime_seconds) — after that
+# the grant is dead anyway, so there is nothing left to revoke.
+properties:
+  - name: token_id       # the mcp_token row (grant) the refresh token belonged to
+  - name: digest         # sha256(retired raw refresh token), hex
+  - name: expires_at     # the grant's absolute expiry, unix seconds; swept after this
+    type: integer
