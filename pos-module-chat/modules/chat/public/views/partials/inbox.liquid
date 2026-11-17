@@ -115,6 +115,7 @@
               else
                 assign name = from_profile.name
               endif
+              assign conversation_name = name
               render 'modules/common-styling/user/avatar', size: 's', name: name, image_src: from_profile.avatar.photo.versions.sm, class: null
             endif
           endif
@@ -280,3 +281,15 @@
 
   {% endif %}
 </div>
+
+{% liquid
+  # Page title for layouts that read the `meta_title` slot, like the community module's
+  # ("Jane Doe - Inbox - [site]"). The slot holds plain text, so the layout escapes it.
+  assign page_title = 'modules/chat/inbox_title' | t
+  if conversation_name != blank
+    assign page_title = conversation_name | strip | append: ' - ' | append: page_title
+  endif
+  content_for 'meta_title'
+    print page_title | html_safe
+  endcontent_for
+%}
