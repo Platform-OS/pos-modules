@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.5.0
+
+* Feature: the inbox sets the page title through `content_for 'meta_title'`, with the other person's name when a conversation is open ("Jane Doe - Inbox") and the new `modules/chat/inbox_title` translation otherwise. Layouts that read the slot, like the community module's, show it; others ignore it. The slot holds plain text, so a layout must escape it when printing it.
+
 ## v2.4.0
 
 * Security: `GET /api/chat/conversations` no longer returns the participants' whole profiles (email, `user_id`, roles, 2FA and email verification status) - only their `id`, `uuid`, `name`, `first_name` and `last_name`. Before, anyone who could use the chat could read the email address of everyone they had a conversation with.
