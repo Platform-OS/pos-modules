@@ -109,6 +109,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bucket (scope `principal:<id>:token:<token id>`), on `tools/call` and provider
   `resources/read` alike. The default (60) is unchanged; it now applies per token.
 
+### Security
+
+- **Markdown pages protected by `authorization_policies` are no longer exposed.** With
+  `resources.expose_markdown_pages` on, `resources/list` listed (title, description,
+  public URL) and `resources/read` served the full source of every markdown page under
+  an exposed prefix, including pages the website refuses through `authorization_policies`,
+  to any caller — anonymous ones too while `oauth.challenge_initialize` is off. A page
+  policy is evaluated for a website request, so the engine cannot evaluate it for an MCP
+  caller; `queries/resources/page_allowed` now excludes every page that has a policy, for
+  every caller, and `resources/read` answers it `-32002 Resource not found`. Serve
+  restricted content to signed-in callers through the app's resource provider.
+
 ## [0.2.0] - 2026-10-23
 
 Changes since 0.1.0. Entries marked **BREAKING** need action from apps upgrading from 0.1.0.

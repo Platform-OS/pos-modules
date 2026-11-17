@@ -9,7 +9,9 @@
   SECURITY (markdown pages): the toggle AND the prefix allowlist are RE-CHECKED here —
   a crafted uri must not read a page outside the configured doc prefixes (never trust
   the uri to scope access). Only markdown GET pages under an allowed prefix (path
-  boundary) are readable — see queries/resources/page_allowed.
+  boundary) and without authorization_policies are readable — see
+  queries/resources/page_allowed. A page the website protects is "Resource not found"
+  for every caller: the engine cannot evaluate a page policy for an MCP caller.
 
   @param {object} params   - MCP params with `uri` (mcp+page:///<slug> or a provider URI)
   @param {object} identity - the caller resolved by rpc/dispatch, or nil when anonymous
@@ -49,7 +51,8 @@
   assign page = pres.admin_pages.results.first
 
   # Re-check exposure against the resolved page (defense: do not trust uri) — the
-  # same predicate resources/list applies: markdown + GET + prefix on a path boundary.
+  # same predicate resources/list applies: markdown + GET + no authorization_policies +
+  # prefix on a path boundary.
   function allowed = 'modules/mcp/queries/resources/page_allowed', page: page, prefixes: cfg.resources.markdown_page_prefixes
   unless allowed
     assign err = {

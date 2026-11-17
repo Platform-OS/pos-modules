@@ -6,12 +6,19 @@
   - it is a markdown page (handler: markdown) — a Liquid page's `content` is its
     template source (GraphQL calls, logic) and must never be served;
   - it answers GET — POST/PUT/DELETE handlers are never documentation;
+  - it has NO authorization_policies. A policy is Liquid the platform evaluates for a
+    website request (the session's context.current_user, params, ...); an MCP caller is
+    a bearer token, not that request, so the engine cannot tell whether the policy would
+    let this caller in. A page the website protects is therefore never listed or read
+    over MCP, for anonymous and signed-in callers alike (fail closed). Serve such
+    content to signed-in callers through the app's resource provider instead;
   - its slug sits under an allowed prefix ON A PATH BOUNDARY: slug == prefix (the
     index page) or slug starts with prefix + '/'. So prefix "docs" matches "docs"
     and "docs/a" but not "docs-internal/a" or "docsecret". Plain string test (not
     regex) so a prefix carrying metachars can't alter matching.
 
-  @param {object} page     - admin_pages result with slug, handler, request_method
+  @param {object} page     - admin_pages result with slug, handler, request_method,
+                             authorization_policies (both page queries select it)
   @param {array}  prefixes - cfg.resources.markdown_page_prefixes
   @return {boolean}
 {%- endcomment -%}
@@ -20,6 +27,9 @@
     return false
   endif
   unless page.handler == 'markdown' and page.request_method == 'get'
+    return false
+  endunless
+  unless page.authorization_policies == blank
     return false
   endunless
 

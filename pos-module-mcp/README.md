@@ -104,6 +104,9 @@ every request — no redeploy needed.
 | `defaults.approval_max_pending_per_principal` | `3` | max non-expired pending approvals per principal (queue-flood cap) |
 | `defaults.max_output_schema_depth` | `8` | nesting cap for a tool's declared `output_schema` |
 | `defaults.task_poll_interval_ms` | `30000` | `pollIntervalMs` suggested to Tasks-extension clients |
+| `defaults.abuse_threshold` / `defaults.abuse_window_seconds` | `20` / `300` | violations within the window that auto-suspend a token (`0` disables) |
+| `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle. Only pages declaring `handler: markdown` in front matter are exposed — a Liquid page is never served as a resource. A page with `authorization_policies` is never exposed, to any caller (see [Resources](#resources-layer-2)) |
+| `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist; matched on a `/` boundary, markdown GET pages without `authorization_policies` only) |
 | `defaults.abuse_threshold` / `defaults.abuse_window_seconds` | `20` / `300` | violations made with one token within the rolling window that auto-suspend (revoke) **that token only** — the person's other tokens keep working. The window rolls in steps of a tenth of its length (`0` disables) |
 | `resources.expose_markdown_pages` | `false` | `.md` resources on/off toggle. Only pages declaring `handler: markdown` in front matter are exposed — a Liquid page is never served as a resource |
 | `resources.markdown_page_prefixes` | `["docs"]` | slug prefixes exposed as resources (allowlist; matched on a `/` boundary, markdown GET pages only) |
@@ -322,7 +325,15 @@ signed-in `prompts/list` is cached `private`.
 Two sources serve `resources/*`:
 
 - **Markdown pages** (`mcp+page:///<slug>`), off by default — see `resources.*` in
-  [Configuration](#configuration). Open to any caller.
+  [Configuration](#configuration). Open to any caller, like the website: anonymous
+  callers can read them while `oauth.challenge_initialize` is off. Only public pages
+  are served: a page with `authorization_policies` in its front matter is never listed
+  or read over MCP, whoever asks, because a page policy is evaluated for a website
+  request (its session and params) and the engine cannot evaluate it for an MCP caller.
+  To give agents content that is restricted on the website, serve it through the
+  provider below, which applies your access rules to the principal. Page reads are not
+  rate-limited or written to the ledger; they return only the page's raw markdown,
+  never rendered Liquid output or data.
 - **The app's resource provider**, `app/lib/mcp/resources.liquid`
   (`resources_partial`), for a signed-in caller only. It receives `operation`, `uri`,
   `cursor`, `principal` and `agent` and returns:
