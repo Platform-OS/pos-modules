@@ -280,7 +280,8 @@ test.describe.serial('Testing password reset', () => {
         timeout: 30_000
       });
       
-      await testMailBoxPage.linkWithText('Show').first().click();
+      // the matched row, not the first mail on the page (another spec's mail can be newest)
+      await testMailBoxPage.openNewestMailTo(users.test2.email, 'Reset password');
       await testMailBoxPage.linkWithText('Go to reset password form').click();
       await expect(passwordResetPage.form.headingWithText('Reset Password')).toBeVisible();
       await expect(page).toHaveURL(/\/passwords\/new\?token=.*&email=test2%40example.com/);
@@ -310,7 +311,8 @@ test.describe.serial('Testing password reset', () => {
         timeout: 30_000
       });
       
-      await testMailBoxPage.linkWithText('Show').first().click();
+      // the matched row, not the first mail on the page (another spec's mail can be newest)
+      await testMailBoxPage.openNewestMailTo(users.test2.email, 'Reset password');
       await testMailBoxPage.linkWithText('Go to reset password form').click();
       await expect(passwordResetPage.form.headingWithText('Reset Password')).toBeVisible();
       await expect(page).toHaveURL(/\/passwords\/new\?token=.*&email=test2%40example.com/);
@@ -331,7 +333,8 @@ test.describe.serial('Testing password reset', () => {
     const testMailBoxPage = new TestMailBox(page);
 
     await testMailBoxPage.goto();
-    await testMailBoxPage.linkWithText('Show').first().click();
+    // the matched row, not the first mail on the page (another spec's mail can be newest)
+    await testMailBoxPage.openNewestMailTo(users.test2.email, 'Reset password');
     await testMailBoxPage.linkWithText('Go to reset password form').click();
 
     await expect(loginPage.headingWithText('Log in')).toBeVisible();
@@ -360,7 +363,8 @@ test.describe.serial('Testing password reset', () => {
         timeout: 30_000
       });
 
-      await testMailBoxPage.linkWithText('Show').first().click();
+      // the matched row, not the first mail on the page (another spec's mail can be newest)
+      await testMailBoxPage.openNewestMailTo(users.test1.email, 'Reset password');
       await testMailBoxPage.linkWithText('Go to reset password form').click();
 
       await expect(page).toHaveURL(/\/passwords\/new\?token=.*&email=test1%40example.com/);
