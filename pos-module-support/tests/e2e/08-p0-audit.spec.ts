@@ -38,7 +38,7 @@ const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.len
 
 // Each ticket costs ~0.4 s on the instance, so 50 in one Liquid call exceeds the
 // platform's ~20 s gateway limit. Create them in chunks under one shared label.
-function bulkTickets(total: number, chunk = 10): { label: string; ids: string[] } {
+function bulkTickets(total: number, chunk = 5): { label: string; ids: string[] } {
   const suffix = unique('p0').replace(/[^a-z0-9]/gi, '').toLowerCase();
   const ids: string[] = [];
   let label = '';

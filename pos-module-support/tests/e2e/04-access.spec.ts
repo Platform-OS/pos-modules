@@ -77,6 +77,11 @@ test.describe.serial('access', () => {
     const page = await context.newPage();
     await signIn(page, host).catch(() => undefined);
     await page.goto(desk('/support-desk'));
+    // an unconfirmed address confirms itself first (QA round 2): admins approve an address the requester holds
+    await page.click('form[action="/support-desk/join/resend"] button[type=submit]');
+    const confirmation = await waitForStub((b) => recipients(b).includes(host.email) && contentOf(b).includes('/support-desk/join/verify'));
+    const link = contentOf(confirmation).match(/https:\/\/[^"\s<]+\/support-desk\/join\/verify\?token=[^"\s<]+/)![0];
+    await page.goto(link.replace(/&amp;/g, '&'));
     await page.fill('#ra-note', 'E2E: please let me in');
     await page.click('form[action="/support-desk/request-access"] button[type=submit]');
 
@@ -88,7 +93,7 @@ test.describe.serial('access', () => {
     await form.locator('button[value=approve]').click();
     await admin.context.close();
 
-    await waitForStub((b) => recipients(b).includes(host.email));
+    await waitForStub((b) => recipients(b).includes(host.email) && !contentOf(b).includes("/support-desk/join/verify"));
     await page.goto(desk('/support-desk'));
     await expect(page.locator('.pos-support-queue')).toBeVisible();
     await context.close();
