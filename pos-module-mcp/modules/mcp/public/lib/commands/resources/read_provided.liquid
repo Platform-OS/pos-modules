@@ -3,7 +3,7 @@
   caller is authenticated (rpc/dispatch resolved the bearer); this applies the same
   controls as a tools/call before the provider runs, because the read returns app data:
     1. auto-suspend on abuse (limits/enforce_abuse);
-    2. the per-principal rate limit, shared with tools/call (429 + Retry-After);
+    2. the per-token rate limit, shared with tools/call (429 + Retry-After);
     3. the mcp:read scope (an OAuth token without it gets 403 insufficient_scope);
     4. the provider read (queries/resources/provider), which applies the app's own
        access rules for this principal and returns nil for anything the caller may not
@@ -24,7 +24,7 @@
   function cfg = 'modules/mcp/helpers/config'
   assign out = {}
 
-  function abuse = 'modules/mcp/commands/limits/enforce_abuse', token_id: identity.token_id, principal_id: identity.principal.id, agent_id: identity.agent.id
+  function abuse = 'modules/mcp/commands/limits/enforce_abuse', token_id: identity.token_id, principal_id: identity.principal.id, agent_id: identity.agent.id, client_id: identity.agent.client_id
   if abuse.suspended
     assign err = {
       "code": -32001,
@@ -49,13 +49,13 @@
   assign le['authz_decision'] = 'not_applicable'
   assign le['_start_ms'] = start_ms
 
-  assign rate_scope = 'principal:' | append: identity.principal.id
+  assign rate_scope = 'principal:' | append: identity.principal.id | append: ':token:' | append: identity.token_id
   function rate = 'modules/mcp/commands/limits/check', scope: rate_scope, limit: cfg.defaults.rate_limit_per_min
   unless rate.allowed
     assign le['execution_outcome'] = 'error'
     assign le['error_code'] = -32002
     function _ = 'modules/mcp/commands/ledger/append', entry: le
-    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: identity.principal.id
+    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: identity.principal.id, token_id: identity.token_id
     assign headers_retry_after = rate.retry_after | append: ''
     assign headers = { "Retry-After": headers_retry_after }
     assign err = {

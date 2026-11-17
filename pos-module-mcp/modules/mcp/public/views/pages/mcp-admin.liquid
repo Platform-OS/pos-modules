@@ -125,28 +125,20 @@ layout: ''
     assign members = members_res.records.results
     graphql tokens_res = 'modules/mcp/tokens/list_all', per_page: 200
     assign tokens = tokens_res.records.results
-    assign now_unix = 'now' | to_time | strftime: '%s' | plus: 0
-    assign abuse_win = cfg.defaults.abuse_window_seconds | plus: 0
-    assign cur_window = 0
-    if abuse_win > 0
-      assign cur_window = now_unix | divided_by: abuse_win
-    endif
-    # Current-window violation counters, fetched by EXACT key for the listed tokens'
-    # principals (same key limits/note_violation writes) — never a table scan, which
-    # would miss current rows once the counter table outgrows one page.
-    assign abuse_keys = []
+    # Violation counts over the rolling abuse window, per listed token (the same
+    # per-token counters limits/note_violation writes and limits/enforce_abuse reads),
+    # fetched by EXACT key — never a table scan, which would miss current rows once the
+    # counter table outgrows one page.
+    assign abuse_subjects = []
     for t in tokens
-      assign akey = 'abuse:user:' | append: t.user_id | append: ':' | append: cur_window
-      assign abuse_keys = abuse_keys | array_add: akey
+      assign t_principal = 'user:' | append: t.user_id
+      assign t_subject = {
+        "principal_id": t_principal,
+        "token_id": t.id
+      }
+      assign abuse_subjects = abuse_subjects | array_add: t_subject
     endfor
-    assign abuse_keys = abuse_keys | uniq
-    assign abuse_map = {}
-    if abuse_keys.size > 0
-      graphql rc_res = 'modules/mcp/rate/by_keys', keys: abuse_keys, per_page: abuse_keys.size
-      for rc in rc_res.records.results
-        assign abuse_map[rc.key] = rc.count
-      endfor
-    endif
+    function abuse_map = 'modules/mcp/queries/limits/abuse_counts', subjects: abuse_subjects
     assign abuse_threshold = cfg.defaults.abuse_threshold | plus: 0
     assign half_threshold = 1
     if abuse_threshold > 0
@@ -522,10 +514,10 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
     <h2>Active bearer tokens ({{ tokens.size }})</h2>
     <div class="tbl-wrap mb-175">
       <table>
-        <thead><tr><th>label / agent</th><th>principal</th><th>status</th><th>last used</th><th title="policy violations in the current abuse window; the token auto-suspends at the threshold">violations</th><th></th></tr></thead>
+        <thead><tr><th>label / agent</th><th>principal</th><th>status</th><th>last used</th><th title="policy violations made with this token in the rolling abuse window; the token auto-suspends at the threshold">violations</th><th></th></tr></thead>
         <tbody>
         {%- for t in tokens -%}
-          {%- assign akey = 'abuse:user:' | append: t.user_id | append: ':' | append: cur_window -%}
+          {%- assign akey = t.id | append: '' -%}
           {%- assign viol = abuse_map[akey] | default: 0 | plus: 0 -%}
           <tr>
             <td><b>{{ t.label }}</b></td>

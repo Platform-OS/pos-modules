@@ -79,6 +79,15 @@ const USERS = [
     name: 'MCP Fixture AbuseC', roles: ['mcp_user'],
     tokens: [{ id: T + 8, raw: 'mcp_fixt_abusec_v1', label: 'fixt-abusec', status: 'active' }] },
 
+  // Two tokens of one person: only the token that makes the violations may be suspended
+  // (and rate limited); the other must keep working.
+  { key: 'abuseD', id: U + 10, email: 'mcp-fixt-abused@test.local', slug: 'mcp-fixt-abused',
+    name: 'MCP Fixture AbuseD', roles: ['mcp_user'],
+    tokens: [
+      { id: T + 10, raw: 'mcp_fixt_abused_v1',        label: 'fixt-abused',        status: 'active' },
+      { id: T + 11, raw: 'mcp_fixt_abused_narrow_v1', label: 'fixt-abused-narrow', status: 'active', allowed_tools: ['test_public'] },
+    ] },
+
   { key: 'validator', id: U + 9, email: 'mcp-fixt-validator@test.local', slug: 'mcp-fixt-validator',
     name: 'MCP Fixture Validator', roles: ['mcp_user'],
     tokens: [{ id: T + 9, raw: 'mcp_fixt_validator_v1', label: 'fixt-validator', status: 'active' }] },
