@@ -14,12 +14,18 @@
   conform to its declared outputSchema). Same strict type and constraint checks, with
   the output-mode schema subset (registry/validate_schema_node):
    - `type` may be a list (`["string","null"]`); a value matches if it matches any
-     listed type, and null is valid only where "null" is listed;
+     listed type, and null is valid only where "null" is listed (and, if the node has
+     an enum, only where the enum lists null too);
    - additionalProperties is honoured as declared: `false` rejects undeclared keys,
      absent or `true` allows them (standard JSON Schema; forcing false would refuse
      results that conform to the published schema);
    - a `format` other than uuid/email/date/date-time is an annotation for clients and
      is not checked (JSON Schema treats format as an annotation by default).
+
+  Both modes: `pattern` is evaluated with ECMA-262 anchoring (validate/ecma_pattern), so
+  ^ and $ anchor the whole string as they do for clients, not each line. The formats
+  are anchored the same way, and date-time is a full RFC 3339 date-time (real calendar
+  day, time fields in range, time zone required).
 
   Depth is capped in both modes.
 
@@ -69,11 +75,30 @@
     return out
   endif
 
-  # ---- null: valid only where an output schema lists "null" ----
+  # ---- null: valid only where an output schema lists "null" (and, when the node also
+  #      declares an enum, only where that enum lists null: both keywords apply) ----
   if vt == 'null' or vt == 'NilClass'
     if output and types contains 'null'
+      unless schema.enum == blank
+        assign null_in_enum = false
+        for opt in schema.enum
+          if opt == null
+            assign null_in_enum = true
+            break
+          endif
+        endfor
+        unless null_in_enum
+          assign allowed = schema.enum | join: ', '
+          assign msg = at | append: ': must be one of [' | append: allowed | append: '], got null'
+          assign errors = errors | array_add: msg
+        endunless
+      endunless
+      assign is_valid = false
+      if errors.size == 0
+        assign is_valid = true
+      endif
       assign out = {
-        "valid": true,
+        "valid": is_valid,
         "errors": errors
       }
       return out
@@ -168,30 +193,51 @@
         endif
       endunless
       unless schema.pattern == blank
-        assign pat_ok = value | matches: schema.pattern
+        # ECMA-262 semantics (what clients apply): ^ and $ anchor the whole string.
+        # registry/validate_schema_node rejects a pattern that does not compile; a
+        # failure here anyway fails closed.
+        function ruby_pattern = 'modules/mcp/helpers/validate/ecma_pattern', pattern: schema.pattern
+        assign pat_ok = false
+        try
+          assign pat_ok = value | matches: ruby_pattern
+        catch pattern_error
+          assign pat_ok = false
+        endtry
         unless pat_ok
           assign msg = at | append: ': does not match required pattern'
           assign errors = errors | array_add: msg
         endunless
       endunless
       unless schema.format == blank
+        # \A and \z anchor the whole value (Ruby's ^ and $ would accept a valid first
+        # line followed by anything).
         assign fmt_re = ''
         if schema.format == 'uuid'
-          assign fmt_re = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          assign fmt_re = '\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z'
         elsif schema.format == 'email'
-          assign fmt_re = '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+          assign fmt_re = '\A[^@\s]+@[^@\s]+\.[^@\s]+\z'
         elsif schema.format == 'date-time'
-          assign fmt_re = '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'
+          # RFC 3339 date-time: the time zone (Z or ±hh:mm) is required, hours 00-23,
+          # minutes 00-59, seconds 00-60 (leap second), optional fraction.
+          assign fmt_re = '\A[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt]([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\.[0-9]+)?([Zz]|[+-]([01][0-9]|2[0-3]):[0-5][0-9])\z'
         elsif schema.format == 'date'
-          assign fmt_re = '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+          assign fmt_re = '\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z'
         endif
         unless fmt_re == blank
           assign fmt_ok = value | matches: fmt_re
-          # A full-date (RFC 3339) must also be a real calendar day: month 1-12 and a day
-          # within that month, with the Gregorian leap-year rule. Checked by arithmetic,
-          # because to_time silently rolls 2026-02-31 over to 2026-03-03.
-          if fmt_ok and schema.format == 'date'
-            assign date_parts = value | split: '-'
+          # A full-date (RFC 3339), alone or as the start of a date-time, must also be a
+          # real calendar day: month 1-12 and a day within that month, with the
+          # Gregorian leap-year rule. Checked by arithmetic, because to_time silently
+          # rolls 2026-02-31 over to 2026-03-03.
+          assign check_calendar = false
+          if fmt_ok
+            if schema.format == 'date' or schema.format == 'date-time'
+              assign check_calendar = true
+            endif
+          endif
+          if check_calendar
+            assign full_date = value | slice: 0, 10
+            assign date_parts = full_date | split: '-'
             assign year = date_parts[0] | plus: 0
             assign month = date_parts[1] | plus: 0
             assign day = date_parts[2] | plus: 0

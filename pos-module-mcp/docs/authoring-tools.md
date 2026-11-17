@@ -279,13 +279,20 @@ never declare a constraint the engine does not enforce):
 
 - `type`: `object` | `string` | `integer` | `number` | `boolean` | `array`
 - object: `properties`, `required`, `additionalProperties` (always treated as `false`)
-- string: `minLength`, `maxLength`, `pattern` (bounded — no catastrophic backtracking), `enum`, `format` (`date` (a real `YYYY-MM-DD` day) | `date-time` | `email` | `uuid` — any other value makes the manifest invalid, because the engine would not enforce it; use a `pattern` instead)
+- string: `minLength`, `maxLength`, `pattern` (bounded — no catastrophic backtracking; it must compile, and `^`/`$` anchor the whole value as in ECMA-262, the dialect clients use, never a single line), `enum`, `format` (`date` (a real `YYYY-MM-DD` day) | `date-time` (RFC 3339: a real day, time fields in range, time zone `Z` or `±hh:mm` required) | `email` | `uuid` — the whole value must match; any other value makes the manifest invalid, because the engine would not enforce it; use a `pattern` instead)
 - number/integer: `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `enum`
 - array: `items` (single schema), `minItems`, `maxItems`
 - annotations: `description`, `title`, `default`. A `description` or `title` is read by
   the model like the tool description, so it goes through the same tool-poisoning lint
   (in `input_schema` and `output_schema`); a hit is a warning, reported by the operator
   eval, and does not exclude the tool.
+
+Every keyword value must have its JSON Schema 2020-12 type, or the manifest is invalid:
+numbers for `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum` (not the draft-4
+`true`/`false` form), non-negative integers for `minLength`/`maxLength`/`minItems`/
+`maxItems`, an array of strings for `required`, a non-empty array for `enum`, an object
+for `properties` and `items` (not the tuple form `items: [...]`), strings for
+`pattern`, `format`, `description` and `title`.
 
 Validation is **strict, no coercion**: `"5"` is rejected for an `integer`, a null value
 for a typed field is rejected, unknown keys are rejected. Depth is capped
@@ -299,7 +306,10 @@ their errors instead of hiding them.
 `output_schema` uses the same keywords as `input_schema`, with three differences:
 
 - `type` may be a list, and may include `"null"`: `{"type": ["string", "null"]}` for a
-  field that can be empty. Without `"null"` in the list, a null value is rejected.
+  field that can be empty. Without `"null"` in the list, a null value is rejected. If
+  the field also has an `enum`, null must be in the enum too
+  (`{"type": ["string", "null"], "enum": ["open", "closed", null]}`), as JSON Schema
+  applies both keywords.
 - `additionalProperties` is honoured as declared. `false` rejects any key the schema
   does not list, which turns the schema into an allowlist of the fields that may leave
   the server (a guard against a handler returning another user's email or internal ids).

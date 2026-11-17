@@ -64,6 +64,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handler returned non-conforming results before now fails those calls, so check
   results against the schema (docs/authoring-tools.md, "Output-schema reference").
   New gated test fixtures `test_bad_output` and `test_bad_output_write`.
+- **Schema checks follow JSON Schema where they used to differ** (arguments and results).
+  - A null result value for `{"type": ["string","null"], "enum": [...]}` is accepted
+    only if the enum lists null too.
+  - `pattern` is evaluated with ECMA-262 anchoring (new `helpers/validate/ecma_pattern`):
+    `^` and `$` anchor the whole value, as clients read them, instead of any line (see
+    Security).
+  - `format` checks match the whole value: a valid `uuid` or `date` followed by a
+    newline and more text is rejected. `date-time` is a full RFC 3339 date-time: a real
+    calendar day, hours/minutes/seconds in range, and a required time zone (`Z` or
+    `±hh:mm`). An argument such as `2026-01-01T00:00:00` without a zone is now rejected.
+  - At load, every schema node must be an object and every keyword value must have its
+    JSON Schema type (numbers for the range keywords, non-negative integers for the
+    length and item counts, an array of strings for `required`, a non-empty array for
+    `enum`, objects for `properties` and `items`, strings for `pattern`, `format`,
+    `description` and `title`), and `pattern` must compile. Such a schema used to load
+    and then crash the validator (`"maximum": "10"`, a `pattern` that does not compile,
+    `items: [...]`) or be enforced differently from how clients read it (draft-4
+    `"exclusiveMinimum": true`). A tool with such a schema is now excluded from
+    `tools/list`. New gated fixtures `test_bad_schema_crash`, `test_bad_schema_values`.
+
+### Security
+
+- **A `pattern` no longer passes a value whose first line matches.** Patterns were
+  evaluated with Ruby regex semantics, where `^` and `$` match at every line, so
+  `^[^<>]*$`, the HTML guard the docs recommend, accepted `"ok\n<script>"` as an
+  argument. Patterns now anchor the whole value (ECMA-262, as JSON Schema specifies).
 - **Clients that keep sending an older revision in `MCP-Protocol-Version` are served.**
   OpenAI's MCP client sends `2024-11-05` in the header after the `initialize` handshake
   agreed on `2025-06-18`, and every such request was refused with 400
