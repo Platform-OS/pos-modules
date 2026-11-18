@@ -2049,6 +2049,19 @@
   /* ================================================================
      Tables (queue, settings, profile)
      ================================================================ */
+  /* Settings → Team: disabled members and memberships without a user, folded away */
+  .pos-support-team-more {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-block-start: 1rem;
+  }
+
+  .pos-support-team-more > summary {
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   .pos-support-table-wrap {
     /* contains screen-reader-only header labels, which would otherwise widen the page */
     position: relative;

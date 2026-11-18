@@ -1,0 +1,49 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # Settings → Team (QA: lists every membership): the table holds the team;
+  # disabled members and memberships whose user was deleted are listed apart
+  assign suffix = 8 | random_string | downcase
+  assign no_roles = []
+  assign email = 'team-page-' | append: suffix | append: '@example.com'
+  function user = 'modules/user/commands/user/create', first_name: 'Team', last_name: 'Page', email: email, password: 'password-12345678', roles: no_roles, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+
+  assign object = { "role": "agent", "state": "disabled", "source": "invite", "department_ids": [] }
+  assign object.profile_id = profile.id
+  function disabled = 'modules/support/commands/team_members/create', object: object
+  assign orphan_profile = 'deleted-profile-' | append: suffix
+  assign object = { "role": "agent", "state": "active", "source": "invite", "department_ids": [] }
+  assign object.profile_id = orphan_profile
+  function orphan = 'modules/support/commands/team_members/create', object: object
+  function _ = 'modules/support/commands/team_members/forget'
+
+  function data = 'modules/support/queries/team/page_data', edit_id: orphan.id
+  assign current_ids = data.current_members | map: 'id'
+  assign disabled_ids = data.disabled_members | map: 'id'
+  assign orphan_ids = data.orphan_members | map: 'id'
+  assign placed = ''
+  if disabled_ids contains disabled.id
+    assign placed = placed | append: 'disabled-apart '
+  endif
+  if orphan_ids contains orphan.id
+    assign placed = placed | append: 'orphan-apart '
+  endif
+  if current_ids contains orphan.id or current_ids contains disabled.id
+    assign placed = placed | append: 'LEAKED-INTO-TABLE '
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: placed, expected: 'disabled-apart orphan-apart ', field_name: 'disabled and orphaned memberships are listed apart from the team'
+  assign warned = false
+  if data.orphans_active > 0
+    assign warned = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: warned, field_name: 'an active membership without a user is counted for the warning', object: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: data.edit.id, expected: orphan.id, field_name: 'any membership can still be opened for editing'
+
+  # leave nothing assignable behind
+  assign off = { "state": "disabled" }
+  function off_props = 'modules/support/helpers/props', values: off
+  graphql _ = 'modules/support/records/update', id: orphan.id, properties: off_props
+  function _ = 'modules/support/commands/team_members/forget'
+%}

@@ -205,6 +205,9 @@ en:
     back: Back to the queue
   team:
     deleted_user: Deleted user (no profile)
+    disabled_list: "Disabled members (%{count})"
+    orphan_list: "Memberships without a user account (%{count})"
+    orphans_active: "%{count} of these are still active and can be assigned tickets. Disable them: the user behind them was deleted."
     requests: Access requests
     approve: Approve
     decline: Decline

@@ -40,9 +40,25 @@
     endfor
     # platformos-check-enable NestedGraphQLQuery
   endif
+  # the table shows the team; disabled members and memberships whose user was
+  # deleted (test runs, people who left) are listed apart, folded away
+  assign data.current_members = []
+  assign data.disabled_members = []
+  assign data.orphan_members = []
+  assign data.orphans_active = 0
   for member in data.members
     if member.id == edit_id
       assign data.edit = member
+    endif
+    if data.profiles[member.profile_id] == blank
+      assign data.orphan_members << member
+      if member.state == 'active'
+        assign data.orphans_active = data.orphans_active | plus: 1
+      endif
+    elsif member.state == 'disabled'
+      assign data.disabled_members << member
+    else
+      assign data.current_members << member
     endif
   endfor
   function candidates = 'modules/support/queries/team/staff_candidates'
