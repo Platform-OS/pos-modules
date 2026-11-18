@@ -8,9 +8,15 @@ method: delete
   # platformos-check-disable DeprecatedTag
   include 'modules/user/helpers/can_do_or_redirect', requester: current_profile, do: 'sessions.destroy', return_url: '/', access_callback: null, entity: null
   # platformos-check-enable DeprecatedTag
-  
+
   function res = 'modules/user/commands/session/destroy'
 
-  assign redirect_path = res.hook_results.redirect_to | default: context.params.redirect_to | default: '/'
+  # a hook's target is the application's own choice; the form's redirect_to
+  # comes from the request, so only a path on this site is followed
+  if res.hook_results.redirect_to != blank
+    assign redirect_path = res.hook_results.redirect_to
+  else
+    function redirect_path = 'modules/user/helpers/local_path', url: context.params.redirect_to, fallback: '/'
+  endif
   redirect_to redirect_path
 %}

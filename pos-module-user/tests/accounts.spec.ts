@@ -175,6 +175,32 @@ test.describe('Testing login and authentication', () => {
     });
   });
 
+  test('log out follows redirect_to only to a path on this site', async ({ page }) => {
+    const homePage = new HomePage(page);
+    const loginPage = new LogInPage(page);
+    // each case signs in, then posts the Log out form with its own redirect_to
+    const cases: [string, string][] = [
+      ['https://evil.example', '/'],
+      ['//evil.example', '/'],
+      ['/\\evil.example', '/'],
+      ['/sessions/new', '/sessions/new'],
+    ];
+    for (const [requested, expected] of cases) {
+      await loginPage.goto();
+      await loginPage.logIn(users.test3.email, PASSWORD);
+      await expect(homePage.buttonWithText('Log out')).toBeVisible();
+      const token = await page.locator('input[name="authenticity_token"]').first().getAttribute('value');
+      const response = await page.request.post('/sessions', {
+        form: { authenticity_token: String(token), _method: 'delete', redirect_to: requested },
+        maxRedirects: 0,
+      });
+      expect(response.status(), `redirect_to=${requested}`).toBe(302);
+      const location = new URL(response.headers()['location'], URL);
+      expect(location.origin, `redirect_to=${requested} stays on the site`).toBe(new URL(URL!).origin);
+      expect(location.pathname, `redirect_to=${requested}`).toBe(expected);
+    }
+  });
+
   test('validate that error message is shown when using wrong credentials', async ({ page }) => {
     const loginPage = new LogInPage(page);
 
