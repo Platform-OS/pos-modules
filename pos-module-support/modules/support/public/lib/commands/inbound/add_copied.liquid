@@ -1,0 +1,87 @@
+{% doc %}
+  Reply all (QA: [Feature] No Reply all): the people a customer copied on an
+  email (Cc, and To addresses other than the desk's own) become CC
+  participants of the ticket, so agents' replies go to them too.
+  Only for an email whose sender passed SPF/DKIM (helpers/email/sender_verified)
+  and is the requester or already on the ticket: a forged email cannot add
+  an address to the ticket's replies. Skipped: the sender, the requester,
+  addresses at the desk's inbound domains (envelope To), blocked addresses
+  and anything past 10 per email. Returns the added addresses.
+  @param {object} ticket - The ticket the email belongs to
+  @param {object} email - Normalized email from the adapter
+  @param {object} contact - The sender's contact
+  @param {boolean} sender_known - The sender is the requester or a participant
+{% enddoc %}
+{% liquid
+  assign added = []
+  unless sender_known
+    return added
+  endunless
+  function sender_ok = 'modules/support/helpers/email/sender_verified', email: email
+  unless sender_ok
+    return added
+  endunless
+
+  # the desk's own domains: whatever the email was delivered to
+  assign desk_domains = []
+  for address in email.envelope_to
+    assign domain = address | downcase | split: '@' | last
+    assign desk_domains << domain
+  endfor
+  assign skip = []
+  assign sender = email.from.email | default: email.envelope_from | downcase
+  assign skip << sender
+  for known in contact.emails
+    assign known_down = known | downcase
+    assign skip << known_down
+  endfor
+  if ticket.requester_id != blank and ticket.requester_id != contact.id
+    assign requester_ids = []
+    assign requester_ids << ticket.requester_id
+    graphql rq = 'modules/support/contacts/search', ids: requester_ids, limit: 1
+    for known in rq.records.results.first.emails
+      assign known_down = known | downcase
+      assign skip << known_down
+    endfor
+  endif
+
+  # already on the ticket (any role): nothing to add or log
+  graphql existing = 'modules/support/participants/search', ticket_id: ticket.id, email: null, role: null, limit: 100
+  for row in existing.records.results
+    if row.email != blank
+      assign skip << row.email
+    endif
+  endfor
+
+  assign copied = email.cc | default: []
+  assign to_list = email.to | default: []
+  assign copied = copied | concat: to_list
+  for person in copied
+    if added.size >= 10
+      break
+    endif
+    assign address = person.email | downcase | strip
+    if address == blank or skip contains address
+      continue
+    endif
+    assign domain = address | split: '@' | last
+    if desk_domains contains domain
+      continue
+    endif
+    assign one = []
+    assign one << address
+    # platformos-check-disable NestedGraphQLQuery
+    function blocked = 'modules/support/queries/blocklist/match', addresses: one
+    # platformos-check-enable NestedGraphQLQuery
+    if blocked
+      continue
+    endif
+    function row = 'modules/support/commands/participants/add', ticket_id: ticket.id, email: address, role: 'cc', contact_id: null, profile_id: null
+    if row
+      function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'participant_added', from_value: null, to_value: address, reason: 'cc'
+      assign added << address
+    endif
+    assign skip << address
+  endfor
+  return added
+%}

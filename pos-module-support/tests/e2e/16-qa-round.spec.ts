@@ -1,7 +1,7 @@
 // QA round 2 (Rafał's and Dora's reports, 10–16 Nov 2026): one check per
 // fixed report that a browser can show.
 import { test, expect } from '@playwright/test';
-import { choose, contentOf, contextFor, createHostUser, desk, newTicket, recipients, unique, users, waitForStub } from './helpers';
+import { choose, contentOf, contextFor, createHostUser, desk, inbound, newTicket, recipients, unique, users, waitForStub, waitForTicket } from './helpers';
 
 test('Q1. forgot password: the desk form confirms, emails a desk link, and the new password signs in', async ({ page }) => {
   const email = `${unique('reset')}@e2e.example`;
@@ -174,5 +174,26 @@ test('Q9. a ticket with a long message scrolls, and the reply box keeps its Send
   await sendRow.scrollIntoViewIfNeeded();
   await expect(sendRow).toBeInViewport();
   await expect(composer).toBeVisible();
+  await admin.context.close();
+});
+
+test('Q10. Reply all: people the customer copied become CCs, are prefilled in the reply, and get it', async ({ browser }) => {
+  const customer = `${unique('customer')}@e2e.example`;
+  const colleague = `${unique('colleague')}@e2e.example`;
+  const subject = unique('E2E QA reply all');
+  await inbound({ from: customer, to: 'e2e@support-dev.platformos.com', subject, body: 'Keeping my colleague in the loop.', headers: [`Cc: "Colleague, One" <${colleague}>`] });
+  const ticket = await waitForTicket(subject);
+  const admin = await contextFor(browser, users.superadmin);
+  const page = admin.page;
+  await page.goto(desk(`/support-desk/tickets/${ticket.id}`));
+  await expect(page.locator('#pos-support-cc')).toHaveValue(colleague);
+  await expect(page.locator('#pos-support-cc-help')).toBeVisible();
+  const text = unique('reply to all');
+  await page.fill('#pos-support-body', text);
+  await page.click('[data-support-composer] button[type=submit]');
+  const mail = await waitForStub((b) => contentOf(b).includes(text));
+  const cc = (mail.personalizations || []).flatMap((p: any) => (p.cc || []).map((c: any) => String(c.email).toLowerCase()));
+  expect(cc).toContain(colleague);
+  expect(recipients(mail)).toContain(customer);
   await admin.context.close();
 });

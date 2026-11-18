@@ -1,5 +1,6 @@
 {% doc %}
-  Stores the message as queued, updates the ticket (first_replied_at once,
+  Stores the message as queued, adds its new Cc addresses to the ticket's
+  CCs, updates the ticket (first_replied_at once,
   needs_reply off, last_agent_reply_at), optionally changes the status,
   queues delivery (with the attachments) in the background, writes the
   activity row, publishes support_reply_created and sends the live update.
@@ -23,6 +24,18 @@
   graphql r = 'modules/support/records/create_one', table: 'modules/support/message', properties: props
   assign message = values
   assign message.id = r.record.id
+
+  # an address the agent copied joins the ticket's CCs, so later replies
+  # (Reply all, the composer's prefilled Cc) keep it
+  for address in object.cc
+    # platformos-check-disable NestedGraphQLQuery
+    graphql on_ticket = 'modules/support/participants/search', ticket_id: ticket.id, email: address, role: 'cc', limit: 1
+    # platformos-check-enable NestedGraphQLQuery
+    if on_ticket.records.total_entries == 0
+      function _ = 'modules/support/commands/participants/add', ticket_id: ticket.id, email: address, role: 'cc', contact_id: null, profile_id: null
+      function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: actor.type, actor_id: actor.id, event_type: 'participant_added', from_value: null, to_value: address, reason: 'cc'
+    endif
+  endfor
 
   assign now = 'now' | to_time
   assign ticket_values = { "needs_reply": false }

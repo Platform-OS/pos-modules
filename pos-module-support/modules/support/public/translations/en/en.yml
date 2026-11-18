@@ -501,6 +501,7 @@ en:
     attach: Attachments
     attach_help: Up to 10 MB in total.
     attach_remove: Remove
+    cc_reply_all: Everyone CC'd on this ticket gets this reply. Remove an address to leave them out of this one.
     customer_sees: "customer sees: %{label}"
     mention_list: Colleagues you can mention
     then: Then set status

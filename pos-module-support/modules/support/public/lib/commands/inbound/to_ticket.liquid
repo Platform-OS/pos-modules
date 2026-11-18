@@ -86,6 +86,21 @@
     endif
   endif
 
+  # Reply all: people the requester (or someone already on the ticket) copied
+  # become CCs, when the sender is verified (commands/inbound/add_copied)
+  unless flags.spam or flags.auto_reply
+    assign sender_known = false
+    if contact.id == ticket.requester_id
+      assign sender_known = true
+    else
+      graphql on_ticket = 'modules/support/participants/search', ticket_id: ticket.id, email: sender, role: null, limit: 1
+      if on_ticket.records.total_entries > 0
+        assign sender_known = true
+      endif
+    endif
+    function _ = 'modules/support/commands/inbound/add_copied', ticket: ticket, email: email, contact: contact, sender_known: sender_known
+  endunless
+
   function created = 'modules/support/commands/messages/create_inbound', ticket: ticket, email: email, contact: contact, inbound_email_id: inbound.id, match_reason: reason, flags: flags
   # a reply on an existing ticket from an address that failed the checks is
   # threaded (customers expect it) but never silent: the activity log says so,

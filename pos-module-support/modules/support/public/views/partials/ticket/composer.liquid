@@ -54,8 +54,11 @@
       {% endif %}
       <span class="pos-support-muted">{{ 'modules/support/ticket.to' | t }}</span>
       <span>{{ requester_email }}</span>
+      {%- comment -%} Reply all: the ticket's CCs are filled in; remove anyone this reply should not go to {%- endcomment -%}
+      {% assign ticket_ccs = data.participants | where: 'role', 'cc' | map: 'email' | array_compact | uniq %}
       <label for="pos-support-cc">{{ 'modules/support/ticket.cc' | t }}</label>
-      <input type="text" id="pos-support-cc" name="cc" placeholder="{{ 'modules/support/ticket.cc_placeholder' | t }}" autocomplete="off" inputmode="email">
+      <input type="text" id="pos-support-cc" name="cc" value="{{ ticket_ccs | join: ', ' }}" placeholder="{{ 'modules/support/ticket.cc_placeholder' | t }}" autocomplete="off" inputmode="email"{% if ticket_ccs.size > 0 %} aria-describedby="pos-support-cc-help"{% endif %}>
+      {% if ticket_ccs.size > 0 %}<span></span><span id="pos-support-cc-help" class="pos-supplementary">{{ 'modules/support/ticket.cc_reply_all' | t }}</span>{% endif %}
     </div>
 
     <label for="pos-support-body" class="pos-support-sr-only">{{ 'modules/support/ticket.message' | t }}</label>

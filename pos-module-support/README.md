@@ -69,6 +69,7 @@ Incoming mail and sender checks. A sender counts as **verified** when DKIM passe
 - A reply joins its ticket by the signed reply address, then by `In-Reply-To`/`References`, then by the `[#number]` subject tag (verified, known senders only). Two `From:` lines thread only by the signed reply address.
 - A reply on an existing ticket from an unverified sender is still threaded, shows an "Unverified sender" badge and writes an activity row.
 - A new sender becomes a CC only when verified and writing through the signed reply address, the subject tag, or as a member of the requester's organization; a header match alone never adds anyone. Agents can always add a CC by hand.
+- Reply all: when the requester (or someone already on the ticket) copies people on an email, and that email passes SPF/DKIM, the Cc addresses and any To addresses other than the desk's own become the ticket's CCs (at most 10 per email; blocked addresses are skipped). The reply composer fills its Cc field with the ticket's CCs, and an address an agent adds to Cc joins them for later replies.
 
 ## Access
 

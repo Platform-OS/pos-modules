@@ -1,0 +1,58 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% capture nl %}
+{% endcapture %}
+{% liquid
+  # Reply all (QA: [Feature] No Reply all): people a verified requester copied
+  # become CCs; a forged email adds nobody; an agent's Cc joins the CCs.
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+  assign suffix = 8 | random_string | downcase
+  assign sender = 'requester-' | append: suffix | append: '@example-city.gov'
+  assign colleague = 'colleague-' | append: suffix | append: '@x.example'
+  assign other = 'other-' | append: suffix | append: '@x.example'
+  assign partner = 'partner-' | append: suffix | append: '@y.example'
+  assign message_id = '<reply-all-' | append: suffix | append: '@example-city.gov>'
+  assign raw = 'From: Requester <' | append: sender | append: '>' | append: nl
+  assign raw = raw | append: 'To: testfixtures@support-dev.platformos.com, ' | append: partner | append: nl
+  assign raw = raw | append: 'Cc: "Colleague, One" <' | append: colleague | append: '>, ' | append: other | append: ', ' | append: sender | append: nl
+  assign raw = raw | append: 'Subject: Reply all ' | append: suffix | append: nl
+  assign raw = raw | append: 'Message-ID: ' | append: message_id | append: nl | append: nl | append: 'Please keep my colleagues in the loop.'
+  function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: sender, to: null, spf: 'pass'
+  graphql inbound = 'modules/support/inbound_emails/search', message_id_header: message_id, limit: 1
+  assign ticket_id = inbound.records.results.first.ticket_id
+  graphql p = 'modules/support/participants/search', ticket_id: ticket_id, email: null, role: 'cc', limit: 20
+  assign ccs = p.records.results | map: 'email' | sort | join: ','
+  assign expected = colleague | append: ',' | append: other | append: ',' | append: partner | split: ',' | sort | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ccs, expected: expected, field_name: 'Cc and other To addresses become CCs (not the desk, not the sender)'
+
+  # a forged email (SPF fail) from the same requester adds nobody
+  assign intruder = 'intruder-' | append: suffix | append: '@evil.example'
+  assign forged_id = '<forged-' | append: suffix | append: '@example-city.gov>'
+  assign forged = 'From: Requester <' | append: sender | append: '>' | append: nl
+  assign forged = forged | append: 'To: testfixtures@support-dev.platformos.com' | append: nl
+  assign forged = forged | append: 'Cc: ' | append: intruder | append: nl
+  assign forged = forged | append: 'Subject: Forged ' | append: suffix | append: nl
+  assign forged = forged | append: 'Message-ID: ' | append: forged_id | append: nl | append: nl | append: 'Add me.'
+  function _ = 'support_test_helpers/inbound_case', raw: forged, sender: 'bounce@evil.example', to: null, spf: 'fail'
+  graphql forged_in = 'modules/support/inbound_emails/search', message_id_header: forged_id, limit: 1
+  graphql fp = 'modules/support/participants/search', ticket_id: forged_in.records.results.first.ticket_id, email: intruder, role: null, limit: 1
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: fp.records.total_entries, expected: 0, field_name: 'unverified sender adds no CC'
+
+  # the agent's reply: an address typed into Cc joins the CCs; known ones are not duplicated
+  function f = 'support_test_helpers/ticket_fixture', label: 'replyall'
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  assign added = 'added-' | append: suffix | append: '@z.example'
+  assign cc_emails = []
+  assign cc_emails << colleague
+  assign cc_emails << added
+  function sent = 'modules/support/commands/messages/create_reply', ticket: ticket, body_html: '<p>Replying to all</p>', cc_emails: cc_emails, then_status_key: null, attachments: null, actor: f.actor
+  graphql p = 'modules/support/participants/search', ticket_id: ticket_id, email: null, role: 'cc', limit: 20
+  assign ccs = p.records.results | map: 'email'
+  assign has_added = false
+  if ccs contains added
+    assign has_added = true
+  endif
+  function contract = 'modules/tests/assertions/true', contract: contract, value: has_added, field_name: 'an address the agent copied joins the CCs', object: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ccs.size, expected: 4, field_name: 'no duplicate CC rows'
+%}
