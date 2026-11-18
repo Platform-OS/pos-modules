@@ -1,0 +1,23 @@
+{% doc %}
+  Returns url when it is a path on this site, otherwise the fallback. Use it
+  for any redirect target that comes from the request (redirect_to,
+  return_to): a full URL (https://evil.example), a protocol-relative one
+  (//evil.example) or one with a backslash (/\evil.example, which browsers
+  read as //evil.example) would send the visitor to another site.
+  @param {string} url - The requested target
+  @param {string} [fallback] - Where to go instead, default '/'
+{% enddoc %}
+{% liquid
+  assign fallback = fallback | default: '/'
+  if url == blank
+    return fallback
+  endif
+  # one leading slash, then no second slash right after it, no backslash
+  # (\x5c: a Liquid string turns a doubled backslash into one), no whitespace
+  # or control characters anywhere
+  assign local = url | matches: '\A/(?![/\x5c])[^\s\x5c\x00-\x1f\x7f]*\z'
+  if local
+    return url
+  endif
+  return fallback
+%}
