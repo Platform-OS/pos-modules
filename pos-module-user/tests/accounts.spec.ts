@@ -195,8 +195,9 @@ test.describe('Testing login and authentication', () => {
         maxRedirects: 0,
       });
       expect(response.status(), `redirect_to=${requested}`).toBe(302);
-      const location = new URL(response.headers()['location'], URL);
-      expect(location.origin, `redirect_to=${requested} stays on the site`).toBe(new URL(URL!).origin);
+      // globalThis.URL: this file's own URL constant is the instance address
+      const location = new globalThis.URL(response.headers()['location'], URL);
+      expect(location.origin, `redirect_to=${requested} stays on the site`).toBe(new globalThis.URL(URL!).origin);
       expect(location.pathname, `redirect_to=${requested}`).toBe(expected);
     }
   });
