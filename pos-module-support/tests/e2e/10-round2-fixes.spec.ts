@@ -196,7 +196,8 @@ test('FIX-20 settings wording: sweep last run, saved reply delete asks, pause fo
 test('FIX-22 Team page: availability, no missing translations; FIX-26 agent alerts page has no critical axe issues', async ({ browser }) => {
   const { context, page } = await contextFor(browser, users.superadmin);
   await page.goto(desk('/support-desk/settings/team'));
-  await expect(page.locator('thead')).toContainText('Availability');
+  // the team table (disabled members and memberships without a user are folded into their own tables below)
+  await expect(page.locator('thead').first()).toContainText('Availability');
   await expect(page.locator('body')).not.toContainText('translation missing');
   const agentProfile = liquid(`{% liquid
   graphql p = 'modules/support/team/profiles_by_roles', email: '${users.agent.email}', limit: 1
