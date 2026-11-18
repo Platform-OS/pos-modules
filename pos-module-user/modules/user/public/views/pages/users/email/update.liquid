@@ -27,7 +27,7 @@ method: put
     # the new address is unverified (user/email_update cleared it): when the
     # instance verifies addresses, send the link to the new one
     function verification_on = 'modules/user/helpers/email_verification_enabled'
-    if verification_on
+    if verification_on and object.email_changed
       function _verification = 'modules/user/commands/email_verifications/create', email: context.params.user.email, host: context.location.host, hcaptcha_params: null, verify_hcaptcha: false
     endif
 

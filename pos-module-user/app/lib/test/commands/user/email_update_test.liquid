@@ -1,0 +1,40 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # test a changed address loses email_verified_at: the verification belonged
+  # to the old address
+
+  assign email = 10 | random_string | append: '-email-update@example.com'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function _ = 'modules/user/commands/profiles/mark_email_verified', object: profile
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: profile, field_name: 'email_verified_at'
+
+  assign new_email = 10 | random_string | append: '-email-update-new@example.com'
+  assign params = { "email": new_email, "password": email }
+  function result = 'modules/user/commands/user/email_update', object: params, current_user: user
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: result, field_name: 'email_update'
+  function contract = 'modules/tests/assertions/true', contract: contract, object: result, field_name: 'email_changed'
+
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function contract = 'modules/tests/assertions/blank', contract: contract, object: profile, field_name: 'email_verified_at'
+%}
+
+{% liquid
+  # test saving the same address again keeps email_verified_at
+
+  assign email = 10 | random_string | append: '-email-update@example.com'
+  function user = 'modules/user/commands/user/create', first_name: 'test', last_name: 'test', email: email, password: email, roles: null, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function _ = 'modules/user/commands/profiles/mark_email_verified', object: profile
+
+  assign params = { "email": email, "password": email }
+  function result = 'modules/user/commands/user/email_update', object: params, current_user: user
+  function contract = 'modules/tests/assertions/valid_object', contract: contract, object: result, field_name: 'email_update_same'
+  function contract = 'modules/tests/assertions/not_true', contract: contract, object: result, field_name: 'email_changed'
+
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  function contract = 'modules/tests/assertions/presence', contract: contract, object: profile, field_name: 'email_verified_at'
+%}

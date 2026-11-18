@@ -1,17 +1,28 @@
 {% doc %}
   @param {object} current_user - The current user object
   @param {object} object - The object to process
+
+  On success the result carries email_changed (true when the address differs
+  from the current one, ignoring case); only then is email_verified_at cleared.
 {% enddoc %}
 {% liquid
   function object = 'modules/user/commands/user/email_update/build', object: object, current_user: current_user
   function object = 'modules/user/commands/user/email_update/check', object: object, current_user: current_user
 
   if object.valid
+    assign new_email = object.email | downcase
+    assign old_email = current_user.email | downcase
+    assign email_changed = false
+    if new_email != old_email
+      assign email_changed = true
+    endif
+
     function object = 'modules/core/commands/execute', object: object, mutation_name: 'modules/user/user/email_update', selection: 'user'
+    assign object.email_changed = email_changed
     # a changed address has not been proved yet: email_verified_at belonged to
     # the old one (anything trusting a verified address, such as an admin
     # recovery list, must not carry it over to the new one)
-    if object.id != blank
+    if email_changed and object.id != blank
       function profile = 'modules/user/queries/profiles/find', user_id: object.id, id: null, uuid: null, first_name: null, last_name: null
       if profile.id != blank and profile.email_verified_at != blank
         graphql _ = 'modules/user/profiles/clear_email_verified', id: profile.id
