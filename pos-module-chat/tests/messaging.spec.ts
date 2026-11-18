@@ -129,6 +129,9 @@ test.describe('Testing messaging', () => {
 
       const isChatOpened = await inboxPage.isChatOpened(receiver.fullName);
       expect(isChatOpened).toBe(true);
+
+      // not started yet, but the sidebar shows it as the open conversation
+      await expect(inboxPage.chatList.getCardByAuthor(receiver.fullName)).toHaveClass(/pos-chat-conversationCard-active/);
     });
 
     await test.step(`${receiver.fullName} verifies that his inbox is empty`, async () => {

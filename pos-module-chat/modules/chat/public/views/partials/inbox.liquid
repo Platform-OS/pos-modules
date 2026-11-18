@@ -65,6 +65,33 @@
 <!-- end message templates -->
 
 
+{% liquid
+  # the other person in the open conversation, for the header, the page title and the
+  # sidebar card of a conversation that isn't started yet
+  assign participants = current_conversation.participants
+  if participants
+    assign current_participants = participants | array_select: id: current_profile.id
+    assign other_participants = participants | array_subtract: current_participants
+    assign from_profile = other_participants | first
+    if from_profile
+      if from_profile.first_name
+        assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name
+      else
+        assign name = from_profile.name
+      endif
+      assign conversation_name = name
+    endif
+  endif
+
+  # opened with to_uuid and not started yet (it's created with its first message), or started
+  # without a message yet - either way it isn't in the conversations list (only conversations
+  # with last_message_at are), so it gets a card of its own on top, shown as the open one
+  assign draft = false
+  if current_conversation and current_conversation.last_message_at == blank and from_profile
+    assign draft = true
+  endif
+%}
+
 <div
   id="pos-chat-inbox"
   data-conversation-id="{{ current_conversation.id }}"
@@ -76,18 +103,23 @@
     {% render 'modules/chat/search' %}
 
     <ul class="pos-chat-conversations" id="pos-chat-conversations">
+      {% if draft %}
+        <li class="pos-chat-conversations-draft">
+          {% render 'modules/chat/conversation', id: null, current: true, name: name, image_src: from_profile.avatar.photo.versions.sm %}
+        </li>
+      {% endif %}
       {% if conversations.results.size > 0 %}
         {% render 'modules/chat/conversations', conversations: conversations, current: current_conversation, current_profile: current_profile %}
-      {% else %}
+      {% elsif draft == false %}
         <div class="pos-chat-conversations-blank-desktop">
           {% liquid
-            assign name = 'modules/chat/blank.title' | t
-            render 'modules/chat/conversation', id: 0, current: true, name: name
+            assign blank_title = 'modules/chat/blank.title' | t
+            render 'modules/chat/conversation', id: 0, current: true, name: blank_title
           %}
         </div>
       {% endif %}
     </ul>
-    {% if conversations.results.size == 0 %}
+    {% if conversations.results.size == 0 and draft == false %}
       <div class="pos-chat-conversations-blank-mobile">
         {% render 'modules/common-styling/icon', icon: 'messageBubblesDouble', class: null %}
         <h2 class="pos-heading-2">{{ 'modules/chat/blank.title' | t }}</h2>
@@ -104,20 +136,8 @@
           {% render 'modules/common-styling/icon', icon: 'dashLeft', class: null %}
         </a>
         {% liquid
-          assign participants = current_conversation.participants
-          if participants
-            assign current_participants = participants | array_select: id: current_profile.id
-            assign other_participants = participants | array_subtract: current_participants
-            assign from_profile = other_participants | first
-            if from_profile
-              if from_profile.first_name
-                assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name
-              else
-                assign name = from_profile.name
-              endif
-              assign conversation_name = name
-              render 'modules/common-styling/user/avatar', size: 's', name: name, image_src: from_profile.avatar.photo.versions.sm, class: null
-            endif
+          if from_profile
+            render 'modules/common-styling/user/avatar', size: 's', name: name, image_src: from_profile.avatar.photo.versions.sm, class: null
           endif
         %}
         {{ name }}
