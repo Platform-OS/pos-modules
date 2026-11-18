@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.6.0
+
 * Feature: a conversation opened with `to_uuid` that isn't started yet (it is created with its first message), or has no message yet, is shown on top of the sidebar's conversations list, highlighted as the open one, instead of not being in the list at all.
 
 ## v2.5.0
