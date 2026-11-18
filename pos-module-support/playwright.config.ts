@@ -31,7 +31,16 @@ export default defineConfig({
   projects: [
     {
       name: 'test',
+      testIgnore: /safari\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
+    },
+    // Safari's default keyboard behaviour (Tab skips links, buttons and
+    // checkboxes without a tabindex), which Chromium never shows. Needs
+    // `npx playwright install webkit`; run with --project=safari.
+    {
+      name: 'safari',
+      testMatch: /safari\.spec\.ts$/,
+      use: { ...devices['Desktop Safari'], viewport: { width: 1400, height: 900 } },
     },
   ],
 });

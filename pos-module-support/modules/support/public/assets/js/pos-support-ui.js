@@ -2,6 +2,52 @@
 // destructive actions (data-support-confirm on a button or form) and the
 // mobile navigation drawer.
 (function () {
+  // Keyboard reach in Safari: with its default setting ("Press Tab to
+  // highlight each item" off) Tab skips links, buttons, checkboxes, radio
+  // buttons and file and colour inputs unless they carry an explicit
+  // tabindex. Every such control in the desk gets tabindex="0", which changes
+  // nothing in other browsers, where they are in the tab order already.
+  // Elements with a tabindex of their own are left alone; in a radio group
+  // only the checked radio (or the first) takes the stop, as browsers do.
+  // Content added later (queue swaps, dropdown buttons) is covered too.
+  const TAB_SKIPPED = 'a[href], button, summary, input[type="checkbox"], input[type="radio"], input[type="file"], input[type="color"], input[type="submit"], input[type="button"], input[type="reset"], input[type="image"]';
+  const radioStop = (radio) => {
+    if (!radio.name) return true;
+    const scope = radio.form || document;
+    const group = Array.from(scope.querySelectorAll('input[type="radio"]')).filter((other) => other.name === radio.name);
+    const checked = group.find((other) => other.checked);
+    return radio === (checked || group[0]);
+  };
+  const makeTabbable = (root) => {
+    const found = root.matches && root.matches(TAB_SKIPPED) ? [root] : [];
+    if (root.querySelectorAll) found.push(...root.querySelectorAll(TAB_SKIPPED));
+    found.forEach((el) => {
+      if (el.hasAttribute('tabindex') && !el.hasAttribute('data-support-tabbable')) return;
+      if (el.type === 'radio') {
+        el.setAttribute('data-support-tabbable', '');
+        el.setAttribute('tabindex', radioStop(el) ? '0' : '-1');
+        return;
+      }
+      el.setAttribute('data-support-tabbable', '');
+      el.setAttribute('tabindex', '0');
+    });
+  };
+  makeTabbable(document.body);
+  new MutationObserver((records) => {
+    records.forEach((record) => record.addedNodes.forEach((node) => {
+      if (node.nodeType === 1) makeTabbable(node);
+    }));
+  }).observe(document.body, { childList: true, subtree: true });
+  // the stop follows the checked radio of its group
+  document.addEventListener('change', (event) => {
+    const radio = event.target;
+    if (!radio.matches || !radio.matches('input[type="radio"][data-support-tabbable]') || !radio.name) return;
+    const scope = radio.form || document;
+    scope.querySelectorAll('input[type="radio"][data-support-tabbable]').forEach((other) => {
+      if (other.name === radio.name) other.setAttribute('tabindex', other === radio ? '0' : '-1');
+    });
+  });
+
   // Field validation: with JavaScript, forms skip the browser's bubbles
   // (novalidate) and show the desk's message under each field instead, tied
   // to it with aria-describedby and aria-invalid; the first one gets focus.
