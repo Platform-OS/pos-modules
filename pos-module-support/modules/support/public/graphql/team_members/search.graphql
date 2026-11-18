@@ -33,6 +33,7 @@ query (
       disabled_at: property(name: "disabled_at")
       job_title: property(name: "job_title")
       availability: property(name: "availability")
+      appearance: property(name: "appearance")
       department_ids: property_array(name: "department_ids")
       max_open: property_int(name: "max_open")
       working_hours: property(name: "working_hours")

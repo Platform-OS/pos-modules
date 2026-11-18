@@ -6,6 +6,12 @@
   const workerUrl = document.body.dataset.supportSw;
   if ('serviceWorker' in navigator && workerUrl) {
     navigator.serviceWorker.register(workerUrl, { scope: '/support-desk' }).catch(() => {});
+    // tell the worker whether this window is the installed app, so a
+    // notification click opens its ticket there rather than in a browser tab
+    const appWindow = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    navigator.serviceWorker.ready.then((registration) => {
+      if (registration.active) registration.active.postMessage({ type: 'support-display', standalone: appWindow });
+    }).catch(() => {});
   }
 
   let deferredPrompt = null;

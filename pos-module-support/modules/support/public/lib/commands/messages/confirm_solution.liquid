@@ -11,8 +11,8 @@
     return 'skipped:not_solved'
   endif
   graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
-  if d.records.results.first.active == false
-    return 'skipped:inactive_department'
+  if d.records.results.first.quiet
+    return 'skipped:quiet_department'
   endif
   function settings = 'modules/support/helpers/settings'
   function brand = 'modules/support/helpers/branding'

@@ -26,9 +26,9 @@
   function decision = 'modules/support/queries/messages/acknowledgement_decision', ticket: g.ticket
   function contract = 'modules/tests/assertions/equal', contract: contract, given: decision, expected: 'skipped:auto_reply', field_name: 'auto-reply skipped'
 
-  # inactive departments send no customer email
+  # a quiet department (the test fixtures) sends no customer email
   function sent = 'modules/support/commands/messages/acknowledge', ticket_id: g.ticket.id
-  function contract = 'modules/tests/assertions/equal', contract: contract, given: sent, expected: 'skipped:inactive_department', field_name: 'inactive department skipped'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: sent, expected: 'skipped:quiet_department', field_name: 'quiet department skipped'
 
   # confirmation wording follows the mode
   function brand = 'modules/support/helpers/branding'

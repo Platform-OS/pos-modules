@@ -1,6 +1,6 @@
 {% doc %}
   Acknowledges a new ticket to its requester (NT-1, 04 §5). Skipped for
-  tickets an agent created, tickets in inactive departments, spam,
+  tickets an agent created, tickets in a quiet department (test fixtures), spam,
   auto-replies, and when this sender already got an acknowledgement in
   the last 24 hours. Returns sent | skipped reason.
   @param {string} ticket_id - The new ticket
@@ -11,8 +11,8 @@
     return 'skipped:not_applicable'
   endif
   graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
-  if d.records.results.first.active == false
-    return 'skipped:inactive_department'
+  if d.records.results.first.quiet
+    return 'skipped:quiet_department'
   endif
   function decision = 'modules/support/queries/messages/acknowledgement_decision', ticket: ticket
   if decision != 'send'

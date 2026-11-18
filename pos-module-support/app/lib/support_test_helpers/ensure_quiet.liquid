@@ -1,0 +1,14 @@
+{% doc %}
+  Marks a test department quiet (no alerts, no customer email) when it is not
+  yet: departments created before the quiet flag existed were silent only
+  because they were inactive, and an inactive department now notifies.
+  @param {object} department - A departments/search result
+{% enddoc %}
+{% liquid
+  if department.id != blank and department.quiet != true
+    assign values = { "quiet": true }
+    function props = 'modules/support/helpers/props', values: values
+    graphql _ = 'modules/support/records/update', id: department.id, properties: props
+  endif
+  return null
+%}

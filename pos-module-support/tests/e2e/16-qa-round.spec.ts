@@ -234,3 +234,60 @@ test('Q11. a host with its own link colour and active rail row: selected segment
   await page.goto(desk('/support-desk?host_theme=default'));
   await admin.context.close();
 });
+
+test('Q12. an agent picks light or dark for themselves in My profile, over the desk setting (#152)', async ({ browser }) => {
+  const agent = await contextFor(browser, users.agent);
+  const page = agent.page;
+  const html = page.locator('html');
+  const choose = async (label: string) => {
+    await page.goto(desk('/support-desk/profile'));
+    const group = page.locator('section[aria-labelledby="pos-support-appearance"]');
+    await group.getByRole('button', { name: label, exact: true }).click();
+    await expect(page).toHaveURL(/\/support-desk\/profile/);
+    await expect(group.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  };
+  try {
+    await choose('Dark');
+    await expect(html).toHaveClass(/pos-theme-dark\b/);
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'dark');
+
+    await choose('Light');
+    await expect(html).not.toHaveClass(/pos-theme-dark/);
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'light');
+    // it applies on every desk page, not only the profile
+    await page.goto(desk('/support-desk'));
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'light');
+
+    await choose('Follow my device');
+    await expect(html).toHaveClass(/pos-theme-darkEnabled/);
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute('content', 'light dark');
+  } finally {
+    await choose('Desk setting');
+    await agent.context.close();
+  }
+});
+
+test('Q13. notification clicks: the desk window running as the installed app tells the service worker so', async ({ browser }) => {
+  const agent = await contextFor(browser, users.agent);
+  // a browser tab first
+  await agent.page.goto(desk('/support-desk'));
+  const worker = agent.context.serviceWorkers()[0] || await agent.context.waitForEvent('serviceworker');
+  await agent.page.evaluate(() => navigator.serviceWorker.ready);
+  await expect.poll(() => worker.evaluate(() => Object.keys((self as any).appWindows).length), { timeout: 10000 }).toBe(0);
+
+  // the same desk in a window that runs as the installed app (display-mode: standalone)
+  const app = await agent.context.newPage();
+  await app.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (query: string) => (query.includes('display-mode: standalone') ? ({ matches: true, media: query, addEventListener() {}, removeEventListener() {} } as any) : real(query));
+  });
+  await app.goto(desk('/support-desk'));
+  await app.evaluate(() => navigator.serviceWorker.ready);
+  await expect.poll(() => worker.evaluate(() => Object.keys((self as any).appWindows).length), { timeout: 10000 }).toBe(1);
+  const appId = await worker.evaluate(async () => {
+    const list = await (self as any).clients.matchAll({ type: 'window', includeUncontrolled: true });
+    return list.filter((c: any) => (self as any).appWindows[c.id]).map((c: any) => c.url);
+  });
+  expect(appId).toHaveLength(1);
+  await agent.context.close();
+});

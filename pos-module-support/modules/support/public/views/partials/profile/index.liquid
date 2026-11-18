@@ -48,6 +48,28 @@
       {% if effective != member.availability %}<p class="pos-supplementary">{{ 'modules/support/profile.effective' | t }} <strong>{{ 'modules/support/availability.' | append: effective | t }}</strong></p>{% endif %}
     </section>
 
+    {% liquid
+      function desk_brand = 'modules/support/helpers/branding'
+      assign desk_mode_key = 'modules/support/settings.mode_' | append: desk_brand.theme_mode
+      assign desk_mode = desk_mode_key | t
+      assign my_appearance = member.appearance | default: 'desk'
+      assign appearances = "desk,light,dark,device" | split: ','
+    %}
+    <section class="pos-card pos-support-step" aria-labelledby="pos-support-appearance">
+      <h2 id="pos-support-appearance" class="pos-heading-3">{{ 'modules/support/profile.appearance' | t }}</h2>
+      <p class="pos-supplementary" id="pos-support-appearance-help">{{ 'modules/support/profile.appearance_help' | t: mode: desk_mode }}</p>
+      <div class="pos-support-segmented" role="group" aria-labelledby="pos-support-appearance" aria-describedby="pos-support-appearance-help">
+        {% for mode in appearances %}
+          <form action="{{ action }}" method="post">
+            <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+            <input type="hidden" name="change" value="appearance">
+            <input type="hidden" name="value" value="{{ mode }}">
+            <button type="submit" aria-pressed="{% if my_appearance == mode %}true{% else %}false{% endif %}">{{ 'modules/support/profile.appearance_' | append: mode | t }}</button>
+          </form>
+        {% endfor %}
+      </div>
+    </section>
+
     <section class="pos-card pos-support-step" aria-labelledby="pos-support-pause">
       <h2 id="pos-support-pause" class="pos-heading-3">{{ 'modules/support/profile.pause' | t }}</h2>
       {% if paused %}

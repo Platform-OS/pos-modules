@@ -1,6 +1,8 @@
 {% doc %}
   Resolves the recipients for an event and dispatches (07 §1). Used by the
-  notify_agents consumers. Tickets in an inactive department notify nobody.
+  notify_agents consumers. Tickets in a quiet department (the test fixtures)
+  notify nobody; an inactive department still notifies (its open tickets
+  must not go silent, and new mail to it is routed to the default department).
   @param {string} event_key - The event key
   @param {string} ticket_id - The ticket
   @param {string} [actor_id] - Who caused the event
@@ -12,7 +14,7 @@
     return null
   endif
   graphql d = 'modules/support/departments/search', id: ticket.department_id, limit: 1
-  if d.records.results.first.active == false
+  if d.records.results.first.quiet
     return null
   endif
   function recipients = 'modules/support/queries/notifications/recipients', event_key: event_key, ticket: ticket, mentioned_ids: mentioned_ids

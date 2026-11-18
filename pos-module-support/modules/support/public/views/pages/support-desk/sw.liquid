@@ -11,29 +11,49 @@ layout: ''
   assign push_sw = 'modules/push_notifications/sw.js' | asset_url
 %}
 // A click on a notification opens its page in the desk window that is
-// already open (the installed app's, or a browser tab), focused; only with
-// no desk window open does it open a new one. The module's handler opens a
-// new window unless one shows exactly that URL.
+// already open, focused: the installed app's window first (pages tell the
+// worker whether they run as the app), then the focused desk tab, then any.
+// When the system does not bring that window to the front (Windows can
+// refuse), or there is no desk window, the page opens in a new one, so a
+// click always shows something. The module's handler opens a new window
+// unless one shows exactly that URL.
+var appWindows = {};
+self.addEventListener('message', function (event) {
+  var data = event.data || {};
+  if (data.type === 'support-display' && event.source && event.source.id) {
+    if (data.standalone) {
+      appWindows[event.source.id] = true;
+    } else {
+      delete appWindows[event.source.id];
+    }
+  }
+});
+
 self.addEventListener('notificationclick', function (event) {
   event.stopImmediatePropagation();
   event.notification.close();
   var url = (event.notification.data && event.notification.data.url) || '/support-desk';
   var target = new URL(url, self.location.origin).href;
+  var openNew = function () { return self.clients.openWindow(target); };
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
       var desk = list.filter(function (client) {
         return new URL(client.url).pathname.indexOf('/support-desk') === 0;
       });
-      var exact = desk.filter(function (client) { return client.url === target; })[0];
-      if (exact) return exact.focus();
-      var focused = desk.filter(function (client) { return client.focused; })[0];
-      var client = focused || desk[0];
-      if (!client) return self.clients.openWindow(target);
+      var rank = function (client) {
+        return (appWindows[client.id] ? 4 : 0) + (client.url === target ? 2 : 0) + (client.focused ? 1 : 0);
+      };
+      desk.sort(function (a, b) { return rank(b) - rank(a); });
+      var client = desk[0];
+      if (!client) return openNew();
       return client.focus().then(function (shown) {
-        return (shown || client).navigate(target);
-      }).catch(function () {
-        return self.clients.openWindow(target);
-      });
+        var win = shown || client;
+        if (!win.focused) return openNew();
+        if (win.url === target) return win;
+        return win.navigate(target).then(function (moved) {
+          return moved || openNew();
+        });
+      }).catch(openNew);
     })
   );
 });

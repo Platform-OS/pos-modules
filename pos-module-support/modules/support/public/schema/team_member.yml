@@ -18,6 +18,8 @@ properties:
     type: string
   - name: availability
     type: string
+  - name: appearance
+    type: string
   - name: department_ids
     type: array
   - name: max_open

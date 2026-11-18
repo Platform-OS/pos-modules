@@ -34,7 +34,15 @@
         break
       endif
     endfor
-    if department == null and ticket
+    # mail to a deactivated department's address goes to the default department,
+    # so nobody's request is lost in a department the rail no longer shows; a
+    # quiet department (the test fixtures) keeps its mail
+    assign rerouted_from = null
+    if department and department.active == false and department.quiet != true
+      assign rerouted_from = department
+      assign department = null
+    endif
+    if department == null and ticket and rerouted_from == null
       assign department = { "id": null }
       assign department.id = ticket.department_id
     endif
@@ -54,6 +62,10 @@
     # an auto-reply that opens a ticket alerts nobody and is not auto-assigned
     assign object.auto_reply = flags.auto_reply
     function ticket = 'modules/support/commands/tickets/create', object: object
+    if rerouted_from and ticket.id != blank
+      assign to_name = department.properties.name | default: department.name
+      function _ = 'modules/support/commands/ticket_events/log', ticket_id: ticket.id, actor_type: 'system', actor_id: null, event_type: 'routed_from_inactive', from_value: rerouted_from.name, to_value: to_name, reason: rerouted_from.id
+    endif
     if reason != 'follow_up'
       assign reason = 'new'
     endif

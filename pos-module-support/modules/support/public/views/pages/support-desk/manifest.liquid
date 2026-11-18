@@ -8,6 +8,9 @@ format: json
   # The host's icon replaces the module's icons rather than competing with them.
   function brand = 'modules/support/helpers/branding'
   assign manifest = { "id": "/support-desk", "scope": "/support-desk", "start_url": "/support-desk", "display": "standalone", "icons": [] }
+  # where supported (Chromium desktop), opening the app or a desk link while
+  # the app runs reuses its window instead of starting another one
+  assign manifest.launch_handler = { "client_mode": ["navigate-existing", "auto"] }
   assign suffix = 'modules/support/pwa.suffix' | t
   assign manifest.name = brand.app_name | append: ' ' | append: suffix | strip
   assign manifest.short_name = brand.short_name | default: brand.app_name

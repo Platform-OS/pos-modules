@@ -51,7 +51,7 @@
           {% endfor %}
         </fieldset>
       {% endunless %}
-      <fieldset><label><input type="checkbox" name="active" value="true" {% if edit == blank or edit.active %}checked{% endif %}> {{ 'modules/support/settings.active' | t }}</label></fieldset>
+      <fieldset><label><input type="checkbox" name="active" value="true" aria-describedby="pos-support-department-active-help" {% if edit == blank or edit.active %}checked{% endif %}> {{ 'modules/support/settings.active' | t }}</label><p class="pos-supplementary" id="pos-support-department-active-help">{{ 'modules/support/settings.department_inactive_help' | t }}</p></fieldset>
       <fieldset><label><input type="checkbox" name="is_default" value="true" {% if edit.is_default %}checked{% endif %}> {{ 'modules/support/settings.default_help' | t }}</label></fieldset>
       <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/settings.save' | t }}</button>
     </form>

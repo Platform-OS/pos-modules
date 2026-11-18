@@ -1,0 +1,58 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{%- capture gmail -%}{% render 'support_fixtures/gmail' %}{%- endcapture -%}
+{% liquid
+  # Mail to a deactivated department's address goes to the default department,
+  # with a note in the activity; a quiet department (the test fixtures) keeps
+  # its mail. The email is an auto-reply so the rerouted ticket alerts nobody
+  # and sends no acknowledgement.
+  function _ = 'modules/support/commands/settings/set', key: 'email_provider', value: 'sendgrid'
+
+  graphql d = 'modules/support/departments/search', inbound_local_part: 'testinactive', limit: 1
+  assign inactive = d.records.results.first
+  if inactive.id == blank
+    assign rows = []
+    assign row = { "table": "modules/support/department", "properties": { "name": "Test inactive", "short_code": "TIN", "inbound_local_part": "testinactive", "is_default": false, "active": false, "quiet": false } }
+    assign rows << row
+    graphql created = 'modules/support/records/create_many', records: rows
+    graphql d = 'modules/support/departments/search', inbound_local_part: 'testinactive', limit: 1
+    assign inactive = d.records.results.first
+  endif
+  graphql def = 'modules/support/records/find_by', table: 'modules/support/department', name: 'is_default', value: 'true'
+  assign default_department = def.records.results.first
+
+  assign suffix = 8 | random_string
+  assign unique_id = '<inactive-' | append: suffix | append: '@mail.gmail.com>'
+  assign sender = 'inactive-' | append: suffix | append: '@example.test'
+  assign raw = gmail | replace: '<CAHx8=gmail-fixture-1@mail.gmail.com>', unique_id | replace: 'In-Reply-To: <support.555.1793190000@support-dev.platformos.com>', 'Auto-Submitted: auto-replied' | replace: 'References: <CAHx8=first@mail.gmail.com>', 'X-Ref: none' | replace: 'dob+t.1042.ab12cd34ef56ab78@support-dev.platformos.com', 'testinactive@support-dev.platformos.com' | replace: 'anna.nowak@example-city.gov', sender
+
+  function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: sender, to: 'testinactive@support-dev.platformos.com'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: outcome.state, expected: 'processed', field_name: 'processed'
+
+  graphql inbound = 'modules/support/inbound_emails/search', message_id_header: unique_id, limit: 1
+  assign ticket_id = inbound.records.results.first.ticket_id
+  function ticket = 'modules/support/queries/tickets/find', id: ticket_id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.department_id, expected: default_department.id, field_name: 'routed to the default department'
+
+  graphql ev = 'modules/support/ticket_events/search', ticket_id: ticket_id, event_type: 'routed_from_inactive', limit: 1
+  assign event = ev.records.results.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: event.from_value, expected: inactive.name, field_name: 'activity names the inactive department'
+
+  # leave the ticket to the fixture cleanup (zz_cleanup_test removes the fixture department's tickets)
+  graphql fx = 'modules/support/departments/search', inbound_local_part: 'testfixtures', limit: 1
+  if ticket_id != blank and fx.records.results.first.id != blank
+    assign values = { "department_id": fx.records.results.first.id }
+    function props = 'modules/support/helpers/props', values: values
+    graphql _ = 'modules/support/records/update', id: ticket_id, properties: props
+  endif
+
+  # a quiet department keeps its mail even though it is inactive
+  assign unique_id = '<quiet-' | append: suffix | append: '@mail.gmail.com>'
+  assign raw = gmail | replace: '<CAHx8=gmail-fixture-1@mail.gmail.com>', unique_id | replace: 'In-Reply-To: <support.555.1793190000@support-dev.platformos.com>', 'Auto-Submitted: auto-replied' | replace: 'References: <CAHx8=first@mail.gmail.com>', 'X-Ref: none' | replace: 'dob+t.1042.ab12cd34ef56ab78@support-dev.platformos.com', 'testfixtures@support-dev.platformos.com' | replace: 'anna.nowak@example-city.gov', sender
+  function g = 'support_test_helpers/ticket_fixture', label: 'quiet-department'
+  function outcome = 'support_test_helpers/inbound_case', raw: raw, sender: sender, to: 'testfixtures@support-dev.platformos.com'
+  graphql inbound = 'modules/support/inbound_emails/search', message_id_header: unique_id, limit: 1
+  function ticket = 'modules/support/queries/tickets/find', id: inbound.records.results.first.ticket_id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ticket.department_id, expected: fx.records.results.first.id, field_name: 'quiet department keeps its mail'
+%}

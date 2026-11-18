@@ -7,9 +7,10 @@
 {% liquid
   graphql existing = 'modules/support/departments/search', inbound_local_part: 'deliverytest', limit: 1
   assign department_id = existing.records.results.first.id
+  function _ = 'support_test_helpers/ensure_quiet', department: existing.records.results.first
   if department_id == blank
     assign rows = []
-    assign row = { "table": "modules/support/department", "properties": { "name": "Delivery test", "from_name": "Test Support", "from_address": "support-test@platformos.com", "inbound_local_part": "deliverytest", "is_default": false, "active": false } }
+    assign row = { "table": "modules/support/department", "properties": { "name": "Delivery test", "from_name": "Test Support", "from_address": "support-test@platformos.com", "inbound_local_part": "deliverytest", "is_default": false, "active": false, "quiet": true } }
     assign rows << row
     graphql created = 'modules/support/records/create_many', records: rows
     assign department_id = created.records.first.id

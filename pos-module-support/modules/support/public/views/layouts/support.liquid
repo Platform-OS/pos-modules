@@ -39,15 +39,33 @@
   if page_title != blank
     assign document_title = page_title | append: ' · ' | append: brand.app_name
   endif
+  # a team member's own choice (My profile -> Appearance) wins over the desk's
+  assign theme_mode = brand.theme_mode
+  assign theme_class = brand.theme_class
+  if member.appearance != blank
+    case member.appearance
+      when 'dark'
+        assign theme_mode = 'dark'
+        assign theme_class = 'pos-theme-dark pos-theme-darkEnabled'
+      when 'light'
+        assign theme_mode = 'light'
+        assign theme_class = ''
+      when 'device'
+        assign theme_mode = 'auto'
+        assign theme_class = 'pos-theme-darkEnabled'
+    endcase
+  endif
+  # the shell and the logo read the same choice (a copy: helpers/branding is memoised for the request)
+  assign brand = brand | hash_merge: theme_mode: theme_mode, theme_class: theme_class
   assign color_scheme = 'light dark'
-  if brand.theme_mode == 'dark'
+  if theme_mode == 'dark'
     assign color_scheme = 'dark'
-  elsif brand.theme_mode == 'light'
+  elsif theme_mode == 'light'
     assign color_scheme = 'light'
   endif
 %}
 <!DOCTYPE html>
-<html class="pos-app {{ brand.theme_class }}" lang="{{ context.language | default: 'en' }}">
+<html class="pos-app {{ theme_class }}" lang="{{ context.language | default: 'en' }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

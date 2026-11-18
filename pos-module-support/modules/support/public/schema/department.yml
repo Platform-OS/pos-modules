@@ -20,5 +20,7 @@ properties:
     type: boolean
   - name: active
     type: boolean
+  - name: quiet
+    type: boolean
   - name: color
     type: string

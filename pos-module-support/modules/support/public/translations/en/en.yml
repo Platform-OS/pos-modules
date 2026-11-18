@@ -595,6 +595,7 @@ en:
     delivery_failed: "email to %{from} was %{to}"
     marked_spam: "marked as spam and blocked %{to}"
     unmarked_spam: undid Mark as spam
+    routed_from_inactive: "routed this ticket to %{to}: it was sent to %{from}, which is inactive"
   blocklist:
     intro: Email from a blocked address or domain (including its subdomains) is refused before anything is stored.
     add: Block a sender
@@ -677,6 +678,12 @@ en:
     resume: Turn alerts back on
     device: This device
     device_help: Get push alerts on this phone or computer.
+    appearance: Appearance
+    appearance_help: "Light or dark, just for you. The desk's setting: %{mode}."
+    appearance_desk: Desk setting
+    appearance_light: Light
+    appearance_dark: Dark
+    appearance_device: Follow my device
     test_push: Send test notification
     test_push_title: Test notification
     test_push_body: Push alerts work on this device.
@@ -745,6 +752,7 @@ en:
     state: State
     active: Active
     inactive: Inactive
+    department_inactive_help: An inactive department is hidden from the sidebar. Email still sent to its address goes to the default department, with a note on the ticket.
     default: default
     default_help: Default department (new email to unknown addresses lands here)
     inbound: Inbound address

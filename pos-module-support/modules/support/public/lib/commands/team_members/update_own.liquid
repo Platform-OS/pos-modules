@@ -5,7 +5,7 @@
   rows used by re-assignment (06 §2). Returns { valid, error, member }.
   @param {object} member - team_member being changed
   @param {object} actor - { id, member } of who is changing it
-  @param {string} change - availability | pref | pause | resume | reset
+  @param {string} change - availability | pref | pause | resume | reset | appearance (value desk | light | dark | device)
   @param {object} params - { value, event_key, channel, option }
 {% enddoc %}
 {% liquid
@@ -52,6 +52,17 @@
     assign values.paused_until = until | to_time
   when 'resume'
     assign values.paused_until = null
+  when 'appearance'
+    # desk: follow Settings -> Branding; device: follow this person's system setting
+    assign modes = ["desk", "light", "dark", "device"]
+    unless modes contains params.value
+      assign result.error = 'modules/support/profile.errors.value'
+      return result
+    endunless
+    assign values.appearance = params.value
+    if params.value == 'desk'
+      assign values.appearance = null
+    endif
   when 'reset'
     assign values.notification_prefs = '{}'
     assign values.paused_until = null
