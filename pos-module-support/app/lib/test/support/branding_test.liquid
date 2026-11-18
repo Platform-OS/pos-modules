@@ -82,6 +82,20 @@
   assign file.content_base64 = png
   function e = 'modules/support/commands/branding/check_image', key: 'logo_url', file: file
   function contract = 'modules/tests/assertions/equal', contract: contract, given: e, expected: null, field_name: 'png logo accepted'
+
+  # the app icon: a square PNG of at least 512 px, read from the PNG header on the server (QA: icon rule only in the browser)
+  assign icons = '512x512:iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6,1024x1024:iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAYAAAB/HSuD,70000x70000:iVBORw0KGgoAAAANSUhEUgABEXAAARFwCAYAAAA/PjTL,511x511:iVBORw0KGgoAAAANSUhEUgAAAf8AAAH/CAYAAABZ8dS+,600x300:iVBORw0KGgoAAAANSUhEUgAAAlgAAAEsCAYAAAAfPc2W,1x1:iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' | split: ','
+  assign verdicts = []
+  for entry in icons
+    assign parts = entry | split: ':'
+    assign icon_file = { "content_type": "image/png", "filename": "icon.png" }
+    assign icon_file.content_base64 = parts[1]
+    function e = 'modules/support/commands/branding/check_image', key: 'icon_url', file: icon_file
+    assign verdict = parts[0] | append: '=' | append: e
+    assign verdicts << verdict
+  endfor
+  assign verdicts_text = verdicts | join: ' '
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: verdicts_text, expected: '512x512= 1024x1024= 70000x70000= 511x511=modules/support/settings.errors.icon_square 600x300=modules/support/settings.errors.icon_square 1x1=modules/support/settings.errors.icon_square', field_name: 'icon: square and at least 512 px'
   assign html = '<html>hi</html>' | base64_encode
   assign fake = { "content_type": "image/png", "filename": "x.png" }
   assign fake.content_base64 = html

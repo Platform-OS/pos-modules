@@ -3,7 +3,8 @@
   The type must be allowed for the field and match the file's first bytes;
   at most 2 MB; an SVG may not carry scripts, event handlers or external
   content. Returns null when the file is fine, otherwise a translation key.
-  Image dimensions are checked in the browser (pos-support-ui.js).
+  The app icon must also be a square PNG of at least 512 px, read from the
+  PNG header here as well as checked in the browser (pos-support-ui.js).
   @param {string} key - logo_url, logo_dark_url, icon_url, favicon_url or monogram
   @param {object} file - { content_base64, content_type, filename }
 {% enddoc %}
@@ -48,6 +49,43 @@
   assign head = encoded | slice: 0, prefix.size
   if head != prefix
     return 'modules/support/settings.errors.image_type'
+  endif
+
+  # an uploaded app icon must be a square PNG of at least 512 px, as the
+  # browser already checks (the monogram is drawn by the desk itself at
+  # 512 px, see pos-support-ui.js): read width and height from
+  # the PNG's IHDR chunk (bytes 16-23), which follows the 8-byte signature,
+  # the chunk length and "IHDR" (base64 "SUhE" at characters 16-19). Bytes
+  # 15-23 are base64 characters 20-31, four characters per three bytes.
+  if key == 'icon_url'
+    assign chunk_name = encoded | slice: 16, 4
+    if encoded.size < 32 or chunk_name != 'SUhE'
+      return 'modules/support/settings.errors.icon_square'
+    endif
+    assign alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    assign bytes = []
+    for group in (0..2)
+      assign start = group | times: 4 | plus: 20
+      assign value = 0
+      for offset in (0..3)
+        assign position = start | plus: offset
+        assign char = encoded | slice: position, 1
+        assign sextet = alphabet | split: char | first | size
+        assign value = value | times: 64 | plus: sextet
+      endfor
+      assign first_byte = value | divided_by: 65536
+      assign second_byte = value | divided_by: 256 | modulo: 256
+      assign third_byte = value | modulo: 256
+      assign bytes << first_byte
+      assign bytes << second_byte
+      assign bytes << third_byte
+    endfor
+    # bytes[0] is byte 15; width is bytes 16-19, height 20-23
+    assign width = bytes[1] | times: 256 | plus: bytes[2] | times: 256 | plus: bytes[3] | times: 256 | plus: bytes[4]
+    assign height = bytes[5] | times: 256 | plus: bytes[6] | times: 256 | plus: bytes[7] | times: 256 | plus: bytes[8]
+    if width != height or width < 512
+      return 'modules/support/settings.errors.icon_square'
+    endif
   endif
   return null
 %}
