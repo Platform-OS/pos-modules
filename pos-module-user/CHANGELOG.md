@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+## Unreleased
+* Security fix: changing the account email kept `email_verified_at`, so the new, unproved address counted as verified. `user/email_update` now clears it when the address changes (its result carries `email_changed`), and with `USER_EMAIL_VERIFICATION_ENABLED` the email-change page sends a verification link to the new address. Saving the same address changes nothing
+
 ## v5.3.1
 * Fix: verification links were valid for 60 days instead of the configured 24 hours - `temporary_token` reads its arguments in hours and prefers the deprecated `valid_for`, so the TTL was being multiplied by 60
 * Fix: `user/find.graphql` declared `$valid_for: Int = 1`, which overrode the `$expires_in` next to it for every caller; password reset links kept their one hour lifetime, now stated explicitly
