@@ -10,7 +10,7 @@ A white-label support desk for platformOS apps: email tickets through the email 
 
 ## The loop (required)
 
-validate (`validate_code`, platformos-supervisor) → write (Write/Edit only) → deploy (`deploy-start`, platformos-cli, env named) → verify (load URL, `unit-tests-run`, `logs-fetch`). Never `pos-cli deploy`. Never write into `modules/` or `app/` from the shell. Look up Liquid and GraphQL with the platformos-liquid / platformos-graphql MCP servers instead of recalling them.
+validate (`validate_code`, platformos-supervisor) → write (Write/Edit only) → deploy (`deploy-start`, platformos-cli, env named) → verify (load URL, `unit-tests-run`, `logs-fetch`). To see why one unit test fails, run `npm run test:one -- <env> test/support/<name>_test`: `pos-cli test run <env> <name>` hides the failing assertions behind "Something went wrong on the server". Never `pos-cli deploy`. Never write into `modules/` or `app/` from the shell. Look up Liquid and GraphQL with the platformos-liquid / platformos-graphql MCP servers instead of recalling them.
 
 ## Things that are specific here
 

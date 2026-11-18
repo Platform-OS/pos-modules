@@ -193,5 +193,6 @@ Desk: `/support-desk` (queue; `view`, `department_id`, `priority`, `status_key`,
 
 - The example host app in `app/` (not distributed) is a marketing site at `/` and a community-style admin area at `/admin` (host roles `superadmin` and `editor`, both with `admin_pages.view`), with a demo theme and branding hooks.
 - Tests: `pos-cli test run <env>` runs `app/lib/test/support/*_test.liquid` (needs the `tests` module); `npm run test:static` runs the static checks; `pos-cli check run` must report no offenses (CI fails on warnings).
+- One test by name: use `npm run test:one -- <env> test/support/<name>_test`, not `pos-cli test run <env> <name>`. When a test fails, pos-cli 6.x prints only "Something went wrong on the server": the tests module answers HTTP 500 with the full report in the body, and pos-cli looks for it in the wrong place. `test:one` prints every failing assertion. A single test that takes longer than about 20 seconds hits the gateway timeout either way; run it in the full suite.
 - Seed an environment: `./tests/data/seed/seed.sh <env> [--keep-data]`.
 - Tasks and decisions: `backlog/`; the technical specification: `docs/spec/`; progress board: https://github.com/orgs/Platform-OS/projects/28.
