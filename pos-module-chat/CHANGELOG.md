@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+* Feature: a conversation opened with `to_uuid` that isn't started yet (it is created with its first message), or has no message yet, is shown on top of the sidebar's conversations list, highlighted as the open one, instead of not being in the list at all.
+
 ## v2.5.0
 
 * Feature: the inbox sets the page title through `content_for 'meta_title'`, with the other person's name when a conversation is open ("Jane Doe - Inbox") and the new `modules/chat/inbox_title` translation otherwise. Layouts that read the slot, like the community module's, show it; others ignore it. The slot holds plain text, so a layout must escape it when printing it.

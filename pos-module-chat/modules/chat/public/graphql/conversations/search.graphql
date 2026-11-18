@@ -28,6 +28,7 @@ query search(
       created_at
       participant_ids: property_array(name: "participant_ids")
       participant_read_ids: property_array(name: "participant_read_ids")
+      last_message_at: property(name: "last_message_at")
       messages: related_records(
         table: "modules/chat/message"
         join_on_property: "id"
