@@ -1,0 +1,40 @@
+/* Example host theme for E2E and contrast tests. Sample host 5, modelled on
+   a white-label host found in QA (Design I): a green brand (#0e5c4a) whose
+   link colour is an unrelated blue, a dark sidebar with white text, and its
+   own amber active rail row with dark text. The desk must use the brand for
+   selected segments (the link colour has no contrast guarantee on the brand
+   tint) and the host's active-row text (white on amber is 2.1:1). Host
+   tokens only. */
+:root {
+  --pos-color-button-primary-background: #0e5c4a;
+  --pos-color-button-primary-frame: #0e5c4a;
+  --pos-color-button-primary-text: #ffffff;
+  --pos-color-button-primary-hover-background: #0a4a3b;
+  --pos-color-button-primary-hover-frame: #0a4a3b;
+  --pos-color-button-primary-hover-text: #ffffff;
+  --pos-color-interactive: #2173c4;
+  --pos-color-interactive-hover: #1a5c9d;
+  --pos-color-focused: #2173c4;
+  --pos-support-rail-base: #10302a;
+  --pos-support-rail-text: #ffffff;
+  --pos-support-rail-active-background: #f5a524;
+  --pos-support-rail-active-text: #1f2937;
+}
+
+:root.pos-theme-dark {
+  --pos-color-button-primary-background: #12715a;
+  --pos-color-button-primary-frame: #12715a;
+  --pos-color-interactive: #93c5fd;
+  --pos-color-interactive-hover: #bfdbfe;
+  --pos-color-focused: #93c5fd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root.pos-theme-darkEnabled {
+    --pos-color-button-primary-background: #12715a;
+    --pos-color-button-primary-frame: #12715a;
+    --pos-color-interactive: #93c5fd;
+    --pos-color-interactive-hover: #bfdbfe;
+    --pos-color-focused: #93c5fd;
+  }
+}

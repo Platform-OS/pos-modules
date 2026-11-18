@@ -197,3 +197,40 @@ test('Q10. Reply all: people the customer copied become CCs, are prefilled in th
   expect(recipients(mail)).toContain(customer);
   await admin.context.close();
 });
+
+test('Q11. a host with its own link colour and active rail row: selected segments and the active row keep 4.5:1', async ({ browser }) => {
+  const admin = await contextFor(browser, users.superadmin, { colorScheme: 'light' });
+  const page = admin.page;
+  await page.goto(desk('/support-desk?view=all_open&layout=list&host_theme=sample-host-5'));
+  const ratios = await page.evaluate(() => {
+    const rgb = (value: string): number[] => {
+      const srgb = value.match(/color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/);
+      if (srgb) return srgb.slice(1, 4).map((v) => Number(v) * 255);
+      return (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+    };
+    const lum = (c: number[]) => {
+      const [r, g, b] = c.map((v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (el: Element) => {
+      const style = getComputedStyle(el);
+      const [a, b] = [lum(rgb(style.color)), lum(rgb(style.backgroundColor))].sort((x, y) => y - x);
+      return Math.round(((a + 0.05) / (b + 0.05)) * 100) / 100;
+    };
+    const segment = document.querySelector('.pos-support-segmented a[aria-current]');
+    const row = document.querySelector('.pos-support-rail-items a[aria-current="page"]');
+    const brand = getComputedStyle(document.documentElement).getPropertyValue('--pos-support-brand').trim();
+    const probe = document.createElement('span');
+    probe.style.color = brand;
+    document.body.append(probe);
+    const brandRgb = getComputedStyle(probe).color;
+    probe.remove();
+    return { segment: segment ? ratio(segment) : 0, row: row ? ratio(row) : 0, segmentColour: segment ? getComputedStyle(segment).color : '', brandRgb };
+  });
+  // the selected segment is written in the brand (helpers/brand_shift keeps it at 4.5:1+ on its own tint), never the host's link colour
+  expect(ratios.segmentColour).toBe(ratios.brandRgb);
+  expect(ratios.segment, 'selected Group by / List toggle').toBeGreaterThanOrEqual(4.5);
+  expect(ratios.row, 'active rail row').toBeGreaterThanOrEqual(4.5);
+  await page.goto(desk('/support-desk?host_theme=default'));
+  await admin.context.close();
+});

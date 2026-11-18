@@ -93,9 +93,10 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
-// design handoff 4.1: the designer's five host themes, light and dark, keep every
-// page accessible (Sample host 3's too-light brand is shifted by the server)
-const themes = ['default', 'pos', 'sample-host-1', 'sample-host-2', 'sample-host-3'];
+// design handoff 4.1: the designer's five host themes, plus a #ffd400 brand and a host
+// with its own link colour and active rail row (QA, Design I), light and dark, keep every
+// page accessible (too-light brands are shifted by the server)
+const themes = ['default', 'pos', 'sample-host-1', 'sample-host-2', 'sample-host-3', 'sample-host-4', 'sample-host-5'];
 for (const theme of themes) {
   for (const scheme of ['light', 'dark'] as const) {
     test(`accessibility in the ${theme} theme (${scheme})`, async ({ browser }) => {

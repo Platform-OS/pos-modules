@@ -59,6 +59,10 @@
     --pos-support-mix-rail-shadow: 10%;
     --pos-support-mix-divider: 18%;
     --seg-active-mix: 22%;
+    /* text of a selected segment on its brand tint: the brand itself, which
+       helpers/brand_shift keeps at 4.5:1+ on its own 22% tint (the host's
+       link colour is not related to the brand: 3.39:1 on one host) */
+    --pos-support-seg-active-text: var(--pos-support-brand);
     --pos-support-mix-row-hover: 6%;
     --pos-support-mix-row-checked: 12%;
     --pos-support-mix-thead: 14%;
@@ -225,6 +229,8 @@
     --pos-support-mix-rail-shadow: 14%;
     --pos-support-mix-divider: 35%;
     --seg-active-mix: 26%;
+    /* dark: the dark link colour (brand_shift link_dark), made for dark surfaces */
+    --pos-support-seg-active-text: var(--pos-color-interactive);
     --pos-support-mix-row-hover: 8%;
     --pos-support-mix-secondary-hover: 34%;
     --pos-support-mix-row-checked: 15%;
@@ -302,6 +308,7 @@
       --pos-support-mix-rail-shadow: 14%;
       --pos-support-mix-divider: 35%;
       --seg-active-mix: 26%;
+      --pos-support-seg-active-text: var(--pos-color-interactive);
       --pos-support-mix-row-hover: 8%;
     --pos-support-mix-secondary-hover: 34%;
       --pos-support-mix-row-checked: 15%;
@@ -839,7 +846,7 @@
   .pos-support .pos-button[aria-pressed="true"] {
     background: color-mix(in srgb, var(--pos-support-brand) var(--seg-active-mix), var(--pos-support-bg));
     border-color: color-mix(in srgb, var(--pos-support-brand) 55%, transparent);
-    color: var(--pos-color-interactive);
+    color: var(--pos-support-seg-active-text);
   }
 
   .pos-support-form-actions {
@@ -913,7 +920,7 @@
   /* selected segment (handoff 3.11): pale brand, brand text, one 1px inset ring */
   .pos-support-segmented :is(a[aria-current], button[aria-pressed="true"], label:has(input:checked)) {
     background: color-mix(in srgb, var(--pos-support-brand) var(--seg-active-mix), var(--pos-support-bg));
-    color: var(--pos-color-interactive);
+    color: var(--pos-support-seg-active-text);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pos-support-brand) 55%, transparent);
   }
 
@@ -4674,7 +4681,10 @@
   .pos-support-rail-items a[aria-current="page"],
   .pos-support .pos-support-rail-items a[aria-current="page"]:hover {
     background: var(--pos-support-rail-active-background);
-    color: var(--pos-support-rail-text);
+    /* the active text token (same as the rail text unless a host sets both
+       tokens): a host that darkens or brightens the active background sets
+       the text to match, and that choice must win (2.14:1 when it did not) */
+    color: var(--pos-support-rail-active-text);
   }
 
   .pos-support-rail-items a[aria-current="page"] .pos-support-count {
@@ -4765,14 +4775,14 @@
     background-color: color-mix(in srgb, var(--pos-support-brand) var(--seg-active-mix), var(--pos-support-bg));
     border-color: color-mix(in srgb, var(--pos-support-brand) 55%, transparent);
     box-shadow: none;
-    color: var(--pos-color-interactive);
+    color: var(--pos-support-seg-active-text);
   }
 
   .pos-support .pos-support-content .pos-button:not(.pos-button-primary, .pos-button-danger, .pos-button-ghost):hover {
     background-color: color-mix(in srgb, var(--pos-support-brand) var(--pos-support-mix-secondary-hover, var(--seg-active-mix)), var(--pos-support-bg));
     border-color: var(--pos-support-brand);
     box-shadow: var(--brand-shadow-sm);
-    color: var(--pos-color-interactive);
+    color: var(--pos-support-seg-active-text);
   }
 
   /* 3.17 attention chips on an opaque base */

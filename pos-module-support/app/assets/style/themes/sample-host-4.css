@@ -1,0 +1,14 @@
+/* Example host theme for E2E and contrast tests. Sample host 4: a bright
+   yellow brand (#ffd400) that fails every contrast check as it is, so the
+   desk must shift it (helpers/brand_shift). Host tokens only. */
+:root {
+  --pos-color-button-primary-background: #ffd400;
+  --pos-color-button-primary-frame: #ffd400;
+  --pos-color-button-primary-text: #ffffff;
+  --pos-color-button-primary-hover-background: #e6bf00;
+  --pos-color-button-primary-hover-frame: #e6bf00;
+  --pos-color-button-primary-hover-text: #ffffff;
+  --pos-color-interactive: #ffd400;
+  --pos-color-interactive-hover: #e6bf00;
+  --pos-color-focused: #ffd400;
+}
