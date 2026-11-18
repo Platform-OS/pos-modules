@@ -1,0 +1,28 @@
+query tokens_for_user($user_id: String!) {
+  # A person's tokens, with the fields needed to group them into agents and to
+  # tell a usable token from a dead one. tokens/for_user is the operator
+  # console's narrower selection; this one adds client_id, last_used_at,
+  # allowed_tools and the refresh expiry.
+  records(
+    per_page: 200
+    filter: {
+      table: { value: "modules/mcp/mcp_token" }
+      properties: [{ name: "user_id", value: $user_id }]
+    }
+    sort: [{ id: { order: DESC } }]
+  ) {
+    total_entries
+    results {
+      id
+      created_at
+      user_id: property(name: "user_id")
+      label: property(name: "label")
+      status: property(name: "status")
+      kind: property(name: "kind")
+      client_id: property(name: "client_id")
+      last_used_at: property(name: "last_used_at")
+      allowed_tools: property_array(name: "allowed_tools")
+      refresh_expires_at: property_int(name: "refresh_expires_at")
+    }
+  }
+}

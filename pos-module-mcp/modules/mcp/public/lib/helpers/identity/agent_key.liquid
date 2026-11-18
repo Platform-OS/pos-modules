@@ -1,0 +1,22 @@
+{%- comment -%}
+  The stable identity of the AGENT a token belongs to — the one definition.
+
+  A person's choices about an assistant (which tools it may use) are stored
+  against this key, and the call path checks against it. If the key were derived
+  in two places they could drift, and a switched-off tool would silently work
+  again, so both the panel and `identity/resolve_principal` call this.
+
+  The OAuth `client_id` when the token has one: it survives a refresh, where the
+  token row's digests rotate and a per-token choice would be lost. Otherwise the
+  human label, so two manual keys a person labelled the same way are one
+  assistant. Otherwise the principal itself, for an unlabelled manual token.
+
+  @param {object} token - an mcp_token row (needs client_id, label, user_id)
+  @return {string} the agent key, never blank for a token bound to a user
+{%- endcomment -%}
+{% liquid
+  assign fallback = 'user:' | append: token.user_id
+  assign key = token.label | default: fallback
+  assign key = token.client_id | default: key
+  return key
+%}

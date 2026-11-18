@@ -10,6 +10,13 @@ query find_by_id($id: ID!) {
       id
       user_id: property(name: "user_id")
       status: property(name: "status")
+      # label is half of the agent key for a manual token
+      # (helpers/identity/agent_key). Without it the key falls back to the
+      # person, matches no stored agent setting, and the per-agent tool
+      # switches silently stop being enforced wherever this query feeds it.
+      # tests/agent-tools.test.mjs pins this: delete the line below and the
+      # "approving does not run a tool switched off since the request" case fails.
+      label: property(name: "label")
       kind: property(name: "kind")
       resource: property(name: "resource")
       client_id: property(name: "client_id")

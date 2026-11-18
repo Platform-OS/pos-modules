@@ -4,7 +4,8 @@
   valid manifest, the agent's allowed_tools (when set) includes it, and its
   authorization policy admits the principal and agent with empty arguments — the same
   rules tools/list uses with tools_list_scope 'principal', plus the allowed_tools
-  narrowing that commands/execute/invoke applies. A policy that needs arguments to
+  narrowing that commands/execute/invoke applies and the person's own per-agent
+  switches (queries/agents/tool_enabled). A policy that needs arguments to
   allow hides the tool here (fail-closed); invoke re-authorizes every call with the real
   arguments regardless. An app-only tool (MCP Apps visibility without "model",
   helpers/registry/model_visible) is never listed: in-app code offers these tools to a
@@ -41,6 +42,10 @@
         continue
       endunless
     endif
+    function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: principal.user_id, client_id: agent.client_id, tool_name: m.name
+    unless switched_on
+      continue
+    endunless
     function az = 'modules/mcp/commands/authorize/evaluate', policy: m.authorization_policy, principal: principal, agent: agent, arguments: empty_args, tool: m, delegation_mode: dm
     if az.allow == true
       function t = 'modules/mcp/helpers/registry/present_tool', manifest: m

@@ -1,0 +1,56 @@
+{%- comment -%}
+  Has the person left this tool switched on for this agent? (TASK-57)
+
+  The decision that makes a per-agent switch real: it is consulted on the
+  execution path, not only where a list is built, so a tool a person switched
+  off cannot be called even by an agent that knows its name.
+
+  NO ROW MEANS EVERY TOOL. The stored value is the set that is switched OFF, so
+  a tool added to the registry after the person last visited their panel is
+  available rather than silently missing (see docs per-agent-tools-design).
+
+  This is on the hot path — once per tools/call, and once per tool in a
+  principal-scoped tools/list — so the person's whole set is read in ONE query
+  and memoised per request in context.exports, the pattern helpers/config and
+  queries/registry/load already use. commands/agents/set_tools clears the memo,
+  so a request that changes a switch sees its own change.
+
+  Blank user or agent key identifies nobody and therefore matches no stored
+  choice; the caller's own access rules still govern the call, which is the real
+  gate. An unknown tool name is not this query's business — the registry
+  decides what exists.
+
+  @param {string} user_id   - the principal's user id
+  @param {string} client_id - the agent key (helpers/identity/agent_key)
+  @param {string} tool_name - the tool being listed or called
+  @return {boolean} false only when the person switched this tool off
+{%- endcomment -%}
+{% liquid
+  if user_id == blank or client_id == blank or tool_name == blank
+    return true
+  endif
+
+  assign memo_key = user_id | append: '|' | append: client_id
+  # platformos-check-disable UnknownProperty
+  assign by_agent = context.exports.mcp_agent_settings.by_agent | default: {}
+  # platformos-check-enable UnknownProperty
+  # The memo holds a hash, not the array itself: "nothing switched off" is an
+  # empty array, which is indistinguishable from a memo miss, and an agent with
+  # no row would be re-queried once per tool.
+  assign entry = by_agent[memo_key]
+
+  if entry == blank
+    graphql res = 'modules/mcp/agents/settings_for_user', user_id: user_id, client_id: client_id
+    assign row = res.records.results.first
+    assign none = []
+    assign entry = { "disabled": null }
+    assign entry['disabled'] = row.disabled_tools | default: none
+    assign by_agent[memo_key] = entry
+    export by_agent, namespace: 'mcp_agent_settings'
+  endif
+
+  if entry.disabled contains tool_name
+    return false
+  endif
+  return true
+%}

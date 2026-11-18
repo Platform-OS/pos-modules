@@ -1,0 +1,12 @@
+mutation setting_update($id: ID!, $disabled_tools: [String!]!) {
+  # `table` is given because record_update is keyed by id alone and platformOS
+  # does not refuse an id belonging to another table. Pass only an id read from
+  # modules/mcp/mcp_agent_setting (agents/settings_for_user), never a request param.
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_agent_setting"
+    properties: [{ name: "disabled_tools", value_array: $disabled_tools }]
+  }) {
+    id
+    disabled_tools: property_array(name: "disabled_tools")
+  }
+}

@@ -120,8 +120,13 @@
 
   assign agent = { "id": agent_id }
   # OAuth: the real client_id (CIMD URL or DCR id) — a stable agent identity for the
-  # ledger, independent of the human-chosen label.
-  assign agent['client_id'] = token.client_id | default: agent_id
+  # ledger, independent of the human-chosen label. Derived by
+  # helpers/identity/agent_key, which is the single definition: a person's
+  # per-agent tool switches are stored against this key and checked against it on
+  # every call, so deriving it in two places could let a switched-off tool quietly
+  # start working again.
+  function agent_client_id = 'modules/mcp/helpers/identity/agent_key', token: token
+  assign agent['client_id'] = agent_client_id
   assign agent['token_id'] = token.id | append: ''
   assign agent['registered'] = true
   assign agent['allowed_tools'] = token.allowed_tools

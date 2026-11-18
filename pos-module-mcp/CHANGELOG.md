@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-agent tool switches** (`mcp_agent_setting`, `helpers/identity/agent_key`,
+  `queries/agents/*`, `commands/agents/*`). A person chooses which tools each of their
+  agents may use, stored against the person and the agent key rather than a token, so the
+  choice survives an OAuth refresh. Enforced on `tools/call`, on in-process `invoke` and
+  when an operator approves something proposed earlier; narrowed out of
+  `registry/for_agent` and of a `principal`-scoped `tools/list`, while an `open`
+  `tools/list` is left alone so its `public` cache hint stays honest. Restrictions
+  accumulate with `allowed_tools` and neither widens the other. An app builds a panel on
+  `queries/agents/for_user`, `commands/agents/set_tools` and `commands/agents/revoke`,
+  each scoped by the acting user. `tokens/find_by_id` now also selects `label`, which is
+  half of the agent key for a manual token.
+- **The approval gate as a switch** (`approval_enforced`, `approval_partial`,
+  `queries/approval/enforced`). An instance can stop enforcing the human-in-the-loop gate,
+  and an app can answer for itself so its admins flip it in their own screens instead of
+  editing a constant. The partial wins over the config key; only an explicit `false` turns
+  the gate off, and it is resolved per request rather than from the cached registry, so
+  turning it back on takes effect on the next call.
 - **App fields on the OAuth approval page** (`oauth_consent_partial`,
   `oauth_approved_partial`; docs/oauth.md). An app can show checkbox fields on the
   approval page (for example "Which vaults may this app use?") and act on the ticked

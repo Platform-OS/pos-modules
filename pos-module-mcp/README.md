@@ -96,6 +96,8 @@ every request — no redeploy needed.
 |---|---|---|
 | `server_name` | `pos-module-mcp` | `serverInfo.name` + the `claude mcp add <name>` alias on `/mcp-tools` |
 | `tools_list_scope` | `open` | `open` advertises every tool to any caller (MCP-default open discovery); `principal` scopes `tools/list` to what the caller may actually call — restricted tools aren't leaked to unauthorized/anonymous callers (least-disclosure). Execution is authorized per-call either way. |
+| `approval_enforced` | `true` | whether the human-in-the-loop gate is enforced. `false` lets a `requires_approval` tool execute inline like any other mutating tool; the manifest is unchanged, so `tools/list` still describes the tool as it is. **Only an explicit `false` turns it off.** Read per request at the gate, never from the cached registry, so turning it back on takes effect on the next call |
+| `approval_partial` | `mcp/approval` | app partial answering the same question as `{ enforced: boolean }`, consulted **before** `approval_enforced`. For an app whose own admins flip the gate in their own screens, so the engine never reads an app's table and the app never rewrites this constant. Absent, erroring, or answering anything but a boolean falls through to `approval_enforced` |
 | `defaults.rate_limit_per_min` | `60` | per-token fixed-window (per-minute) rate limit; each agent's token or OAuth grant has its own bucket |
 | `defaults.max_input_bytes` | `65536` | request body size cap |
 | `defaults.max_schema_depth` | `5` | argument-validation nesting cap |
@@ -359,6 +361,47 @@ is logged and answered with a generic `-32603`. For a signed-in caller the lists
 provider reads are cached `private`.
 
 ---
+
+## Per-agent tool switches
+
+A person decides which tools each of their agents may use. Stored against the person
+**and** the agent key (`mcp_agent_setting`), not against a token: an OAuth client gets a
+fresh access token on every refresh, so a per-token choice cannot survive one.
+
+The agent key is `helpers/identity/agent_key` — the OAuth `client_id` when there is one,
+otherwise the token label, otherwise the principal. Two manual tokens a person labelled
+the same way are therefore one agent, deliberately.
+
+The row stores the tools that are **off**. A tool added to the registry later is
+available until someone switches it off; storing the permitted set instead would make
+every tool added after the choice silently vanish from existing agents, with nothing in
+any log to explain it.
+
+Enforced on every path that can execute a tool — `tools/call` and in-process `invoke`
+(both via `registry/resolve_tool`), and an operator approving something proposed earlier
+(`identity/token_still_authorized`) — and narrowed out of `registry/for_agent` and of a
+`principal`-scoped `tools/list`. An **open** `tools/list` is deliberately left alone: it
+carries a `public` cache hint ("identical for everyone"), so narrowing it per caller
+would let one agent's list be cached and served to another. A switched-off tool is
+reported as not found, exactly as `allowed_tools` already reports one.
+
+Restrictions accumulate and neither widens the other:
+
+```
+effective = registry ∩ (token.allowed_tools, when non-empty) − agent.disabled_tools
+```
+
+An app builds its own panel on these, without reading the token table itself:
+
+| Operation | What it does |
+|---|---|
+| `queries/agents/for_user` | the person's agents, grouped by agent key, with kind, token count, last-used and the current switches |
+| `commands/agents/set_tools` | takes the tools that should be **on** and stores the complement; rejects a tool the registry does not serve, and an agent that is not this person's |
+| `commands/agents/revoke` | revokes every active token of one agent; the switches are kept, so reconnecting under the same name does not silently restore full access |
+| `commands/tokens/mint` | connect an agent (existing) |
+
+Every operation takes the acting `user_id` and scopes by it, so one person can never
+reach another's agent by guessing a `client_id`.
 
 ## Access control & operators
 

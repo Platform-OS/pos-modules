@@ -1,0 +1,92 @@
+{%- comment -%}
+  A person's agents, grouped from their tokens — what an app needs to draw a
+  panel without re-deriving any of it from the token table (TASK-57).
+
+  An agent is one or more tokens sharing an agent key
+  (helpers/identity/agent_key): every OAuth token of one client is the same
+  assistant, and so are two manual keys a person labelled the same way.
+
+  Only USABLE tokens count toward an agent. A revoked or suspended token is not
+  an assistant any more, and an OAuth grant whose refresh token has expired
+  cannot come back, so an agent with none left is not listed at all — the panel
+  shows what is connected now, not a history.
+
+  `status` is 'connected' once one of the agent's tokens has made a request, and
+  'waiting' until then, which is the difference between a key someone pasted
+  into a client and one they only generated.
+
+  @param {string} user_id - the person
+  @return {array} [{ client_id, name, kind, tokens, token_ids, last_used_at,
+                     status, disabled_tools }], newest agent first
+{%- endcomment -%}
+{% liquid
+  assign agents = []
+  if user_id == blank
+    return agents
+  endif
+
+  assign uid = user_id | append: ''
+  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+  graphql found = 'modules/mcp/agents/tokens_for_user', user_id: uid
+  graphql settings = 'modules/mcp/agents/settings_for_user', user_id: uid
+  assign disabled_by_agent = {}
+  for row in settings.records.results
+    assign disabled_by_agent[row.client_id] = row.disabled_tools
+  endfor
+
+  assign none = []
+  assign order = []
+  assign by_key = {}
+  for token in found.records.results
+    unless token.status == 'active'
+      continue
+    endunless
+    if token.kind == 'oauth'
+      assign refresh_expires_at = token.refresh_expires_at | plus: 0
+      if refresh_expires_at <= now_s
+        continue
+      endif
+    endif
+
+    function key = 'modules/mcp/helpers/identity/agent_key', token: token
+    assign agent = by_key[key]
+    if agent == blank
+      # built inside the loop: a hash assigned once outside is shared by
+      # reference and every agent would end up the same one
+      assign agent = { "client_id": null, "tokens": 0 }
+      assign agent['client_id'] = key
+      assign agent['name'] = token.label | default: key
+      assign agent['kind'] = 'token'
+      if token.kind == 'oauth'
+        assign agent['kind'] = 'app'
+      endif
+      assign agent['token_ids'] = []
+      assign agent['last_used_at'] = null
+      assign disabled = disabled_by_agent[key]
+      assign agent['disabled_tools'] = disabled | default: none
+      assign order = order | array_add: key
+    endif
+    assign agent['tokens'] = agent.tokens | plus: 1
+    assign agent['token_ids'] = agent.token_ids | array_add: token.id
+    # the newest stamp wins. Compared only when both are present: a comparison
+    # against a missing stamp is not a comparison, it is a silent false
+    if token.last_used_at != blank
+      if agent.last_used_at == blank
+        assign agent['last_used_at'] = token.last_used_at
+      elsif token.last_used_at > agent.last_used_at
+        assign agent['last_used_at'] = token.last_used_at
+      endif
+    endif
+    assign by_key[key] = agent
+  endfor
+
+  for key in order
+    assign agent = by_key[key]
+    assign agent['status'] = 'waiting'
+    if agent.last_used_at != blank
+      assign agent['status'] = 'connected'
+    endif
+    assign agents = agents | array_add: agent
+  endfor
+  return agents
+%}

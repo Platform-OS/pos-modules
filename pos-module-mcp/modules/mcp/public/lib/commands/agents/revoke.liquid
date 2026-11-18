@@ -1,0 +1,51 @@
+{%- comment -%}
+  Disconnect one of a person's agents (TASK-57): revoke every active token that
+  makes it up, so the agent stops on its next request.
+
+  Only the person's OWN tokens are read, and the agent key is recomputed from
+  each token here rather than taken from the caller, so a caller can never
+  revoke another person's token by passing its client_id.
+
+  The agent's tool switches are deliberately KEPT. Someone who restricted an
+  assistant, disconnected it, then connected it again under the same name gets
+  the restrictions back rather than silently getting full access; the panel
+  shows them, so the surprise is visible and one click from being undone.
+  Silently widening access is the worse failure.
+
+  @param {string} actor_user_id - the person whose agent this is
+  @param {string} client_id     - the agent key (helpers/identity/agent_key)
+  @return {object} { valid, revoked } or { valid: false, error: 'not_found' }
+{%- endcomment -%}
+{% liquid
+  assign uid = actor_user_id | append: ''
+  assign key = client_id | append: ''
+  assign failure = { "valid": false, "error": "not_found" }
+
+  if uid == blank or key == blank
+    return failure
+  endif
+
+  graphql found = 'modules/mcp/agents/tokens_for_user', user_id: uid
+  assign doomed = []
+  for token in found.records.results
+    unless token.status == 'active'
+      continue
+    endunless
+    function token_key = 'modules/mcp/helpers/identity/agent_key', token: token
+    if token_key == key
+      assign doomed = doomed | array_add: token.id
+    endif
+  endfor
+
+  if doomed == empty
+    return failure
+  endif
+
+  for token_id in doomed
+    graphql _ = 'modules/mcp/tokens/revoke', id: token_id
+  endfor
+
+  assign result = { "valid": true }
+  assign result['revoked'] = doomed | size
+  return result
+%}

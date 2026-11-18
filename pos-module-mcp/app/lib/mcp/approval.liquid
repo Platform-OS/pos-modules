@@ -1,0 +1,24 @@
+{% doc %}
+  Test-app fixture for config.approval_partial: lets an app answer the engine's
+  question "must a proposed change wait for a person?" from its own state,
+  instead of the operator editing MCP_CONFIG.
+
+  INERT BY DEFAULT. With MCP_TEST_APPROVAL unset it returns nothing, and the
+  engine falls back to config.approval_enforced — so every other suite sees the
+  normal behaviour and this file changes nothing for them.
+
+  The real use of this seam is an app whose own admins flip the gate in their own
+  screens (pos-module-support does this from a desk setting).
+{% enddoc %}
+{% liquid
+  assign mode = context.constants.MCP_TEST_APPROVAL | default: ''
+  if mode == 'off'
+    assign out = { "enforced": false }
+    return out
+  endif
+  if mode == 'on'
+    assign out = { "enforced": true }
+    return out
+  endif
+  return null
+%}

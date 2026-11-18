@@ -1,0 +1,13 @@
+mutation setting_create($user_id: String!, $client_id: String!, $disabled_tools: [String!]!) {
+  record: record_create(record: {
+    table: "modules/mcp/mcp_agent_setting"
+    properties: [
+      { name: "user_id", value: $user_id }
+      { name: "client_id", value: $client_id }
+      { name: "disabled_tools", value_array: $disabled_tools }
+    ]
+  }) {
+    id
+    disabled_tools: property_array(name: "disabled_tools")
+  }
+}

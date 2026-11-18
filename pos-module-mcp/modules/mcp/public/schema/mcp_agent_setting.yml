@@ -1,0 +1,19 @@
+name: mcp_agent_setting
+# What a person has decided about one of their agents (an assistant), as opposed
+# to one of its tokens. An OAuth client gets a fresh access token on every
+# refresh, so a choice stored on a token row does not survive one; this follows
+# the agent instead (helpers/identity/agent_key).
+#
+# Keyed by user_id AND client_id together, never client_id alone: two people may
+# both label a key "Claude", and one must never configure the other's agent.
+# A row exists only once someone has changed something.
+properties:
+  - name: user_id    # the pOS user whose agent this is
+  - name: client_id  # the agent key (helpers/identity/agent_key)
+  # Tools this agent may NOT use. The exclusion is stored rather than the
+  # permission, so a tool added to the registry later is available until someone
+  # switches it off. Storing the permitted set instead would make every tool
+  # added after the choice silently vanish from existing agents, with nothing in
+  # any log to explain it.
+  - name: disabled_tools
+    type: array

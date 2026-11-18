@@ -126,7 +126,7 @@
 
   # Step 4 — resolve the tool from the registry (explicit registration + valid
   # manifest + per-token allowed_tools narrowing). Unregistered → unknown tool.
-  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: auth.agent.allowed_tools
+  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: auth.agent.allowed_tools, user_id: auth.principal.user_id, client_id: auth.agent.client_id
   function apps = 'modules/mcp/helpers/protocol/apps_client', proto: proto, identity: auth
   if tool != blank and apps != true
     function tool_model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: tool
@@ -221,7 +221,13 @@
   # outcome. An operator later approves in the console; execution happens then, as
   # THIS principal. Idempotency does not apply (there is no result yet — the handle
   # is the dedup).
-  if tool.requires_approval
+  #
+  # queries/approval/enforced resolves the switch: the app's approval partial
+  # first, then config.approval_enforced. Only an explicit false turns the gate
+  # off; the tool then falls through to Step 8 and runs like any other mutating
+  # tool. Read per request, so turning the gate back on takes effect at once.
+  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg
+  if tool.requires_approval and gate_enforced
     # Step 7a-guard — approval-queue flood control (§9.6, §12.4). Before recording a
     # new pending intent, bound how many NON-EXPIRED proposals this principal already
     # holds and reject exact duplicates (same tool AND same input_sha256 — full

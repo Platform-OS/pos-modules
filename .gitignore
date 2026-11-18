@@ -76,6 +76,9 @@ pos-module-payments-example-gateway/modules/*
 pos-module-reports/modules/*
 !pos-module-reports/modules/reports/
 
+pos-module-support/modules/*
+!pos-module-support/modules/support/
+
 pos-module-tests/modules/*
 !pos-module-tests/modules/tests/
 
