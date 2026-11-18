@@ -34,7 +34,17 @@
     {% render 'modules/support/badges/department', department: department, variant: null %}
     <span class="pos-support-card-requester">{{ requester.name | default: requester.emails.first }}</span>
     {%- if assignee -%}
-      {%- assign assign_label = 'modules/support/board.assign_change' | t_escape: name: assignee_name -%}
+      {%- comment -%} the avatar inside is hidden, so its availability dot goes into the button's name {%- endcomment -%}
+      {%- function card_roles = 'modules/support/helpers/member_roles' -%}
+      {%- assign spoken_name = assignee_name -%}
+      {%- assign card_availability = card_roles[ticket.assignee_id].availability -%}
+      {%- if card_availability != blank -%}
+        {%- assign state_key = 'modules/support/availability.' | append: card_availability -%}
+        {%- assign state = state_key | t -%}
+        {%- assign spoken_state = 'modules/support/availability.spoken' | t: state: state -%}
+        {%- assign spoken_name = assignee_name | append: ' ' | append: spoken_state -%}
+      {%- endif -%}
+      {%- assign assign_label = 'modules/support/board.assign_change' | t_escape: name: spoken_name -%}
     {%- else -%}
       {%- assign assign_label = 'modules/support/board.assign_none' | t -%}
     {%- endif %}

@@ -1,0 +1,17 @@
+{% doc %}
+  A team member's availability as text for assistive technology only, e.g.
+  " (Away)". Put it right after the name wherever an unlabelled avatar shows
+  the availability dot: the avatar itself is hidden from screen readers, so
+  without this the dot says nothing to them. Renders nothing for someone who
+  is not an active team member (the avatar shows no dot then either).
+  @param {string} profile_id - Team member's profile id
+{% enddoc %}
+{%- liquid
+  function roles = 'modules/support/helpers/member_roles'
+  assign availability = roles[profile_id].availability
+-%}
+{%- if availability != blank -%}
+  {%- assign state_key = 'modules/support/availability.' | append: availability -%}
+  {%- assign state = state_key | t -%}
+<span class="pos-support-sr-only"> {{ 'modules/support/availability.spoken' | t: state: state }}</span>
+{%- endif -%}

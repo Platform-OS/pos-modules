@@ -660,6 +660,7 @@ en:
     available: Available
     away: Away
     "off": "Off"
+    spoken: "(%{state})"
   profile:
     title: My profile
     agent_title: "Alerts for %{name}"

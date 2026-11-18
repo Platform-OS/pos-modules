@@ -7,7 +7,10 @@
   Pass role, or profile_id to read the role from the team (helpers/member_roles);
   neither gives today's agent look. Availability shows as a dot bottom-right
   that differs in shape (filled, half, hollow), not only colour. Badge and dot
-  are decorative; the name and role are in the accessible name when labelled.
+  are decorative; the name, role and shown availability are in the accessible
+  name when labelled. An unlabelled avatar is hidden from assistive technology,
+  so a caller that shows the dot puts the availability in text next to the
+  name itself (queue row, board card, assign list).
   @param {string} [name] - Display name
   @param {string} [email] - Email, used for the colour and as a fallback for the initials
   @param {string} [size] - xs | md | lg (default 1.5rem)
@@ -45,6 +48,12 @@
   if badge
     assign role_label = 'modules/support/team.roles.' | append: kind | t
     assign label = source | append: ' (' | append: role_label | append: ')'
+  endif
+  if presence and availability and label != blank
+    assign state_key = 'modules/support/availability.' | append: availability
+    assign state = state_key | t
+    assign spoken = 'modules/support/availability.spoken' | t: state: state
+    assign label = label | append: ' ' | append: spoken
   endif
   assign initials = ''
   if kind == 'system'

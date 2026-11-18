@@ -201,7 +201,9 @@ const start = (root) => {
       const mark = option && option.querySelector('.pos-support-avatar');
       if (mark) button.replaceChildren(mark.cloneNode(true));
       button.dataset.assigneeId = value;
-      const label = value ? named(root.dataset.supportAssignChange, nameFor(value)) : root.dataset.supportAssignNone;
+      // the avatar is hidden from screen readers: its availability is in the spoken name
+      const spoken = option ? (option.dataset.spokenName || option.dataset.name) : '';
+      const label = value ? named(root.dataset.supportAssignChange, spoken) : root.dataset.supportAssignNone;
       button.setAttribute('aria-label', label);
       button.setAttribute('title', label);
     };

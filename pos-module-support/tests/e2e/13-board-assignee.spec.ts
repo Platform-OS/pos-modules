@@ -120,3 +120,29 @@ test('B3. an agent can only take a ticket or give up their own', async ({ browse
   await agent.page.keyboard.press('Escape');
   await agent.context.close();
 });
+
+test('B5. design review C: the availability dot is spoken next to the assignee on the card, the row and in the picker', async ({ browser }) => {
+  const { ticket, subject } = await newTicket('E2E availability spoken');
+  const spoken = /\((Available|Away|Off)\)/;
+
+  const admin = await contextFor(browser, users.superadmin);
+  // queue row: the avatar is hidden, the text after the name carries the state
+  await admin.page.goto(desk(`/support-desk?view=all_open&layout=list&q=${encodeURIComponent(subject)}`));
+  const cell = admin.page.locator('tr', { hasText: subject }).locator('.pos-support-cell-assignee');
+  await expect(cell.locator('.pos-support-avatar')).toHaveAttribute('aria-hidden', 'true');
+  await expect(cell.locator('.pos-support-sr-only')).toHaveText(spoken);
+
+  // board card: the assignee button's name includes it
+  const card = await boardFor(admin.page, subject);
+  const button = card.locator('[data-support-assign]');
+  await expect(button).toHaveAttribute('aria-label', new RegExp(`Assigned to .+ ${spoken.source}`));
+
+  // picker options, and the button's name after choosing someone
+  await button.click();
+  const pop = admin.page.locator('.pos-support-assign-pop');
+  const other = pop.locator(`[role="option"][data-person]:not([data-value="${ticket.assignee_id}"])`).first();
+  await expect(other.locator('.pos-support-assign-name .pos-support-sr-only')).toHaveText(spoken);
+  await other.click();
+  await expect(button).toHaveAttribute('aria-label', new RegExp(`Assigned to .+ ${spoken.source}`));
+  await admin.context.close();
+});

@@ -51,3 +51,53 @@
   assign ok = out | matches: 'pos-support-avatar-presence pos-support-presence-'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: true, field_name: 'availability dot shown'
 %}
+
+{% liquid
+  # design review C: the availability the dot shows reaches assistive technology too
+  function members = 'modules/support/queries/team_members/all_active'
+  assign member = members.first
+  function roles = 'modules/support/helpers/member_roles'
+  assign state_key = 'modules/support/availability.' | append: roles[member.profile_id].availability
+  assign state = state_key | t
+  assign expected_text = '(' | append: state | append: ')'
+
+  # a labelled avatar with the dot: the availability is in its accessible name
+  capture out
+    render 'modules/support/avatar', name: 'Someone', email: 'someone@example.com', size: 'md', labelled: true, role: null, profile_id: member.profile_id, presence: true
+  endcapture
+  assign label_part = out | split: 'aria-label="' | last | split: '"' | first
+  assign has = false
+  if label_part contains expected_text
+    assign has = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has, expected: true, field_name: 'labelled avatar names the availability'
+
+  # without the dot, no availability in the name
+  capture out
+    render 'modules/support/avatar', name: 'Someone', email: 'someone@example.com', size: 'md', labelled: true, role: null, profile_id: member.profile_id, presence: false
+  endcapture
+  assign label_part = out | split: 'aria-label="' | last | split: '"' | first
+  assign has = false
+  if label_part contains expected_text
+    assign has = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has, expected: false, field_name: 'no availability in the name without the dot'
+
+  # an unlabelled avatar is hidden: the text next to the name carries it
+  capture out
+    render 'modules/support/availability_text', profile_id: member.profile_id
+  endcapture
+  assign ok = out | matches: 'class="pos-support-sr-only"'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ok, expected: true, field_name: 'availability text is for screen readers only'
+  assign has = false
+  if out contains expected_text
+    assign has = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has, expected: true, field_name: 'availability text names the state'
+
+  capture out
+    render 'modules/support/availability_text', profile_id: 'not-a-member'
+  endcapture
+  assign out = out | strip
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: out, expected: '', field_name: 'nothing for someone who is not a member'
+%}

@@ -26,10 +26,14 @@
       {%- for person in people -%}
         {%- assign availability = roles[person.profile_id].availability | default: 'available' -%}
         {%- if availability != bucket -%}{%- continue -%}{%- endif -%}
-        {%- assign search = person.name | append: ' ' | append: person.email | downcase %}
-  <li role="option" data-value="{{ person.profile_id }}" data-person data-role="{{ person.role }}" data-departments="{{ person.department_ids | join: ',' }}" data-name="{{ person.name }}" data-search="{{ search }}">
+        {%- assign search = person.name | append: ' ' | append: person.email | downcase -%}
+        {%- assign state_key = 'modules/support/availability.' | append: availability -%}
+        {%- assign state = state_key | t -%}
+        {%- assign spoken_state = 'modules/support/availability.spoken' | t: state: state -%}
+        {%- assign spoken_name = person.name | append: ' ' | append: spoken_state %}
+  <li role="option" data-value="{{ person.profile_id }}" data-person data-role="{{ person.role }}" data-departments="{{ person.department_ids | join: ',' }}" data-name="{{ person.name }}" data-spoken-name="{{ spoken_name }}" data-search="{{ search }}">
     {% render 'modules/support/avatar', name: person.name, email: person.email, size: 'xs', labelled: false, profile_id: person.profile_id, presence: true, role: null %}
-    <span class="pos-support-assign-name">{{ person.name }}{% if titles[person.profile_id] != blank %} <span class="pos-supplementary">{{ titles[person.profile_id] }}</span>{% endif %}</span>
+    <span class="pos-support-assign-name">{{ person.name }}<span class="pos-support-sr-only"> {{ spoken_state }}</span>{% if titles[person.profile_id] != blank %} <span class="pos-supplementary">{{ titles[person.profile_id] }}</span>{% endif %}</span>
     {% render 'modules/support/icon', name: 'check', size: 'sm' %}
   </li>
       {%- endfor -%}
