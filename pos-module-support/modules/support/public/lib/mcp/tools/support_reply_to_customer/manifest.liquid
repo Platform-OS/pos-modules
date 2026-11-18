@@ -1,0 +1,26 @@
+{% doc %}
+  Tool manifest — support_reply_to_customer. The only tool whose result leaves
+  the building, so it is the one to be most careful with.
+
+  last_activity_at is required, and the handler refuses the reply when the
+  ticket has moved on since the agent read it. An approval can be acted on
+  days later; without this, a draft written against an old thread could be
+  approved after the customer had already written again.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_reply_to_customer",
+    "version": "1.0.0",
+    "title": "Reply to the customer",
+    "description": "Propose an email reply to the customer on a ticket. This is the only tool whose result leaves the support desk. Nothing is sent when you call this: a person reads the exact wording and approves it first, and you are given a handle to check with mcp_approval_status. Write plain text, not HTML or Markdown. Read the ticket first with support_read_ticket and pass its last_activity_at back unchanged: the reply is refused if the ticket changed in the meantime, so draft and propose in one go rather than much later.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["number","reply","last_activity_at"],"properties":{"number":{"type":"integer","minimum":1,"description":"the ticket number"},"reply":{"type":"string","minLength":3,"maxLength":10000,"description":"the reply to the customer, as plain text; blank lines separate paragraphs"},"last_activity_at":{"type":"string","minLength":1,"maxLength":40,"description":"the ticket's last_activity_at, copied exactly from the ticket you read"},"then_status":{"type":"string","minLength":1,"maxLength":40,"description":"optional status key to move the ticket to once the reply is sent, such as the key for solved"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["done","summary"],"properties":{"done":{"type":"boolean"},"summary":{"type":"string"}}},
+    "annotations": {"readOnlyHint":false,"destructiveHint":true,"idempotentHint":false,"openWorldHint":true},
+    "mutating": true,
+    "authorization_policy": "support_desk_write",
+    "requires_approval": true,
+    "idempotent": false,
+    "handler": "modules/support/mcp/tools/support_reply_to_customer/call"
+  }
+  return m
+%}

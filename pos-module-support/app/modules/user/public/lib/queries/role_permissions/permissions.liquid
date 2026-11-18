@@ -1,11 +1,24 @@
 {% liquid
   # The example host's own roles, community-style: admins are `superadmin`.
   # The support module never reads or edits this file for desk access.
+  # mcp.tokens.manage is the MCP module's own permission (devDependency): it
+  # gates minting a token and is re-checked on every call, so taking it away
+  # stops that person's tokens at once. It sits on `authenticated` here
+  # because this example host has no narrower role. A real host should put it
+  # on the role allowed to connect assistants, bearing in mind that a
+  # permission carried by a broad role cannot be withdrawn from one person in
+  # the MCP console — only their individual tokens can be revoked.
+  #
+  # mcp.admin opens /mcp-admin, where a person approves or rejects what an
+  # assistant proposed. It stays on superadmin: approving a change to a
+  # customer's ticket is not something every signed-in account should do. A
+  # desk that wants its support managers to approve wants the approvals in
+  # the desk instead, behind a desk role (TASK-54), not this permission.
   assign data = {
     "anonymous": ["sessions.create", "users.register"],
-    "authenticated": ["sessions.destroy"],
+    "authenticated": ["sessions.destroy", "mcp.tokens.manage"],
     "editor": ["admin_pages.view"],
-    "superadmin": ["admin_pages.view", "users.impersonate_superadmin"]
+    "superadmin": ["admin_pages.view", "users.impersonate_superadmin", "mcp.tokens.manage", "mcp.admin"]
   }
   return data
 %}

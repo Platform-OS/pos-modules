@@ -1,0 +1,49 @@
+---
+slug: support-desk/assistants/tools
+method: post
+layout: ''
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  function available = 'modules/support/queries/mcp/available'
+  unless available
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign profile = context.exports.support.current_profile
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'client_id'
+  # the checked boxes, posted as tools[]. Unchecking everything posts nothing at
+  # all, which is a real choice — an assistant connected but trusted with
+  # nothing — so an absent list means an empty one, not "leave it as it was"
+  assign chosen = context.params.tools | default: ''
+  assign enabled = []
+  if chosen != ''
+    assign kind = chosen | type_of | downcase
+    if kind == 'array'
+      assign enabled = chosen
+    else
+      assign enabled = enabled | array_add: chosen
+    endif
+  endif
+
+  function result = 'modules/support/commands/mcp/set_tools', user_id: profile.user.id, client_id: form.client_id, enabled_tools: enabled
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.saved', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/assistants'
+%}

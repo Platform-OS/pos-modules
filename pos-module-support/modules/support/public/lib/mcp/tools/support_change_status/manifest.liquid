@@ -1,0 +1,24 @@
+{% doc %}
+  Tool manifest — support_change_status.
+
+  `status` is a free string, not an enum: statuses are configured per desk in
+  Settings → Statuses, so there is no fixed list to declare. The agent takes a
+  key from an earlier result, and the command refuses an unknown one.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_change_status",
+    "version": "1.0.0",
+    "title": "Change a ticket's status",
+    "description": "Propose moving a ticket to another status. Use a status key exactly as an earlier result gave it, such as the status field of support_search_tickets; each desk configures its own statuses. Nothing changes when you call this: it waits for a person to approve it, and you are given a handle to check with mcp_approval_status.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["number","status"],"properties":{"number":{"type":"integer","minimum":1,"description":"the ticket number"},"status":{"type":"string","minLength":1,"maxLength":40,"description":"the target status key, as returned in a ticket's status field"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["done","summary"],"properties":{"done":{"type":"boolean"},"summary":{"type":"string"}}},
+    "annotations": {"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": true,
+    "authorization_policy": "support_desk_write",
+    "requires_approval": true,
+    "idempotent": false,
+    "handler": "modules/support/mcp/tools/support_change_status/call"
+  }
+  return m
+%}

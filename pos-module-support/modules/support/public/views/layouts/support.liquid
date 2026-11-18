@@ -69,7 +69,14 @@
   </head>
   <body class="pos-support" data-support-sw="{{ worker_url }}" data-support-search-options="{{ 'modules/support/select.search' | t }}" data-support-no-matches="{{ 'modules/support/select.no_matches' | t }}" data-support-field-required="{{ 'modules/support/field_errors.required' | t }}" data-support-field-email="{{ 'modules/support/field_errors.email' | t }}" data-support-field-url="{{ 'modules/support/field_errors.url' | t }}" data-support-field-number="{{ 'modules/support/field_errors.number' | t }}" data-support-field-format="{{ 'modules/support/field_errors.format' | t }}">
     <a class="pos-support-skip" href="#pos-support-content">{{ 'modules/support/shell.skip' | t }}</a>
-    {% render 'modules/support/shell', brand: brand, member: member, profile: current_profile, content: content_for_layout, pathname: context.location.pathname, nav: nav, view: context.params.view %}
+    {% comment %}The Assistants and Approvals entries appear only on a desk wired to pos-module-mcp. The shell is a partial and may not ask a query for itself, so the answers are passed in. The count is memoised per request, so the Approvals page itself does not compute it twice.{% endcomment %}
+    {% function mcp_available = 'modules/support/queries/mcp/available' %}
+    {% assign approvals_waiting = 0 %}
+    {% if mcp_available and member and member.state == 'active' %}
+      {% function waiting = 'modules/support/queries/mcp/approvals', member: member %}
+      {% assign approvals_waiting = waiting | size %}
+    {% endif %}
+    {% render 'modules/support/shell', brand: brand, member: member, profile: current_profile, content: content_for_layout, pathname: context.location.pathname, nav: nav, view: context.params.view, mcp_available: mcp_available, approvals_waiting: approvals_waiting %}
     {% if brand.uses_monogram and member.role == 'admin' and member.state == 'active' %}<span class="pos-support-icon-probe" hidden data-support-monogram="support-icon" data-support-monogram-signature="{{ brand.monogram_signature }}" data-support-monogram-token="{{ context.authenticity_token }}">{% render 'modules/support/brand_frame', plain: false %}</span>{% endif %}
     {% liquid
       function flash = 'modules/core/commands/session/get', key: 'sflash', clear: null

@@ -6,6 +6,8 @@
   @param {string} pathname - The current path, for the active rail item
   @param {object} [nav] - { view, counts, departments, filters }
   @param {string} [view] - The view parameter of the request
+  @param {boolean} [mcp_available] - This desk is wired to pos-module-mcp, so the Assistants entry is shown
+  @param {number} [approvals_waiting] - Proposals waiting for this member; shown as a pulsing count
 {% enddoc %}
 {% if member and member.state == 'active' %}
   {% liquid
@@ -93,14 +95,34 @@
           {% endfor %}
         </ul>
       {% endif %}
-      {% if member.role == 'admin' %}
+      {% if mcp_available or member.role == 'admin' %}
         <ul class="pos-support-rail-items pos-support-rail-bottom">
-          <li>
-            <a href="/support-desk/settings/departments" data-support-tip="{{ 'modules/support/shell.settings' | t }}" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>
-              {% render 'modules/support/icon', name: 'settings', size: null %}
-              <span class="pos-support-rail-text">{{ 'modules/support/shell.settings' | t }}</span>
-            </a>
-          </li>
+          {% if mcp_available %}
+            <li>
+              <a href="/support-desk/approvals" data-support-tip="{{ 'modules/support/approvals.title' | t }}" {% if pathname contains '/support-desk/approvals' %}aria-current="page"{% endif %}>
+                {% render 'modules/support/icon', name: 'circle-check', size: null %}
+                <span class="pos-support-rail-text">{{ 'modules/support/approvals.title' | t }}</span>
+                {% if approvals_waiting > 0 %}
+                  {% comment %}the count is announced, not just drawn: the rail text is hidden when the rail is collapsed{% endcomment %}
+                  <span class="pos-support-count pos-support-count-waiting" aria-label="{{ 'modules/support/approvals.waiting' | t: count: approvals_waiting }}">{{ approvals_waiting }}</span>
+                {% endif %}
+              </a>
+            </li>
+            <li>
+              <a href="/support-desk/assistants" data-support-tip="{{ 'modules/support/assistants.title' | t }}" {% if pathname contains '/support-desk/assistants' %}aria-current="page"{% endif %}>
+                {% render 'modules/support/icon', name: 'bot', size: null %}
+                <span class="pos-support-rail-text">{{ 'modules/support/assistants.title' | t }}</span>
+              </a>
+            </li>
+          {% endif %}
+          {% if member.role == 'admin' %}
+            <li>
+              <a href="/support-desk/settings/departments" data-support-tip="{{ 'modules/support/shell.settings' | t }}" {% if pathname contains '/support-desk/settings' %}aria-current="page"{% endif %}>
+                {% render 'modules/support/icon', name: 'settings', size: null %}
+                <span class="pos-support-rail-text">{{ 'modules/support/shell.settings' | t }}</span>
+              </a>
+            </li>
+          {% endif %}
         </ul>
       {% endif %}
       <div class="pos-support-rail-foot">

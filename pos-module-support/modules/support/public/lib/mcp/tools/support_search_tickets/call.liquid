@@ -1,0 +1,44 @@
+{% doc %}
+  Handler — support_search_tickets. Runs only after pos-module-mcp has
+  authenticated, rate-limited, argument-validated and authorized the call, so
+  it trusts its inputs and does the work only.
+
+  Department scope is not applied here: queries/tickets/search applies it
+  through queries/tickets/scope, the same path every desk page takes. A handler
+  that wrote its own filter would be a second copy of the rule and would
+  eventually disagree with the desk.
+  @param {object} arguments - Validated { view?, query?, department_id?, priority?, status?, assignee?, limit? }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    function out = 'modules/support/mcp/helpers/failure', message: 'You are not an active member of this support desk.'
+    return out
+  endif
+
+  assign member = actor.member
+  assign view = arguments.view | default: 'all_open'
+  assign limit = arguments.limit | default: 20
+
+  assign filters = { "q": null }
+  assign filters['q'] = arguments.query
+  assign filters['department_id'] = arguments.department_id
+  assign filters['priority'] = arguments.priority
+  assign filters['status_key'] = arguments.status
+  if arguments.assignee == 'me'
+    assign filters['assignee_id'] = member.profile_id
+  elsif arguments.assignee == 'none'
+    assign filters['assignee_id'] = 'none'
+  endif
+
+  function found = 'modules/support/queries/tickets/search', member: member, view: view, filters: filters, page: 1, per_page: limit
+  function tickets = 'modules/support/mcp/helpers/present_tickets', tickets: found.results, lookup: found.lookup
+
+  assign result = { "view": view }
+  assign result['count'] = tickets | size
+  assign result['total'] = found.total_entries | default: 0 | plus: 0
+  assign result['tickets'] = tickets
+  assign out = { "ok": true, "result": result }
+  return out
+%}

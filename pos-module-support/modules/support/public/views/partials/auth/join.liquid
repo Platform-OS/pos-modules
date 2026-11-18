@@ -2,7 +2,7 @@
   "Request to join" form, the "check your email" confirmation, or the
   expired-link message.
   @param {boolean} [sent] - The form was submitted
-  @param {object} [errors] - Field => translation key
+  @param {object} [errors] - Field => translation key; the key `form` is a refusal that belongs to no single field
   @param {object} [values] - { name, email } typed earlier
   @param {boolean} [expired] - A confirmation link that no longer works
 {% enddoc %}
@@ -24,6 +24,10 @@
       <h1 id="pos-support-join-title" class="pos-support-title">{{ 'modules/support/join.title' | t }}</h1>
       <p class="pos-support-page-lede">{{ 'modules/support/join.lede' | t }}</p>
     </div>
+    {% comment %}a refusal that belongs to no single field{% endcomment %}
+    {% if errors.form %}
+      <p class="pos-support-callout pos-support-callout-danger" role="alert">{% render 'modules/support/icon', name: 'triangle-alert', size: null %}{{ errors.form | t }}</p>
+    {% endif %}
     <form action="/support-desk/join" method="post" class="pos-form" novalidate>
       <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
       <fieldset>

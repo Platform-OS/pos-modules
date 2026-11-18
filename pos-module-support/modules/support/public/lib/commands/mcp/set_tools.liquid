@@ -1,0 +1,32 @@
+{% doc %}
+  Sets which tools one of a person's assistants may use.
+
+  Takes the tools that should stay ON, which is what the panel's checkboxes
+  give. The MCP module stores the complement, so a tool added to the desk later
+  is available to the assistant until someone switches it off here.
+
+  A form posting no checkboxes at all means every tool off; that is a real
+  choice (an assistant connected but not yet trusted with anything), so it is
+  passed through rather than treated as a mistake.
+  @param {string} user_id - the person whose assistant this is
+  @param {string} client_id - the assistant, as the panel listed it
+  @param {array} [enabled_tools] - the tools to leave switched on; absent means none
+  @return {object} { valid, disabled_tools } or { valid: false, error }
+{% enddoc %}
+{% liquid
+  assign payload = { "user_id": null, "client_id": null, "enabled_tools": [] }
+  assign payload.user_id = user_id
+  assign payload.client_id = client_id
+  assign payload.enabled_tools = enabled_tools | default: payload.enabled_tools
+  function answer = 'modules/support/helpers/mcp/call', action: 'set_tools', payload: payload
+  unless answer.valid
+    assign failure = { "valid": false, "error": "modules/support/assistants.errors.not_found" }
+    if answer.error == 'unknown_tool'
+      assign failure.error = 'modules/support/assistants.errors.unknown_tool'
+    endif
+    return failure
+  endunless
+  assign result = { "valid": true }
+  assign result['disabled_tools'] = answer.disabled_tools
+  return result
+%}

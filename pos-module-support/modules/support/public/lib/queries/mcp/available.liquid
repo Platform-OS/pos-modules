@@ -1,0 +1,33 @@
+{% doc %}
+  Is the MCP integration wired up on this desk?
+
+  False on every desk that has not installed pos-module-mcp and implemented
+  hook_support_mcp, which is the normal case — the integration is optional. The
+  navigation and the pages both ask, so the Agents and Approvals entries do not
+  appear at all unless there is something behind them.
+
+  Read once per request: the shell asks, then the page asks again.
+{% enddoc %}
+{% liquid
+  # Memoised as 'yes'/'no' rather than a boolean, and exported under the name
+  # the read uses: export keys on the VARIABLE NAME, and an exported false
+  # reads back as blank, which would make every later caller fire the hook again.
+  assign cached = context.exports.support_mcp.available
+  if cached == 'yes'
+    return true
+  endif
+  if cached == 'no'
+    return false
+  endif
+
+  function answer = 'modules/support/helpers/mcp/call', action: 'available', payload: null
+  assign available = 'no'
+  if answer.available == true
+    assign available = 'yes'
+  endif
+  export available, namespace: 'support_mcp'
+  if available == 'yes'
+    return true
+  endif
+  return false
+%}

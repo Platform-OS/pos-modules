@@ -1,0 +1,20 @@
+{% doc %}
+  Answers the MCP engine's question "must a proposed change wait for a person?"
+  from the desk's own setting, so support admins decide it in the desk rather
+  than someone editing an instance constant.
+
+  The setting is `mcp_require_approval`. It is missing until an admin changes
+  it, and missing means ON: a desk that has never thought about this gets the
+  safe answer, and only an explicit false turns the gate off.
+
+  The engine reads this on every call (queries/approval/enforced), so a change
+  takes effect on the next request.
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  assign out = { "enforced": true }
+  if settings.mcp_require_approval == false
+    assign out['enforced'] = false
+  endif
+  return out
+%}

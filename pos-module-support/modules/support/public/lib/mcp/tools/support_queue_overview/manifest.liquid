@@ -1,0 +1,20 @@
+{% doc %}
+  Tool manifest — support_queue_overview.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_queue_overview",
+    "version": "1.0.0",
+    "title": "Support queue overview",
+    "description": "Return how many tickets are in each queue right now: assigned to the connected member, waiting on the team, unassigned, open, waiting on the customer, awaiting confirmation, and at risk of missing their SLA. Read-only. Counts cover only departments the connected team member may read, so an agent and a manager see different numbers.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["scope","counts"],"properties":{"scope":{"type":"string","description":"which departments the counts cover"},"counts":{"type":"object","additionalProperties":false,"properties":{"mine":{"type":"integer"},"needs_reply":{"type":"integer"},"unassigned":{"type":"integer"},"all_open":{"type":"integer"},"waiting":{"type":"integer"},"awaiting_confirmation":{"type":"integer"},"sla_at_risk":{"type":"integer"}}}}},
+    "annotations": {"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": false,
+    "authorization_policy": "support_desk_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "modules/support/mcp/tools/support_queue_overview/call"
+  }
+  return m
+%}

@@ -1,0 +1,117 @@
+{% doc %}
+  The proposals waiting for this member to decide.
+
+  WHO SEES WHAT. A manager or admin decides anything in their scope; an agent
+  decides only what concerns a ticket assigned to them. Separation of duties is
+  the point: an agent's own assistant proposes, and somebody else agrees.
+
+  Department scope is applied by loading the proposals' tickets through a
+  member-scoped search, so a proposal about a ticket this member cannot read
+  never reaches them — including the fact that it exists.
+
+  A proposal whose tool names no ticket cannot be placed in the desk, so only a
+  manager or admin is offered it.
+
+  COST. The navigation shows the count on every desk page, so this runs on
+  every desk page: the tickets are fetched in ONE request rather than one per
+  proposal, and the result is memoised per request, so the badge and the page
+  share a single computation.
+  @param {object} member - The acting team_member
+  @return {object[]} [{ handle, tool_name, tool_title, created_at, expires_at, requester, agent, ticket, arguments }]
+{% enddoc %}
+{% liquid
+  assign memo_key = member.id | append: ''
+  assign memo = context.exports.support_mcp_approvals.by_member | default: {}
+  if memo[memo_key]
+    return memo[memo_key].list
+  endif
+
+  assign visible = []
+  function available = 'modules/support/queries/mcp/available'
+  if available
+    function answer = 'modules/support/helpers/mcp/call', action: 'approvals', payload: null
+    assign pending = answer.approvals | default: visible
+  else
+    assign pending = []
+  endif
+
+  if pending != empty
+    function manages = 'modules/support/queries/team/can', member: member, do: 'support.tickets.manage.all'
+
+    # one request for every ticket the proposals name, scoped to the member's
+    # departments, instead of one lookup per proposal
+    assign wanted_numbers = []
+    for row in pending
+      assign arguments = row.arguments_json | default: '{}' | parse_json
+      if arguments.number != blank
+        assign as_text = arguments.number | append: ''
+        unless wanted_numbers contains as_text
+          assign wanted_numbers = wanted_numbers | array_add: as_text
+        endunless
+      endif
+    endfor
+    assign tickets_by_number = {}
+    if wanted_numbers != empty
+      function scope = 'modules/support/queries/tickets/scope', member: member, department_id: null
+      graphql found = 'modules/support/tickets/search', numbers: wanted_numbers, department_ids: scope, limit: 100
+      for ticket in found.records.results
+        assign key = ticket.number | append: ''
+        assign tickets_by_number[key] = ticket
+      endfor
+    endif
+
+    # the tool's own title, rather than a translation key built from the tool
+    # name: a tool without such a key would render "translation missing" to the
+    # person deciding
+    function offered = 'modules/support/helpers/mcp/call', action: 'tools', payload: null
+    assign titles = {}
+    for tool in offered.tools
+      assign titles[tool.name] = tool.title
+    endfor
+
+    for row in pending
+      assign arguments = row.arguments_json | default: '{}' | parse_json
+      assign ticket = null
+      if arguments.number == blank
+        unless manages
+          continue
+        endunless
+      else
+        assign number_key = arguments.number | append: ''
+        assign ticket = tickets_by_number[number_key]
+        if ticket == blank
+          # outside this member's departments: not theirs to see or decide
+          continue
+        endif
+        unless manages
+          unless ticket.assignee_id == member.profile_id
+            continue
+          endunless
+        endunless
+      endif
+
+      # built inside the loop: a hash assigned once outside is shared by
+      # reference and every row would end up the same proposal
+      assign item = { "handle": null }
+      assign item['handle'] = row.handle
+      assign item['tool_name'] = row.tool_name
+      assign item['tool_title'] = titles[row.tool_name] | default: row.tool_name
+      assign item['created_at'] = row.created_at
+      assign item['expires_at'] = row.expires_at
+      assign item['agent'] = row.requested_by_agent
+      assign item['ticket'] = ticket
+      assign requester_id = row.principal_id | remove_first: 'user:'
+      function requester = 'modules/user/queries/profiles/find', user_id: requester_id, id: null, uuid: null, first_name: null, last_name: null
+      assign item['requester'] = requester.name | default: requester.first_name | default: ''
+      assign item['arguments'] = arguments
+      assign visible = visible | array_add: item
+    endfor
+  endif
+
+  assign entry = { "list": null }
+  assign entry['list'] = visible
+  assign by_member = memo
+  assign by_member[memo_key] = entry
+  export by_member, namespace: 'support_mcp_approvals'
+  return visible
+%}

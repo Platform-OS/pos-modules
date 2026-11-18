@@ -1,0 +1,25 @@
+{% doc %}
+  Tool manifest — support_search_tickets.
+
+  output_schema declares plain scalar types only, so the manifest loads on
+  pos-module-mcp 0.2.1 as well. The handler coerces every value to the declared
+  type, blanks included, so the contract still holds once the engine starts
+  validating results against it.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_search_tickets",
+    "version": "1.0.0",
+    "title": "Search support tickets",
+    "description": "Search the support desk and return the matching tickets with their status, priority, assignee, SLA state and a link to each. Read-only. Returns only tickets in departments the connected team member may read: an agent sees their own departments, a manager and an admin see every department.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{"view":{"type":"string","enum":["mine","needs_reply","unassigned","all_open","waiting","awaiting_confirmation","sla_at_risk","closed"],"description":"which queue to search; default all_open. mine = assigned to the connected member, needs_reply = waiting on the team, waiting = pending or on hold, awaiting_confirmation = solved but not yet confirmed, sla_at_risk = due soon or overdue"},"query":{"type":"string","minLength":1,"maxLength":80,"description":"keyword matched against the ticket subject and conversation; a bare number is treated as a ticket number"},"department_id":{"type":"string","maxLength":40,"description":"limit to one department, using a department_id from an earlier result"},"priority":{"type":"string","enum":["p0","p1","p2","p3"],"description":"p0 is the most urgent"},"status":{"type":"string","maxLength":40,"description":"limit to one status, using a status key from an earlier result"},"assignee":{"type":"string","enum":["me","none"],"description":"me = assigned to the connected member, none = unassigned"},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"maximum tickets to return; default 20"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["view","count","total","tickets"],"properties":{"view":{"type":"string"},"count":{"type":"integer","description":"tickets returned"},"total":{"type":"integer","description":"tickets matching in the member's departments, which may exceed count"},"tickets":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"number":{"type":"integer"},"subject":{"type":"string"},"status":{"type":"string"},"status_label":{"type":"string"},"priority":{"type":"string"},"department":{"type":"string"},"department_id":{"type":"string"},"requester":{"type":"string"},"organization":{"type":"string"},"assignee":{"type":"string"},"needs_reply":{"type":"boolean"},"sla_state":{"type":"string"},"sla_due_at":{"type":"string"},"last_activity_at":{"type":"string"},"url":{"type":"string"}}}}}},
+    "annotations": {"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": false,
+    "authorization_policy": "support_desk_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "modules/support/mcp/tools/support_search_tickets/call"
+  }
+  return m
+%}

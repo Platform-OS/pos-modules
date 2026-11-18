@@ -1,0 +1,19 @@
+{% doc %}
+  Handler — support_change_status. The command copies the status category,
+  stamps solved_at or closed_at, clears needs_reply when solved and logs the
+  activity row, so a status set from here behaves exactly as one set in the
+  desk.
+  @param {object} arguments - Validated { number, status }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function ctx = 'modules/support/mcp/helpers/load_for_write', principal: principal, number: arguments.number
+  unless ctx.ok
+    return ctx.failure
+  endunless
+
+  function changed = 'modules/support/commands/tickets/change_status', ticket: ctx.ticket, status_key: arguments.status, actor: ctx.actor
+  assign summary = 'Ticket ' | append: ctx.ticket.number | append: ' moved to ' | append: arguments.status | append: '.'
+  function out = 'modules/support/mcp/helpers/command_result', result: changed, summary: summary
+  return out
+%}

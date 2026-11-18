@@ -1,0 +1,20 @@
+{% doc %}
+  Tool manifest — support_read_ticket.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_read_ticket",
+    "version": "1.0.0",
+    "title": "Read a support ticket",
+    "description": "Read one support ticket by its number: its properties and the conversation, newest fifty messages, oldest first. Internal notes are included and are marked internal; everything else was sent to or by the customer. Read-only. A ticket in a department the connected team member may not read is reported as not found.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["number"],"properties":{"number":{"type":"integer","minimum":1,"description":"the ticket number, as shown in the desk and in search results"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["ticket","messages"],"properties":{"ticket":{"type":"object","additionalProperties":false,"properties":{"number":{"type":"integer"},"subject":{"type":"string"},"status":{"type":"string"},"status_label":{"type":"string"},"priority":{"type":"string"},"department":{"type":"string"},"department_id":{"type":"string"},"requester":{"type":"string"},"organization":{"type":"string"},"assignee":{"type":"string"},"needs_reply":{"type":"boolean"},"sla_state":{"type":"string"},"sla_due_at":{"type":"string"},"last_activity_at":{"type":"string"},"url":{"type":"string"}}},"earlier_messages":{"type":"integer","description":"messages older than the ones returned"},"messages":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"at":{"type":"string"},"author_type":{"type":"string","description":"customer, agent or system"},"author":{"type":"string"},"visibility":{"type":"string","description":"public if it was sent to or by the customer, internal for a note the customer never sees"},"body":{"type":"string"}}}}}},
+    "annotations": {"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": false,
+    "authorization_policy": "support_desk_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "modules/support/mcp/tools/support_read_ticket/call"
+  }
+  return m
+%}

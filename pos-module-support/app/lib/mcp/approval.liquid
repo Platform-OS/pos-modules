@@ -1,0 +1,11 @@
+{% doc %}
+  Tells the MCP engine whether a proposed change must wait for a person
+  (config.approval_partial). Delegates to the support desk, where admins set it
+  in Assistants rather than by editing an instance constant.
+
+  Fail-safe: the engine keeps the gate ON unless this answers an explicit false.
+{% enddoc %}
+{% liquid
+  function answer = 'modules/support/mcp/approval'
+  return answer
+%}

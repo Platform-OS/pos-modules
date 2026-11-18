@@ -2,6 +2,9 @@ query (
   $id: ID
   $ids: [ID!]
   $number: Int
+  # several tickets by number in one request, so a caller holding a list of
+  # numbers does not load them one at a time
+  $numbers: [String!]
   $department_ids: [String!]
   $categories: [String!]
   $not_categories: [String!]
@@ -34,7 +37,7 @@ query (
       table: { value: "modules/support/ticket" }
       created_at: { gte: $created_after }
       properties: [
-        { name: "number", value_int: $number, range: { lt: $number_below } }
+        { name: "number", value_int: $number, value_in: $numbers, range: { lt: $number_below } }
         { name: "department_id", value_in: $department_ids }
         { name: "category", value_in: $categories, not_value_in: $not_categories }
         { name: "assignee_id", value: $assignee_id, value_in: $assignee_ids, exists: $assigned }

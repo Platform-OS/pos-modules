@@ -1,0 +1,20 @@
+{% doc %}
+  Tool manifest — support_snooze_ticket.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_snooze_ticket",
+    "version": "1.0.0",
+    "title": "Snooze a ticket",
+    "description": "Propose putting a ticket aside until a date and time. A snoozed ticket stays in the queue, marked with an alarm clock, and the snooze clears itself once the time has passed. Nothing changes when you call this: it waits for a person to approve it, and you are given a handle to check with mcp_approval_status.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["number","until"],"properties":{"number":{"type":"integer","minimum":1,"description":"the ticket number"},"until":{"type":"string","format":"date-time","description":"when the ticket should come back, as an ISO 8601 date and time in the future"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["done","summary"],"properties":{"done":{"type":"boolean"},"summary":{"type":"string"}}},
+    "annotations": {"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": true,
+    "authorization_policy": "support_desk_write",
+    "requires_approval": true,
+    "idempotent": false,
+    "handler": "modules/support/mcp/tools/support_snooze_ticket/call"
+  }
+  return m
+%}

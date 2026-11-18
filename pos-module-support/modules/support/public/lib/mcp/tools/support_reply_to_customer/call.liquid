@@ -1,0 +1,36 @@
+{% doc %}
+  Handler — support_reply_to_customer.
+
+  Runs when an operator approves, which can be long after the draft was
+  written, so the ticket is compared against the state the agent read. If
+  anything has happened since — above all a new message from the customer —
+  the reply is refused rather than sent into a conversation that has moved on.
+
+  The reply arrives as plain text and goes through helpers/text_to_html, the
+  same conversion the desk composer uses, so an agent cannot put markup into a
+  customer email. CC addresses and attachments are deliberately not offered:
+  both widen who receives this beyond the person approving it.
+  @param {object} arguments - Validated { number, reply, last_activity_at, then_status? }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function ctx = 'modules/support/mcp/helpers/load_for_write', principal: principal, number: arguments.number
+  unless ctx.ok
+    return ctx.failure
+  endunless
+
+  assign seen = arguments.last_activity_at | strip
+  assign current = ctx.ticket.last_activity_at | append: '' | strip
+  unless seen == current
+    function failure = 'modules/support/mcp/helpers/failure', message: 'The ticket has changed since this reply was drafted, so it was not sent. Read the ticket again and propose a reply to the conversation as it stands now.'
+    return failure
+  endunless
+
+  function body_html = 'modules/support/helpers/text_to_html', text: arguments.reply
+  assign no_cc = []
+  assign no_files = []
+  function sent = 'modules/support/commands/messages/create_reply', ticket: ctx.ticket, body_html: body_html, cc_emails: no_cc, then_status_key: arguments.then_status, attachments: no_files, actor: ctx.actor
+  assign summary = 'Reply sent to the customer on ticket ' | append: ctx.ticket.number | append: '.'
+  function out = 'modules/support/mcp/helpers/command_result', result: sent, summary: summary
+  return out
+%}

@@ -199,6 +199,60 @@ en:
     email_button: Confirm my email
     errors:
       name: Enter your name.
+      full_name: Enter your first and last name.
+      failed: We couldn't create the account. Try again, or ask a support admin.
+  approvals:
+    title: Approvals
+    intro: Changes an AI assistant has proposed. Nothing here has happened yet. Read the wording, then agree to it or turn it down.
+    proposed_by: "Proposed by %{name} through %{assistant},"
+    approve: Approve
+    approve_confirm: Approve this? It happens straight away, as the person who proposed it.
+    approve_label: Approve
+    reject: Turn down
+    done: Done.
+    rejected: Turned down.
+    failed: The desk refused it. Nothing changed.
+    none: Nothing waiting
+    none_help: Changes proposed by an assistant appear here for you to agree to.
+    waiting:
+      one: 1 proposal waiting for you
+      other: "%{count} proposals waiting for you"
+    errors:
+      not_yours: That is not yours to decide.
+      gone: That was already decided, or it has expired.
+  assistants:
+    title: Assistants
+    intro: "AI assistants you have connected to the desk. An assistant acts as you: it sees the departments you see, and nothing you cannot see yourself."
+    connect: Connect an assistant
+    connect_submit: Connect
+    name: Name
+    name_help: What you call it in your AI client, for example "Claude" or "ChatGPT".
+    key_title: "%{name} is connected"
+    key_body: Copy this key into your AI client now. It is shown once and cannot be shown again; if you lose it, disconnect the assistant and connect it again.
+    none: No assistants connected
+    none_help: Connect one to let it read the desk for you.
+    last_used: Last used
+    waiting: Connected, not used yet
+    may_use: This assistant may use
+    needs_approval: waits for approval
+    changes_things: changes the ticket
+    save_tools: Save
+    approval_title: Approval
+    approval_help: Applies to the whole desk, not to one assistant. When it is on, anything an assistant proposes — a note, a status change, a reply — waits in Approvals until a person agrees to it.
+    approval_label: Changes proposed by an assistant wait for a person
+    approval_warning: Approval is off. Assistants change tickets and email customers straight away, with nobody reading it first.
+    approval_on: Changes proposed by an assistant now wait for a person.
+    approval_off: Approval is off. Assistants now change tickets straight away.
+    revoke: Disconnect
+    revoke_confirm: Disconnect %{name}? It stops working straight away.
+    revoked: Assistant disconnected.
+    saved: Saved.
+    errors:
+      name: Give the assistant a name.
+      name_taken: You already have an assistant with that name.
+      connect: The assistant could not be connected. Try again.
+      not_found: That assistant is not one of yours.
+      unknown_tool: That is not a tool this desk offers.
   forbidden:
     title: You can't open this page
     body: Your support role doesn't include this page.

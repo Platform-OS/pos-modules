@@ -1,0 +1,106 @@
+{% doc %}
+  The Assistants panel: the AI assistants one person has connected to the desk,
+  what each may do, and how to disconnect one.
+
+  Each person manages their own. An assistant acts as the person who connected
+  it and never sees more than they do, so there is nothing here for an admin to
+  administer on someone else's behalf.
+  @param {object[]} assistants - [{ client_id, name, kind, tokens, last_used_at, status, disabled_tools }]
+  @param {object[]} tools - [{ name, title, description, mutating, requires_approval }]
+  @param {object} [fresh] - { name, key } of an assistant connected a moment ago; shown once
+  @param {boolean} [require_approval] - The desk-wide gate is on
+  @param {boolean} [can_set_approval] - This member may change the desk-wide gate
+{% enddoc %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/assistants.title' | t }}</h1>
+  <p class="pos-supplementary">{{ 'modules/support/assistants.intro' | t }}</p>
+
+  {% if fresh.key %}
+    <section class="pos-card pos-support-step" role="alert">
+      <h2 class="pos-heading-3">{{ 'modules/support/assistants.key_title' | t: name: fresh.name }}</h2>
+      <p>{{ 'modules/support/assistants.key_body' | t }}</p>
+      <p><code class="pos-support-key">{{ fresh.key }}</code></p>
+    </section>
+  {% endif %}
+
+  {% if can_set_approval %}
+    <section class="pos-card pos-support-step">
+      <h2 class="pos-heading-3">{{ 'modules/support/assistants.approval_title' | t }}</h2>
+      <p class="pos-supplementary">{{ 'modules/support/assistants.approval_help' | t }}</p>
+      <form action="/support-desk/assistants/approval" method="post" class="pos-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <p>
+          <input type="checkbox" id="require-approval" name="require_approval" value="true" {% if require_approval %}checked{% endif %}>
+          <label for="require-approval">{{ 'modules/support/assistants.approval_label' | t }}</label>
+        </p>
+        {% unless require_approval %}
+          <p class="pos-support-error" role="alert">{{ 'modules/support/assistants.approval_warning' | t }}</p>
+        {% endunless %}
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/assistants.save_tools' | t }}</button>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="pos-card pos-support-step">
+    <h2 class="pos-heading-3">{{ 'modules/support/assistants.connect' | t }}</h2>
+    <form action="/support-desk/assistants/connect" method="post" class="pos-form pos-support-settings-form">
+      <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+      <fieldset>
+        <label for="assistant-name">{{ 'modules/support/assistants.name' | t }}</label>
+        <input id="assistant-name" name="name" required maxlength="40" aria-describedby="assistant-name-help">
+        <p id="assistant-name-help" class="pos-supplementary">{{ 'modules/support/assistants.name_help' | t }}</p>
+      </fieldset>
+      <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/assistants.connect_submit' | t }}</button>
+    </form>
+  </section>
+
+  {% if assistants == empty %}
+    {% assign none_title = 'modules/support/assistants.none' | t %}
+    {% assign none_text = 'modules/support/assistants.none_help' | t %}
+    {% render 'modules/support/empty', icon: 'bot', title: none_title, text: none_text, action_url: null, action_label: null %}
+  {% endif %}
+
+  {% for assistant in assistants %}
+    <section class="pos-card pos-support-step">
+      <h2 class="pos-heading-3">{{ assistant.name }}</h2>
+      <p class="pos-supplementary">
+        {% if assistant.status == 'connected' %}
+          {{ 'modules/support/assistants.last_used' | t }}
+          {% render 'modules/support/time', time: assistant.last_used_at, style: 'relative' %}
+        {% else %}
+          {{ 'modules/support/assistants.waiting' | t }}
+        {% endif %}
+      </p>
+
+      <form action="/support-desk/assistants/tools" method="post" class="pos-form">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="client_id" value="{{ assistant.client_id }}">
+        <fieldset>
+          <legend>{{ 'modules/support/assistants.may_use' | t }}</legend>
+          {% for tool in tools %}
+            {% assign field_id = 'tool-' | append: forloop.parentloop.index | append: '-' | append: forloop.index %}
+            <p>
+              <input type="checkbox" id="{{ field_id }}" name="tools[]" value="{{ tool.name }}"
+                {% unless assistant.disabled_tools contains tool.name %}checked{% endunless %}>
+              <label for="{{ field_id }}">
+                {{ tool.title }}
+                {% if tool.requires_approval %}
+                  <span class="pos-supplementary">{{ 'modules/support/assistants.needs_approval' | t }}</span>
+                {% elsif tool.mutating %}
+                  <span class="pos-supplementary">{{ 'modules/support/assistants.changes_things' | t }}</span>
+                {% endif %}
+              </label>
+            </p>
+          {% endfor %}
+        </fieldset>
+        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/assistants.save_tools' | t }}</button>
+      </form>
+
+      <form action="/support-desk/assistants/revoke" method="post" class="pos-support-actions">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="client_id" value="{{ assistant.client_id }}">
+        <button type="submit" class="pos-button" data-support-confirm="{{ 'modules/support/assistants.revoke_confirm' | t: name: assistant.name }}">{{ 'modules/support/assistants.revoke' | t }}</button>
+      </form>
+    </section>
+  {% endfor %}
+</div>

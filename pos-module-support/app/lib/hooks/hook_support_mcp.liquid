@@ -1,0 +1,128 @@
+{% doc %}
+  Bridges the support desk to pos-module-mcp (hook_support_mcp).
+
+  The desk's Agents and Approvals pages need the MCP module, but the support
+  module may not reference it: MCP is optional, and a desk without it would get
+  missing-partial errors at lint time and a 500 at run time. So the desk fires
+  this hook and the host app — which knows whether MCP is installed — answers.
+
+  A desk that does not want the integration simply does not add this file: every
+  action then returns nothing, and the desk hides the pages.
+
+  Identity: every action is scoped by the `user_id` the desk passes, which is
+  the signed-in person. The MCP module scopes by it too, so one person can never
+  reach another's assistant even if a client_id is guessed.
+
+  @param {object} params - { action, user_id?, name?, client_id?, enabled_tools? }
+  @return {object} the answer for that action
+{% enddoc %}
+{% liquid
+  assign action = params.action
+
+  if action == 'available'
+    assign out = { "available": true }
+    return out
+  endif
+
+  if action == 'tools'
+    function reg = 'modules/mcp/queries/registry/load'
+    assign tools = []
+    for manifest in reg.tools
+      # the engine's built-ins are not switchable: mcp_approval_status is how an
+      # assistant learns what happened to something it proposed
+      if manifest.builtin == true
+        continue
+      endif
+      assign tool = { "name": null }
+      assign tool['name'] = manifest.name
+      assign tool['title'] = manifest.title | default: manifest.name
+      assign tool['description'] = manifest.description
+      assign tool['mutating'] = manifest.mutating
+      assign tool['requires_approval'] = manifest.requires_approval
+      assign tools = tools | array_add: tool
+    endfor
+    assign out = { "tools": [] }
+    assign out['tools'] = tools
+    return out
+  endif
+
+  if action == 'agents'
+    function agents = 'modules/mcp/queries/agents/for_user', user_id: params.user_id
+    assign out = { "agents": [] }
+    assign out['agents'] = agents
+    return out
+  endif
+
+  if action == 'connect'
+    function minted = 'modules/mcp/commands/tokens/mint', user_id: params.user_id, label: params.name
+    assign out = { "key": null }
+    assign out['key'] = minted.raw
+    assign out['error'] = minted.error
+    return out
+  endif
+
+  if action == 'revoke'
+    function revoked = 'modules/mcp/commands/agents/revoke', actor_user_id: params.user_id, client_id: params.client_id
+    return revoked
+  endif
+
+  if action == 'set_tools'
+    function saved = 'modules/mcp/commands/agents/set_tools', actor_user_id: params.user_id, client_id: params.client_id, enabled_tools: params.enabled_tools
+    return saved
+  endif
+
+  if action == 'approvals'
+    graphql pending = 'modules/mcp/approvals/list', status: 'pending', per_page: 100
+    assign out = { "approvals": [] }
+    assign out['approvals'] = pending.records.results
+    return out
+  endif
+
+  # Approve or reject one proposal. The sequence is the operator console's
+  # (views/pages/mcp-admin/approve): claim the row, so two people pressing at
+  # once cannot both execute it, then run it as the ORIGINAL principal — never
+  # as the person approving — and record the outcome on the row.
+  if action == 'decide'
+    graphql found = 'modules/mcp/approvals/find_by_handle', handle: params.handle
+    assign rec = found.records.results.first
+    assign out = { "valid": false }
+    if rec == blank or rec.status != 'pending'
+      assign out['error'] = 'gone'
+      return out
+    endif
+
+    if params.decision == 'approve'
+      function claim = 'modules/mcp/commands/approval/claim', id: rec.id, handle: params.handle, status: 'approved', decided_by: params.decided_by, result_summary: 'Approved in the support desk; executing.', ledger_reason: null
+      unless claim.claimed and claim.status == 'approved'
+        assign out['error'] = 'gone'
+        return out
+      endunless
+      function res = 'modules/mcp/commands/approval/execute', approval: claim.rec, decided_by: params.decided_by
+      assign decided_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
+      assign result_json = null
+      unless res.result == blank
+        assign result_json = res.result | json
+      endunless
+      assign error_json = null
+      unless res.error == blank
+        assign error_json = res.error | json
+      endunless
+      graphql _ = 'modules/mcp/approvals/record_outcome', id: rec.id, status: res.outcome, decided_by: params.decided_by, decided_at: decided_at, result_summary: res.summary, result_json: result_json, error_json: error_json
+      assign out['valid'] = true
+      assign out['outcome'] = res.outcome
+      assign out['summary'] = res.summary
+      return out
+    endif
+
+    function claim = 'modules/mcp/commands/approval/claim', id: rec.id, handle: params.handle, status: 'rejected', decided_by: params.decided_by, result_summary: 'Rejected in the support desk.', ledger_reason: null
+    unless claim.claimed
+      assign out['error'] = 'gone'
+      return out
+    endunless
+    assign out['valid'] = true
+    assign out['outcome'] = 'rejected'
+    return out
+  endif
+
+  return null
+%}

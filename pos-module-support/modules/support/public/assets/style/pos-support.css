@@ -1129,6 +1129,42 @@
     color: var(--pos-support-rail-muted);
   }
 
+  /* Proposals from an AI assistant waiting for a person. Louder than a queue
+     count on purpose: nothing happens until somebody decides, so this is the
+     one number in the rail that is asking to be looked at. It stops pulsing
+     the moment the count is zero, because the element is then not rendered. */
+  .pos-support-count-waiting {
+    /* inline-block so the scale applies even if this badge is ever used
+       outside a flex row, where a bare inline element ignores transform */
+    display: inline-block;
+    min-width: 1.5em;
+    padding: 0 0.4em;
+    border-radius: 999px;
+    background: var(--pos-support-danger);
+    color: var(--pos-color-content-background);
+    text-align: center;
+    animation: pos-support-waiting-pulse 1.6s var(--pos-support-ease) infinite;
+  }
+
+  @keyframes pos-support-waiting-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+      box-shadow: 0 0 0 0 transparent;
+    }
+    50% {
+      opacity: 0.65;
+      transform: scale(1.14);
+      box-shadow: 0 0 0 0.2rem color-mix(in oklch, var(--pos-support-danger) 28%, transparent);
+    }
+  }
+
+  /* Reduced motion is handled once for the whole desk, at the end of this
+     file: animation and transition are dropped with !important inside
+     .pos-support. The badge still reads without the pulse — shape and colour
+     carry it — so there is nothing to restore here. */
+
   /* board of All open: how its total splits into open and waiting tickets */
   .pos-support-count-split {
     color: var(--pos-support-text-muted);

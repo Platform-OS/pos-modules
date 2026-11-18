@@ -1,0 +1,41 @@
+---
+slug: support-desk/assistants/connect
+method: post
+layout: ''
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  function available = 'modules/support/queries/mcp/available'
+  unless available
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign profile = context.exports.support.current_profile
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'name'
+  function result = 'modules/support/commands/mcp/connect', user_id: profile.user.id, name: form.name
+
+  if result.valid
+    # the key is shown once and never stored, so it travels in this person's
+    # own session to the page that displays it, and is cleared on the way out
+    assign shown = { "name": null, "key": null }
+    assign shown.name = result.name
+    assign shown.key = result.key
+    function _ = 'modules/core/commands/session/set', key: 'support_assistant_key', value: shown
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/assistants'
+%}

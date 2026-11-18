@@ -1,0 +1,43 @@
+---
+slug: support-desk/approvals/decide
+method: post
+layout: ''
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  function available = 'modules/support/queries/mcp/available'
+  unless available
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  assign member = context.exports.support.support_member
+  assign profile = context.exports.support.current_profile
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'handle,decision'
+  function result = 'modules/support/commands/mcp/decide', member: member, decided_by: profile.user.id, handle: form.handle, decision: form.decision
+
+  if result.valid
+    assign notice = 'modules/support/approvals.rejected'
+    if result.outcome == 'executed'
+      assign notice = 'modules/support/approvals.done'
+    elsif result.outcome == 'failed'
+      assign notice = 'modules/support/approvals.failed'
+    endif
+    function _ = 'modules/user/helpers/flash', notice: notice, error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/approvals'
+%}

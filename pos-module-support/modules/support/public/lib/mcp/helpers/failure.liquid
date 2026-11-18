@@ -1,0 +1,15 @@
+{% doc %}
+  A handler's business failure in the shape pos-module-mcp expects: the engine
+  turns { ok: false, error: { message } } into a tool error the agent can read
+  and act on, and records the outcome in its ledger.
+
+  The message is read by the agent and may reach the person, so it says what
+  happened in plain words and never carries record ids, query shapes or
+  anything about why the desk refused beyond what the person may know.
+  @param {string} message - What the agent should be told
+{% enddoc %}
+{% liquid
+  assign error = { "message": message }
+  assign out = { "ok": false, "error": error }
+  return out
+%}

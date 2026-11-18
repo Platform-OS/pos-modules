@@ -1,0 +1,46 @@
+{% doc %}
+  Handler — support_find_customer.
+
+  queries/contacts/page_data applies the member's department scope to the
+  ticket list, so a customer who has written to a department this member
+  cannot read appears with fewer tickets rather than with none.
+  @param {object} arguments - Validated { email }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    function out = 'modules/support/mcp/helpers/failure', message: 'You are not an active member of this support desk.'
+    return out
+  endif
+
+  assign email = arguments.email | strip | downcase
+  assign emails = []
+  assign emails = emails | array_add: email
+  graphql found = 'modules/support/contacts/search', emails: emails, limit: 1
+  assign contact = found.records.results.first
+
+  assign result = { "found": false }
+  assign result['email'] = email
+  if contact == blank
+    assign out = { "ok": true, "result": result }
+    return out
+  endif
+
+  function data = 'modules/support/queries/contacts/page_data', contact_id: contact.id, organization_id: null, member: actor.member
+  function tickets = 'modules/support/mcp/helpers/present_tickets', tickets: data.tickets, lookup: data.lookup
+
+  assign customer = { "name": "" }
+  assign customer['name'] = contact.name | default: ''
+  assign customer['emails'] = contact.emails | default: []
+  assign customer['organization'] = data.organization.name | default: ''
+  assign customer['blocked'] = contact.blocked | default: false
+  assign customer['bounced'] = contact.bounced | default: false
+
+  assign result['found'] = true
+  assign result['customer'] = customer
+  assign result['ticket_count'] = tickets | size
+  assign result['tickets'] = tickets
+  assign out = { "ok": true, "result": result }
+  return out
+%}

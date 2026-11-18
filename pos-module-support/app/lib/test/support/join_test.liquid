@@ -1,0 +1,65 @@
+{% doc %}
+  "Request to join" (commands/auth/join): which field a refusal lands on.
+
+  A one-word name used to reach modules/user/commands/user/create, which
+  requires a last name, and every failure there was reported as an invalid
+  email address — so people retyped a correct address while the real cause
+  stayed invisible.
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign suffix = 8 | random_string | downcase
+  assign password = 'password-12345678'
+
+  # a one-word name is refused on the name field, not the email field
+  assign email = 'join-oneword-' | append: suffix | append: '@example.com'
+  function result = 'modules/support/commands/auth/join', name: 'Filip', email: email, password: password, password_confirmation: password, hcaptcha_params: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.valid, expected: false, field_name: 'a one-word name is refused'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.errors.name, expected: 'modules/support/join.errors.full_name', field_name: 'a one-word name is reported on the name field'
+  assign blamed_email = result.errors.email | default: 'none'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: blamed_email, expected: 'none', field_name: 'a one-word name does not blame the email address'
+  function existing = 'modules/user/queries/user/find', email: email, id: null, with_token: false, expires_in: null
+  assign created = existing.id | default: 'none'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: created, expected: 'none', field_name: 'a refused form creates no account'
+
+  # a blank name still reports the plain "enter your name"
+  function result = 'modules/support/commands/auth/join', name: '   ', email: email, password: password, password_confirmation: password, hcaptcha_params: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.errors.name, expected: 'modules/support/join.errors.name', field_name: 'a blank name is reported as a missing name'
+
+  # a refusal that only modules/user can see still lands on the right field:
+  # a first name over 40 characters passes the check above and is refused by
+  # validations/profile_names, which this form reports on the name field
+  assign long_first = 'Bartholomewbartholomewbartholomewbartholomew Klosowski'
+  assign long_email = 'join-long-' | append: suffix | append: '@example.com'
+  function result = 'modules/support/commands/auth/join', name: long_first, email: long_email, password: password, password_confirmation: password, hcaptcha_params: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.valid, expected: false, field_name: 'an over-long first name is refused'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.errors.name, expected: 'modules/support/join.errors.full_name', field_name: 'a refusal from the user module lands on the name field'
+  assign blamed_email = result.errors.email | default: 'none'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: blamed_email, expected: 'none', field_name: 'a name refusal does not blame the email address'
+
+  # an address with no dotted domain is still reported on the email field
+  function result = 'modules/support/commands/auth/join', name: 'Filip Klosowski', email: 'filip@localhost', password: password, password_confirmation: password, hcaptcha_params: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.errors.email, expected: 'modules/support/team.errors.email', field_name: 'a malformed address is reported on the email field'
+
+  # a short domain is accepted: it was reported as invalid only because the
+  # name in that attempt had one word
+  assign short_email = 'join-short-' | append: suffix | append: '@ex.com'
+  function result = 'modules/support/commands/auth/join', name: 'Filip Klosowski', email: short_email, password: password, password_confirmation: password, hcaptcha_params: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.valid, expected: true, field_name: 'a two-letter domain is accepted'
+  function made = 'modules/user/queries/user/find', email: short_email, id: null, with_token: false, expires_in: null
+  assign made_id = made.id | default: 'none'
+  assign was_made = 'no'
+  if made_id != 'none'
+    assign was_made = 'yes'
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: was_made, expected: 'yes', field_name: 'the accepted form created the account'
+
+  # cleanup: the profile too, because deleting the user leaves it behind
+  if made_id != 'none'
+    function made_profile = 'modules/user/queries/profiles/find', user_id: made_id, id: null, uuid: null, first_name: null, last_name: null
+    graphql _ = 'modules/user/user/delete', id: made_id
+    if made_profile.id != blank
+      graphql _ = 'support_test_helpers/delete_record', id: made_profile.id, table: 'modules/user/profile'
+    endif
+  endif
+%}

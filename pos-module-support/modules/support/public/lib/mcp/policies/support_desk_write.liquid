@@ -1,0 +1,31 @@
+{% doc %}
+  Authorization policy for the MCP tools that propose a change
+  (pos-module-mcp spec 12.2). The caller must be an active team member whose
+  desk role carries support.tickets.reply — the same permission every desk
+  page that writes to a ticket declares, so an assistant can never propose
+  something its person could not do in the desk.
+
+  This decides who may propose. Whether the change may touch the particular
+  ticket named in the arguments is decided in the handler, because it depends
+  on the arguments and is re-checked when an operator approves, which can be
+  days later.
+
+  The engine also passes agent, arguments, tool and delegation_mode; this
+  policy answers from the principal alone, so the app shim forwards only that.
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  assign denied = { "allow": false, "reason": "not_a_team_member" }
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    return denied
+  endif
+  assign entity = { "member": actor.member }
+  function allowed = 'modules/support/can/desk', requester: actor.profile, entity: entity, do: 'support.tickets.reply'
+  unless allowed
+    assign denied['reason'] = 'desk_role_cannot_write'
+    return denied
+  endunless
+  assign granted = { "allow": true, "reason": "desk_member_can_write" }
+  return granted
+%}

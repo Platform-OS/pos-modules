@@ -1,0 +1,26 @@
+---
+slug: support-desk/approvals
+layout: modules/support/support
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  function available = 'modules/support/queries/mcp/available'
+  unless available
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  # the list itself decides what this member may act on: a manager or admin
+  # sees their scope, an agent only proposals about tickets assigned to them
+  assign member = context.exports.support.support_member
+  function approvals = 'modules/support/queries/mcp/approvals', member: member
+  assign title = 'modules/support/approvals.title' | t
+  export title, namespace: 'support_page'
+  render 'modules/support/approvals/index', approvals: approvals
+%}

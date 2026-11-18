@@ -1,0 +1,20 @@
+{% doc %}
+  Tool manifest — support_saved_replies.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_saved_replies",
+    "version": "1.0.0",
+    "title": "List saved replies",
+    "description": "Return the team's saved replies as plain text, so a draft uses the wording the team already agreed on instead of wording you composed. Read-only. Returns the replies shared across the desk plus those belonging to departments the connected team member may read.",
+    "input_schema": {"type":"object","additionalProperties":false,"properties":{"query":{"type":"string","minLength":1,"maxLength":60,"description":"keyword matched against the reply title"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["count","replies"],"properties":{"count":{"type":"integer"},"replies":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"title":{"type":"string"},"department":{"type":"string","description":"empty when the reply is shared across every department"},"body":{"type":"string"}}}}}},
+    "annotations": {"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": false,
+    "authorization_policy": "support_desk_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "modules/support/mcp/tools/support_saved_replies/call"
+  }
+  return m
+%}

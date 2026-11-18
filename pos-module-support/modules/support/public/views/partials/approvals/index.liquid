@@ -1,0 +1,52 @@
+{% doc %}
+  Approvals: what AI assistants have proposed and are waiting for a person to
+  decide.
+
+  The whole point of this screen is that a person reads the exact wording
+  before it happens, so every argument the assistant supplied is shown in full
+  and never summarised or truncated. Assistant-written text is printed with
+  {{ }}, which escapes it: it is shown to the reader, never run.
+  @param {object[]} approvals - [{ handle, tool_name, tool_title, created_at, expires_at, requester, agent, ticket, arguments }]
+{% enddoc %}
+<div class="pos-support-steps">
+  <h1 class="pos-heading-2">{{ 'modules/support/approvals.title' | t }} <span class="pos-supplementary">{{ approvals.size }}</span></h1>
+  <p class="pos-supplementary">{{ 'modules/support/approvals.intro' | t }}</p>
+
+  {% if approvals == empty %}
+    {% assign none_title = 'modules/support/approvals.none' | t %}
+    {% assign none_text = 'modules/support/approvals.none_help' | t %}
+    {% render 'modules/support/empty', icon: 'circle-check', title: none_title, text: none_text, action_url: null, action_label: null %}
+  {% endif %}
+
+  {% for approval in approvals %}
+    <section class="pos-card pos-support-step">
+      <h2 class="pos-heading-3">{{ approval.tool_title }}</h2>
+      <p class="pos-supplementary">
+        {{ 'modules/support/approvals.proposed_by' | t: name: approval.requester, assistant: approval.agent }}
+        {% render 'modules/support/time', time: approval.created_at, style: 'relative' %}
+      </p>
+
+      {% if approval.ticket %}
+        <p>
+          <a href="/support-desk/tickets/{{ approval.ticket.id }}">#{{ approval.ticket.number }} {{ approval.ticket.subject }}</a>
+        </p>
+      {% endif %}
+
+      <dl class="pos-support-approval-args">
+        {% for pair in approval.arguments %}
+          {% unless pair[0] == 'number' %}
+            <dt>{{ pair[0] }}</dt>
+            <dd><pre class="pos-support-approval-value">{{ pair[1] }}</pre></dd>
+          {% endunless %}
+        {% endfor %}
+      </dl>
+
+      <form action="/support-desk/approvals/decide" method="post" class="pos-support-actions">
+        <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+        <input type="hidden" name="handle" value="{{ approval.handle }}">
+        <button type="submit" name="decision" value="approve" class="pos-button pos-button-primary" data-support-confirm="{{ 'modules/support/approvals.approve_confirm' | t }}">{{ 'modules/support/approvals.approve' | t }}</button>
+        <button type="submit" name="decision" value="reject" class="pos-button">{{ 'modules/support/approvals.reject' | t }}</button>
+      </form>
+    </section>
+  {% endfor %}
+</div>

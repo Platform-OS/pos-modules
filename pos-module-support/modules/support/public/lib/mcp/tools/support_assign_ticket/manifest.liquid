@@ -1,0 +1,24 @@
+{% doc %}
+  Tool manifest — support_assign_ticket.
+
+  The assignee is given as an email address rather than a profile id: an
+  assistant has no way to learn ids, and the desk refuses an assignee who is
+  not an active member serving the ticket's department anyway.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_assign_ticket",
+    "version": "1.0.0",
+    "title": "Assign a ticket",
+    "description": "Propose giving a ticket to a team member, or taking it yourself, or leaving it unassigned. Pass the member's email address, or \"me\" for the person who connected you, or \"none\" to unassign. The desk refuses anyone who is not an active member of the ticket's department. Nothing changes when you call this: it waits for a person to approve it, and you are given a handle to check with mcp_approval_status.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["number","assignee"],"properties":{"number":{"type":"integer","minimum":1,"description":"the ticket number"},"assignee":{"type":"string","minLength":2,"maxLength":160,"description":"the team member's email address, or \"me\", or \"none\" to leave it unassigned"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["done","summary"],"properties":{"done":{"type":"boolean"},"summary":{"type":"string"}}},
+    "annotations": {"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": true,
+    "authorization_policy": "support_desk_write",
+    "requires_approval": true,
+    "idempotent": false,
+    "handler": "modules/support/mcp/tools/support_assign_ticket/call"
+  }
+  return m
+%}

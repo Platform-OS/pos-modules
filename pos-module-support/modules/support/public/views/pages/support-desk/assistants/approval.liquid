@@ -1,0 +1,42 @@
+---
+slug: support-desk/assistants/approval
+method: post
+layout: ''
+metadata:
+  permission: support.settings.manage
+---
+{% liquid
+  # A desk-wide switch, so it takes the settings permission: an agent manages
+  # their own assistants, an admin decides whether what they propose waits for
+  # a person.
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  function available = 'modules/support/queries/mcp/available'
+  unless available
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  # a checkbox posts nothing when unticked, so its absence is the "off" answer
+  assign require_approval = false
+  if context.params.require_approval == 'true'
+    assign require_approval = true
+  endif
+  function _ = 'modules/support/commands/settings/set', key: 'mcp_require_approval', value: require_approval
+
+  if require_approval
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_on', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_off', error: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/assistants'
+%}

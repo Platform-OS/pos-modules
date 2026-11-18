@@ -1,0 +1,37 @@
+{% doc %}
+  Authorization policy for the read-only MCP tools (pos-module-mcp spec 12.2).
+  The engine has already proved the bearer token belongs to a real platformOS
+  user; this is where the desk decides whether that user works here and whether
+  their desk role may read tickets at all.
+
+  modules/support/can/desk is called directly rather than through
+  modules/user/helpers/can_do: can_do delegates to exactly this callback when
+  one is given, and its own path first requires a roles array that an MCP
+  identity does not carry.
+
+  This decides who may call the tool. Which tickets they may then read is
+  decided per call inside the handler, because that depends on the arguments.
+  The engine also passes agent, arguments, tool and delegation_mode. This
+  policy answers from the principal alone, so the app shim forwards only that:
+  platformos-check reports a documented parameter a file never reads, and a
+  policy that needs more should say so by taking it.
+
+  Which tools an assistant may use is the engine's business, not this
+  policy's: it narrows the served set per agent itself.
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  assign denied = { "allow": false, "reason": "not_a_team_member" }
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    return denied
+  endif
+  assign entity = { "member": actor.member }
+  function allowed = 'modules/support/can/desk', requester: actor.profile, entity: entity, do: 'support.tickets.read'
+  unless allowed
+    assign denied['reason'] = 'desk_role_cannot_read'
+    return denied
+  endunless
+  assign granted = { "allow": true, "reason": "desk_member" }
+  return granted
+%}

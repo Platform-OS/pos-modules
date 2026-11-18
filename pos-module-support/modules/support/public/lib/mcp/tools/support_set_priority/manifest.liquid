@@ -1,0 +1,20 @@
+{% doc %}
+  Tool manifest — support_set_priority.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_set_priority",
+    "version": "1.0.0",
+    "title": "Set a ticket's priority",
+    "description": "Propose a new priority for a ticket, p0 being the most urgent. Changing priority moves the SLA deadlines. Nothing changes when you call this: it waits for a person to approve it, and you are given a handle to check with mcp_approval_status.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["number","priority"],"properties":{"number":{"type":"integer","minimum":1,"description":"the ticket number"},"priority":{"type":"string","enum":["p0","p1","p2","p3"],"description":"p0 is the most urgent, p3 the least"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["done","summary"],"properties":{"done":{"type":"boolean"},"summary":{"type":"string"}}},
+    "annotations": {"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": true,
+    "authorization_policy": "support_desk_write",
+    "requires_approval": true,
+    "idempotent": false,
+    "handler": "modules/support/mcp/tools/support_set_priority/call"
+  }
+  return m
+%}

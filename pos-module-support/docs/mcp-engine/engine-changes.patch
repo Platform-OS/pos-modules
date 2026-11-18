@@ -1,0 +1,726 @@
+diff -ruN a/public/graphql/agents/setting_create.graphql b/public/graphql/agents/setting_create.graphql
+--- a/public/graphql/agents/setting_create.graphql	1970-01-01 01:00:00.000000000 +0100
++++ b/public/graphql/agents/setting_create.graphql	2026-11-18 20:04:39.355962451 +0100
+@@ -0,0 +1,13 @@
++mutation setting_create($user_id: String!, $client_id: String!, $disabled_tools: [String!]!) {
++  record: record_create(record: {
++    table: "modules/mcp/mcp_agent_setting"
++    properties: [
++      { name: "user_id", value: $user_id }
++      { name: "client_id", value: $client_id }
++      { name: "disabled_tools", value_array: $disabled_tools }
++    ]
++  }) {
++    id
++    disabled_tools: property_array(name: "disabled_tools")
++  }
++}
+diff -ruN a/public/graphql/agents/settings_for_user.graphql b/public/graphql/agents/settings_for_user.graphql
+--- a/public/graphql/agents/settings_for_user.graphql	1970-01-01 01:00:00.000000000 +0100
++++ b/public/graphql/agents/settings_for_user.graphql	2026-11-18 20:04:34.713982759 +0100
+@@ -0,0 +1,24 @@
++query settings_for_user($user_id: String!, $client_id: String) {
++  # Every agent setting a person holds, or just one agent's when client_id is
++  # given. Scoped by user_id in the filter, so a caller can never read another
++  # person's agent settings even by guessing a client_id.
++  records(
++    per_page: 200
++    filter: {
++      table: { value: "modules/mcp/mcp_agent_setting" }
++      properties: [
++        { name: "user_id", value: $user_id }
++        { name: "client_id", value: $client_id }
++      ]
++    }
++    sort: [{ properties: { name: "client_id", order: ASC } }]
++  ) {
++    total_entries
++    results {
++      id
++      user_id: property(name: "user_id")
++      client_id: property(name: "client_id")
++      disabled_tools: property_array(name: "disabled_tools")
++    }
++  }
++}
+diff -ruN a/public/graphql/agents/setting_update.graphql b/public/graphql/agents/setting_update.graphql
+--- a/public/graphql/agents/setting_update.graphql	1970-01-01 01:00:00.000000000 +0100
++++ b/public/graphql/agents/setting_update.graphql	2026-11-18 20:04:48.268923645 +0100
+@@ -0,0 +1,12 @@
++mutation setting_update($id: ID!, $disabled_tools: [String!]!) {
++  # `table` is given because record_update is keyed by id alone and platformOS
++  # does not refuse an id belonging to another table. Pass only an id read from
++  # modules/mcp/mcp_agent_setting (agents/settings_for_user), never a request param.
++  record: record_update(id: $id, record: {
++    table: "modules/mcp/mcp_agent_setting"
++    properties: [{ name: "disabled_tools", value_array: $disabled_tools }]
++  }) {
++    id
++    disabled_tools: property_array(name: "disabled_tools")
++  }
++}
+diff -ruN a/public/graphql/agents/tokens_for_user.graphql b/public/graphql/agents/tokens_for_user.graphql
+--- a/public/graphql/agents/tokens_for_user.graphql	1970-01-01 01:00:00.000000000 +0100
++++ b/public/graphql/agents/tokens_for_user.graphql	2026-11-18 20:04:56.460888195 +0100
+@@ -0,0 +1,28 @@
++query tokens_for_user($user_id: String!) {
++  # A person's tokens, with the fields needed to group them into agents and to
++  # tell a usable token from a dead one. tokens/for_user is the operator
++  # console's narrower selection; this one adds client_id, last_used_at,
++  # allowed_tools and the refresh expiry.
++  records(
++    per_page: 200
++    filter: {
++      table: { value: "modules/mcp/mcp_token" }
++      properties: [{ name: "user_id", value: $user_id }]
++    }
++    sort: [{ id: { order: DESC } }]
++  ) {
++    total_entries
++    results {
++      id
++      created_at
++      user_id: property(name: "user_id")
++      label: property(name: "label")
++      status: property(name: "status")
++      kind: property(name: "kind")
++      client_id: property(name: "client_id")
++      last_used_at: property(name: "last_used_at")
++      allowed_tools: property_array(name: "allowed_tools")
++      refresh_expires_at: property_int(name: "refresh_expires_at")
++    }
++  }
++}
+diff -ruN a/public/graphql/tokens/find_by_id.graphql b/public/graphql/tokens/find_by_id.graphql
+--- a/public/graphql/tokens/find_by_id.graphql	2026-11-17 16:49:04.000000000 +0100
++++ b/public/graphql/tokens/find_by_id.graphql	2026-11-18 20:11:36.109352950 +0100
+@@ -10,6 +10,11 @@
+       id
+       user_id: property(name: "user_id")
+       status: property(name: "status")
++      # label is half of the agent key for a manual token
++      # (helpers/identity/agent_key). Without it the key falls back to the
++      # person, matches no stored agent setting, and the per-agent tool
++      # switches silently stop being enforced wherever this query feeds it.
++      label: property(name: "label")
+       kind: property(name: "kind")
+       resource: property(name: "resource")
+       client_id: property(name: "client_id")
+diff -ruN a/public/lib/commands/agents/revoke.liquid b/public/lib/commands/agents/revoke.liquid
+--- a/public/lib/commands/agents/revoke.liquid	1970-01-01 01:00:00.000000000 +0100
++++ b/public/lib/commands/agents/revoke.liquid	2026-11-18 20:06:35.313475509 +0100
+@@ -0,0 +1,51 @@
++{%- comment -%}
++  Disconnect one of a person's agents (TASK-57): revoke every active token that
++  makes it up, so the agent stops on its next request.
++
++  Only the person's OWN tokens are read, and the agent key is recomputed from
++  each token here rather than taken from the caller, so a caller can never
++  revoke another person's token by passing its client_id.
++
++  The agent's tool switches are deliberately KEPT. Someone who restricted an
++  assistant, disconnected it, then connected it again under the same name gets
++  the restrictions back rather than silently getting full access; the panel
++  shows them, so the surprise is visible and one click from being undone.
++  Silently widening access is the worse failure.
++
++  @param {string} actor_user_id - the person whose agent this is
++  @param {string} client_id     - the agent key (helpers/identity/agent_key)
++  @return {object} { valid, revoked } or { valid: false, error: 'not_found' }
++{%- endcomment -%}
++{% liquid
++  assign uid = actor_user_id | append: ''
++  assign key = client_id | append: ''
++  assign failure = { "valid": false, "error": "not_found" }
++
++  if uid == blank or key == blank
++    return failure
++  endif
++
++  graphql found = 'modules/mcp/agents/tokens_for_user', user_id: uid
++  assign doomed = []
++  for token in found.records.results
++    unless token.status == 'active'
++      continue
++    endunless
++    function token_key = 'modules/mcp/helpers/identity/agent_key', token: token
++    if token_key == key
++      assign doomed = doomed | array_add: token.id
++    endif
++  endfor
++
++  if doomed == empty
++    return failure
++  endif
++
++  for token_id in doomed
++    graphql _ = 'modules/mcp/tokens/revoke', id: token_id
++  endfor
++
++  assign result = { "valid": true }
++  assign result['revoked'] = doomed | size
++  return result
++%}
+diff -ruN a/public/lib/commands/agents/set_tools.liquid b/public/lib/commands/agents/set_tools.liquid
+--- a/public/lib/commands/agents/set_tools.liquid	1970-01-01 01:00:00.000000000 +0100
++++ b/public/lib/commands/agents/set_tools.liquid	2026-11-18 20:06:26.053513055 +0100
+@@ -0,0 +1,85 @@
++{%- comment -%}
++  Set which tools one of a person's agents may use (TASK-57).
++
++  Takes the tools that should be ON, because that is what a panel's checkboxes
++  give, and stores the complement against the agent. Storing the complement is
++  what makes a tool added to the registry later available rather than silently
++  missing from every existing agent.
++
++  SCOPE: the agent must be one of this person's (queries/agents/for_user), so a
++  caller cannot reach another person's agent by passing its client_id. Every
++  tool name must be one the registry serves, so a typo cannot quietly switch
++  nothing off and leave the person believing it did.
++
++  The per-request memo in queries/agents/tool_enabled is cleared, so a request
++  that changes a switch sees its own change.
++
++  @param {string} actor_user_id - the person whose agent this is
++  @param {string} client_id     - the agent key (helpers/identity/agent_key)
++  @param {array}  enabled_tools - the tools the agent may use; empty switches every tool off
++  @return {object} { valid, disabled_tools } or { valid: false, error }
++{%- endcomment -%}
++{% liquid
++  assign uid = actor_user_id | append: ''
++  assign key = client_id | append: ''
++  assign failure = { "valid": false }
++
++  if uid == blank or key == blank
++    assign failure['error'] = 'not_found'
++    return failure
++  endif
++
++  function agents = 'modules/mcp/queries/agents/for_user', user_id: uid
++  assign owned = agents | map: 'client_id'
++  unless owned contains key
++    assign failure['error'] = 'not_found'
++    return failure
++  endunless
++
++  # The engine's own built-ins are not switchable: mcp_approval_status is how an
++  # agent learns what happened to something it proposed, and a panel that could
++  # switch it off would leave an agent unable to poll its own approvals.
++  function reg = 'modules/mcp/queries/registry/load'
++  assign served = []
++  for manifest in reg.tools
++    unless manifest.builtin == true
++      assign served = served | array_add: manifest.name
++    endunless
++  endfor
++  assign chosen = []
++  for name in enabled_tools
++    assign wanted = name | append: ''
++    unless served contains wanted
++      assign failure['error'] = 'unknown_tool'
++      assign failure['tool'] = wanted
++      return failure
++    endunless
++    unless chosen contains wanted
++      assign chosen = chosen | array_add: wanted
++    endunless
++  endfor
++
++  assign disabled = []
++  for name in served
++    unless chosen contains name
++      assign disabled = disabled | array_add: name
++    endunless
++  endfor
++
++  graphql existing = 'modules/mcp/agents/settings_for_user', user_id: uid, client_id: key
++  assign row = existing.records.results.first
++  if row == blank
++    graphql _ = 'modules/mcp/agents/setting_create', user_id: uid, client_id: key, disabled_tools: disabled
++  else
++    graphql _ = 'modules/mcp/agents/setting_update', id: row.id, disabled_tools: disabled
++  endif
++
++  # export keys on the VARIABLE NAME, so clearing the memo means exporting an
++  # empty hash under the same name tool_enabled reads: by_agent.
++  assign by_agent = {}
++  export by_agent, namespace: 'mcp_agent_settings'
++
++  assign result = { "valid": true }
++  assign result['disabled_tools'] = disabled
++  return result
++%}
+diff -ruN a/public/lib/commands/execute/invoke.liquid b/public/lib/commands/execute/invoke.liquid
+--- a/public/lib/commands/execute/invoke.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/commands/execute/invoke.liquid	2026-11-18 20:37:38.323032795 +0100
+@@ -68,7 +68,7 @@
+   }
+ 
+   # Step 4 — resolve the tool (registered, valid manifest, allowed_tools narrowing).
+-  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: agent.allowed_tools
++  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: agent.allowed_tools, user_id: principal.user_id, client_id: agent.client_id
+   unless tool == blank
+     function model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: tool
+     unless model_visible
+@@ -123,7 +123,11 @@
+   assign le['authz_decision'] = 'allow'
+ 
+   # Step 7a — a requires_approval tool never runs inline, and has no in-process queue.
+-  if tool.requires_approval
++  # With the gate turned off (queries/approval/enforced) there is nothing to wait
++  # for, so the tool runs here like any other mutating tool. Only an explicit
++  # false turns it off.
++  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg
++  if tool.requires_approval and gate_enforced
+     assign le['authz_reason'] = 'approval_required_in_process'
+     assign le['execution_outcome'] = 'denied'
+     assign le['error_code'] = -32001
+diff -ruN a/public/lib/commands/identity/resolve_principal.liquid b/public/lib/commands/identity/resolve_principal.liquid
+--- a/public/lib/commands/identity/resolve_principal.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/commands/identity/resolve_principal.liquid	2026-11-18 20:07:29.778258861 +0100
+@@ -120,8 +120,13 @@
+ 
+   assign agent = { "id": agent_id }
+   # OAuth: the real client_id (CIMD URL or DCR id) — a stable agent identity for the
+-  # ledger, independent of the human-chosen label.
+-  assign agent['client_id'] = token.client_id | default: agent_id
++  # ledger, independent of the human-chosen label. Derived by
++  # helpers/identity/agent_key, which is the single definition: a person's
++  # per-agent tool switches are stored against this key and checked against it on
++  # every call, so deriving it in two places could let a switched-off tool quietly
++  # start working again.
++  function agent_client_id = 'modules/mcp/helpers/identity/agent_key', token: token
++  assign agent['client_id'] = agent_client_id
+   assign agent['token_id'] = token.id | append: ''
+   assign agent['registered'] = true
+   assign agent['allowed_tools'] = token.allowed_tools
+diff -ruN a/public/lib/commands/rpc/tools_call.liquid b/public/lib/commands/rpc/tools_call.liquid
+--- a/public/lib/commands/rpc/tools_call.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/commands/rpc/tools_call.liquid	2026-11-18 20:37:33.182010448 +0100
+@@ -126,7 +126,7 @@
+ 
+   # Step 4 — resolve the tool from the registry (explicit registration + valid
+   # manifest + per-token allowed_tools narrowing). Unregistered → unknown tool.
+-  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: auth.agent.allowed_tools
++  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: auth.agent.allowed_tools, user_id: auth.principal.user_id, client_id: auth.agent.client_id
+   function apps = 'modules/mcp/helpers/protocol/apps_client', proto: proto, identity: auth
+   if tool != blank and apps != true
+     function tool_model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: tool
+@@ -221,7 +221,13 @@
+   # outcome. An operator later approves in the console; execution happens then, as
+   # THIS principal. Idempotency does not apply (there is no result yet — the handle
+   # is the dedup).
+-  if tool.requires_approval
++  #
++  # queries/approval/enforced resolves the switch: the app's approval partial
++  # first, then config.approval_enforced. Only an explicit false turns the gate
++  # off; the tool then falls through to Step 8 and runs like any other mutating
++  # tool. Read per request, so turning the gate back on takes effect at once.
++  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg
++  if tool.requires_approval and gate_enforced
+     # Step 7a-guard — approval-queue flood control (§9.6, §12.4). Before recording a
+     # new pending intent, bound how many NON-EXPIRED proposals this principal already
+     # holds and reject exact duplicates (same tool AND same input_sha256 — full
+diff -ruN a/public/lib/commands/rpc/tools_list.liquid b/public/lib/commands/rpc/tools_list.liquid
+--- a/public/lib/commands/rpc/tools_list.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/commands/rpc/tools_list.liquid	2026-11-18 20:07:53.833165340 +0100
+@@ -73,6 +73,15 @@
+     assign empty_args = {}
+     assign dm = delegation_mode | default: 'direct'
+     for m in all
++      # the person's own per-agent switches (queries/agents/tool_enabled). Applied
++      # in this scope only: an 'open' list is sent with a `public` cache hint
++      # ("identical for everyone", see rpc/route), so narrowing it per caller would
++      # make that hint a lie and let one agent's list be cached and served to
++      # another. Execution is refused either way, in registry/resolve_tool.
++      function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: principal.user_id, client_id: agent.client_id, tool_name: m.name
++      unless switched_on
++        continue
++      endunless
+       function az = 'modules/mcp/commands/authorize/evaluate', policy: m.authorization_policy, principal: principal, agent: agent, arguments: empty_args, tool: m, delegation_mode: dm
+       if az.allow == true
+         assign visible = visible | array_add: m
+diff -ruN a/public/lib/helpers/config.liquid b/public/lib/helpers/config.liquid
+--- a/public/lib/helpers/config.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/helpers/config.liquid	2026-11-18 20:37:27.297984573 +0100
+@@ -90,6 +90,30 @@
+   # exchange data only: the engine renders and escapes the page. Absent = no fields.
+   assign c['oauth_consent_partial'] = 'mcp/oauth/consent'
+   assign c['oauth_approved_partial'] = 'mcp/oauth/approved'
++  # Human-in-the-loop gate, instance-wide (spec §9.6). ON by default: a tool
++  # declaring `requires_approval` never runs inline, it records an intent and
++  # waits for an operator. Set MCP_CONFIG {"approval_enforced": false} and those
++  # tools execute immediately instead, like any other mutating tool.
++  #
++  # The switch is read per request, here, and NOT folded into a manifest or the
++  # registry cache: the built registry is cached for up to 5 minutes, so a
++  # manifest that decided this for itself would keep executing ungated for
++  # minutes after an operator turned the gate back on. Evaluated at the gate
++  # (commands/rpc/tools_call, commands/execute/invoke) it takes effect at once.
++  #
++  # A tool's declared `requires_approval` is unchanged either way, so tools/list
++  # and the manifest stay the truth about what the tool is, and turning the
++  # switch back on needs no redeploy. Only `false` disables it; anything else,
++  # including an absent key, leaves the gate on.
++  assign c['approval_enforced'] = true
++  # App-provided answer to the same question, consulted first by
++  # queries/approval/enforced: app/lib/mcp/approval.liquid returning
++  # { enforced: boolean }. An app whose admins turn the gate on and off in its
++  # own screens keeps that switch in its own settings and answers here, instead
++  # of the engine reading an app's table or the app rewriting this constant.
++  # Absent, erroring, or any answer that is not an explicit boolean falls back
++  # to approval_enforced above.
++  assign c['approval_partial'] = 'mcp/approval'
+   # tools/list visibility (spec §14.2). 'open' (default) advertises every registered
+   # tool to any caller — MCP discovery is a public method. 'principal' scopes the
+   # advertised list to the CALLER: a tool appears only if its authorization policy
+diff -ruN a/public/lib/helpers/identity/agent_key.liquid b/public/lib/helpers/identity/agent_key.liquid
+--- a/public/lib/helpers/identity/agent_key.liquid	1970-01-01 01:00:00.000000000 +0100
++++ b/public/lib/helpers/identity/agent_key.liquid	2026-11-18 20:04:22.347037199 +0100
+@@ -0,0 +1,22 @@
++{%- comment -%}
++  The stable identity of the AGENT a token belongs to — the one definition.
++
++  A person's choices about an assistant (which tools it may use) are stored
++  against this key, and the call path checks against it. If the key were derived
++  in two places they could drift, and a switched-off tool would silently work
++  again, so both the panel and `identity/resolve_principal` call this.
++
++  The OAuth `client_id` when the token has one: it survives a refresh, where the
++  token row's digests rotate and a per-token choice would be lost. Otherwise the
++  human label, so two manual keys a person labelled the same way are one
++  assistant. Otherwise the principal itself, for an unlabelled manual token.
++
++  @param {object} token - an mcp_token row (needs client_id, label, user_id)
++  @return {string} the agent key, never blank for a token bound to a user
++{%- endcomment -%}
++{% liquid
++  assign fallback = 'user:' | append: token.user_id
++  assign key = token.label | default: fallback
++  assign key = token.client_id | default: key
++  return key
++%}
+diff -ruN a/public/lib/queries/agents/for_user.liquid b/public/lib/queries/agents/for_user.liquid
+--- a/public/lib/queries/agents/for_user.liquid	1970-01-01 01:00:00.000000000 +0100
++++ b/public/lib/queries/agents/for_user.liquid	2026-11-18 20:05:56.506634330 +0100
+@@ -0,0 +1,92 @@
++{%- comment -%}
++  A person's agents, grouped from their tokens — what an app needs to draw a
++  panel without re-deriving any of it from the token table (TASK-57).
++
++  An agent is one or more tokens sharing an agent key
++  (helpers/identity/agent_key): every OAuth token of one client is the same
++  assistant, and so are two manual keys a person labelled the same way.
++
++  Only USABLE tokens count toward an agent. A revoked or suspended token is not
++  an assistant any more, and an OAuth grant whose refresh token has expired
++  cannot come back, so an agent with none left is not listed at all — the panel
++  shows what is connected now, not a history.
++
++  `status` is 'connected' once one of the agent's tokens has made a request, and
++  'waiting' until then, which is the difference between a key someone pasted
++  into a client and one they only generated.
++
++  @param {string} user_id - the person
++  @return {array} [{ client_id, name, kind, tokens, token_ids, last_used_at,
++                     status, disabled_tools }], newest agent first
++{%- endcomment -%}
++{% liquid
++  assign agents = []
++  if user_id == blank
++    return agents
++  endif
++
++  assign uid = user_id | append: ''
++  assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
++  graphql found = 'modules/mcp/agents/tokens_for_user', user_id: uid
++  graphql settings = 'modules/mcp/agents/settings_for_user', user_id: uid
++  assign disabled_by_agent = {}
++  for row in settings.records.results
++    assign disabled_by_agent[row.client_id] = row.disabled_tools
++  endfor
++
++  assign none = []
++  assign order = []
++  assign by_key = {}
++  for token in found.records.results
++    unless token.status == 'active'
++      continue
++    endunless
++    if token.kind == 'oauth'
++      assign refresh_expires_at = token.refresh_expires_at | plus: 0
++      if refresh_expires_at <= now_s
++        continue
++      endif
++    endif
++
++    function key = 'modules/mcp/helpers/identity/agent_key', token: token
++    assign agent = by_key[key]
++    if agent == blank
++      # built inside the loop: a hash assigned once outside is shared by
++      # reference and every agent would end up the same one
++      assign agent = { "client_id": null, "tokens": 0 }
++      assign agent['client_id'] = key
++      assign agent['name'] = token.label | default: key
++      assign agent['kind'] = 'token'
++      if token.kind == 'oauth'
++        assign agent['kind'] = 'app'
++      endif
++      assign agent['token_ids'] = []
++      assign agent['last_used_at'] = null
++      assign disabled = disabled_by_agent[key]
++      assign agent['disabled_tools'] = disabled | default: none
++      assign order = order | array_add: key
++    endif
++    assign agent['tokens'] = agent.tokens | plus: 1
++    assign agent['token_ids'] = agent.token_ids | array_add: token.id
++    # the newest stamp wins. Compared only when both are present: a comparison
++    # against a missing stamp is not a comparison, it is a silent false
++    if token.last_used_at != blank
++      if agent.last_used_at == blank
++        assign agent['last_used_at'] = token.last_used_at
++      elsif token.last_used_at > agent.last_used_at
++        assign agent['last_used_at'] = token.last_used_at
++      endif
++    endif
++    assign by_key[key] = agent
++  endfor
++
++  for key in order
++    assign agent = by_key[key]
++    assign agent['status'] = 'waiting'
++    if agent.last_used_at != blank
++      assign agent['status'] = 'connected'
++    endif
++    assign agents = agents | array_add: agent
++  endfor
++  return agents
++%}
+diff -ruN a/public/lib/queries/agents/tool_enabled.liquid b/public/lib/queries/agents/tool_enabled.liquid
+--- a/public/lib/queries/agents/tool_enabled.liquid	1970-01-01 01:00:00.000000000 +0100
++++ b/public/lib/queries/agents/tool_enabled.liquid	2026-11-18 20:05:24.123769962 +0100
+@@ -0,0 +1,56 @@
++{%- comment -%}
++  Has the person left this tool switched on for this agent? (TASK-57)
++
++  The decision that makes a per-agent switch real: it is consulted on the
++  execution path, not only where a list is built, so a tool a person switched
++  off cannot be called even by an agent that knows its name.
++
++  NO ROW MEANS EVERY TOOL. The stored value is the set that is switched OFF, so
++  a tool added to the registry after the person last visited their panel is
++  available rather than silently missing (see docs per-agent-tools-design).
++
++  This is on the hot path — once per tools/call, and once per tool in a
++  principal-scoped tools/list — so the person's whole set is read in ONE query
++  and memoised per request in context.exports, the pattern helpers/config and
++  queries/registry/load already use. commands/agents/set_tools clears the memo,
++  so a request that changes a switch sees its own change.
++
++  Blank user or agent key identifies nobody and therefore matches no stored
++  choice; the caller's own access rules still govern the call, which is the real
++  gate. An unknown tool name is not this query's business — the registry
++  decides what exists.
++
++  @param {string} user_id   - the principal's user id
++  @param {string} client_id - the agent key (helpers/identity/agent_key)
++  @param {string} tool_name - the tool being listed or called
++  @return {boolean} false only when the person switched this tool off
++{%- endcomment -%}
++{% liquid
++  if user_id == blank or client_id == blank or tool_name == blank
++    return true
++  endif
++
++  assign memo_key = user_id | append: '|' | append: client_id
++  # platformos-check-disable UnknownProperty
++  assign by_agent = context.exports.mcp_agent_settings.by_agent | default: {}
++  # platformos-check-enable UnknownProperty
++  # The memo holds a hash, not the array itself: "nothing switched off" is an
++  # empty array, which is indistinguishable from a memo miss, and an agent with
++  # no row would be re-queried once per tool.
++  assign entry = by_agent[memo_key]
++
++  if entry == blank
++    graphql res = 'modules/mcp/agents/settings_for_user', user_id: user_id, client_id: client_id
++    assign row = res.records.results.first
++    assign none = []
++    assign entry = { "disabled": null }
++    assign entry['disabled'] = row.disabled_tools | default: none
++    assign by_agent[memo_key] = entry
++    export by_agent, namespace: 'mcp_agent_settings'
++  endif
++
++  if entry.disabled contains tool_name
++    return false
++  endif
++  return true
++%}
+diff -ruN a/public/lib/queries/approval/enforced.liquid b/public/lib/queries/approval/enforced.liquid
+--- a/public/lib/queries/approval/enforced.liquid	1970-01-01 01:00:00.000000000 +0100
++++ b/public/lib/queries/approval/enforced.liquid	2026-11-18 20:37:21.565959057 +0100
+@@ -0,0 +1,47 @@
++{%- comment -%}
++  Is the human-in-the-loop gate enforced for this call? (spec §9.6)
++
++  Two sources, in order:
++
++  1. The app's approval partial (config.approval_partial, default
++     'mcp/approval'), when it exists. An app that lets its own admins turn the
++     gate on and off keeps that switch in its own settings and answers here, so
++     the engine never has to be told to read an app's table.
++  2. config.approval_enforced, the instance-wide default, for an app that
++     provides no partial.
++
++  FAIL-SAFE. Only an explicit `false` from either source turns the gate off. A
++  missing partial, one that errors, and any other answer all leave it ON: the
++  wrong direction to fail here is to execute something nobody agreed to.
++
++  Read per request, never from the registry cache: the built registry is cached
++  for up to five minutes, so a manifest deciding this for itself would keep
++  executing ungated for minutes after an operator turned the gate back on.
++
++  @param {object} cfg - the resolved config (helpers/config)
++  @return {boolean} true when a requires_approval tool must wait for a person
++{%- endcomment -%}
++{% liquid
++  assign partial = cfg.approval_partial | default: 'mcp/approval'
++  assign answer = null
++  try
++    function answer = partial
++  catch e
++    unless e.message contains "can't find partial"
++      log e.message, type: 'mcp.approval_partial_error'
++    endunless
++    assign answer = null
++  endtry
++
++  if answer.enforced == false
++    return false
++  endif
++  if answer.enforced == true
++    return true
++  endif
++
++  if cfg.approval_enforced == false
++    return false
++  endif
++  return true
++%}
+diff -ruN a/public/lib/queries/identity/token_still_authorized.liquid b/public/lib/queries/identity/token_still_authorized.liquid
+--- a/public/lib/queries/identity/token_still_authorized.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/queries/identity/token_still_authorized.liquid	2026-11-18 20:07:14.137320364 +0100
+@@ -39,6 +39,17 @@
+     endunless
+   endunless
+ 
++  # The person's per-agent switches, re-read now rather than carried over from
++  # when the call was made. This path also runs when an operator approves
++  # something an agent proposed, which can be days later: if the person has
++  # switched that tool off for that agent since, approving must not run it.
++  function agent_key = 'modules/mcp/helpers/identity/agent_key', token: token
++  function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: token.user_id, client_id: agent_key, tool_name: tool.name
++  unless switched_on
++    assign out['reason'] = 'tool_switched_off'
++    return out
++  endunless
++
+   if token.kind == 'oauth'
+     assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
+     assign rexp = token.refresh_expires_at | plus: 0
+diff -ruN a/public/lib/queries/registry/for_agent.liquid b/public/lib/queries/registry/for_agent.liquid
+--- a/public/lib/queries/registry/for_agent.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/queries/registry/for_agent.liquid	2026-11-18 20:07:41.673212459 +0100
+@@ -4,7 +4,8 @@
+   valid manifest, the agent's allowed_tools (when set) includes it, and its
+   authorization policy admits the principal and agent with empty arguments — the same
+   rules tools/list uses with tools_list_scope 'principal', plus the allowed_tools
+-  narrowing that commands/execute/invoke applies. A policy that needs arguments to
++  narrowing that commands/execute/invoke applies and the person's own per-agent
++  switches (queries/agents/tool_enabled). A policy that needs arguments to
+   allow hides the tool here (fail-closed); invoke re-authorizes every call with the real
+   arguments regardless. An app-only tool (MCP Apps visibility without "model",
+   helpers/registry/model_visible) is never listed: in-app code offers these tools to a
+@@ -41,6 +42,10 @@
+         continue
+       endunless
+     endif
++    function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: principal.user_id, client_id: agent.client_id, tool_name: m.name
++    unless switched_on
++      continue
++    endunless
+     function az = 'modules/mcp/commands/authorize/evaluate', policy: m.authorization_policy, principal: principal, agent: agent, arguments: empty_args, tool: m, delegation_mode: dm
+     if az.allow == true
+       function t = 'modules/mcp/helpers/registry/present_tool', manifest: m
+diff -ruN a/public/lib/queries/registry/resolve_tool.liquid b/public/lib/queries/registry/resolve_tool.liquid
+--- a/public/lib/queries/registry/resolve_tool.liquid	2026-11-17 16:49:04.000000000 +0100
++++ b/public/lib/queries/registry/resolve_tool.liquid	2026-11-18 20:06:48.114423947 +0100
+@@ -4,12 +4,28 @@
+   an unregistered or excluded tool is simply not found, so the surface can never
+   execute an unvalidated action.
+ 
+-  Optional per-agent narrowing: `allowed_tools`, when non-empty, intersects the
+-  served set (never widens, §6.2). A tool absent from a non-empty allowed_tools is
+-  treated as not found for that agent.
++  Two narrowings, both of which can only take tools away (§6.2):
++
++  - `allowed_tools`, when non-empty, intersects the served set. Per TOKEN.
++  - the person's per-AGENT switches (queries/agents/tool_enabled), when
++    `user_id` and `client_id` are given. Per agent, so it survives the OAuth
++    refresh that replaces a token's digests.
++
++  They accumulate: a tool a token allows but the person switched off for that
++  agent is not resolvable. Neither can widen the other.
++
++  A narrowed-away tool is reported as NOT FOUND, exactly as an unregistered one
++  is, rather than announcing that it exists but is forbidden — least disclosure,
++  and the behaviour `allowed_tools` already had.
++
++  `approval/execute` passes no identity here on purpose: on that path the
++  credential is re-checked by identity/token_still_authorized, which applies
++  both narrowings itself.
+ 
+   @param {string} name          - requested tool name
+   @param {array}  allowed_tools - optional per-token narrowing (nil/empty = all)
++  @param {string} user_id       - optional principal user id, for the per-agent switches
++  @param {string} client_id     - optional agent key (helpers/identity/agent_key)
+   @return {object|null} the manifest, or null if not resolvable
+ {%- endcomment -%}
+ {% liquid
+@@ -18,6 +34,13 @@
+       return null
+     endunless
+   endif
++
++  if user_id != blank and client_id != blank
++    function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: user_id, client_id: client_id, tool_name: name
++    unless switched_on
++      return null
++    endunless
++  endif
+ 
+   function reg = 'modules/mcp/queries/registry/load'
+   assign found = null
+diff -ruN a/public/schema/mcp_agent_setting.yml b/public/schema/mcp_agent_setting.yml
+--- a/public/schema/mcp_agent_setting.yml	1970-01-01 01:00:00.000000000 +0100
++++ b/public/schema/mcp_agent_setting.yml	2026-11-18 20:04:29.235006816 +0100
+@@ -0,0 +1,19 @@
++name: mcp_agent_setting
++# What a person has decided about one of their agents (an assistant), as opposed
++# to one of its tokens. An OAuth client gets a fresh access token on every
++# refresh, so a choice stored on a token row does not survive one; this follows
++# the agent instead (helpers/identity/agent_key).
++#
++# Keyed by user_id AND client_id together, never client_id alone: two people may
++# both label a key "Claude", and one must never configure the other's agent.
++# A row exists only once someone has changed something.
++properties:
++  - name: user_id    # the pOS user whose agent this is
++  - name: client_id  # the agent key (helpers/identity/agent_key)
++  # Tools this agent may NOT use. The exclusion is stored rather than the
++  # permission, so a tool added to the registry later is available until someone
++  # switches it off. Storing the permitted set instead would make every tool
++  # added after the choice silently vanish from existing agents, with nothing in
++  # any log to explain it.
++  - name: disabled_tools
++    type: array

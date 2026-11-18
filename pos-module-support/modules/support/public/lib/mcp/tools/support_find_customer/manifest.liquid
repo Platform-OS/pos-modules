@@ -1,0 +1,24 @@
+{% doc %}
+  Tool manifest — support_find_customer.
+
+  The input is an email address because that is what identifies a customer in
+  the desk, and because a name search would return other people's records to
+  anyone who guessed a common surname.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_find_customer",
+    "version": "1.0.0",
+    "title": "Look up a customer",
+    "description": "Look a customer up by email address and return their contact record, their organization and their recent tickets. Read-only. Only tickets in departments the connected team member may read are returned, so the ticket list can be shorter than the customer's full history. An address with no contact record returns found: false.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["email"],"properties":{"email":{"type":"string","format":"email","minLength":5,"maxLength":160,"description":"the customer's email address"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["found","email"],"properties":{"found":{"type":"boolean"},"email":{"type":"string"},"customer":{"type":"object","additionalProperties":false,"properties":{"name":{"type":"string"},"emails":{"type":"array","items":{"type":"string"}},"organization":{"type":"string"},"blocked":{"type":"boolean","description":"true when mail from this address is refused at the door"},"bounced":{"type":"boolean","description":"true when mail to this address last failed"}}},"ticket_count":{"type":"integer","description":"tickets returned, which is what the member may read, not the customer's total"},"tickets":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"number":{"type":"integer"},"subject":{"type":"string"},"status":{"type":"string"},"status_label":{"type":"string"},"priority":{"type":"string"},"department":{"type":"string"},"department_id":{"type":"string"},"requester":{"type":"string"},"organization":{"type":"string"},"assignee":{"type":"string"},"needs_reply":{"type":"boolean"},"sla_state":{"type":"string"},"sla_due_at":{"type":"string"},"last_activity_at":{"type":"string"},"url":{"type":"string"}}}}}},
+    "annotations": {"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},
+    "mutating": false,
+    "authorization_policy": "support_desk_read",
+    "requires_approval": false,
+    "idempotent": true,
+    "handler": "modules/support/mcp/tools/support_find_customer/call"
+  }
+  return m
+%}

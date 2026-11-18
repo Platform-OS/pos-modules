@@ -1,0 +1,22 @@
+{% doc %}
+  Disconnects one of a person's assistants. It stops on its next request.
+
+  The MCP module scopes the revoke by the person, so passing another person's
+  assistant does nothing and answers not_found.
+  @param {string} user_id - the person whose assistant this is
+  @param {string} client_id - the assistant, as the panel listed it
+  @return {object} { valid, revoked } or { valid: false, error }
+{% enddoc %}
+{% liquid
+  assign payload = { "user_id": null, "client_id": null }
+  assign payload.user_id = user_id
+  assign payload.client_id = client_id
+  function answer = 'modules/support/helpers/mcp/call', action: 'revoke', payload: payload
+  unless answer.valid
+    assign failure = { "valid": false, "error": "modules/support/assistants.errors.not_found" }
+    return failure
+  endunless
+  assign result = { "valid": true }
+  assign result['revoked'] = answer.revoked
+  return result
+%}

@@ -4,3 +4,9 @@ playwright-report/
 tests/e2e/.state.json
 tests/e2e/.ci-inbound-secret
 tests/e2e/.ci-users
+.pos
+
+# written by `pos-cli generate run modules/support/generators/install` when it
+# installs the generator's peer dependency. The root .gitignore re-includes
+# modules/support/, so without this the lockfile would ship inside the module.
+modules/support/package-lock.json

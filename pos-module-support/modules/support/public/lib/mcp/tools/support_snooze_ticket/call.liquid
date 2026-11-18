@@ -1,0 +1,27 @@
+{% doc %}
+  Handler — support_snooze_ticket.
+
+  A time that has passed by the time an operator approves would snooze the
+  ticket into the past, which the sweep would clear on its next run — a change
+  that looks like it worked and does nothing. It is refused instead.
+  @param {object} arguments - Validated { number, until }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function ctx = 'modules/support/mcp/helpers/load_for_write', principal: principal, number: arguments.number
+  unless ctx.ok
+    return ctx.failure
+  endunless
+
+  assign wanted = arguments.until | to_time
+  assign now = 'now' | to_time
+  if wanted <= now
+    function failure = 'modules/support/mcp/helpers/failure', message: 'That time has already passed. Propose a time in the future.'
+    return failure
+  endif
+
+  function changed = 'modules/support/commands/tickets/snooze', ticket: ctx.ticket, until: arguments.until, actor: ctx.actor
+  assign summary = 'Ticket ' | append: ctx.ticket.number | append: ' snoozed until ' | append: arguments.until | append: '.'
+  function out = 'modules/support/mcp/helpers/command_result', result: changed, summary: summary
+  return out
+%}

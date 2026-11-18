@@ -1,0 +1,181 @@
+{% doc %}
+  The MCP write tools' handlers (TASK-51 onward).
+
+  The handlers are called directly, the way pos-module-mcp calls them once an
+  operator has approved: with a principal, long after the proposal. The
+  approval gate itself lives in the engine (commands/rpc/tools_call) and is
+  verified over HTTP, not here — a test must never stand in for the person
+  who approves.
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign suffix = 8 | random_string | downcase
+  function fixture = 'support_test_helpers/ticket_fixture', label: 'mcpw'
+  assign ticket = fixture.ticket
+  assign departments = []
+  assign departments = departments | array_add: fixture.department_id
+
+  assign email = 'mcp-writer-' | append: suffix | append: '@example.com'
+  assign no_roles = []
+  function user = 'modules/user/commands/user/create', first_name: 'Wanda', last_name: 'Writer', email: email, password: 'password-12345678', roles: no_roles, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  assign object = { "role": "agent", "state": "active", "source": "invite", "availability": "away" }
+  assign object.profile_id = profile.id
+  assign object.department_ids = departments
+  function member = 'modules/support/commands/team_members/create', object: object
+  assign principal = { "id": null, "user_id": null }
+  assign principal.id = profile.id
+  assign principal.user_id = user.id
+
+  # --- the policy ------------------------------------------------------
+  function decision = 'modules/support/mcp/policies/support_desk_write', principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision.allow, expected: true, field_name: 'an agent may propose a write'
+
+  assign stranger = { "id": null, "user_id": null }
+  assign stranger.user_id = 'no-such-user-' | append: suffix
+  function decision = 'modules/support/mcp/policies/support_desk_write', principal: stranger
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision.allow, expected: false, field_name: 'a non-member may not propose a write'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision.reason, expected: 'not_a_team_member', field_name: 'the write policy says why'
+
+  # --- add_note --------------------------------------------------------
+  assign arguments = { "number": null, "note": null }
+  assign arguments.number = ticket.number
+  assign arguments.note = 'Checked the last three invoices, all paid.'
+  function added = 'modules/support/mcp/tools/support_add_note/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: added.ok, expected: true, field_name: 'the note is written when the handler runs'
+
+  graphql notes = 'modules/support/messages/search', ticket_id: ticket.id, visibility: 'internal', limit: 5
+  assign note = notes.records.results.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: notes.records.total_entries, expected: 1, field_name: 'exactly one note was written'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: note.visibility, expected: 'internal', field_name: 'the note is internal, never sent to the customer'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: note.author_id, expected: profile.id, field_name: 'the note is written as the member who proposed it, not the approver'
+  assign body_has_text = 'no'
+  if note.body_text contains 'invoices'
+    assign body_has_text = 'yes'
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: body_has_text, expected: 'yes', field_name: 'the note keeps the proposed wording'
+
+  # plain text in, escaped markup out: an agent cannot inject HTML
+  assign arguments = { "number": null, "note": null }
+  assign arguments.number = ticket.number
+  assign arguments.note = 'Careful: <script>alert(1)</script> was in the ticket.'
+  function added = 'modules/support/mcp/tools/support_add_note/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: added.ok, expected: true, field_name: 'a note containing markup is accepted'
+  graphql notes = 'modules/support/messages/search', ticket_id: ticket.id, visibility: 'internal', limit: 5, order: 'DESC'
+  assign note = notes.records.results.first
+  assign live_markup = 'no'
+  if note.body_html contains '<script'
+    assign live_markup = 'yes'
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: live_markup, expected: 'no', field_name: 'markup in a note is escaped, not stored as live HTML'
+
+  # --- refusals the handler makes when it finally runs -----------------
+  assign arguments = { "number": 99999999, "note": "Nothing to see." }
+  function missing = 'modules/support/mcp/tools/support_add_note/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: missing.ok, expected: false, field_name: 'a note on a ticket that does not exist is refused'
+
+  assign arguments = { "number": null, "note": "Out of my departments." }
+  assign arguments.number = ticket.number
+  function refused = 'modules/support/mcp/tools/support_add_note/call', arguments: arguments, principal: stranger
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refused.ok, expected: false, field_name: 'a note from someone who left the team is refused at run time'
+
+  # the department is taken away between the proposal and the approval
+  assign values = { "department_ids": [] }
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+  assign arguments = { "number": null, "note": "Written after losing the department." }
+  assign arguments.number = ticket.number
+  function stale = 'modules/support/mcp/tools/support_add_note/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stale.ok, expected: false, field_name: 'losing the department between proposal and approval refuses the write'
+  graphql after = 'modules/support/messages/search', ticket_id: ticket.id, visibility: 'internal', limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after.records.total_entries, expected: 2, field_name: 'the refused write added nothing'
+
+  # --- set_priority ----------------------------------------------------
+  # the department was taken away above; give it back for the rest
+  assign values = { "department_ids": null }
+  assign values.department_ids = departments
+  function props = 'modules/support/helpers/props', values: values
+  graphql _ = 'modules/support/records/update', id: member.id, properties: props
+  function _ = 'modules/support/commands/team_members/forget'
+
+  assign arguments = { "number": null, "priority": "p0" }
+  assign arguments.number = ticket.number
+  function changed = 'modules/support/mcp/tools/support_set_priority/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: changed.ok, expected: true, field_name: 'priority is changed'
+  function reloaded = 'modules/support/queries/tickets/find', id: ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: reloaded.priority, expected: 'p0', field_name: 'the ticket now holds the proposed priority'
+
+  # --- change_status ---------------------------------------------------
+  assign arguments = { "number": null, "status": "not-a-real-status" }
+  assign arguments.number = ticket.number
+  function refused = 'modules/support/mcp/tools/support_change_status/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refused.ok, expected: false, field_name: 'an unknown status is refused'
+
+  function statuses = 'modules/support/queries/statuses/all'
+  assign target = null
+  for status in statuses.list
+    if status.id != reloaded.status_id
+      assign target = status.key
+      break
+    endif
+  endfor
+  assign arguments = { "number": null, "status": null }
+  assign arguments.number = ticket.number
+  assign arguments.status = target
+  function moved = 'modules/support/mcp/tools/support_change_status/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: moved.ok, expected: true, field_name: 'a known status is accepted'
+
+  # --- snooze ----------------------------------------------------------
+  assign past = 'now' | add_to_time: -2, 'd' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign arguments = { "number": null, "until": null }
+  assign arguments.number = ticket.number
+  assign arguments.until = past
+  function stale_snooze = 'modules/support/mcp/tools/support_snooze_ticket/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stale_snooze.ok, expected: false, field_name: 'a snooze time in the past is refused'
+
+  assign future = 'now' | add_to_time: 3, 'd' | strftime: '%Y-%m-%dT%H:%M:%SZ'
+  assign arguments = { "number": null, "until": null }
+  assign arguments.number = ticket.number
+  assign arguments.until = future
+  function snoozed = 'modules/support/mcp/tools/support_snooze_ticket/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: snoozed.ok, expected: true, field_name: 'a snooze time in the future is accepted'
+
+  # --- assign ----------------------------------------------------------
+  assign arguments = { "number": null, "assignee": "nobody-here@example.com" }
+  assign arguments.number = ticket.number
+  function unknown = 'modules/support/mcp/tools/support_assign_ticket/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: unknown.ok, expected: false, field_name: 'an address with no account is refused'
+
+  assign arguments = { "number": null, "assignee": "me" }
+  assign arguments.number = ticket.number
+  function taken = 'modules/support/mcp/tools/support_assign_ticket/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: taken.ok, expected: true, field_name: 'the member can take the ticket'
+  function reloaded = 'modules/support/queries/tickets/find', id: ticket.id, number: null, member: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: reloaded.assignee_id, expected: profile.id, field_name: 'the ticket is assigned to the member who proposed it'
+
+  # --- reply -----------------------------------------------------------
+  assign arguments = { "number": null, "reply": "Thanks for your patience, we have checked this.", "last_activity_at": "2020-01-01T00:00:00Z" }
+  assign arguments.number = ticket.number
+  function stale_reply = 'modules/support/mcp/tools/support_reply_to_customer/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: stale_reply.ok, expected: false, field_name: 'a reply drafted against an older ticket is refused'
+  graphql public_now = 'modules/support/messages/search', ticket_id: ticket.id, visibility: 'public', limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: public_now.records.total_entries, expected: 0, field_name: 'the refused reply sent nothing'
+
+  assign arguments = { "number": null, "reply": null, "last_activity_at": null }
+  assign arguments.number = ticket.number
+  assign arguments.reply = 'Thanks for your patience, we have checked this.'
+  assign arguments.last_activity_at = reloaded.last_activity_at
+  function replied = 'modules/support/mcp/tools/support_reply_to_customer/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: replied.ok, expected: true, field_name: 'a reply matching the ticket as read is accepted'
+  graphql public_after = 'modules/support/messages/search', ticket_id: ticket.id, visibility: 'public', limit: 5
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: public_after.records.total_entries, expected: 1, field_name: 'the accepted reply was stored for sending'
+  assign reply_row = public_after.records.results.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: reply_row.author_id, expected: profile.id, field_name: 'the reply is sent as the member who proposed it'
+
+  # --- cleanup ---------------------------------------------------------
+  graphql _ = 'support_test_helpers/delete_record', id: member.id, table: 'modules/support/team_member'
+  function _ = 'modules/support/commands/team_members/forget'
+  graphql _ = 'modules/user/user/delete', id: user.id
+  graphql _ = 'support_test_helpers/delete_record', id: profile.id, table: 'modules/user/profile'
+%}

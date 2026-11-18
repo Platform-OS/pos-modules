@@ -1,0 +1,26 @@
+{% doc %}
+  The desk identity behind an MCP call: the connected person's profile and
+  their team membership, or null when they have none.
+
+  MCP never provisions desk access. helpers/resolve_member, which the signed-in
+  desk uses, creates a membership for a host superadmin, a mapped host role or
+  an ADMIN_EMAILS address on first visit. An API token must not do that, so
+  this reads the membership and stops when there is none: an assistant can only
+  act for someone who already works here.
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  if principal.user_id == blank
+    return null
+  endif
+  function profile = 'modules/user/queries/profiles/find', user_id: principal.user_id, id: null, uuid: null, first_name: null, last_name: null
+  if profile.id == blank
+    return null
+  endif
+  function member = 'modules/support/queries/team_members/find', profile_id: profile.id
+  if member == blank or member.state != 'active'
+    return null
+  endif
+  assign actor = { "profile": profile, "member": member }
+  return actor
+%}

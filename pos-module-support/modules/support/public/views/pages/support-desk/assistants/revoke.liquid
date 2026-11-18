@@ -1,0 +1,39 @@
+---
+slug: support-desk/assistants/revoke
+method: post
+layout: ''
+metadata:
+  permission: support.tickets.read
+---
+{% liquid
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode
+  include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode
+
+  unless context.csrf_request_valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  function available = 'modules/support/queries/mcp/available'
+  unless available
+    response_status 404
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  # the person's own user id decides whose assistant this is; the client_id from
+  # the form only names which of THEIR assistants, and the MCP module scopes the
+  # revoke by the person as well
+  assign profile = context.exports.support.current_profile
+  function form = 'modules/support/helpers/text_params', params: context.params, names: 'client_id'
+  function result = 'modules/support/commands/mcp/revoke', user_id: profile.user.id, client_id: form.client_id
+
+  if result.valid
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.revoked', error: null, info: null, force_clear: null
+  else
+    function _ = 'modules/user/helpers/flash', error: result.error, notice: null, info: null, force_clear: null
+  endif
+  redirect_to '/support-desk/assistants'
+%}

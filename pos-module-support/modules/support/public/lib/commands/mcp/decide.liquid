@@ -1,0 +1,44 @@
+{% doc %}
+  Approves or rejects one proposal, as this member.
+
+  Authorization is not re-derived here: the proposal must be in the list this
+  member may act on (queries/mcp/approvals), which is the same rule the page
+  used to show it. One rule, checked again at the moment of the decision, so a
+  stale page or a hand-made POST cannot decide something the member could not
+  see — including a proposal about a ticket in another department.
+
+  Approving executes the action as the member who PROPOSED it, never as the
+  person approving. Both identities are recorded.
+  @param {object} member - The acting team_member
+  @param {string} decided_by - The acting person's user id, for the audit trail
+  @param {string} handle - The proposal
+  @param {string} decision - approve | reject
+  @return {object} { valid, outcome, summary } or { valid: false, error }
+{% enddoc %}
+{% liquid
+  function visible = 'modules/support/queries/mcp/approvals', member: member
+  assign allowed = visible | map: 'handle'
+  unless allowed contains handle
+    assign failure = { "valid": false, "error": "modules/support/approvals.errors.not_yours" }
+    return failure
+  endunless
+
+  assign wanted = 'reject'
+  if decision == 'approve'
+    assign wanted = 'approve'
+  endif
+  assign payload = { "handle": null, "decision": null, "decided_by": null }
+  assign payload.handle = handle
+  assign payload.decision = wanted
+  assign payload.decided_by = decided_by
+  function answer = 'modules/support/helpers/mcp/call', action: 'decide', payload: payload
+  unless answer.valid
+    assign failure = { "valid": false, "error": "modules/support/approvals.errors.gone" }
+    return failure
+  endunless
+
+  assign result = { "valid": true }
+  assign result['outcome'] = answer.outcome
+  assign result['summary'] = answer.summary
+  return result
+%}

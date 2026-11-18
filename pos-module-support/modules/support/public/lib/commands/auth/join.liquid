@@ -5,7 +5,7 @@
   that already has an account gets a password-reset link instead, and the
   page says the same thing in both cases, so it never tells whether an
   account exists. Returns { valid, errors } (errors: field => translation key).
-  @param {string} name - Display name
+  @param {string} name - First and last name, split on the first space
   @param {string} email - Work email
   @param {string} password - 12+ characters
   @param {string} password_confirmation - The same password again
@@ -17,6 +17,14 @@
   assign clean_name = name | strip | truncate: 80, ''
   if clean_name == blank
     assign result.errors.name = 'modules/support/join.errors.name'
+  else
+    # Both names are needed: the name is split on the first space and
+    # modules/user requires first_name and last_name. Say so on the name
+    # field, instead of letting user/create refuse the form below.
+    assign name_words = clean_name | split: ' '
+    if name_words.size < 2
+      assign result.errors.name = 'modules/support/join.errors.full_name'
+    endif
   endif
   assign looks_like_email = address | matches: '\A[^@\s]+@[^@\s]+\.[^@\s]+\z'
   unless looks_like_email
@@ -44,7 +52,21 @@
   assign no_roles = []
   function user = 'modules/user/commands/user/create', first_name: first_name, last_name: last_name, email: address, password: password, roles: no_roles, hook_params: hcaptcha_params
   if user.id == blank
-    assign result.errors.email = 'modules/support/team.errors.email'
+    # Name the field that was refused. Every failure here used to be reported
+    # as an invalid email address, which sent people back to an address that
+    # was correct while the real cause stayed invisible.
+    log user.errors, type: 'modules/support/commands/auth/join'
+    if user.errors.email
+      assign result.errors.email = 'modules/support/team.errors.email'
+    elsif user.errors.password
+      assign result.errors.password = 'modules/support/team.errors.password'
+    elsif user.errors.first_name
+      assign result.errors.name = 'modules/support/join.errors.full_name'
+    elsif user.errors.last_name
+      assign result.errors.name = 'modules/support/join.errors.full_name'
+    else
+      assign result.errors.form = 'modules/support/join.errors.failed'
+    endif
     return result
   endif
   function _ = 'modules/support/commands/auth/send_verification_link', email: address

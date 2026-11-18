@@ -1,0 +1,44 @@
+{% doc %}
+  Turns a desk command's { valid, errors } contract into a handler result
+  pos-module-mcp understands, so every write tool reports a refusal the same
+  way and the agent can correct itself.
+
+  The desk writes errors in two shapes: the build/check commands use
+  modules/core/helpers/register_error, which stores an array of already
+  translated messages per field, while a few commands assign a bare
+  translation key. Both are reduced to one readable sentence per field, and a
+  key is translated rather than handed to the agent as "modules/support/…".
+  @param {object} result - What the command returned
+  @param {string} summary - What to tell the agent when the command succeeded
+{% enddoc %}
+{% liquid
+  if result.valid
+    assign payload = { "done": true }
+    assign payload['summary'] = summary
+    assign out = { "ok": true, "result": payload }
+    return out
+  endif
+
+  assign fields = {}
+  for pair in result.errors
+    assign value = pair[1]
+    assign kind = value | type_of | downcase
+    if kind == 'array'
+      assign text = value | join: '; '
+    else
+      assign text = value | append: ''
+      assign is_key = text | matches: '\Amodules/[a-z_]+/'
+      if is_key
+        assign text = text | t
+      endif
+    endif
+    assign fields[pair[0]] = text
+  endfor
+
+  assign sentences = fields | hash_values | join: ' '
+  assign message = sentences | default: 'The desk refused the change.'
+  assign error = { "message": message }
+  assign error['fields'] = fields
+  assign out = { "ok": false, "error": error }
+  return out
+%}

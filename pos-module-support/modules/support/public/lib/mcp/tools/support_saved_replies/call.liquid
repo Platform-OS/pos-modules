@@ -1,0 +1,58 @@
+{% doc %}
+  Handler — support_saved_replies.
+
+  Saved replies are stored as HTML and are returned as plain text: the agent
+  composes a draft from them, and markup it cannot render would end up quoted
+  back to a person. A reply with no department is shared across the desk and is
+  returned to everyone; one belonging to a department is returned only to a
+  member who may read that department.
+  @param {object} arguments - Validated { query? }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    function out = 'modules/support/mcp/helpers/failure', message: 'You are not an active member of this support desk.'
+    return out
+  endif
+
+  function scope = 'modules/support/queries/tickets/scope', member: actor.member, department_id: null
+  assign wanted = arguments.query | default: '' | strip | downcase
+
+  graphql found = 'modules/support/saved_replies/search', limit: 100
+  graphql departments = 'modules/support/departments/search', limit: 100
+  assign names = {}
+  for department in departments.records.results
+    assign names[department.id] = department.name
+  endfor
+
+  assign replies = []
+  for row in found.records.results
+    if replies.size >= 50
+      break
+    endif
+    if row.department_id != blank and scope != blank
+      unless scope contains row.department_id
+        continue
+      endunless
+    endif
+    if wanted != blank
+      assign title = row.title | default: '' | downcase
+      unless title contains wanted
+        continue
+      endunless
+    endif
+    function body = 'modules/support/helpers/html_to_plain_text', html: row.body_html
+    assign item = { "title": "" }
+    assign item['title'] = row.title | default: ''
+    assign item['department'] = names[row.department_id] | default: ''
+    assign item['body'] = body | default: '' | strip | truncate: 2000
+    assign replies = replies | array_add: item
+  endfor
+
+  assign result = { "count": 0 }
+  assign result['count'] = replies | size
+  assign result['replies'] = replies
+  assign out = { "ok": true, "result": result }
+  return out
+%}

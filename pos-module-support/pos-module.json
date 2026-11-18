@@ -9,7 +9,8 @@
     "push_notifications": "^2.0.2"
   },
   "devDependencies": {
-    "tests": "^1.3.6"
+    "tests": "^1.3.6",
+    "mcp": "^0.2.1"
   },
   "postInstall": {
     "message": "support module installed.\n\nThe desk lives at /support-desk. Name the first support admin, connect your email\nprovider and wire the branding hooks in one interactive step:\n\n  pos-cli generate run modules/support/generators/install\n\nSee the module README for the manual steps:\nhttps://github.com/Platform-OS/pos-modules/blob/master/pos-module-support/README.md"

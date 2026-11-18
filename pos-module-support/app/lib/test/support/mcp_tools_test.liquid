@@ -1,0 +1,188 @@
+{% doc %}
+  The read-only MCP tools (TASK-48): identity resolution, the authorization
+  policy, and each handler's result, including that an agent cannot reach a
+  ticket outside their departments.
+
+  The handlers are called the way pos-module-mcp calls them, with a principal
+  rather than a session, so the test exercises the real identity chain:
+  principal.user_id -> profile -> team_member.
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  assign suffix = 8 | random_string | downcase
+  function fixture = 'support_test_helpers/ticket_fixture', label: 'mcp'
+  assign ticket = fixture.ticket
+  assign departments = []
+  assign departments = departments | array_add: fixture.department_id
+
+  # a real account, made an agent of the fixture department: the MCP identity
+  # chain starts at a user id, so a synthetic profile id would not exercise it
+  assign email = 'mcp-agent-' | append: suffix | append: '@example.com'
+  assign no_roles = []
+  function user = 'modules/user/commands/user/create', first_name: 'Mabel', last_name: 'Agent', email: email, password: 'password-12345678', roles: no_roles, hook_params: null
+  function profile = 'modules/user/queries/profiles/find', user_id: user.id, id: null, uuid: null, first_name: null, last_name: null
+  assign object = { "role": "agent", "state": "active", "source": "invite", "availability": "away" }
+  assign object.profile_id = profile.id
+  assign object.department_ids = departments
+  function member = 'modules/support/commands/team_members/create', object: object
+  assign principal = { "id": null, "user_id": null }
+  assign principal.id = profile.id
+  assign principal.user_id = user.id
+
+  # a second department with its own ticket, which this agent may not read.
+  # Reused across runs, like the fixtures department, so a test run does not
+  # leave another department behind every time
+  graphql existing = 'modules/support/departments/search', inbound_local_part: 'mcpother', limit: 1
+  assign other_department_id = existing.records.results.first.id
+  if other_department_id == blank
+    assign other_values = { "table": "modules/support/department", "properties": { "name": "MCP other", "short_code": "MCO", "inbound_local_part": "mcpother", "is_default": false, "active": false } }
+    assign rows = []
+    assign rows = rows | array_add: other_values
+    graphql created = 'modules/support/records/create_many', records: rows
+    assign other_department_id = created.records.first.id
+  endif
+  assign object = { "subject": "Out of scope", "channel": "email", "actor_type": "customer" }
+  assign object.department_id = other_department_id
+  assign object.requester_id = fixture.contact.id
+  assign object.actor_id = fixture.contact.id
+  function other_ticket = 'modules/support/commands/tickets/create', object: object
+
+  # --- identity --------------------------------------------------------
+  assign anonymous = { "id": null, "user_id": null }
+  function actor = 'modules/support/mcp/helpers/actor', principal: anonymous
+  assign resolved = actor.member.id | default: 'none'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: resolved, expected: 'none', field_name: 'a principal with no user id resolves to no actor'
+
+  assign stranger = { "id": null, "user_id": null }
+  assign stranger.user_id = 'no-such-user-' | append: suffix
+  function actor = 'modules/support/mcp/helpers/actor', principal: stranger
+  assign resolved = actor.member.id | default: 'none'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: resolved, expected: 'none', field_name: 'an unknown user resolves to no actor'
+
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: actor.member.id, expected: member.id, field_name: 'the agent resolves to their membership'
+
+  # --- policy ----------------------------------------------------------
+  function decision = 'modules/support/mcp/policies/support_desk_read', principal: stranger
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision.allow, expected: false, field_name: 'policy refuses someone with no membership'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision.reason, expected: 'not_a_team_member', field_name: 'policy says why'
+
+  function decision = 'modules/support/mcp/policies/support_desk_read', principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: decision.allow, expected: true, field_name: 'policy admits an active agent'
+
+  # --- search_tickets --------------------------------------------------
+  assign arguments = { "query": null, "limit": 20 }
+  assign arguments.query = ticket.number | append: ''
+  function found = 'modules/support/mcp/tools/support_search_tickets/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: found.ok, expected: true, field_name: 'search succeeds'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: found.result.count, expected: 1, field_name: 'searching a ticket number returns exactly that ticket'
+  assign row = found.result.tickets.first
+  assign row_number = row.number | plus: 0
+  assign want_number = ticket.number | plus: 0
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: row_number, expected: want_number, field_name: 'search finds the ticket by its number'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: row.subject, expected: ticket.subject, field_name: 'search returns the ticket subject'
+  assign leaked = row.sla_version | default: 'absent'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: leaked, expected: 'absent', field_name: 'search returns a projection, not the raw record'
+
+  function refused = 'modules/support/mcp/tools/support_search_tickets/call', arguments: arguments, principal: stranger
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: refused.ok, expected: false, field_name: 'search refuses someone with no membership'
+
+  # --- read_ticket -----------------------------------------------------
+  assign arguments = { "number": null }
+  assign arguments.number = ticket.number
+  function read = 'modules/support/mcp/tools/support_read_ticket/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: read.ok, expected: true, field_name: 'read_ticket succeeds in the agent department'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: read.result.ticket.subject, expected: ticket.subject, field_name: 'read_ticket returns the ticket'
+
+  assign arguments = { "number": null }
+  assign arguments.number = other_ticket.number
+  function read = 'modules/support/mcp/tools/support_read_ticket/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: read.ok, expected: false, field_name: 'read_ticket refuses a ticket outside the agent departments'
+
+  # --- queue_overview --------------------------------------------------
+  function overview = 'modules/support/mcp/tools/support_queue_overview/call', principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: overview.ok, expected: true, field_name: 'queue overview succeeds'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: overview.result.scope, expected: 'your departments', field_name: 'an agent is told the counts cover their departments only'
+
+  # the overview and a search of the same queue are two paths to one number;
+  # when they disagree one of them is applying a different scope
+  assign arguments = { "view": "all_open", "limit": 50 }
+  function open_search = 'modules/support/mcp/tools/support_search_tickets/call', arguments: arguments, principal: principal
+  assign searched = open_search.result.total | plus: 0
+  assign counted = overview.result.counts.all_open | plus: 0
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: counted, expected: searched, field_name: 'the overview count agrees with a search of the same queue'
+  # without this the agreement above also holds when both are zero
+  assign has_open = 'no'
+  if counted > 0
+    assign has_open = 'yes'
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_open, expected: 'yes', field_name: 'the open queue is not empty for an agent who has a ticket'
+
+  # --- find_customer ---------------------------------------------------
+  assign arguments = { "email": null }
+  assign arguments.email = fixture.contact.emails.first
+  function customer = 'modules/support/mcp/tools/support_find_customer/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: customer.result.found, expected: true, field_name: 'find_customer finds the requester'
+  # the fixture contact is new in each run and has exactly two tickets: this
+  # one, and the out-of-scope one created above. The agent may read only the
+  # first, so the list is exactly that number
+  assign numbers = customer.result.tickets | map: 'number' | join: ','
+  assign want_numbers = ticket.number | append: ''
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: numbers, expected: want_numbers, field_name: 'find_customer lists the ticket in the agent departments and no other'
+
+  assign arguments = { "email": null }
+  assign arguments.email = 'nobody-' | append: suffix | append: '@example.com'
+  function customer = 'modules/support/mcp/tools/support_find_customer/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: customer.ok, expected: true, field_name: 'an unknown address is an answer, not an error'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: customer.result.found, expected: false, field_name: 'an unknown address is reported as not found'
+
+  # --- saved_replies ---------------------------------------------------
+  assign arguments = {}
+  function replies = 'modules/support/mcp/tools/support_saved_replies/call', arguments: arguments, principal: principal
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: replies.ok, expected: true, field_name: 'saved replies succeeds'
+
+  # --- registry --------------------------------------------------------
+  function registered = 'modules/support/mcp/registry'
+  assign first = registered.first
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: first.path, expected: 'modules/support/mcp/tools/support_search_tickets', field_name: 'a registry entry points at the module tool directory'
+
+  # every registered tool loads, is named what it was registered as, and any
+  # tool that writes is gated behind a person. A write tool shipped without
+  # requires_approval would reach customers with nobody reading it first, and
+  # the engine would not stop it — so it is asserted here rather than trusted
+  assign read_only = 'support_search_tickets,support_read_ticket,support_find_customer,support_queue_overview,support_saved_replies' | split: ','
+  assign mismatched = []
+  assign ungated = []
+  for entry in registered
+    assign manifest_path = entry.path | append: '/manifest'
+    function manifest = manifest_path
+    unless manifest.name == entry.name
+      assign mismatched = mismatched | array_add: entry.name
+    endunless
+    if read_only contains entry.name
+      if manifest.mutating != false
+        assign ungated = ungated | array_add: entry.name
+      endif
+    else
+      if manifest.requires_approval != true
+        assign ungated = ungated | array_add: entry.name
+      endif
+      if manifest.mutating != true
+        assign ungated = ungated | array_add: entry.name
+      endif
+    endif
+  endfor
+  assign mismatched_names = mismatched | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: mismatched_names, expected: '', field_name: 'every manifest claims the name it is registered under'
+  assign ungated_names = ungated | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: ungated_names, expected: '', field_name: 'read tools do not mutate and every write tool requires approval'
+
+  # --- cleanup ---------------------------------------------------------
+  # the membership and the profile go too: deleting the user leaves its
+  # profile behind, and a profile_id of digits is not swept by
+  # support_test_helpers/cleanup, which matches the "test-" prefix
+  graphql _ = 'support_test_helpers/delete_record', id: member.id, table: 'modules/support/team_member'
+  function _ = 'modules/support/commands/team_members/forget'
+  graphql _ = 'modules/user/user/delete', id: user.id
+  graphql _ = 'support_test_helpers/delete_record', id: profile.id, table: 'modules/user/profile'
+%}

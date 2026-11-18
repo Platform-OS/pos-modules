@@ -1,0 +1,53 @@
+{% doc %}
+  What every write handler needs, re-checked at the moment it runs: the
+  acting member, and the ticket loaded through the member-scoped query.
+
+  This runs LATE. pos-module-mcp never executes an approval-gated tool inline
+  — it stores the arguments and runs the handler when an operator approves,
+  which can be days later. The engine re-checks the token and the policy by
+  then, but only the desk can say whether this member may still touch this
+  ticket: they may have left the team, lost the department, or the ticket may
+  have been moved or merged. So nothing here is taken on trust from the
+  proposal.
+
+  Returns { ok: true, actor, ticket } or { ok: false, failure } where failure
+  is the handler result to return as it is.
+  @param {object} principal - The MCP principal, { id, user_id }
+  @param {number} number - The ticket number from the validated arguments
+{% enddoc %}
+{% liquid
+  assign out = { "ok": false }
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    function failure = 'modules/support/mcp/helpers/failure', message: 'You are not an active member of this support desk.'
+    assign out['failure'] = failure
+    return out
+  endif
+
+  assign wanted = number | plus: 0
+  function ticket = 'modules/support/queries/tickets/find', id: null, number: wanted, member: actor.member
+  if ticket == blank
+    assign message = 'No ticket number ' | append: wanted | append: ' that you can change.'
+    function failure = 'modules/support/mcp/helpers/failure', message: message
+    assign out['failure'] = failure
+    return out
+  endif
+
+  # a merged ticket is a pointer: the conversation continues on the other one,
+  # so writing here would be invisible to everyone reading the thread
+  if ticket.merged_into_id != blank
+    assign message = 'Ticket ' | append: wanted | append: ' was merged into another ticket. Open that one instead.'
+    function failure = 'modules/support/mcp/helpers/failure', message: message
+    assign out['failure'] = failure
+    return out
+  endif
+
+  assign acting = { "type": "user" }
+  assign acting['id'] = actor.member.profile_id
+  assign acting['member'] = actor.member
+
+  assign out['ok'] = true
+  assign out['actor'] = acting
+  assign out['ticket'] = ticket
+  return out
+%}

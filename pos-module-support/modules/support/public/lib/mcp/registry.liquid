@@ -1,0 +1,28 @@
+{% doc %}
+  The MCP tools this module offers, in the shape pos-module-mcp's registry
+  expects: { name, path }, where path is the tool directory whose manifest
+  partial declares it.
+
+  A host app that installs pos-module-mcp concatenates this into its own
+  app/lib/mcp/registry.liquid. The engine reads its registry from that fixed
+  app path, so a module cannot register itself — every tool an instance serves
+  is named in one reviewed app file, and dropping these files on disk does
+  nothing on its own.
+
+  Names carry the support_ prefix: tool names are global to an instance's
+  registry, and this module ships into apps that may serve their own.
+{% enddoc %}
+{% liquid
+  assign reads = 'support_search_tickets,support_read_ticket,support_find_customer,support_queue_overview,support_saved_replies' | split: ','
+  # Every write tool sets requires_approval, so the engine stores the
+  # arguments and runs the handler only once a person approves.
+  assign writes = 'support_add_note,support_set_priority,support_change_status,support_snooze_ticket,support_assign_ticket,support_reply_to_customer' | split: ','
+  assign names = reads | concat: writes
+  assign tools = []
+  for name in names
+    assign entry = { "name": name }
+    assign entry['path'] = 'modules/support/mcp/tools/' | append: name
+    assign tools = tools | array_add: entry
+  endfor
+  return tools
+%}

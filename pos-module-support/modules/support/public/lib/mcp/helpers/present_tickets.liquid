@@ -1,0 +1,49 @@
+{% doc %}
+  Tickets as an assistant sees them: the fields that answer a support question,
+  with ids resolved to names through the lookup the search returned.
+
+  A ticket record carries about thirty-five properties, most of them internal
+  bookkeeping (SLA versions, merge pointers, delivery state). The tools return
+  this named projection instead, so internal fields never reach model context
+  and renaming one is not a breaking change for connected assistants.
+  @param {object[]} tickets - Ticket records
+  @param {object} lookup - { contacts, organizations, profiles, departments, statuses }, from queries/tickets/lookup
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  # an absolute link, because an assistant quotes it to someone who has to be
+  # able to open it. The stored desk address wins; before any desk page has
+  # been loaded it is empty, and then the host of this request is the one the
+  # agent reached, which is the right host to send them back to
+  assign base_url = settings.base_url
+  if base_url == blank
+    assign base_url = 'https://' | append: context.location.host
+  endif
+  assign list = []
+  for ticket in tickets
+    assign status = lookup.statuses[ticket.status_id]
+    assign department = lookup.departments[ticket.department_id]
+    assign requester = lookup.contacts[ticket.requester_id]
+    assign organization = lookup.organizations[ticket.organization_id]
+    assign assignee = lookup.profiles[ticket.assignee_id]
+    function path = 'modules/support/helpers/ticket_url', ticket_id: ticket.id, return_to: null
+    assign item = { "number": 0 }
+    assign item['number'] = ticket.number | plus: 0
+    assign item['subject'] = ticket.subject | default: ''
+    assign item['status'] = status.key | default: ''
+    assign item['status_label'] = status.label | default: ''
+    assign item['priority'] = ticket.priority | default: ''
+    assign item['department'] = department.name | default: ''
+    assign item['department_id'] = department.id | default: ''
+    assign item['requester'] = requester.name | default: ''
+    assign item['organization'] = organization.name | default: ''
+    assign item['assignee'] = assignee.name | default: assignee.first_name | default: ''
+    assign item['needs_reply'] = ticket.needs_reply | default: false
+    assign item['sla_state'] = ticket.sla_state | default: ''
+    assign item['sla_due_at'] = ticket.sla_due_at | default: ''
+    assign item['last_activity_at'] = ticket.last_activity_at | default: ''
+    assign item['url'] = base_url | append: path
+    assign list = list | array_add: item
+  endfor
+  return list
+%}

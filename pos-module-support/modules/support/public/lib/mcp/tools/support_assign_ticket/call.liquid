@@ -1,0 +1,44 @@
+{% doc %}
+  Handler — support_assign_ticket.
+
+  The command checks the assignee itself (queries/tickets/assignee_error): an
+  inactive member, or one who does not serve the ticket's department, is
+  refused, and an agent without support.tickets.manage.all may only take a
+  ticket or give up their own. None of that is repeated here.
+
+  The activity row records the reason as "assistant", so a person reading the
+  ticket later can see the change came from a proposal rather than from
+  someone clicking in the desk.
+  @param {object} arguments - Validated { number, assignee }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function ctx = 'modules/support/mcp/helpers/load_for_write', principal: principal, number: arguments.number
+  unless ctx.ok
+    return ctx.failure
+  endunless
+
+  assign wanted = arguments.assignee | strip | downcase
+  assign assignee_id = null
+  if wanted == 'me'
+    assign assignee_id = ctx.actor.id
+  elsif wanted != 'none'
+    graphql found = 'modules/user/profiles/search', email: wanted, limit: 1
+    assign person = found.records.results.first
+    if person == blank
+      assign message = 'No account here uses the address ' | append: wanted | append: '.'
+      function failure = 'modules/support/mcp/helpers/failure', message: message
+      return failure
+    endif
+    assign assignee_id = person.id
+  endif
+
+  function changed = 'modules/support/commands/tickets/assign', ticket: ctx.ticket, assignee_id: assignee_id, reason: 'assistant', actor: ctx.actor
+  if wanted == 'none'
+    assign summary = 'Ticket ' | append: ctx.ticket.number | append: ' left unassigned.'
+  else
+    assign summary = 'Ticket ' | append: ctx.ticket.number | append: ' assigned to ' | append: wanted | append: '.'
+  endif
+  function out = 'modules/support/mcp/helpers/command_result', result: changed, summary: summary
+  return out
+%}

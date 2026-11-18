@@ -1,0 +1,15 @@
+{% doc %}
+  Authorization policy support_desk_write (pos-module-mcp spec 12.2). The
+  engine resolves a tool's named policy to this fixed app path, so a module
+  cannot ship its own; this delegates to the one the support module defines.
+
+  Only principal is forwarded, because that is all the policy reads.
+
+  Fail-closed: the engine treats a missing partial, an error, or anything
+  other than an explicit allow as a denial.
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function decision = 'modules/support/mcp/policies/support_desk_write', principal: principal
+  return decision
+%}

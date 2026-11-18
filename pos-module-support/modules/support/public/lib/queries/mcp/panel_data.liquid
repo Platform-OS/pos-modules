@@ -1,0 +1,30 @@
+{% doc %}
+  Everything the Agents page shows for one person: their assistants, and the
+  tools they could be allowed to use.
+
+  The tool list comes from the MCP registry rather than from a list kept here,
+  so a tool added to the desk appears on the panel without anyone editing it.
+  Each assistant's `disabled_tools` says which switches are off; a tool absent
+  from that list is on, including one added after the person last looked.
+  @param {string} user_id - the signed-in person's user id
+{% enddoc %}
+{% liquid
+  # The MCP module calls them agents; the desk calls them assistants, because
+  # "agent" here is a person who answers tickets. The engine's word stops at
+  # this boundary.
+  assign data = { "available": false, "assistants": [], "tools": [] }
+  function available = 'modules/support/queries/mcp/available'
+  unless available
+    return data
+  endunless
+  assign data.available = true
+
+  assign who = { "user_id": null }
+  assign who.user_id = user_id
+  function connected = 'modules/support/helpers/mcp/call', action: 'agents', payload: who
+  assign data.assistants = connected.agents | default: data.assistants
+
+  function tools = 'modules/support/helpers/mcp/call', action: 'tools', payload: null
+  assign data.tools = tools.tools | default: data.tools
+  return data
+%}

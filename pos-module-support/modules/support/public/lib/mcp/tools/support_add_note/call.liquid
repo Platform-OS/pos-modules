@@ -1,0 +1,28 @@
+{% doc %}
+  Handler — support_add_note. Runs only when an operator approves, as the
+  member who proposed it, so it reloads everything (helpers/load_for_write)
+  rather than trusting the state the note was written against.
+
+  The note arrives as plain text and is turned into escaped paragraphs by
+  helpers/text_to_html, the same conversion the desk composer uses. An agent
+  therefore cannot put markup into a note, whatever it sends.
+
+  mentioned_ids is passed as an empty array on purpose. Left null, the
+  command scans the text for @names and notifies those colleagues — a side
+  effect nobody reviewing the wording would expect a note to have.
+  @param {object} arguments - Validated { number, note }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function ctx = 'modules/support/mcp/helpers/load_for_write', principal: principal, number: arguments.number
+  unless ctx.ok
+    return ctx.failure
+  endunless
+
+  function body_html = 'modules/support/helpers/text_to_html', text: arguments.note
+  assign nobody = []
+  function written = 'modules/support/commands/messages/create_note', ticket: ctx.ticket, body_html: body_html, mentioned_ids: nobody, actor: ctx.actor
+  assign summary = 'Internal note added to ticket ' | append: ctx.ticket.number | append: '.'
+  function out = 'modules/support/mcp/helpers/command_result', result: written, summary: summary
+  return out
+%}

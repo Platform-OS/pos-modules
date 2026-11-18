@@ -1,0 +1,33 @@
+{% doc %}
+  Connects an assistant for one person and returns its access key.
+
+  The key is returned once and never stored — the MCP module keeps only a
+  digest — so the page shows it immediately and it cannot be shown again.
+  @param {string} user_id - the person connecting the assistant
+  @param {string} name - what they are calling it
+  @return {object} { valid, key } or { valid: false, error }
+{% enddoc %}
+{% liquid
+  assign clean = name | strip | truncate: 40, ''
+  if clean == blank
+    assign failure = { "valid": false, "error": "modules/support/assistants.errors.name" }
+    return failure
+  endif
+
+  assign payload = { "user_id": null, "name": null }
+  assign payload.user_id = user_id
+  assign payload.name = clean
+  function answer = 'modules/support/helpers/mcp/call', action: 'connect', payload: payload
+  if answer.key == blank
+    assign failure = { "valid": false, "error": "modules/support/assistants.errors.connect" }
+    if answer.error == 'label_taken'
+      assign failure.error = 'modules/support/assistants.errors.name_taken'
+    endif
+    return failure
+  endif
+
+  assign result = { "valid": true }
+  assign result['key'] = answer.key
+  assign result['name'] = clean
+  return result
+%}

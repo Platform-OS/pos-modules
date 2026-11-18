@@ -1,0 +1,27 @@
+{% doc %}
+  Calls the host app's MCP bridge, the one seam between the desk and
+  pos-module-mcp.
+
+  The desk cannot reference modules/mcp itself: the MCP module is optional (a
+  devDependency), so a desk without it would get missing-partial errors at lint
+  time and a 500 at run time, and this module may only reference the modules in
+  tests/ci-static.sh. The host app implements hook_support_mcp instead and
+  delegates there.
+
+  A desk with no implementation gets nil from every action, which is how the
+  Agents and Approvals pages know the integration is absent and stay hidden
+  rather than failing.
+  @param {string} action - available | tools | agents | connect | revoke | set_tools
+  @param {object} [payload] - action arguments, merged into the hook params
+  @return {object|null} the hook's answer, or null when nothing implements it
+{% enddoc %}
+{% liquid
+  assign params = {}
+  if payload
+    assign params = params | hash_merge: payload
+  endif
+  assign params['action'] = action
+  function results = 'modules/core/commands/hook/fire', hook: 'support_mcp', params: params, merge_to_object: false
+  assign answer = results.first
+  return answer
+%}

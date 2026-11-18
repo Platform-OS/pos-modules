@@ -1,0 +1,19 @@
+{% doc %}
+  Handler — support_set_priority. Wraps the command the desk's own ticket
+  page uses, so the SLA recalculation, the activity row and the
+  support_ticket_priority_changed event all happen exactly as they do for a
+  person clicking in the desk.
+  @param {object} arguments - Validated { number, priority }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function ctx = 'modules/support/mcp/helpers/load_for_write', principal: principal, number: arguments.number
+  unless ctx.ok
+    return ctx.failure
+  endunless
+
+  function changed = 'modules/support/commands/tickets/set_priority', ticket: ctx.ticket, priority: arguments.priority, actor: ctx.actor
+  assign summary = 'Ticket ' | append: ctx.ticket.number | append: ' set to ' | append: arguments.priority | append: '.'
+  function out = 'modules/support/mcp/helpers/command_result', result: changed, summary: summary
+  return out
+%}

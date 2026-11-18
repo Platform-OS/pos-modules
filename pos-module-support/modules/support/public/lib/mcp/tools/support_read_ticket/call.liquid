@@ -1,0 +1,78 @@
+{% doc %}
+  Handler — support_read_ticket.
+
+  queries/tickets/find applies the member's department scope, so a ticket the
+  member may not read comes back blank and is reported as not found. The
+  handler never says that the ticket exists elsewhere.
+  @param {object} arguments - Validated { number }
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    function out = 'modules/support/mcp/helpers/failure', message: 'You are not an active member of this support desk.'
+    return out
+  endif
+
+  assign number = arguments.number | plus: 0
+  function ticket = 'modules/support/queries/tickets/find', id: null, number: number, member: actor.member
+  if ticket == blank
+    assign message = 'No ticket number ' | append: number | append: ' that you can read.'
+    function out = 'modules/support/mcp/helpers/failure', message: message
+    return out
+  endif
+
+  assign tickets = []
+  assign tickets = tickets | array_add: ticket
+  function lookup = 'modules/support/queries/tickets/lookup', tickets: tickets
+  function presented = 'modules/support/mcp/helpers/present_tickets', tickets: tickets, lookup: lookup
+
+  graphql found = 'modules/support/messages/search', ticket_id: ticket.id, limit: 50, order: 'DESC'
+  assign rows = found.records.results | reverse
+
+  assign author_ids = []
+  for row in rows
+    if row.author_type == 'agent' and row.author_id != blank
+      unless author_ids contains row.author_id
+        assign author_ids = author_ids | array_add: row.author_id
+      endunless
+    endif
+  endfor
+  assign authors = {}
+  if author_ids.size > 0
+    graphql people = 'modules/user/profiles/search', ids: author_ids, limit: 100
+    for person in people.records.results
+      assign authors[person.id] = person
+    endfor
+  endif
+
+  assign requester_name = presented.first.requester
+  assign messages = []
+  for row in rows
+    assign body = row.body_stripped | default: row.body_text
+    if body == blank
+      function body = 'modules/support/helpers/html_to_plain_text', html: row.body_html
+    endif
+    assign author = ''
+    if row.author_type == 'customer'
+      assign author = requester_name
+    elsif row.author_type == 'agent'
+      assign person = authors[row.author_id]
+      assign author = person.name | default: person.first_name | default: ''
+    endif
+    assign item = { "at": "" }
+    assign item['at'] = row.created_at | default: ''
+    assign item['author_type'] = row.author_type | default: ''
+    assign item['author'] = author
+    assign item['visibility'] = row.visibility | default: ''
+    assign item['body'] = body | default: '' | strip | truncate: 4000
+    assign messages = messages | array_add: item
+  endfor
+
+  assign result = { "ticket": null }
+  assign result['ticket'] = presented.first
+  assign result['earlier_messages'] = found.records.total_entries | minus: rows.size | at_least: 0
+  assign result['messages'] = messages
+  assign out = { "ok": true, "result": result }
+  return out
+%}

@@ -103,7 +103,7 @@ The generator sets all of them; `pos-cli constants set <env> --name modules/supp
 
 ## Settings
 
-Stored in the module's `setting` table and edited under `/support-desk/settings/*` (support admins only): departments (name, short code, inbound local part, From address, signature, SLA policy), statuses (labels over the fixed categories `new`, `open`, `pending`, `on_hold`, `solved`, `closed`; confirmation mode `auto_close`/`keep_open` and 1–28 days), SLA policies and business hours (time zone, days, holidays), saved replies (variables `{{ requester.first_name }}`, `{{ requester.name }}`, `{{ ticket.number }}`, `{{ ticket.subject }}`, `{{ agent.first_name }}`, `{{ brand.name }}`), assignment (unassigned alert minutes, P0 alert, escalate after, spam threshold), team, blocklist, email, branding and integrations (maintenance sweep status and restart). Keys used in code: `email_provider`, `email_region`, `inbound_domain`, `email_status`, `role_map`, `staff_roles`, `free_mail_domains`, `confirmation_mode`, `confirmation_wait_days`, `unassigned_alert_minutes`, `unassigned_alert_minutes_p0`, `escalate_after_minutes`, `spam_threshold`, `branding_override`, `business_hours`, `sweep_heartbeat`, `email_redirect_to`, `email_allow_external`, `sweep_started_at`, `ticket_stats_counted_at` (time of the last full count of the stored ticket counts). Kept by the desk itself, not edited by hand: `base_url` (the desk's address for links in emails), `sending_domain` and `event_webhook_id` (the provider's sender domain and event webhook, set by Settings → Email), `email_api_base_url` (the provider's API address; tests point it at the example app's stub), `previous_inbound_secret` and `previous_secret_expires_at` (the old inbound secret, still accepted for 24 hours after a rotation), `sweep_chain` (which maintenance chain may continue) and `brand_shift_cache` (the computed brand colour variants).
+Stored in the module's `setting` table and edited under `/support-desk/settings/*` (support admins only): departments (name, short code, inbound local part, From address, signature, SLA policy), statuses (labels over the fixed categories `new`, `open`, `pending`, `on_hold`, `solved`, `closed`; confirmation mode `auto_close`/`keep_open` and 1–28 days), SLA policies and business hours (time zone, days, holidays), saved replies (variables `{{ requester.first_name }}`, `{{ requester.name }}`, `{{ ticket.number }}`, `{{ ticket.subject }}`, `{{ agent.first_name }}`, `{{ brand.name }}`), assignment (unassigned alert minutes, P0 alert, escalate after, spam threshold), team, blocklist, email, branding and integrations (maintenance sweep status and restart). Keys used in code: `email_provider`, `email_region`, `inbound_domain`, `email_status`, `role_map`, `staff_roles`, `free_mail_domains`, `confirmation_mode`, `confirmation_wait_days`, `unassigned_alert_minutes`, `unassigned_alert_minutes_p0`, `escalate_after_minutes`, `spam_threshold`, `branding_override`, `business_hours`, `sweep_heartbeat`, `email_redirect_to`, `email_allow_external`, `sweep_started_at`, `ticket_stats_counted_at` (time of the last full count of the stored ticket counts), `mcp_require_approval` (the desk-wide approval gate for AI assistants, set in Assistants; missing means on). Kept by the desk itself, not edited by hand: `base_url` (the desk's address for links in emails), `sending_domain` and `event_webhook_id` (the provider's sender domain and event webhook, set by Settings → Email), `email_api_base_url` (the provider's API address; tests point it at the example app's stub), `previous_inbound_secret` and `previous_secret_expires_at` (the old inbound secret, still accepted for 24 hours after a rotation), `sweep_chain` (which maintenance chain may continue) and `brand_shift_cache` (the computed brand colour variants).
 
 ### Non-production sending
 
@@ -134,6 +134,7 @@ A test or suite that asserts on the address the desk chose must set
 | `support_branding` | object: `app_name`, `short_name`, `logo_url`, `logo_dark_url`, `icon_url`, `favicon_url`, `theme_color`, `background_color`, `theme_mode` (`auto`/`light`/`dark`), `rail_theme` (`auto`/`light`/`dark`: pins which logo the sidebar shows; `auto` by default, which picks it from the sidebar's actual colour), `support_email_name` | brand in the desk, emails, manifest and push. Every key is optional; without `app_name` the desk is named after the instance domain (the first label of a `*.platform-os.com` host, e.g. `support-development` → "Support Development", or the custom domain without `www.`). `icon_url` (a square 512 px PNG) replaces the module's icons in the PWA manifest and the iOS home-screen icon. Without any icon, the first desk admin who opens the desk has their browser draw the sidebar monogram (first letter, brand colours, desk font) as a 512 px PNG and store it (`branding_monogram` setting); it becomes the app icon, favicon and push icon, and is redrawn when the name's first letter or the brand colours change |
 | `support_assignment` (alter) | sets `params_to_modify.assignee_id` and `.reason` from `params.ticket`, and must `return params_to_modify` | host rule that decides who gets a new ticket before least-loaded assignment |
 | `headscripts` (core) | HTML string | host stylesheet, loaded after the module CSS so host tokens win |
+| `support_mcp` | object, per `params.action` | the one seam between the desk and pos-module-mcp. The desk may not reference that module itself — it is optional, and a desk without it would fail to lint and 500 — so the host app answers instead. Actions: `available`, `tools`, `agents`, `connect`, `revoke`, `set_tools`. A desk that does not add this hook has no Assistants page: every action returns nothing and the page and its navigation entry stay hidden. See "AI assistants (MCP)" |
 
 The module implements `user_login` (pos-module-user) to mark a sign-in on another form while the desk sign-in lock is on for that email; the desk signs such a session out.
 
@@ -176,9 +177,64 @@ Published with `modules/core/commands/events/publish`; consume them in `app/lib/
 | `support_sla_due_soon` / `support_sla_breached` | `ticket_id`, `deadline` |
 | `support_confirmation_waiting` | `ticket_id` |
 
+## AI assistants (MCP)
+
+Optional, and off unless you turn it on. The module ships five **read-only** tools a team
+member's AI assistant can call through [pos-module-mcp](https://github.com/Platform-OS/pos-modules/tree/master/pos-module-mcp):
+`support_search_tickets`, `support_read_ticket`, `support_find_customer`,
+`support_queue_overview`, `support_saved_replies`. Nothing in them changes a ticket, sends
+an email or reaches a customer. They read through the same query wrappers the desk pages
+use, so an agent sees their own departments while a manager or admin sees every department.
+
+The MCP module is not a dependency: with it uninstalled these files are inert and nothing
+loads them. To turn them on, install `mcp` and add three app files — the MCP engine reads
+its registry, policies and instructions from fixed app paths, so a module cannot register
+tools by itself:
+
+```liquid
+{% comment %}app/lib/mcp/registry.liquid{% endcomment %}
+{% liquid
+  assign tools = []
+  function support = 'modules/support/mcp/registry'
+  assign tools = tools | concat: support
+  return tools
+%}
+```
+
+```liquid
+{% comment %}app/lib/mcp/policies/support_desk_read.liquid{% endcomment %}
+{% liquid
+  function decision = 'modules/support/mcp/policies/desk_read', principal: principal
+  return decision
+%}
+```
+
+```liquid
+{% comment %}app/lib/mcp/instructions.liquid{% endcomment %}
+{% liquid
+  function text = 'modules/support/mcp/instructions'
+  return text
+%}
+```
+
+Then grant the MCP module's own permission, `mcp.tokens.manage`, to the host role allowed to
+connect assistants (this repo's example host does it in
+`app/modules/user/public/lib/queries/role_permissions/permissions.liquid`). A person mints a
+token for their assistant at `/mcp-tools`.
+
+**Connecting an assistant never grants desk access.** The tools resolve the token's user to a
+profile and then to a `team_member` record, and refuse when there is none — unlike the desk's
+own pages, they never create a membership. A host superadmin who has not opened
+`/support-desk` yet is therefore refused until they do, and a token held by anyone who is not
+an active member gets `Forbidden`.
+
+Write tools — an internal note, triage changes, customer replies — are proposed in
+`docs/mcp-tools-proposal.md`, all behind human approval. `docs/mcp-implementation-notes.md`
+has the implementation detail.
+
 ## Routes
 
-Desk: `/support-desk` (queue; `view`, `department_id`, `priority`, `status_key`, `assignee_id`, `q`, `sort`, and `layout=list|board` and `group=priority|status`, which are remembered in the session), `/support-desk/board` (the board of a view), `/support-desk/tickets/:id`, `/support-desk/contacts/:id`, `/support-desk/organizations/:id`, `/support-desk/profile`, `/support-desk/settings/*`, `/support-desk/sign-in`, `/support-desk/password`, `/support-desk/password/new`, `/support-desk/join`, `/support-desk/join/verify`, `/support-desk/request-access`, `/support-desk/invites/:id`. PWA: `/support-desk/manifest.json`, `/support-desk/sw.js` (scope `/support-desk`). Webhooks: `/api/support/inbound/:provider/:secret`, `/api/support/email-events/:provider/:secret`.
+Desk: `/support-desk` (queue; `view`, `department_id`, `priority`, `status_key`, `assignee_id`, `q`, `sort`, and `layout=list|board` and `group=priority|status`, which are remembered in the session), `/support-desk/board` (the board of a view), `/support-desk/tickets/:id`, `/support-desk/contacts/:id`, `/support-desk/organizations/:id`, `/support-desk/profile`, `/support-desk/settings/*`, `/support-desk/sign-in`, `/support-desk/password`, `/support-desk/password/new`, `/support-desk/join`, `/support-desk/join/verify`, `/support-desk/request-access`, `/support-desk/invites/:id`. PWA: `/support-desk/manifest.json`, `/support-desk/sw.js` (scope `/support-desk`). Webhooks: `/api/support/inbound/:provider/:secret`, `/api/support/email-events/:provider/:secret`. With the MCP integration turned on, pos-module-mcp also serves `/mcp`, `/mcp-tools` and `/mcp-admin`.
 
 ## Troubleshooting
 

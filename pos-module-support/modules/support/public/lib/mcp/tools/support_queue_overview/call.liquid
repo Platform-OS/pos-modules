@@ -1,0 +1,36 @@
+{% doc %}
+  Handler — support_queue_overview.
+
+  queries/tickets/counts returns the same numbers the desk rail shows, already
+  scoped to the member. The deploy count it also returns is left out: that
+  queue exists only on desks that use the deploy status, and a count an
+  assistant cannot explain is worse than no count.
+  This tool takes no arguments.
+  @param {object} principal - The MCP principal, { id, user_id }
+{% enddoc %}
+{% liquid
+  function actor = 'modules/support/mcp/helpers/actor', principal: principal
+  if actor == blank
+    function out = 'modules/support/mcp/helpers/failure', message: 'You are not an active member of this support desk.'
+    return out
+  endif
+
+  assign member = actor.member
+  function totals = 'modules/support/queries/tickets/counts', member: member
+
+  assign keys = 'mine,needs_reply,unassigned,all_open,waiting,awaiting_confirmation,sla_at_risk' | split: ','
+  assign counts = {}
+  for key in keys
+    assign counts[key] = totals[key] | default: 0 | plus: 0
+  endfor
+
+  assign scope = 'every department'
+  if member.role == 'agent'
+    assign scope = 'your departments'
+  endif
+
+  assign result = { "scope": scope }
+  assign result['counts'] = counts
+  assign out = { "ok": true, "result": result }
+  return out
+%}

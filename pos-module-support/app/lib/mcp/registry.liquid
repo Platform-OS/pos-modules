@@ -1,0 +1,15 @@
+{% doc %}
+  The MCP tools this app serves (pos-module-mcp spec 8.2). The engine reads its
+  registry from this fixed app path, so every tool an instance offers is named
+  in one reviewed app file; a module dropping tool files on disk cannot put a
+  tool in front of an agent by itself.
+
+  This is the reference copy for a desk that wants the support tools. An app
+  with tools of its own adds them to the same array.
+{% enddoc %}
+{% liquid
+  assign tools = []
+  function support = 'modules/support/mcp/registry'
+  assign tools = tools | concat: support
+  return tools
+%}

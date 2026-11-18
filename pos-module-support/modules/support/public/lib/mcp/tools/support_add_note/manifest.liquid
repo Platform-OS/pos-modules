@@ -1,0 +1,25 @@
+{% doc %}
+  Tool manifest — support_add_note. The first write tool, and the safest one:
+  an internal note is never emailed to the customer.
+
+  requires_approval is true, so pos-module-mcp never runs this inline. It
+  stores the arguments, returns a handle, and executes the handler only once
+  an operator approves.
+{% enddoc %}
+{% liquid
+  assign m = {
+    "name": "support_add_note",
+    "version": "1.0.0",
+    "title": "Add an internal note",
+    "description": "Propose an internal note on a ticket. The note is for the support team and is never emailed to the customer. Nothing is written when you call this: the note waits for a person to read it and approve it, and you are given a handle to check with mcp_approval_status. Write plain text, not HTML or Markdown. Do not mention colleagues with an @name: it is stored as text and notifies nobody.",
+    "input_schema": {"type":"object","additionalProperties":false,"required":["number","note"],"properties":{"number":{"type":"integer","minimum":1,"description":"the ticket number the note belongs to"},"note":{"type":"string","minLength":3,"maxLength":5000,"description":"the note, as plain text; blank lines separate paragraphs"}}},
+    "output_schema": {"type":"object","additionalProperties":false,"required":["done","summary"],"properties":{"done":{"type":"boolean"},"summary":{"type":"string"}}},
+    "annotations": {"readOnlyHint":false,"destructiveHint":false,"idempotentHint":false,"openWorldHint":false},
+    "mutating": true,
+    "authorization_policy": "support_desk_write",
+    "requires_approval": true,
+    "idempotent": false,
+    "handler": "modules/support/mcp/tools/support_add_note/call"
+  }
+  return m
+%}
