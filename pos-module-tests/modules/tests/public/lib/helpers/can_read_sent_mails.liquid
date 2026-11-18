@@ -1,0 +1,27 @@
+{% doc %}
+  Whether the current request may read /_tests/sent_mails. Sent emails hold
+  password-reset and verification links, so by default only a signed-in host
+  superadmin (pos-module-user profile role) may read them, and only on staging
+  or development. Setting the constant modules/tests/SENT_MAILS_PUBLIC to
+  "true" restores the old anonymous access, for an instance whose browser
+  tests read the mailbox without signing in and that holds no real accounts.
+  Returns true or false.
+{% enddoc %}
+{% liquid
+  if context.environment != 'staging' and context.environment != 'development'
+    return false
+  endif
+  if context.constants['modules/tests/SENT_MAILS_PUBLIC'] == 'true'
+    return true
+  endif
+  if context.current_user.id == blank
+    return false
+  endif
+  assign user_id = context.current_user.id | append: ''
+  graphql p = 'modules/tests/access/profile_roles', user_id: user_id
+  assign roles = p.records.results.first.roles | default: []
+  if roles contains 'superadmin'
+    return true
+  endif
+  return false
+%}
