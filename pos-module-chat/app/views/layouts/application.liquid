@@ -11,6 +11,8 @@
       <title>{{ meta_title | strip }}</title>
       {% comment %} default platformOS provided styles {% endcomment %}
       {% render 'modules/common-styling/init', reset: true, timezone: current_profile.properties.timezone %}
+      {% comment %} live notifications - the unread badge on the Inbox link in the header {% endcomment %}
+      {% render 'modules/chat/notifications/init' %}
       <link rel="stylesheet" href="{{ 'modules/user/style/pos-user-form.css' | asset_url }}">
       <link rel="stylesheet" href="{{ 'modules/chat/style/pos-chat-inbox.css' | asset_url }}">
       {% comment %} custom styles specific for this app, some overwrite the defaults {% endcomment %}

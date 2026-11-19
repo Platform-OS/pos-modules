@@ -1,0 +1,66 @@
+{% doc %}
+  Live notifications about new chat messages, for any page of the host app. Render it once
+  per page, in the layout:
+
+    {% render 'modules/chat/notifications/init' %}
+
+  For the users who can use the chat (the chat.inbox permission) it loads
+  pos-chat-notifications.js and starts it. From then on the page gets the
+  'pos-chat:message' and 'pos-chat:unread' events on document, and every element with
+  the data-pos-chat-unread-conversations attribute shows the number of unread conversations
+  (hidden when there are none). For anyone else it renders nothing.
+
+  See the README, Live notifications.
+{% enddoc %}
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  assign can_chat = false
+  if current_profile.id != blank
+    function can_chat = 'modules/user/helpers/can_do', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null
+  endif
+
+  if can_chat
+    # shown at once, without waiting for the connection - the client asks again once connected
+    function unread_conversations = 'modules/chat/queries/conversations/number_of_unread_by_participant', participant_id: current_profile.id
+  endif
+%}
+{% if can_chat %}
+<script>
+  /* namespace - the same as the inbox sets up, whichever comes first */
+  window.pos ??= {};
+  window.pos.modules ??= {};
+  window.pos.translations ??= {};
+
+  if(typeof window.pos.csrfToken !== 'string'){
+    window.pos.csrfToken = '{{ context.authenticity_token }}';
+  }
+
+  /* the client only needs the id - a host's own window.pos.profile without it gets it */
+  window.pos.profile ??= {};
+  window.pos.profile.id ??= {% print current_profile.id | json %};
+
+  /* loaded by asset_url, so a deploy reaches browsers despite the long asset caching; the
+     consumer is the same module the inbox imports, so a page with both opens one WebSocket */
+  (() => {
+    const start = () => {
+      Promise.all([
+        import('{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}'),
+        import('{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}')
+      ]).then(([consumer]) => {
+        window.pos.modules.chat.notifications.start({
+          consumer: consumer.default,
+          unread_conversations: {{ unread_conversations | default: 0 | json }}
+        });
+      });
+    };
+
+    /* after the page is parsed, so the host's listeners and badges are there for the first count */
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', start, { once: true });
+    } else {
+      start();
+    }
+  })();
+</script>
+{% endif %}

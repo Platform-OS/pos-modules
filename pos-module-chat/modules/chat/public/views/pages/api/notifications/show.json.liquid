@@ -1,0 +1,25 @@
+---
+slug: api/chat/notifications
+method: get
+---
+
+{% doc %}
+  The current user's unread counters, the same ones the live notifications carry (see
+  pos-chat-notifications.js). The client asks for them each time it connects: Action
+  Cable doesn't replay what was sent while the connection was down (a laptop asleep, a
+  network change), nor what was sent between rendering the page and connecting.
+
+  Responds with { unread_conversations, unread_at }.
+{% enddoc %}
+
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+
+  function unread = 'modules/chat/queries/notifications/unread', participant_id: current_profile.id
+
+  echo unread | json
+%}
