@@ -1,0 +1,27 @@
+{% doc %}
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  # sign-out's redirect_to (views/pages/sessions/destroy.liquid) only follows a path on this site
+  assign backslash = '%5C' | url_decode
+  assign tab = '%09' | url_decode
+  assign kept = '/dashboard,/support-desk/sign-in,/a/b?x=1&y=2#top,/' | split: ','
+  for url in kept
+    function given = 'modules/user/helpers/local_path', url: url, fallback: '/'
+    assign field = 'kept ' | append: url
+    function contract = 'modules/tests/assertions/equal', contract: contract, given: given, expected: url, field_name: field
+  endfor
+
+  assign refused = 'https://evil.example,//evil.example,http:/evil.example,javascript:alert(1),evil.example' | split: ','
+  assign refused << '/' | append: backslash | append: 'evil.example'
+  assign refused << '/ok' | append: backslash | append: 'x'
+  assign refused << '/' | append: tab | append: '/evil.example'
+  for url in refused
+    function given = 'modules/user/helpers/local_path', url: url, fallback: '/home'
+    assign field = 'refused ' | append: url
+    function contract = 'modules/tests/assertions/equal', contract: contract, given: given, expected: '/home', field_name: field
+  endfor
+
+  function given = 'modules/user/helpers/local_path', url: null, fallback: null
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: given, expected: '/', field_name: 'blank gives the default fallback'
+%}
