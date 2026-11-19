@@ -11,6 +11,12 @@
 
 
 
+// what's already on window.pos.modules.chat (like pos-chat-notifications.js, which can load
+// first) is kept on the constructor below
+const loadedChatExtensions = window.pos.modules.chat;
+
+
+
 // purpose:		handles sending and receiving messages as well as the inbox page
 // ************************************************************************
 window.pos.modules.chat = function(userSettings = {}){
@@ -1787,3 +1793,6 @@ window.pos.modules.chat = function(userSettings = {}){
   module.init();
 
 };
+
+
+Object.assign(window.pos.modules.chat, loadedChatExtensions);

@@ -5,7 +5,7 @@
     <div class="pos-chat-header-nav-primary-content">
       <ul>
         <li {% if context.page.slug == '/' %} class="active" {% endif %}><a href="/">People</a></li>
-        <li {% if context.page.slug == 'inbox' %} class="active" {% endif %}><a href="/inbox">Inbox</a></li>
+        <li {% if context.page.slug == 'inbox' %} class="active" {% endif %}><a href="/inbox">Inbox <span class="app-chat-unread" data-pos-chat-unread-conversations hidden></span></a></li>
       </ul>
       <div id="pos-chat-header-activeIndicator"></div>
     </div>

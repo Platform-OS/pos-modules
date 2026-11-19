@@ -263,7 +263,6 @@
 
   
 .pos-chat-conversationCard-unread .pos-chat-conversationCard-name {
-  max-width: 195px;
   font-weight: 700;
 }
 
@@ -271,20 +270,10 @@
   color: var(--pos-color-content-text-prominent);
 }
 
-  .pos-chat-conversationCard-unread {
-    position: relative;
-  }
-
-  .pos-chat-conversationCard-unread:after {
-    width: 7px;
-    height: 7px;
-    position: absolute;
-    inset-inline-end: 1rem;
-
-    background-color: var(--pos-color-interactive);
-    border-radius: 50%;
-
-    content: '';
+  /* unread - a ring around the avatar (an outline follows its round border-radius and takes no space) */
+  .pos-chat-conversationCard-unread .pos-avatar {
+    outline: 2px solid var(--pos-color-interactive);
+    outline-offset: 2px;
   }
 
 /* load more button - shown, as a list that fits on the screen can't be scrolled to load more */
