@@ -4,7 +4,8 @@ import { InboxPage } from './pages/inbox';
 
 /*
   Live notifications (modules/chat/public/assets/js/pos-chat-notifications.js), through the
-  example app's unread badge on the Inbox link (app/views/partials/header.liquid).
+  example app's unread badge on the Inbox link (app/views/partials/header.liquid), found by
+  its data-pos-chat-unread-conversations attribute.
 
   No other test talks to Dummy35 or Dummy36 (seeded by tests/post_import, password "password").
   The recipient first reads whatever is unread for them (the seeded conversation with test6,
@@ -30,6 +31,9 @@ const logIn = async (browser: Browser, email: string) => {
   await page.waitForURL('/');
   return { context, page };
 };
+
+// the badge on the Inbox link - found by the attribute the module fills in, what a host app relies on
+const unreadBadge = (page: Page) => page.locator('[data-pos-chat-unread-conversations]');
 
 const notifiedMessages = (page: Page) => page.evaluate(() => (window as any).chatMessages);
 
@@ -65,7 +69,7 @@ test.describe('Live notifications', () => {
 
     const { context: senderContext, page: senderPage } = await logIn(browser, sender.email);
     const { context: recipientContext, page: recipientPage } = await logIn(browser, recipient.email);
-    const badge = recipientPage.getByTestId('unread-badge');
+    const badge = unreadBadge(recipientPage);
 
     const senderInbox = new InboxPage(senderPage);
     const send = async (text: string) => {
@@ -82,6 +86,8 @@ test.describe('Live notifications', () => {
       const counters = waitForCounters(recipientPage);
       await recipientPage.goto('/');
       expect(await (await counters).json()).toMatchObject({ unread_conversations: 0 });
+      // attached first - toBeHidden alone would pass without any badge on the page
+      await expect(badge).toBeAttached();
       await expect(badge).toBeHidden();
     });
 
@@ -116,7 +122,7 @@ test.describe('Live notifications', () => {
       await recipientInbox.isChatOpenedFromSearch(sender.query, sender.name);
 
       await expect(badge).toBeHidden({ timeout: 30_000 });
-      await expect(inboxTab.getByTestId('unread-badge')).toBeHidden({ timeout: 30_000 });
+      await expect(unreadBadge(inboxTab)).toBeHidden({ timeout: 30_000 });
       await inboxTab.close();
     });
 
