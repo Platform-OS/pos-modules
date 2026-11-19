@@ -15,13 +15,15 @@
 
   if context.params.return_to != blank or context.params.redirect_to != blank and url == blank
     assign url = context.params.return_to | default: context.params.redirect_to | url_decode
-    assign not_start_with_slash = url | matches: '^(?!\/)(.+)'
-
-    # for security reasons, we do not allow redirecting to external URLs based on unsafe user input
-    assign wrong_url = url | matches: '^\/\/'
-    if not_start_with_slash or wrong_url
+    # for security reasons, we do not allow redirecting to external URLs based on unsafe user input:
+    # one leading slash, then no second slash right after it, no backslash (/\evil.example is
+    # //evil.example to a browser; \x5c because a Liquid string turns a doubled backslash into one),
+    # no control characters anywhere (browsers drop tabs and newlines, so /<tab>/x is //x); a space
+    # is fine, url_decode turns %20 in a query string into one
+    assign local_path = url | matches: '\A/(?![/\x5c])[^\x5c\x00-\x1f\x7f]*\z'
+    unless local_path
       assign url = '/'
-    endif
+    endunless
   else
     assign default = default | default: '/'
     assign url = url | default: default
