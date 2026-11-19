@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.7.0
+
+* Feature: live notifications for any page of the host app, not only the inbox. `{% render 'modules/chat/notifications/init' %}` in the layout starts them for users who can use the chat: the page gets a `pos-chat:message` event on `document` for each new message (sender, text, conversation and its inbox url, and `active` when the inbox on that page has it open), a `pos-chat:unread` event when the number of unread conversations changes, and every element with the `data-pos-chat-unread-conversations` attribute shows that number (hidden at 0). The current number is also `window.pos.modules.chat.notifications.unread_conversations`. See the README, Live notifications. The example app shows it as a badge on the Inbox link.
+* Feature: the notifications sent to the `notifications-<profile id>` room carry a `type` (`message_created`), the recipient's `unread_conversations` and `unread_at` (when it was counted, so a client can ignore an older count arriving late). Reading a conversation sends a `conversation_read` notification with the new number to the reader's own room, so the number goes down in their other tabs and devices too.
+* Feature: `GET /api/chat/notifications.json` returns the current user's `unread_conversations` and `unread_at`. The notifications client reads it every time it connects, as the WebSocket doesn't replay what was sent while it wasn't connected.
+* Change: an unread conversation in the inbox sidebar is shown with a ring around the avatar instead of a dot on the right.
+* Fix: a conversation without a message yet (started by attaching a file that was never sent) is no longer counted as unread by `queries/conversations/number_of_unread_by_participant` - it isn't listed, so it couldn't be opened and read either.
+* Change: `commands/messages/create` takes the optional `conversation` and `current_profile` and then marks the conversation unread for the others before publishing `chat_message_created`, so the event's consumers see it unread. The `conversate` channel passes them.
+* Upgrade: if your app overwrites `views/partials/channels/conversate/receive.liquid`, pass `conversation: conversation, current_profile: current_profile` to `modules/chat/commands/messages/create` and remove the `mark_unread` call after it - otherwise the number of unread conversations sent with a new message can be one too low until the next change.
+
 ## v2.6.0
 
 * Feature: a conversation opened with `to_uuid` that isn't started yet (it is created with its first message), or has no message yet, is shown on top of the sidebar's conversations list, highlighted as the open one, instead of not being in the list at all.
