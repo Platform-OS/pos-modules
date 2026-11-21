@@ -505,3 +505,59 @@
     }
   });
 })();
+
+// The Approvals count in the rail, kept current without a page reload.
+//
+// A proposal is created by an AI assistant through the MCP endpoint, not by
+// anything happening in this tab, so there is nothing in the page to listen
+// to: the number is asked for on a timer. The desk's live channel
+// (pos-support-live.js) carries ticket and presence messages and is loaded
+// only on the queue and ticket pages, while this count sits in the rail of
+// every page, so it is not the right vehicle here.
+//
+// The poll runs only while the tab is visible — a backgrounded desk asks for
+// nothing — and asks once immediately when the tab is shown again, so coming
+// back to the desk shows the current number at once rather than after a wait.
+(function () {
+  const badge = document.querySelector('[data-support-approvals-count]');
+  if (!badge) return;
+  const url = badge.dataset.supportApprovalsCount;
+  if (!url) return;
+
+  const INTERVAL = 45000;
+  let timer = null;
+  let inFlight = false;
+
+  const apply = (data) => {
+    if (!data || typeof data.waiting !== 'number') return;
+    const waiting = data.waiting;
+    badge.textContent = String(waiting);
+    badge.hidden = waiting === 0;
+    if (data.label) badge.setAttribute('aria-label', data.label);
+  };
+
+  const check = async () => {
+    if (inFlight || document.visibilityState !== 'visible') return;
+    inFlight = true;
+    try {
+      const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      // a signed-out or redirected answer is not a count: leave the number alone
+      if (response.ok && (response.headers.get('content-type') || '').includes('json')) {
+        apply(await response.json());
+      }
+    } catch (error) {
+      // offline or a blip: the next tick tries again, the number stays as it was
+    } finally {
+      inFlight = false;
+    }
+  };
+
+  const start = () => { if (!timer) timer = setInterval(check, INTERVAL); };
+  const stop = () => { clearInterval(timer); timer = null; };
+
+  if (document.visibilityState === 'visible') start();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { check(); start(); } else stop();
+  });
+  window.addEventListener('pagehide', stop);
+})();

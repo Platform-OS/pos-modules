@@ -76,6 +76,20 @@ for helper in $(grep -rhoE "'modules/support/helpers/[a-z_/]+'" "$ROOT/views/par
   fi
 done
 
+# 5b. Pages do not loop. A page is a controller: it guards, reads through a
+#     query, calls a command and hands the result to a partial. Iteration is
+#     either shaping data (a query's job) or rendering (a partial's job), and a
+#     page that loops is carrying logic nothing can unit-test. The gates above
+#     only check WHERE code sits, not how much work it does.
+#     The two pages listed predate the rule; shrink the list, never add to it.
+PAGE_LOOP_DEBT='tickets/bulk.liquid|tickets/messages/create.liquid'
+for f in $(find "$ROOT/views/pages" -name '*.liquid'); do
+  if echo "$f" | grep -qE "$PAGE_LOOP_DEBT"; then continue; fi
+  if grep -qE '^[[:space:]]*(\{%-?[[:space:]]*)?for ' "$f"; then
+    echo "ci-static: $f loops — shape the data in a lib/queries wrapper, or iterate in the partial"; FAIL=1
+  fi
+done
+
 # 6. Every webhook (pages under api/) authenticates by its secret path segment.
 for f in $(find "$ROOT/views/pages/api" -name '*.liquid' 2>/dev/null); do
   if ! grep -q 'context.params.secret' "$f"; then

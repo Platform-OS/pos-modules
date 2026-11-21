@@ -29,4 +29,20 @@
   else
     function contract = 'modules/tests/assertions/true', contract: contract, value: true, field_name: 'nothing left over', object: null
   endif
+
+  # Isolation gate, checked by zz_cleanup_test, which runs last. The desk's
+  # settings hold live configuration: the appearance an admin chose, the email
+  # provider, the approval rules. A test that changes one and does not put it
+  # back silently reconfigures the desk and still passes. That has happened —
+  # helpers_test emptied `branding_override`, which makes the desk follow the
+  # operating system, turning a desk set to light into a dark one.
+  #
+  # The whole settings hash is recorded here and compared at the end, so the
+  # gate catches any test that leaks, not only the ones calling settings/set.
+  function settings_now = 'modules/support/helpers/settings'
+  assign snapshot = {}
+  for pair in settings_now
+    assign snapshot[pair[0]] = pair[1] | json
+  endfor
+  function _ = 'modules/support/commands/settings/set', key: 'test_settings_snapshot', value: snapshot
 %}

@@ -1,20 +1,60 @@
 {% doc %}
-  Answers the MCP engine's question "must a proposed change wait for a person?"
-  from the desk's own setting, so support admins decide it in the desk rather
-  than someone editing an instance constant.
+  Answers the MCP engine's question "must this proposed change wait for a
+  person?" from the desk's own settings, so support admins decide it in the desk
+  rather than someone editing an instance constant.
 
-  The setting is `mcp_require_approval`. It is missing until an admin changes
-  it, and missing means ON: a desk that has never thought about this gets the
-  safe answer, and only an explicit false turns the gate off.
+  Two settings, in this order:
 
-  The engine reads this on every call (queries/approval/enforced), so a change
-  takes effect on the next request.
+  - `mcp_require_approval` — the desk-wide switch. Missing means ON, so a desk
+    that has never thought about this gets the safe answer. An explicit false
+    turns approval off for every tool.
+  - `mcp_approval_exempt_tools` — the names of tools that go straight through
+    while the desk-wide switch is on. It names exemptions rather than the tools
+    that need approval, so a tool added to the desk later is gated until an
+    admin says otherwise.
+
+  Comparison is an exact match on the tool name, never a substring: `contains`
+  on a setting that somehow held a string would match a prefix, and the wrong
+  answer here runs something nobody agreed to.
+
+  The engine reads `enforced` on every call (queries/approval/enforced), so a
+  change takes effect on the next request. `desk_switch` and `exempt` are the
+  raw settings, for the Assistants panel to draw its toggles from: a tool's own
+  toggle shows its own setting, not what the desk-wide switch currently makes of
+  it.
+
+  @param {string} [tool_name] - the tool the engine is about to run. Without it
+    only the desk-wide switch is consulted: an unnamed tool is never exempt.
+  @return {object} { enforced, desk_switch, exempt }
 {% enddoc %}
 {% liquid
   function settings = 'modules/support/helpers/settings'
-  assign out = { "enforced": true }
+
+  assign desk_switch = true
   if settings.mcp_require_approval == false
-    assign out['enforced'] = false
+    assign desk_switch = false
   endif
+
+  assign exempt = settings.mcp_approval_exempt_tools
+  if exempt == blank
+    assign exempt = []
+  endif
+
+  assign out = { "enforced": true }
+  assign out['desk_switch'] = desk_switch
+  assign out['exempt'] = exempt
+
+  unless desk_switch
+    assign out['enforced'] = false
+    return out
+  endunless
+
+  unless tool_name == blank
+    for exempt_name in exempt
+      if exempt_name == tool_name
+        assign out['enforced'] = false
+      endif
+    endfor
+  endunless
   return out
 %}

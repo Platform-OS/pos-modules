@@ -1,6 +1,6 @@
 diff -ruN a/public/graphql/agents/setting_create.graphql b/public/graphql/agents/setting_create.graphql
 --- a/public/graphql/agents/setting_create.graphql	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/graphql/agents/setting_create.graphql	2026-11-18 20:04:39.355962451 +0100
++++ b/public/graphql/agents/setting_create.graphql	2026-11-18 23:53:01.227740386 +0100
 @@ -0,0 +1,13 @@
 +mutation setting_create($user_id: String!, $client_id: String!, $disabled_tools: [String!]!) {
 +  record: record_create(record: {
@@ -17,7 +17,7 @@ diff -ruN a/public/graphql/agents/setting_create.graphql b/public/graphql/agents
 +}
 diff -ruN a/public/graphql/agents/settings_for_user.graphql b/public/graphql/agents/settings_for_user.graphql
 --- a/public/graphql/agents/settings_for_user.graphql	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/graphql/agents/settings_for_user.graphql	2026-11-18 20:04:34.713982759 +0100
++++ b/public/graphql/agents/settings_for_user.graphql	2026-11-18 23:53:01.227740386 +0100
 @@ -0,0 +1,24 @@
 +query settings_for_user($user_id: String!, $client_id: String) {
 +  # Every agent setting a person holds, or just one agent's when client_id is
@@ -45,7 +45,7 @@ diff -ruN a/public/graphql/agents/settings_for_user.graphql b/public/graphql/age
 +}
 diff -ruN a/public/graphql/agents/setting_update.graphql b/public/graphql/agents/setting_update.graphql
 --- a/public/graphql/agents/setting_update.graphql	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/graphql/agents/setting_update.graphql	2026-11-18 20:04:48.268923645 +0100
++++ b/public/graphql/agents/setting_update.graphql	2026-11-18 23:53:01.227740386 +0100
 @@ -0,0 +1,12 @@
 +mutation setting_update($id: ID!, $disabled_tools: [String!]!) {
 +  # `table` is given because record_update is keyed by id alone and platformOS
@@ -61,7 +61,7 @@ diff -ruN a/public/graphql/agents/setting_update.graphql b/public/graphql/agents
 +}
 diff -ruN a/public/graphql/agents/tokens_for_user.graphql b/public/graphql/agents/tokens_for_user.graphql
 --- a/public/graphql/agents/tokens_for_user.graphql	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/graphql/agents/tokens_for_user.graphql	2026-11-18 20:04:56.460888195 +0100
++++ b/public/graphql/agents/tokens_for_user.graphql	2026-11-18 23:53:01.227740386 +0100
 @@ -0,0 +1,28 @@
 +query tokens_for_user($user_id: String!) {
 +  # A person's tokens, with the fields needed to group them into agents and to
@@ -92,8 +92,8 @@ diff -ruN a/public/graphql/agents/tokens_for_user.graphql b/public/graphql/agent
 +  }
 +}
 diff -ruN a/public/graphql/tokens/find_by_id.graphql b/public/graphql/tokens/find_by_id.graphql
---- a/public/graphql/tokens/find_by_id.graphql	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/graphql/tokens/find_by_id.graphql	2026-11-18 20:11:36.109352950 +0100
+--- a/public/graphql/tokens/find_by_id.graphql	2026-11-18 23:53:01.212740807 +0100
++++ b/public/graphql/tokens/find_by_id.graphql	2026-11-18 23:53:01.227740386 +0100
 @@ -10,6 +10,11 @@
        id
        user_id: property(name: "user_id")
@@ -108,7 +108,7 @@ diff -ruN a/public/graphql/tokens/find_by_id.graphql b/public/graphql/tokens/fin
        client_id: property(name: "client_id")
 diff -ruN a/public/lib/commands/agents/revoke.liquid b/public/lib/commands/agents/revoke.liquid
 --- a/public/lib/commands/agents/revoke.liquid	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/lib/commands/agents/revoke.liquid	2026-11-18 20:06:35.313475509 +0100
++++ b/public/lib/commands/agents/revoke.liquid	2026-11-18 23:53:01.231740274 +0100
 @@ -0,0 +1,51 @@
 +{%- comment -%}
 +  Disconnect one of a person's agents (TASK-57): revoke every active token that
@@ -163,7 +163,7 @@ diff -ruN a/public/lib/commands/agents/revoke.liquid b/public/lib/commands/agent
 +%}
 diff -ruN a/public/lib/commands/agents/set_tools.liquid b/public/lib/commands/agents/set_tools.liquid
 --- a/public/lib/commands/agents/set_tools.liquid	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/lib/commands/agents/set_tools.liquid	2026-11-18 20:06:26.053513055 +0100
++++ b/public/lib/commands/agents/set_tools.liquid	2026-11-18 23:53:01.231740274 +0100
 @@ -0,0 +1,85 @@
 +{%- comment -%}
 +  Set which tools one of a person's agents may use (TASK-57).
@@ -251,8 +251,8 @@ diff -ruN a/public/lib/commands/agents/set_tools.liquid b/public/lib/commands/ag
 +  return result
 +%}
 diff -ruN a/public/lib/commands/execute/invoke.liquid b/public/lib/commands/execute/invoke.liquid
---- a/public/lib/commands/execute/invoke.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/commands/execute/invoke.liquid	2026-11-18 20:37:38.323032795 +0100
+--- a/public/lib/commands/execute/invoke.liquid	2026-11-18 23:53:01.214740751 +0100
++++ b/public/lib/commands/execute/invoke.liquid	2026-11-18 23:53:01.228740358 +0100
 @@ -68,7 +68,7 @@
    }
  
@@ -267,17 +267,17 @@ diff -ruN a/public/lib/commands/execute/invoke.liquid b/public/lib/commands/exec
  
    # Step 7a — a requires_approval tool never runs inline, and has no in-process queue.
 -  if tool.requires_approval
-+  # With the gate turned off (queries/approval/enforced) there is nothing to wait
-+  # for, so the tool runs here like any other mutating tool. Only an explicit
-+  # false turns it off.
-+  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg
++  # With the gate turned off for this tool (queries/approval/enforced) there is
++  # nothing to wait for, so the tool runs here like any other mutating tool.
++  # Only an explicit false turns it off.
++  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: tool_name
 +  if tool.requires_approval and gate_enforced
      assign le['authz_reason'] = 'approval_required_in_process'
      assign le['execution_outcome'] = 'denied'
      assign le['error_code'] = -32001
 diff -ruN a/public/lib/commands/identity/resolve_principal.liquid b/public/lib/commands/identity/resolve_principal.liquid
---- a/public/lib/commands/identity/resolve_principal.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/commands/identity/resolve_principal.liquid	2026-11-18 20:07:29.778258861 +0100
+--- a/public/lib/commands/identity/resolve_principal.liquid	2026-11-18 23:53:01.214740751 +0100
++++ b/public/lib/commands/identity/resolve_principal.liquid	2026-11-18 23:53:01.228740358 +0100
 @@ -120,8 +120,13 @@
  
    assign agent = { "id": agent_id }
@@ -295,8 +295,8 @@ diff -ruN a/public/lib/commands/identity/resolve_principal.liquid b/public/lib/c
    assign agent['registered'] = true
    assign agent['allowed_tools'] = token.allowed_tools
 diff -ruN a/public/lib/commands/rpc/tools_call.liquid b/public/lib/commands/rpc/tools_call.liquid
---- a/public/lib/commands/rpc/tools_call.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/commands/rpc/tools_call.liquid	2026-11-18 20:37:33.182010448 +0100
+--- a/public/lib/commands/rpc/tools_call.liquid	2026-11-18 23:53:01.217740667 +0100
++++ b/public/lib/commands/rpc/tools_call.liquid	2026-11-18 23:53:01.230740302 +0100
 @@ -126,7 +126,7 @@
  
    # Step 4 — resolve the tool from the registry (explicit registration + valid
@@ -306,24 +306,25 @@ diff -ruN a/public/lib/commands/rpc/tools_call.liquid b/public/lib/commands/rpc/
    function apps = 'modules/mcp/helpers/protocol/apps_client', proto: proto, identity: auth
    if tool != blank and apps != true
      function tool_model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: tool
-@@ -221,7 +221,13 @@
+@@ -221,7 +221,14 @@
    # outcome. An operator later approves in the console; execution happens then, as
    # THIS principal. Idempotency does not apply (there is no result yet — the handle
    # is the dedup).
 -  if tool.requires_approval
 +  #
 +  # queries/approval/enforced resolves the switch: the app's approval partial
-+  # first, then config.approval_enforced. Only an explicit false turns the gate
++  # first, then config.approval_enforced. The tool name goes with it, so an app
++  # can gate some tools and not others. Only an explicit false turns the gate
 +  # off; the tool then falls through to Step 8 and runs like any other mutating
 +  # tool. Read per request, so turning the gate back on takes effect at once.
-+  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg
++  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: tool_name
 +  if tool.requires_approval and gate_enforced
      # Step 7a-guard — approval-queue flood control (§9.6, §12.4). Before recording a
      # new pending intent, bound how many NON-EXPIRED proposals this principal already
      # holds and reject exact duplicates (same tool AND same input_sha256 — full
 diff -ruN a/public/lib/commands/rpc/tools_list.liquid b/public/lib/commands/rpc/tools_list.liquid
---- a/public/lib/commands/rpc/tools_list.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/commands/rpc/tools_list.liquid	2026-11-18 20:07:53.833165340 +0100
+--- a/public/lib/commands/rpc/tools_list.liquid	2026-11-18 23:53:01.217740667 +0100
++++ b/public/lib/commands/rpc/tools_list.liquid	2026-11-18 23:53:01.230740302 +0100
 @@ -73,6 +73,15 @@
      assign empty_args = {}
      assign dm = delegation_mode | default: 'direct'
@@ -341,8 +342,8 @@ diff -ruN a/public/lib/commands/rpc/tools_list.liquid b/public/lib/commands/rpc/
        if az.allow == true
          assign visible = visible | array_add: m
 diff -ruN a/public/lib/helpers/config.liquid b/public/lib/helpers/config.liquid
---- a/public/lib/helpers/config.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/helpers/config.liquid	2026-11-18 20:37:27.297984573 +0100
+--- a/public/lib/helpers/config.liquid	2026-11-18 23:53:01.217740667 +0100
++++ b/public/lib/helpers/config.liquid	2026-11-18 23:53:01.233740218 +0100
 @@ -90,6 +90,30 @@
    # exchange data only: the engine renders and escapes the page. Absent = no fields.
    assign c['oauth_consent_partial'] = 'mcp/oauth/consent'
@@ -376,7 +377,7 @@ diff -ruN a/public/lib/helpers/config.liquid b/public/lib/helpers/config.liquid
    # advertised list to the CALLER: a tool appears only if its authorization policy
 diff -ruN a/public/lib/helpers/identity/agent_key.liquid b/public/lib/helpers/identity/agent_key.liquid
 --- a/public/lib/helpers/identity/agent_key.liquid	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/lib/helpers/identity/agent_key.liquid	2026-11-18 20:04:22.347037199 +0100
++++ b/public/lib/helpers/identity/agent_key.liquid	2026-11-18 23:53:01.232740246 +0100
 @@ -0,0 +1,22 @@
 +{%- comment -%}
 +  The stable identity of the AGENT a token belongs to — the one definition.
@@ -402,7 +403,7 @@ diff -ruN a/public/lib/helpers/identity/agent_key.liquid b/public/lib/helpers/id
 +%}
 diff -ruN a/public/lib/queries/agents/for_user.liquid b/public/lib/queries/agents/for_user.liquid
 --- a/public/lib/queries/agents/for_user.liquid	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/lib/queries/agents/for_user.liquid	2026-11-18 20:05:56.506634330 +0100
++++ b/public/lib/queries/agents/for_user.liquid	2026-11-18 23:53:01.235740162 +0100
 @@ -0,0 +1,92 @@
 +{%- comment -%}
 +  A person's agents, grouped from their tokens — what an app needs to draw a
@@ -498,7 +499,7 @@ diff -ruN a/public/lib/queries/agents/for_user.liquid b/public/lib/queries/agent
 +%}
 diff -ruN a/public/lib/queries/agents/tool_enabled.liquid b/public/lib/queries/agents/tool_enabled.liquid
 --- a/public/lib/queries/agents/tool_enabled.liquid	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/lib/queries/agents/tool_enabled.liquid	2026-11-18 20:05:24.123769962 +0100
++++ b/public/lib/queries/agents/tool_enabled.liquid	2026-11-18 23:53:01.235740162 +0100
 @@ -0,0 +1,56 @@
 +{%- comment -%}
 +  Has the person left this tool switched on for this agent? (TASK-57)
@@ -558,8 +559,8 @@ diff -ruN a/public/lib/queries/agents/tool_enabled.liquid b/public/lib/queries/a
 +%}
 diff -ruN a/public/lib/queries/approval/enforced.liquid b/public/lib/queries/approval/enforced.liquid
 --- a/public/lib/queries/approval/enforced.liquid	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/lib/queries/approval/enforced.liquid	2026-11-18 20:37:21.565959057 +0100
-@@ -0,0 +1,47 @@
++++ b/public/lib/queries/approval/enforced.liquid	2026-11-18 23:53:01.235740162 +0100
+@@ -0,0 +1,51 @@
 +{%- comment -%}
 +  Is the human-in-the-loop gate enforced for this call? (spec §9.6)
 +
@@ -568,7 +569,10 @@ diff -ruN a/public/lib/queries/approval/enforced.liquid b/public/lib/queries/app
 +  1. The app's approval partial (config.approval_partial, default
 +     'mcp/approval'), when it exists. An app that lets its own admins turn the
 +     gate on and off keeps that switch in its own settings and answers here, so
-+     the engine never has to be told to read an app's table.
++     the engine never has to be told to read an app's table. The partial is
++     given the tool name, so an app can answer for one tool instead of for all
++     of them at once: a desk may let an assistant add an internal note straight
++     away while a reply to a customer still waits for a person.
 +  2. config.approval_enforced, the instance-wide default, for an app that
 +     provides no partial.
 +
@@ -581,13 +585,14 @@ diff -ruN a/public/lib/queries/approval/enforced.liquid b/public/lib/queries/app
 +  executing ungated for minutes after an operator turned the gate back on.
 +
 +  @param {object} cfg - the resolved config (helpers/config)
++  @param {string} [tool_name] - the tool being called, for an app answering per tool
 +  @return {boolean} true when a requires_approval tool must wait for a person
 +{%- endcomment -%}
 +{% liquid
 +  assign partial = cfg.approval_partial | default: 'mcp/approval'
 +  assign answer = null
 +  try
-+    function answer = partial
++    function answer = partial, tool_name: tool_name
 +  catch e
 +    unless e.message contains "can't find partial"
 +      log e.message, type: 'mcp.approval_partial_error'
@@ -608,8 +613,8 @@ diff -ruN a/public/lib/queries/approval/enforced.liquid b/public/lib/queries/app
 +  return true
 +%}
 diff -ruN a/public/lib/queries/identity/token_still_authorized.liquid b/public/lib/queries/identity/token_still_authorized.liquid
---- a/public/lib/queries/identity/token_still_authorized.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/queries/identity/token_still_authorized.liquid	2026-11-18 20:07:14.137320364 +0100
+--- a/public/lib/queries/identity/token_still_authorized.liquid	2026-11-18 23:53:01.219740610 +0100
++++ b/public/lib/queries/identity/token_still_authorized.liquid	2026-11-18 23:53:01.233740218 +0100
 @@ -39,6 +39,17 @@
      endunless
    endunless
@@ -629,8 +634,8 @@ diff -ruN a/public/lib/queries/identity/token_still_authorized.liquid b/public/l
      assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
      assign rexp = token.refresh_expires_at | plus: 0
 diff -ruN a/public/lib/queries/registry/for_agent.liquid b/public/lib/queries/registry/for_agent.liquid
---- a/public/lib/queries/registry/for_agent.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/queries/registry/for_agent.liquid	2026-11-18 20:07:41.673212459 +0100
+--- a/public/lib/queries/registry/for_agent.liquid	2026-11-18 23:53:01.220740582 +0100
++++ b/public/lib/queries/registry/for_agent.liquid	2026-11-18 23:53:01.234740190 +0100
 @@ -4,7 +4,8 @@
    valid manifest, the agent's allowed_tools (when set) includes it, and its
    authorization policy admits the principal and agent with empty arguments — the same
@@ -653,8 +658,8 @@ diff -ruN a/public/lib/queries/registry/for_agent.liquid b/public/lib/queries/re
      if az.allow == true
        function t = 'modules/mcp/helpers/registry/present_tool', manifest: m
 diff -ruN a/public/lib/queries/registry/resolve_tool.liquid b/public/lib/queries/registry/resolve_tool.liquid
---- a/public/lib/queries/registry/resolve_tool.liquid	2026-11-17 16:49:04.000000000 +0100
-+++ b/public/lib/queries/registry/resolve_tool.liquid	2026-11-18 20:06:48.114423947 +0100
+--- a/public/lib/queries/registry/resolve_tool.liquid	2026-11-18 23:53:01.220740582 +0100
++++ b/public/lib/queries/registry/resolve_tool.liquid	2026-11-18 23:53:01.234740190 +0100
 @@ -4,12 +4,28 @@
    an unregistered or excluded tool is simply not found, so the surface can never
    execute an unvalidated action.
@@ -703,7 +708,7 @@ diff -ruN a/public/lib/queries/registry/resolve_tool.liquid b/public/lib/queries
    assign found = null
 diff -ruN a/public/schema/mcp_agent_setting.yml b/public/schema/mcp_agent_setting.yml
 --- a/public/schema/mcp_agent_setting.yml	1970-01-01 01:00:00.000000000 +0100
-+++ b/public/schema/mcp_agent_setting.yml	2026-11-18 20:04:29.235006816 +0100
++++ b/public/schema/mcp_agent_setting.yml	2026-11-18 23:53:01.235740162 +0100
 @@ -0,0 +1,19 @@
 +name: mcp_agent_setting
 +# What a person has decided about one of their agents (an assistant), as opposed

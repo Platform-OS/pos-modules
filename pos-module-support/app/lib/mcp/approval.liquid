@@ -4,8 +4,10 @@
   in Assistants rather than by editing an instance constant.
 
   Fail-safe: the engine keeps the gate ON unless this answers an explicit false.
+
+  @param {string} [tool_name] - the tool the engine is about to run
 {% enddoc %}
 {% liquid
-  function answer = 'modules/support/mcp/approval'
+  function answer = 'modules/support/mcp/approval', tool_name: tool_name
   return answer
 %}

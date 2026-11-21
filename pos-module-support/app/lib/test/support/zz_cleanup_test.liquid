@@ -16,4 +16,40 @@
   endif
   graphql left = 'modules/support/tickets/search', department_ids: scope, limit: 1
   function contract = 'modules/tests/assertions/equal', contract: contract, given: left.records.total_entries, expected: 0, field_name: 'fixture tickets removed'
+
+  # Isolation gate (snapshot taken by aa_cleanup_test, which runs first): every
+  # setting a test changed must be back as it was. Comparing the stored JSON
+  # rather than the parsed value keeps the check exact, and naming the keys
+  # that moved says which test to go and look at.
+  #
+  # Volatile keys are excluded because the desk itself writes them while the
+  # suite runs: the maintenance sweep's bookkeeping, the recount timestamp, the
+  # lazy colour cache, the snapshot itself, and test_marker, which helpers_test
+  # sets to a fresh random value on purpose to prove the settings memo clears.
+  assign volatile = 'test_settings_snapshot,test_marker,sweep_heartbeat,sweep_started_at,sweep_chain,ticket_stats_counted_at,brand_shift_cache' | split: ','
+  function settings_now = 'modules/support/helpers/settings'
+  assign before = settings_now.test_settings_snapshot
+  assign changed = []
+  unless before == blank
+    for pair in before
+      unless volatile contains pair[0]
+        assign now_json = settings_now[pair[0]] | json
+        unless now_json == pair[1]
+          assign changed = changed | array_add: pair[0]
+        endunless
+      endunless
+    endfor
+    # a setting a test created and left behind is a leak too
+    for pair in settings_now
+      unless volatile contains pair[0]
+        if before[pair[0]] == blank
+          unless changed contains pair[0]
+            assign changed = changed | array_add: pair[0]
+          endunless
+        endif
+      endunless
+    endfor
+  endunless
+  assign changed_names = changed | join: ','
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: changed_names, expected: '', field_name: 'every test put back the desk settings it changed'
 %}

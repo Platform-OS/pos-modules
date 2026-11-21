@@ -1,0 +1,98 @@
+{% doc %}
+  Changes which assistant actions need a person's approval.
+
+  ONE SOURCE OF TRUTH. The stored setting is `mcp_approval_exempt_tools`: the
+  actions that do NOT need approval. Everything else does, so an action added to
+  the desk later needs approval until an admin says otherwise. There is no
+  separate desk-wide flag to fall out of step with it — "every action needs
+  approval" is a view over this list, and `change: 'all'` just sets the list to
+  empty or to every action.
+
+  The new list is rebuilt from the registry and from the EFFECTIVE previous
+  state (what the engine would do today), never from the stored list alone.
+  That matters because of `mcp_require_approval`, the desk-wide flag this
+  replaced: while it is false nothing needs approval whatever the list says, so
+  rebuilding from the list would silently switch the other actions back on.
+  Rebuilding from the registry also drops an action that has since left the desk
+  instead of leaving a dead name in the setting.
+
+  `mcp_require_approval` is set to true by any change here. From then on the
+  list is the only thing that decides, and the two cannot disagree.
+
+  Only an action the registry declares `requires_approval` can be named: a
+  hand-made request cannot park an arbitrary name in the setting.
+
+  @param {string} change - 'all' (every action) or 'tool' (one action)
+  @param {string} [tool] - the action's tool name, required when change is 'tool'
+  @param {boolean} value - true = needs approval, false = happens immediately
+  @return {object} { valid, error?, tool_title? }
+{% enddoc %}
+{% liquid
+  assign out = { "valid": false }
+
+  unless change == 'all' or change == 'tool'
+    assign out['error'] = 'unknown_change'
+    return out
+  endunless
+
+  function registry = 'modules/support/helpers/mcp/call', action: 'tools', payload: null
+  assign gated_tools = []
+  for entry in registry.tools
+    if entry.requires_approval
+      assign gated_tools = gated_tools | array_add: entry
+    endif
+  endfor
+  if gated_tools == empty
+    assign out['error'] = 'no_tools'
+    return out
+  endif
+
+  if change == 'tool'
+    assign changed = null
+    for entry in gated_tools
+      if entry.name == tool
+        assign changed = entry
+      endif
+    endfor
+    unless changed
+      assign out['error'] = 'unknown_tool'
+      return out
+    endunless
+    assign out['tool_title'] = changed.title | default: changed.name
+  endif
+
+  assign wants = false
+  if value == true
+    assign wants = true
+  endif
+
+  function gate = 'modules/support/mcp/approval'
+  assign exempt = []
+  for entry in gated_tools
+    if change == 'all'
+      assign needs = wants
+    elsif entry.name == tool
+      assign needs = wants
+    else
+      assign needs = gate.desk_switch
+      if needs
+        for exempt_name in gate.exempt
+          if exempt_name == entry.name
+            assign needs = false
+          endif
+        endfor
+      endif
+    endif
+    unless needs
+      assign exempt = exempt | array_add: entry.name
+    endunless
+  endfor
+
+  function _ = 'modules/support/commands/settings/set', key: 'mcp_approval_exempt_tools', value: exempt
+  if gate.desk_switch == false
+    function _ = 'modules/support/commands/settings/set', key: 'mcp_require_approval', value: true
+  endif
+
+  assign out['valid'] = true
+  return out
+%}

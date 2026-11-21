@@ -6,10 +6,12 @@
   it and never sees more than they do, so there is nothing here for an admin to
   administer on someone else's behalf.
   @param {object[]} assistants - [{ client_id, name, kind, tokens, last_used_at, status, disabled_tools }]
-  @param {object[]} tools - [{ name, title, description, mutating, requires_approval }]
+  @param {object[]} tools - [{ name, title, mutating, requires_approval, approval_on }]
+  @param {object[]} [gated_tools] - the subset of tools declaring requires_approval
   @param {object} [fresh] - { name, key } of an assistant connected a moment ago; shown once
-  @param {boolean} [require_approval] - The desk-wide gate is on
-  @param {boolean} [can_set_approval] - This member may change the desk-wide gate
+  @param {boolean} [can_set_approval] - This member may change what needs approval
+  @param {number} [waiting_count] - How many of those actions need approval right now
+  @param {number} [gated_count] - How many actions can require approval at all
 {% enddoc %}
 <div class="pos-support-steps">
   <h1 class="pos-heading-2">{{ 'modules/support/assistants.title' | t }}</h1>
@@ -24,20 +26,75 @@
   {% endif %}
 
   {% if can_set_approval %}
-    <section class="pos-card pos-support-step">
+    <section class="pos-card pos-support-step pos-support-switch-section">
       <h2 class="pos-heading-3">{{ 'modules/support/assistants.approval_title' | t }}</h2>
       <p class="pos-supplementary">{{ 'modules/support/assistants.approval_help' | t }}</p>
-      <form action="/support-desk/assistants/approval" method="post" class="pos-form">
+
+      {% comment %}
+        "Everything needs approval" is not a setting of its own — it reports the
+        switches below and sets them all at once. Keeping one source of truth is
+        what stops the panel reaching a state where this says one thing and the
+        actions below do another.
+
+        It is a checkbox rather than a switch because a select-all has three
+        states, and only checkbox may be aria-checked="mixed".
+
+        Each control is its own small form that posts one change, as on the
+        profile page: nothing to press afterwards, and no JavaScript needed.
+      {% endcomment %}
+      {% assign all_on = false %}
+      {% if gated_count > 0 and waiting_count == gated_count %}{% assign all_on = true %}{% endif %}
+      <form action="/support-desk/assistants/approval" method="post" class="pos-support-switch-row">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
-        <p>
-          <input type="checkbox" id="require-approval" name="require_approval" value="true" {% if require_approval %}checked{% endif %}>
-          <label for="require-approval">{{ 'modules/support/assistants.approval_label' | t }}</label>
-        </p>
-        {% unless require_approval %}
-          <p class="pos-support-error" role="alert">{{ 'modules/support/assistants.approval_warning' | t }}</p>
-        {% endunless %}
-        <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/assistants.save_tools' | t }}</button>
+        <input type="hidden" name="change" value="all">
+        <input type="hidden" name="value" value="{% if all_on %}false{% else %}true{% endif %}">
+        <div><span id="approval-all-label">{{ 'modules/support/assistants.approval_label' | t }}</span></div>
+        <button type="submit" class="pos-support-switch" role="checkbox" aria-checked="{% if all_on %}true{% elsif waiting_count == 0 %}false{% else %}mixed{% endif %}" aria-labelledby="approval-all-label"><span aria-hidden="true"></span></button>
       </form>
+
+      {% comment %}
+        The state is on the page in every case, always one line, so changing a
+        control changes the wording and nothing else. A line that appeared only
+        when approval was off would make the card taller and shove everything
+        below it down on every change.
+      {% endcomment %}
+      {% if waiting_count == 0 %}
+        <p class="pos-support-switch-note pos-support-error" role="alert">{{ 'modules/support/assistants.approval_status_none' | t }}</p>
+      {% elsif all_on %}
+        <p class="pos-support-switch-note">{{ 'modules/support/assistants.approval_status_all' | t: total: gated_count }}</p>
+      {% else %}
+        <p class="pos-support-switch-note">{{ 'modules/support/assistants.approval_status_some' | t: waiting: waiting_count, total: gated_count }}</p>
+      {% endif %}
+
+      {% if gated_tools != empty %}
+        <div class="pos-support-switch-list" role="group" aria-labelledby="approval-tools-title">
+          <h3 id="approval-tools-title" class="pos-heading-4">{{ 'modules/support/assistants.approval_per_tool_title' | t }}</h3>
+          <p class="pos-supplementary">{{ 'modules/support/assistants.approval_per_tool_help' | t }}</p>
+          {% comment %}
+            No warning paragraph appears or disappears with the switches: a block
+            that comes and going resizes the card on every toggle. Each row says
+            its own state in its own fixed place instead.
+          {% endcomment %}
+          {% for tool in gated_tools %}
+            {% assign tool_label_id = 'approval-tool-' | append: forloop.index %}
+            <form action="/support-desk/assistants/approval" method="post" class="pos-support-switch-row">
+              <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
+              <input type="hidden" name="change" value="tool">
+              <input type="hidden" name="tool" value="{{ tool.name }}">
+              <input type="hidden" name="value" value="{% if tool.approval_on %}false{% else %}true{% endif %}">
+              <div>
+                <span id="{{ tool_label_id }}">{{ tool.title }}</span>
+                {%- if tool.approval_on -%}
+                  <span class="pos-support-switch-state">{{ 'modules/support/assistants.approval_state_waits' | t }}</span>
+                {%- else -%}
+                  <span class="pos-support-switch-state pos-support-switch-state-off">{{ 'modules/support/assistants.approval_state_straight' | t }}</span>
+                {%- endif -%}
+              </div>
+              <button type="submit" class="pos-support-switch" role="switch" aria-checked="{% if tool.approval_on %}true{% else %}false{% endif %}" aria-labelledby="{{ tool_label_id }}"><span aria-hidden="true"></span></button>
+            </form>
+          {% endfor %}
+        </div>
+      {% endif %}
     </section>
   {% endif %}
 
@@ -75,24 +132,52 @@
       <form action="/support-desk/assistants/tools" method="post" class="pos-form">
         <input type="hidden" name="authenticity_token" value="{{ context.authenticity_token }}">
         <input type="hidden" name="client_id" value="{{ assistant.client_id }}">
-        <fieldset>
-          <legend>{{ 'modules/support/assistants.may_use' | t }}</legend>
-          {% for tool in tools %}
-            {% assign field_id = 'tool-' | append: forloop.parentloop.index | append: '-' | append: forloop.index %}
-            <p>
-              <input type="checkbox" id="{{ field_id }}" name="tools[]" value="{{ tool.name }}"
-                {% unless assistant.disabled_tools contains tool.name %}checked{% endunless %}>
-              <label for="{{ field_id }}">
-                {{ tool.title }}
-                {% if tool.requires_approval %}
-                  <span class="pos-supplementary">{{ 'modules/support/assistants.needs_approval' | t }}</span>
-                {% elsif tool.mutating %}
-                  <span class="pos-supplementary">{{ 'modules/support/assistants.changes_things' | t }}</span>
+        {% comment %}
+          Split into what only reads and what changes the desk, side by side.
+          One flat list of every tool reads as a wall; the split is also the
+          distinction that matters when deciding what to leave switched on, and
+          the two columns let both halves be taken in at a glance.
+        {% endcomment %}
+        <div class="pos-support-tool-columns">
+          <fieldset>
+            <legend>{{ 'modules/support/assistants.may_read' | t }}</legend>
+            <ul class="pos-support-plain-list">
+              {% for tool in tools %}
+                {% unless tool.mutating %}
+                  {% assign field_id = 'tool-r-' | append: forloop.parentloop.index | append: '-' | append: forloop.index %}
+                  <li>
+                    <input type="checkbox" id="{{ field_id }}" name="tools[]" value="{{ tool.name }}"
+                      {% unless assistant.disabled_tools contains tool.name %}checked{% endunless %}>
+                    <label for="{{ field_id }}">{{ tool.title }}</label>
+                  </li>
+                {% endunless %}
+              {% endfor %}
+            </ul>
+          </fieldset>
+          <fieldset>
+            <legend>{{ 'modules/support/assistants.may_change' | t }}</legend>
+            <ul class="pos-support-plain-list">
+              {% for tool in tools %}
+                {% if tool.mutating %}
+                  {% assign field_id = 'tool-w-' | append: forloop.parentloop.index | append: '-' | append: forloop.index %}
+                  <li>
+                    <input type="checkbox" id="{{ field_id }}" name="tools[]" value="{{ tool.name }}"
+                      {% unless assistant.disabled_tools contains tool.name %}checked{% endunless %}>
+                    <label for="{{ field_id }}">
+                      {{ tool.title }}
+                      {% comment %} approval_on, not requires_approval: a tool the desk has exempted does not wait {% endcomment %}
+                      {% if tool.approval_on %}
+                        <span class="pos-supplementary">{{ 'modules/support/assistants.needs_approval' | t }}</span>
+                      {% else %}
+                        <span class="pos-supplementary">{{ 'modules/support/assistants.changes_things' | t }}</span>
+                      {% endif %}
+                    </label>
+                  </li>
                 {% endif %}
-              </label>
-            </p>
-          {% endfor %}
-        </fieldset>
+              {% endfor %}
+            </ul>
+          </fieldset>
+        </div>
         <button type="submit" class="pos-button pos-button-primary">{{ 'modules/support/assistants.save_tools' | t }}</button>
       </form>
 

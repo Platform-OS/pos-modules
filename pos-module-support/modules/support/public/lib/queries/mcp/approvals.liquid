@@ -17,7 +17,7 @@
   proposal, and the result is memoised per request, so the badge and the page
   share a single computation.
   @param {object} member - The acting team_member
-  @return {object[]} [{ handle, tool_name, tool_title, created_at, expires_at, requester, agent, ticket, arguments }]
+  @return {object[]} [{ handle, tool_name, tool_title, created_at, expires_at, requester, agent, ticket, arguments, reaches_customer }]
 {% enddoc %}
 {% liquid
   assign memo_key = member.id | append: ''
@@ -69,6 +69,10 @@
       assign titles[tool.name] = tool.title
     endfor
 
+    # Approving one of these does not just change the desk: it sends an email to
+    # the customer, which cannot be unsent. The screen says so before the press.
+    assign reaches_customer = 'support_reply_to_customer' | split: ','
+
     for row in pending
       assign arguments = row.arguments_json | default: '{}' | parse_json
       assign ticket = null
@@ -96,6 +100,12 @@
       assign item['handle'] = row.handle
       assign item['tool_name'] = row.tool_name
       assign item['tool_title'] = titles[row.tool_name] | default: row.tool_name
+      assign item['reaches_customer'] = false
+      for sending_name in reaches_customer
+        if sending_name == row.tool_name
+          assign item['reaches_customer'] = true
+        endif
+      endfor
       assign item['created_at'] = row.created_at
       assign item['expires_at'] = row.expires_at
       assign item['agent'] = row.requested_by_agent

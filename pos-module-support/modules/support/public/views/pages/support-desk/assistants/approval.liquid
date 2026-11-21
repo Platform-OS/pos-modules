@@ -6,9 +6,13 @@ metadata:
   permission: support.settings.manage
 ---
 {% liquid
-  # A desk-wide switch, so it takes the settings permission: an agent manages
-  # their own assistants, an admin decides whether what they propose waits for
-  # a person.
+  # Which assistant actions need a person's approval. Desk-wide, so it takes
+  # the settings permission: an agent manages their own assistants, an admin
+  # decides what has to be agreed to before it happens.
+  #
+  # One change per control:
+  #   change=all                every action
+  #   change=tool, tool=<name>  one action
   # platformos-check-disable ConvertIncludeToRender, UnreachableCode
   include 'modules/support/helpers/require_member', permission: context.page.metadata.permission, ticket: null
   # platformos-check-enable ConvertIncludeToRender, UnreachableCode
@@ -26,17 +30,29 @@ metadata:
     break
   endunless
 
-  # a checkbox posts nothing when unticked, so its absence is the "off" answer
-  assign require_approval = false
-  if context.params.require_approval == 'true'
-    assign require_approval = true
+  # `value` is the position the control is being moved to
+  assign wants_approval = false
+  if context.params.value == 'true'
+    assign wants_approval = true
   endif
-  function _ = 'modules/support/commands/settings/set', key: 'mcp_require_approval', value: require_approval
 
-  if require_approval
-    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_on', error: null, info: null, force_clear: null
+  function result = 'modules/support/commands/mcp/set_approval', change: context.params.change, tool: context.params.tool, value: wants_approval
+  unless result.valid
+    response_status 422
+    render 'modules/support/forbidden'
+    break
+  endunless
+
+  if context.params.change == 'all'
+    if wants_approval
+      function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_on', error: null, info: null, force_clear: null
+    else
+      function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_off', error: null, info: null, force_clear: null
+    endif
+  elsif wants_approval
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_tool_on', error: null, info: null, force_clear: null
   else
-    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_off', error: null, info: null, force_clear: null
+    function _ = 'modules/user/helpers/flash', notice: 'modules/support/assistants.approval_tool_off', error: null, info: null, force_clear: null
   endif
   redirect_to '/support-desk/assistants'
 %}

@@ -6,13 +6,23 @@
   so a tool added to the desk appears on the panel without anyone editing it.
   Each assistant's `disabled_tools` says which switches are off; a tool absent
   from that list is on, including one added after the person last looked.
+
+  `approval_on` is the EFFECTIVE answer for each action — what the engine would
+  do if it were called right now — so the panel can never show a switch that
+  disagrees with what actually happens. It is worked out here rather than in
+  the page: shaping data is a query's job, and the page has no business
+  looping.
   @param {string} user_id - the signed-in person's user id
+  @return {object} { available, assistants, tools, gated_tools, waiting_count, gated_count }
 {% enddoc %}
 {% liquid
   # The MCP module calls them agents; the desk calls them assistants, because
   # "agent" here is a person who answers tickets. The engine's word stops at
   # this boundary.
   assign data = { "available": false, "assistants": [], "tools": [] }
+  assign data['gated_tools'] = []
+  assign data['waiting_count'] = 0
+  assign data['gated_count'] = 0
   function available = 'modules/support/queries/mcp/available'
   unless available
     return data
@@ -24,7 +34,38 @@
   function connected = 'modules/support/helpers/mcp/call', action: 'agents', payload: who
   assign data.assistants = connected.agents | default: data.assistants
 
-  function tools = 'modules/support/helpers/mcp/call', action: 'tools', payload: null
-  assign data.tools = tools.tools | default: data.tools
+  function offered = 'modules/support/helpers/mcp/call', action: 'tools', payload: null
+  function gate = 'modules/support/mcp/approval'
+  assign tools = []
+  assign gated = []
+  assign waiting = 0
+  for tool in offered.tools
+    assign entry = { "name": null }
+    assign entry['name'] = tool.name
+    assign entry['title'] = tool.title | default: tool.name
+    assign entry['mutating'] = tool.mutating
+    assign entry['requires_approval'] = tool.requires_approval
+    assign entry['approval_on'] = false
+    if tool.requires_approval
+      assign effective = gate.desk_switch
+      if effective
+        for exempt_name in gate.exempt
+          if exempt_name == tool.name
+            assign effective = false
+          endif
+        endfor
+      endif
+      assign entry['approval_on'] = effective
+      if effective
+        assign waiting = waiting | plus: 1
+      endif
+      assign gated = gated | array_add: entry
+    endif
+    assign tools = tools | array_add: entry
+  endfor
+  assign data.tools = tools
+  assign data['gated_tools'] = gated
+  assign data['waiting_count'] = waiting
+  assign data['gated_count'] = gated | size
   return data
 %}

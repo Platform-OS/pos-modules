@@ -17,7 +17,7 @@ So port promptly, and re-apply the patch after any module install.
 
 ## engine-changes.patch
 
-One patch, 19 files, carrying **both** features below. They are not split into
+One patch, 20 files, carrying **both** features below. They are not split into
 two patches because three files (`helpers/config`, `rpc/tools_call`,
 `execute/invoke`) are touched by both, and two overlapping patches would
 conflict depending on the order they were applied.
@@ -35,13 +35,33 @@ Drop `--dry-run` to apply. Check the hunks if master has moved on. Neither
 feature's README, CHANGELOG or spec entry is in the patch — those are written
 when porting.
 
+### If part of this has already been ported
+
+The patch is **cumulative against master**, not against a branch that already
+carries some of it. Features 1 and 2 below were ported to the pos-module-mcp
+branch `mcp-module-improvements` first; the per-tool addition to feature 1 came
+afterwards, so applying this whole patch on top of that branch conflicts.
+
+To see what a branch is actually missing, diff it rather than trusting the
+patch:
+
+```bash
+cd pos-module-mcp && git archive <branch> modules/mcp | tar -x -C /tmp/ported
+diff -ruN /tmp/ported/modules/mcp ../pos-module-support/modules/mcp
+```
+
+As of this writing `mcp-module-improvements` is missing only the per-tool
+change: `queries/approval/enforced` taking `tool_name` and the two call sites
+(`rpc/tools_call`, `execute/invoke`) passing it. It is also one comment ahead of
+the support copy in `graphql/tokens/find_by_id.graphql`, which is text only.
+
 ### 1. A switch for the approval gate, which an app can own
 
 | file | change |
 |---|---|
 | `lib/helpers/config.liquid` | new keys `approval_enforced` (default `true`) and `approval_partial` (default `mcp/approval`) |
-| `lib/queries/approval/enforced.liquid` | **new** — resolves the switch: the app's partial first, then the config key |
-| `lib/commands/rpc/tools_call.liquid` | step 7a gates on it as well as on the manifest |
+| `lib/queries/approval/enforced.liquid` | **new** — resolves the switch: the app's partial first, then the config key. Takes `tool_name` and passes it to the app's partial |
+| `lib/commands/rpc/tools_call.liquid` | step 7a gates on it as well as on the manifest, passing the tool name |
 | `lib/commands/execute/invoke.liquid` | same, for the in-process path |
 
 Two ways to turn the gate off. An operator sets the constant:
@@ -55,6 +75,19 @@ Or the app answers for itself, which is what the support desk does:
 setting, so support admins flip it in the Assistants screen instead of anyone
 editing an instance constant. The engine never reads an app's table, and the app
 never rewrites the engine's config.
+
+**The partial is asked about one tool, not about all of them.** The engine passes
+`tool_name`, so an app can gate some tools and let others through — the desk lets
+an admin turn approval off for, say, adding an internal note while a reply to a
+customer still waits. An app that ignores the parameter keeps answering for every
+tool at once, as before, so this is backwards compatible. A call with no
+`tool_name` (nothing in the engine does this today) must be answered as "every
+tool", never as an exemption: the desk's partial consults its exemption list only
+when it was told which tool is being run.
+
+The desk stores exemptions rather than the tools that need approval
+(`mcp_approval_exempt_tools`), so a tool added to the desk later waits until an
+admin says otherwise.
 
 **Fail-safe in both directions.** Only an explicit `false` turns the gate off; a
 missing partial, one that raises, and any other answer all leave it on.

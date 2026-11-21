@@ -1,0 +1,141 @@
+{% doc %}
+  Which assistant actions need a person's approval
+  (commands/mcp/set_approval), checked through the engine's own question
+  (modules/mcp/queries/approval/enforced) rather than through the stored
+  setting, so the test fails if the panel and the engine ever disagree.
+
+  The case that matters most is the last one: `mcp_require_approval` is the
+  desk-wide flag the per-action list replaced, and while it is false nothing
+  needs approval whatever the list says. Turning one action on from that state
+  must not switch the other five on as a side effect.
+  @param {object} contract - The test contract object
+{% enddoc %}
+{% liquid
+  function settings = 'modules/support/helpers/settings'
+  assign restore_exempt = settings.mcp_approval_exempt_tools
+  assign restore_switch = settings.mcp_require_approval
+
+  function cfg = 'modules/mcp/helpers/config'
+  function registry = 'modules/support/helpers/mcp/call', action: 'tools', payload: null
+  assign gated = []
+  for entry in registry.tools
+    if entry.requires_approval
+      assign gated = gated | array_add: entry.name
+    endif
+  endfor
+  assign gated_count = gated | size
+  assign has_gated_tools = false
+  if gated_count > 0
+    assign has_gated_tools = true
+  endif
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: has_gated_tools, expected: true, field_name: 'the desk registers at least one action that can need approval'
+
+  # Each check reads the engine's answer for every action and compares the
+  # names, not a count, so a failure says which action went wrong.
+  assign all_names = gated | join: ','
+
+  # --- every action needs approval -------------------------------------
+  function result = 'modules/support/commands/mcp/set_approval', change: 'all', tool: null, value: true
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.valid, expected: true, field_name: 'turning approval on for every action is accepted'
+  capture after_all_on
+    assign names = []
+    for name in gated
+      function enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: name
+      if enforced
+        assign names = names | array_add: name
+      endif
+    endfor
+    echo names | join: ','
+  endcapture
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after_all_on, expected: all_names, field_name: 'with every action on, the engine requires approval for all of them'
+
+  # --- one action turned off -------------------------------------------
+  assign first_tool = gated.first
+  function result = 'modules/support/commands/mcp/set_approval', change: 'tool', tool: first_tool, value: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.valid, expected: true, field_name: 'turning one action off is accepted'
+  assign expected_rest = []
+  for name in gated
+    unless name == first_tool
+      assign expected_rest = expected_rest | array_add: name
+    endunless
+  endfor
+  assign expected_rest_names = expected_rest | join: ','
+  capture after_one_off
+    assign names = []
+    for name in gated
+      function enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: name
+      if enforced
+        assign names = names | array_add: name
+      endif
+    endfor
+    echo names | join: ','
+  endcapture
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after_one_off, expected: expected_rest_names, field_name: 'turning one action off leaves every other action needing approval'
+
+  # --- an unknown action is refused ------------------------------------
+  function result = 'modules/support/commands/mcp/set_approval', change: 'tool', tool: 'support_not_a_real_tool', value: false
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.error, expected: 'unknown_tool', field_name: 'an action the registry does not gate is refused'
+  function result = 'modules/support/commands/mcp/set_approval', change: 'sideways', tool: null, value: true
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: result.error, expected: 'unknown_change', field_name: 'an unknown kind of change is refused'
+
+  # --- nothing needs approval ------------------------------------------
+  function result = 'modules/support/commands/mcp/set_approval', change: 'all', tool: null, value: false
+  capture after_all_off
+    assign names = []
+    for name in gated
+      function enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: name
+      if enforced
+        assign names = names | array_add: name
+      endif
+    endfor
+    echo names | join: ','
+  endcapture
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after_all_off, expected: '', field_name: 'with every action off, the engine requires approval for none of them'
+
+  # --- the replaced desk-wide flag --------------------------------------
+  # Put the desk back in the state it had before per-action switches existed:
+  # the flag false, the list empty. Nothing needs approval. Turning ONE action
+  # on must leave the other five off, not switch them on with it.
+  assign empty_list = []
+  function _ = 'modules/support/commands/settings/set', key: 'mcp_approval_exempt_tools', value: empty_list
+  function _ = 'modules/support/commands/settings/set', key: 'mcp_require_approval', value: false
+  capture legacy_state
+    assign names = []
+    for name in gated
+      function enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: name
+      if enforced
+        assign names = names | array_add: name
+      endif
+    endfor
+    echo names | join: ','
+  endcapture
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: legacy_state, expected: '', field_name: 'the replaced desk-wide flag still turns approval off for every action'
+
+  function result = 'modules/support/commands/mcp/set_approval', change: 'tool', tool: first_tool, value: true
+  capture after_legacy_one_on
+    assign names = []
+    for name in gated
+      function enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: name
+      if enforced
+        assign names = names | array_add: name
+      endif
+    endfor
+    echo names | join: ','
+  endcapture
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: after_legacy_one_on, expected: first_tool, field_name: 'turning one action on from the old flag does not switch the others on too'
+
+  function settings_after = 'modules/support/helpers/settings'
+  function contract = 'modules/tests/assertions/equal', contract: contract, given: settings_after.mcp_require_approval, expected: true, field_name: 'a change normalises the replaced flag, so the two cannot disagree again'
+
+  # --- restore -----------------------------------------------------------
+  assign restore_list = restore_exempt
+  if restore_list == blank
+    assign restore_list = empty_list
+  endif
+  function _ = 'modules/support/commands/settings/set', key: 'mcp_approval_exempt_tools', value: restore_list
+  assign restore_flag = true
+  if restore_switch == false
+    assign restore_flag = false
+  endif
+  function _ = 'modules/support/commands/settings/set', key: 'mcp_require_approval', value: restore_flag
+%}

@@ -22,12 +22,11 @@ metadata:
   # by assistants/connect: it is shown once and never stored anywhere
   function fresh = 'modules/core/commands/session/get', key: 'support_assistant_key', clear: true
 
-  # the desk-wide approval gate, and whether this member may change it
+  # whether this member may change what needs approval
   assign member = context.exports.support.support_member
-  function gate = 'modules/support/mcp/approval'
   function can_set_approval = 'modules/support/queries/team/can', member: member, do: 'support.settings.manage'
 
   assign title = 'modules/support/assistants.title' | t
   export title, namespace: 'support_page'
-  render 'modules/support/assistants/index', assistants: data.assistants, tools: data.tools, fresh: fresh, require_approval: gate.enforced, can_set_approval: can_set_approval
+  render 'modules/support/assistants/index', assistants: data.assistants, tools: data.tools, gated_tools: data.gated_tools, fresh: fresh, can_set_approval: can_set_approval, waiting_count: data.waiting_count, gated_count: data.gated_count
 %}

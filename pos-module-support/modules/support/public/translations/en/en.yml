@@ -208,6 +208,9 @@ en:
     approve: Approve
     approve_confirm: Approve this? It happens straight away, as the person who proposed it.
     approve_label: Approve
+    approve_send: Approve and send
+    approve_send_confirm: Approve and send? The reply is emailed to the customer straight away, as the person who proposed it, and it cannot be unsent.
+    sends_email: Approving this sends the reply to the customer by email straight away. It cannot be unsent.
     reject: Turn down
     done: Done.
     rejected: Turned down.
@@ -233,16 +236,25 @@ en:
     none_help: Connect one to let it read the desk for you.
     last_used: Last used
     waiting: Connected, not used yet
-    may_use: This assistant may use
-    needs_approval: waits for approval
+    needs_approval: needs approval
     changes_things: changes the ticket
     save_tools: Save
     approval_title: Approval
-    approval_help: Applies to the whole desk, not to one assistant. When it is on, anything an assistant proposes — a note, a status change, a reply — waits in Approvals until a person agrees to it.
-    approval_label: Changes proposed by an assistant wait for a person
-    approval_warning: Approval is off. Assistants change tickets and email customers straight away, with nobody reading it first.
-    approval_on: Changes proposed by an assistant now wait for a person.
-    approval_off: Approval is off. Assistants now change tickets straight away.
+    approval_help: An action that needs approval does not happen until someone agrees to it in Approvals.
+    approval_label: Every action needs approval
+    approval_status_none: No approval needed. Assistants act immediately.
+    approval_status_all: "All %{total} actions need approval."
+    approval_status_some: "%{waiting} of %{total} actions need approval."
+    approval_on: Every action now needs approval.
+    approval_off: Approval turned off. Assistants now act immediately.
+    approval_per_tool_title: Which actions need approval
+    approval_per_tool_help: An action added to the desk later needs approval until you change it here.
+    approval_state_waits: needs approval
+    approval_state_straight: happens immediately
+    approval_tool_on: That action now needs approval.
+    approval_tool_off: That action now happens immediately, with nobody checking it first.
+    may_read: What it can read
+    may_change: What it can change
     revoke: Disconnect
     revoke_confirm: Disconnect %{name}? It stops working straight away.
     revoked: Assistant disconnected.

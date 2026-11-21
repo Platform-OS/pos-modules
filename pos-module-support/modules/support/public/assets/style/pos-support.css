@@ -1970,15 +1970,28 @@
     max-inline-size: 36rem;
   }
 
-  .pos-support-step > form:not(.pos-support-inline-form) {
+  /* a switch row is its own small form and lays itself out as a row, so it is
+     carved out here as the inline form already is */
+  .pos-support-step > form:not(.pos-support-inline-form, .pos-support-switch-row) {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 0.875rem;
   }
 
-  .pos-support-step > form > fieldset {
+  .pos-support-step > form > fieldset,
+  .pos-support-step > form > .pos-support-tool-columns {
     align-self: stretch;
+  }
+
+  /* what an assistant may read and what it may change, side by side. Exactly
+     two tracks: there are two groups, and auto-fit would fit a third, empty
+     one in a wide card and leave the pair hanging to the left. */
+  .pos-support-tool-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.875rem 1.5rem;
+    align-items: start;
   }
 
   .pos-support-settings-form fieldset:has(> label > input[type="checkbox"]),
@@ -2052,9 +2065,105 @@
     background: var(--pos-support-accent-text);
   }
 
+  /* a select-all with some but not all of its items on: the knob rests between
+     the two positions, so the control is not read as either */
+  .pos-support-switch[aria-checked="mixed"] {
+    background: color-mix(in srgb, var(--pos-support-accent) 45%, transparent);
+  }
+
+  .pos-support-switch[aria-checked="mixed"] span {
+    transform: translateX(0.5rem);
+  }
+
   .pos-support-switch:focus-visible {
     outline: 2px solid var(--pos-color-focused);
     outline-offset: 2px;
+  }
+
+  .pos-support-switch[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* one setting per row: its wording, then its switch. Each row is its own
+     small form, so the rows are siblings rather than fields of one form. */
+  .pos-support-switch-row {
+    display: flex;
+    /* stated, not inherited: the generic step-form rule above sets column */
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding-block: 0.5rem;
+  }
+
+  /* flex-basis 0 with min-inline-size 0 lets the wording wrap inside the row
+     instead of widening it, which is what pushed the switch off the edge */
+  .pos-support-switch-row > div {
+    flex: 1 1 0;
+    min-inline-size: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.5rem;
+  }
+
+  .pos-support-switch-row p {
+    margin: 0;
+  }
+
+  /* the row's current state, kept to two or three words so it sits beside the
+     wording rather than becoming a second paragraph */
+  .pos-support-switch-state {
+    color: var(--pos-support-text-muted);
+    font-size: var(--pos-support-text-meta);
+    white-space: nowrap;
+  }
+
+  .pos-support-switch-state-off {
+    color: var(--pos-support-danger);
+  }
+
+  /* a list of switch rows, separated by hairlines */
+  .pos-support-switch-list .pos-support-switch-row + .pos-support-switch-row {
+    border-block-start: 1px solid color-mix(in srgb, var(--pos-support-text) 12%, transparent);
+  }
+
+  /* Prose in a settings card wraps at a readable measure instead of running the
+     full width of the card: a card is up to 52rem, and a sentence stretched
+     across all of it reads badly and looks unfinished. Same measure as the
+     settings fieldsets above. */
+  .pos-support-switch-section > p,
+  .pos-support-switch-list > p {
+    max-inline-size: 36rem;
+  }
+
+  .pos-support-switch-section > .pos-support-switch-row,
+  .pos-support-switch-list {
+    max-inline-size: 36rem;
+  }
+
+  /* the desk-wide state, one line whether approval is on or off, so toggling
+     it never changes the height of the card */
+  .pos-support-switch-note {
+    margin: 0;
+    font-size: var(--pos-support-text-meta);
+  }
+
+  /* the per-tool block is a sub-section of the card: its own heading, its own
+     explanation, then the rows */
+  .pos-support-switch-list > h3 {
+    margin: 0 0 0.25rem;
+  }
+
+  .pos-support-switch-list > p {
+    margin: 0 0 0.5rem;
+  }
+
+  /* the desk-wide switch reads as the card's primary control, so the rows it
+     governs are set slightly apart from it */
+  .pos-support-switch-section > .pos-support-switch-row {
+    padding-block: 0.25rem 0.75rem;
+    border-block-end: 1px solid color-mix(in srgb, var(--pos-support-text) 12%, transparent);
   }
 
   /* empty states */
@@ -4437,6 +4546,11 @@
 
   @media (max-width: 48rem) {
     .pos-support-shell {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* an assistant's two tool groups stack rather than squeeze */
+    .pos-support-tool-columns {
       grid-template-columns: minmax(0, 1fr);
     }
 

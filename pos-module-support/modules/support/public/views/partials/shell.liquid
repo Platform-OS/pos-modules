@@ -102,10 +102,20 @@
               <a href="/support-desk/approvals" data-support-tip="{{ 'modules/support/approvals.title' | t }}" {% if pathname contains '/support-desk/approvals' %}aria-current="page"{% endif %}>
                 {% render 'modules/support/icon', name: 'circle-check', size: null %}
                 <span class="pos-support-rail-text">{{ 'modules/support/approvals.title' | t }}</span>
-                {% if approvals_waiting > 0 %}
-                  {% comment %}the count is announced, not just drawn: the rail text is hidden when the rail is collapsed{% endcomment %}
-                  <span class="pos-support-count pos-support-count-waiting" aria-label="{{ 'modules/support/approvals.waiting' | t: count: approvals_waiting }}">{{ approvals_waiting }}</span>
-                {% endif %}
+                {% comment %}
+                  The count is announced, not just drawn: the rail text is
+                  hidden when the rail is collapsed.
+
+                  The element stays in the page, hidden at zero, so the poller
+                  in pos-support-ui.js can keep it current while the person
+                  stays on one page. The endpoint returns the translated label
+                  with the number.
+                {% endcomment %}
+                {% assign waiting_now = approvals_waiting | default: 0 %}
+                <span class="pos-support-count pos-support-count-waiting"
+                  data-support-approvals-count="/support-desk/approvals/count"
+                  {% unless waiting_now > 0 %}hidden{% endunless %}
+                  aria-label="{{ 'modules/support/approvals.waiting' | t: count: waiting_now }}">{{ waiting_now }}</span>
               </a>
             </li>
             <li>

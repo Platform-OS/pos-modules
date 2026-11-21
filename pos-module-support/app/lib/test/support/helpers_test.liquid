@@ -70,7 +70,16 @@ next line{% endcapture %}
   function number = 'modules/support/helpers/reply_token', number: null, token: parsed.token
   function contract = 'modules/tests/assertions/equal', contract: contract, given: number, expected: 12, field_name: 'reply address carries a valid token'
 
-  # branding: override > hook > default, per key
+  # branding: override > hook > default, per key.
+  # The desk's own branding is put back at the end. This setting holds the
+  # appearance an admin chose, so leaving the test's value behind changes the
+  # live desk: an emptied override makes it follow the operating system again,
+  # which turns a desk set to light into a dark one.
+  function before_branding = 'modules/support/helpers/settings'
+  assign original_override = before_branding.branding_override
+  if original_override == blank
+    assign original_override = {}
+  endif
   assign override = { "app_name": "Override Name" }
   function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: override
   function brand = 'modules/support/helpers/branding'
@@ -81,4 +90,5 @@ next line{% endcapture %}
   function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: no_override
   function brand = 'modules/support/helpers/branding'
   function contract = 'modules/tests/assertions/equal', contract: contract, given: brand.app_name, expected: 'Harbor City Permits', field_name: 'hook after override removed'
+  function _ = 'modules/support/commands/settings/set', key: 'branding_override', value: original_override
 %}
