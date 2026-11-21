@@ -1,5 +1,6 @@
 {% doc %}
   @param {object} object - The object to process
+  @param {boolean} [track_login_attempts] - Refuse an account locked by the login lockout before verifying anything (default: false)
 {% enddoc %}
 {% liquid
   assign c = { "errors": {}, "valid": true }
@@ -9,12 +10,31 @@
   function c = 'modules/core/validations/presence', c: c, object: object, field_name: 'otp_code'
 
   if c.valid
-    function r = 'modules/core/commands/execute', mutation_name: 'modules/user/user/verify_otp' object: object, selection: 'users'
-    assign user = r.results.first
+    assign locked = false
+    if track_login_attempts
+      function login_attempt = 'modules/user/queries/login_attempts/find_by_email', email: object.email
+      function locked = 'modules/user/helpers/login_locked', login_attempt: login_attempt
+    endif
 
-    function c = 'modules/core/validations/truthy', c: c, field_name: 'otp_code', object: user.authenticate, key: 'modules/user/2fa.errors.otp_code'
-    function c = 'modules/core/validations/truthy', c: c, field_name: 'password', object: user.authenticate, key: 'modules/user/2fa.errors.password'
-    assign object.id = user.id
+    if locked
+      comment
+        Neither factor is verified for a locked account, and the error is the
+        same one a wrong password gets at /sessions, so this step cannot be used
+        to keep guessing - or to tell which addresses are registered. It is
+        attached to otp_code because that is the field the 2FA form displays.
+      endcomment
+      function c = 'modules/core/helpers/register_error', contract: c, field_name: 'otp_code', key: 'modules/user/validation.invalid_email_or_password', message: null
+      assign object.locked = true
+    else
+      function r = 'modules/core/commands/execute', mutation_name: 'modules/user/user/verify_otp' object: object, selection: 'users'
+      assign user = r.results.first
+
+      function c = 'modules/core/validations/truthy', c: c, field_name: 'otp_code', object: user.authenticate, key: 'modules/user/2fa.errors.otp_code'
+      function c = 'modules/core/validations/truthy', c: c, field_name: 'password', object: user.authenticate, key: 'modules/user/2fa.errors.password'
+      assign object.id = user.id
+    endif
+
+    assign object.login_attempt = login_attempt
   endif
 
   assign object.valid = c.valid

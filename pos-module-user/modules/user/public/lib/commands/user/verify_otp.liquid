@@ -1,10 +1,17 @@
 {% doc %}
   @param {string} email - The email address
   @param {object} object - The object to process
+  @param {boolean} [track_login_attempts] - Enforce the login lockout: refuse a locked account and count a failure. Set by the sign-in step (/sessions/2fa); re-authentication of an already signed-in user does not (default: false)
 {% enddoc %}
 {%  liquid
+  assign track_login_attempts = track_login_attempts | default: false
+
   function object = 'modules/user/commands/user/verify_otp/build', email: email, object: object
-  function object = 'modules/user/commands/user/verify_otp/check', object: object
+  function object = 'modules/user/commands/user/verify_otp/check', object: object, track_login_attempts: track_login_attempts
+
+  if track_login_attempts and object.valid != true and object.locked != true and object.login_attempt.user_id != blank
+    function _ = 'modules/user/commands/login_attempts/record_failure', login_attempt: object.login_attempt
+  endif
 
   return object
 %}

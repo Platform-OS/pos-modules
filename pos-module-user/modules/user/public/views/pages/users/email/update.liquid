@@ -11,7 +11,7 @@ method: put
   endif
 
   if current_profile.otp_configured
-    function object = 'modules/user/commands/user/verify_otp', object: context.params.user, email: current_profile.user.email
+    function object = 'modules/user/commands/user/verify_otp', object: context.params.user, email: current_profile.user.email, track_login_attempts: false
     if object.valid == false
       render 'modules/user/users/email/edit', context: null, otp_enabled: current_profile.otp_configured, errors: object.errors
       break

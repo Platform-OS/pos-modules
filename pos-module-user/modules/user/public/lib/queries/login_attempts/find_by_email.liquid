@@ -1,0 +1,23 @@
+{% doc %}
+  The login lockout state of the account behind an email address (see
+  queries/login_attempts/find), or null when there is no such account.
+
+  Callers must respond identically whether or not this returns anything -
+  otherwise the lockout becomes an oracle for which addresses are registered.
+
+  @param {string} email - The email address
+{% enddoc %}
+{% liquid
+  if email == blank
+    return null
+  endif
+
+  function user = 'modules/user/queries/user/find', email: email, id: null, with_token: false, expires_in: null
+  if user.id == blank
+    return null
+  endif
+
+  function login_attempt = 'modules/user/queries/login_attempts/find', user_id: user.id
+
+  return login_attempt
+%}

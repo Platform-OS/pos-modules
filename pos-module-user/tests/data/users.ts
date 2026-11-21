@@ -41,5 +41,11 @@ export const users = {
     firstName: 'Ida',
     lastName: 'Unconfirmed',
     email: 'test130@example.com'
+  },
+  // Registered by the login lockout spec, which locks the account on purpose.
+  lockedUser: {
+    firstName: 'Lars',
+    lastName: 'Lockout',
+    email: 'test131@example.com'
   }
 };

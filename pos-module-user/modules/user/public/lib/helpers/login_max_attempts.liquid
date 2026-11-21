@@ -1,0 +1,11 @@
+{% doc %}
+  How many consecutive failed sign-ins lock an account.
+
+  Read from LOGIN_ATTEMPTS_MAX, 5 when unset. Zero or a negative value switches
+  the lockout off.
+{% enddoc %}
+{% liquid
+  assign max_attempts = context.constants.LOGIN_ATTEMPTS_MAX | default: 5 | plus: 0
+
+  return max_attempts
+%}

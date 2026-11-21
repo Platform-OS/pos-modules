@@ -1,0 +1,22 @@
+{% doc %}
+  @param {object} object - The object to process
+{% enddoc %}
+{% liquid
+  if object.id == blank
+    assign data = { "user_id": object.user_id, "failed_login_attempts": object.failed_login_attempts, "locked_until": object.locked_until }
+    graphql r = 'modules/user/login_attempts/create', args: data
+  else
+    assign data = { "id": object.id, "failed_login_attempts": object.failed_login_attempts, "locked_until": object.locked_until }
+    graphql r = 'modules/user/login_attempts/update', args: data
+  endif
+
+  if r.errors
+    log r, type: 'ERROR: modules/user/commands/login_attempts/record_failure'
+    assign object.valid = false
+    return object
+  endif
+
+  assign object.id = r.record.id
+
+  return object
+%}

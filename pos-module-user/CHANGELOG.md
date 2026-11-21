@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-## v5.3.1
+## Unreleased
+* Security: sign-in now locks an account for `LOGIN_ATTEMPTS_UNLOCK_AFTER_MINS` minutes (default 5) after `LOGIN_ATTEMPTS_MAX` consecutive failures (default 5, `0` turns it off). Applies to both `/sessions` and `/sessions/2fa`; a locked account is refused before its password is checked, with the same message a wrong password or an unknown address gets. Publishes `login_failed` and `account_locked`. The state is kept in a new module table, `modules/user/login_attempt`
+* The `invalid_email_or_password` message now mentions the temporary block
+
+
 * Fix: verification links were valid for 60 days instead of the configured 24 hours - `temporary_token` reads its arguments in hours and prefers the deprecated `valid_for`, so the TTL was being multiplied by 60
 * Fix: `user/find.graphql` declared `$valid_for: Int = 1`, which overrode the `$expires_in` next to it for every caller; password reset links kept their one hour lifetime, now stated explicitly
 * Fix: registration returned a 500 after creating the account on instances with `VERIFY_HCAPTCHA` enabled - the `hcaptcha` filter raises when handed no params. Captcha is now checked only by the endpoints that render the widget, and the resend forms render one

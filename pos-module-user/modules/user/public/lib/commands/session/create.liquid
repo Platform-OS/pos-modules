@@ -47,6 +47,13 @@
     else
       if user.id
         sign_in user_id: user.id
+        comment
+          Only a completed sign-in clears the failed attempt count. Clearing it
+          when the password alone was right - before the 2FA code - would let
+          a caller who knows the password alternate /sessions and /sessions/2fa
+          to guess the code without ever being locked.
+        endcomment
+        function _ = 'modules/user/commands/login_attempts/reset', user_id: user.id
         assign params = { "user": user, "hook_params": hook_params }
         function results = 'modules/core/commands/hook/fire', hook: 'user_login', params: params, merge_to_object: true
         assign user.hook_results = results
