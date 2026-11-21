@@ -446,12 +446,16 @@ ledger with security-lens quick filters and a paginated JSON export.
   values rejected before any handler runs.
 - **Reversibility** — mutating tools are transaction-wrapped; failure rolls back
   atomically.
-- **Tamper-evident ledger** — every post-auth outcome (allowed and denied) is a
+- **Hash-chained ledger** — every post-auth outcome (allowed and denied) is a
   hash-chained entry (`entry_hash = sha256(canonical(payload) || prev_hash)`);
-  arguments stored as a hash, never raw; `verify_chain` detects any edit/delete/
-  backdate/reorder. Immutability is append-only-by-construction + tamper-*evidence*
-  (a privileged insider is detected, not silently prevented — the admin API is
-  god-mode on platformOS). Pre-auth failures are logged, never chained (no anonymous
+  arguments stored as a hash, never raw. `verify_chain` detects an edit, deletion
+  (including of the newest entries), backdate or reorder made to the ledger table
+  alone. The hash has no key and the recorded end of chain lives on the instance, so
+  someone who can write every table (instance admins, deploy rights, the admin API —
+  god-mode on platformOS) can rewrite both undetected; against them the ledger shows a
+  change only when checked against an end-of-chain checkpoint kept outside the
+  instance (console Ledger tab, `chain_head` in the export; see
+  [`docs/security-model.md`](./docs/security-model.md) §4.5). Pre-auth failures are logged, never chained (no anonymous
   ledger spam). Appends are **serialized under concurrency** via a mutex row
   (`mcp_chain_lock`): the read-tail→write is protected by a Postgres row-lock so
   simultaneous requests cannot fork the chain (platformOS Liquid offers no advisory

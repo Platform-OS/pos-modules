@@ -111,6 +111,49 @@ async function rolesFor(userId) {
   const r = await adm.gql(`{ records(per_page: 1, filter: { table: { value: "modules/user/profile" } properties: [{ name: "user_id", value: "${userId}" }] }) { results { roles: property_array(name: "roles") } } }`);
   return r?.data?.records?.results?.[0]?.roles || [];
 }
+// ---- ledger tamper helpers (ticket #8: truncation, recomputed hash, checkpoint) ----
+const T_LOCK = 'modules/mcp/mcp_chain_lock';
+const LEDGER_STR = 'occurred_at,method,tool_name,tool_version,client_id,agent_id,principal_id,delegation_mode,input_sha256,authz_policy,authz_decision,authz_reason,execution_outcome,subject_type,subject_id,idempotency_key,request_id,audit_json'.split(',');
+const LEDGER_INT = 'seq,input_bytes,error_code,duration_ms'.split(',');
+const LEDGER_FIELDS = ['canonical_version', ...LEDGER_STR, ...LEDGER_INT, 'prev_entry_hash', 'entry_hash'];
+// Newest `n` ledger rows, newest first, with every stored field.
+async function newestLedger(n) {
+  const props = LEDGER_FIELDS.map(f => `${f}: property(name: "${f}")`).join(' ');
+  const r = await adm.gql(`{ records(per_page: ${n}, filter: { table: { value: "${T_LEDGER}" } }, sort: [{ id: { order: DESC } }]) { results { id ${props} } } }`);
+  return r?.data?.records?.results || [];
+}
+// Re-create a deleted row with the same field values (it gets a new, higher id, so
+// re-creating deleted newest rows in their original order restores the chain).
+async function recreateLedgerRow(row) {
+  const props = {};
+  for (const f of LEDGER_FIELDS) {
+    const v = row[f];
+    if (v === null || v === undefined || v === '') continue;
+    props[f] = (f === 'canonical_version' || LEDGER_INT.includes(f)) ? Number(v) : String(v);
+  }
+  return adm.recordCreate(T_LEDGER, props);
+}
+// The module's canonical serializer (helpers/ledger/canonical, version 1) re-implemented
+// outside the instance: anyone with the row can recompute entry_hash, the hash has no key.
+// platformOS's `json` filter escapes < > & and U+2028/9 as \uXXXX; mirror that.
+function ledgerCanonical(row) {
+  const p = {};
+  const version = row.canonical_version === null || row.canonical_version === '' || row.canonical_version === undefined ? 0 : Number(row.canonical_version);
+  if (version >= 1) p.canonical_version = version;
+  for (const f of LEDGER_STR) p[f] = row[f] === null || row[f] === undefined || row[f] === '' ? null : String(row[f]);
+  for (const f of LEDGER_INT) p[f] = row[f] === null || row[f] === undefined || row[f] === '' ? null : Number(row[f]);
+  return JSON.stringify(p).replace(/[<>&\u2028\u2029]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+}
+const ledgerHash = (row) => createHash('sha256').update(ledgerCanonical(row) + row.prev_entry_hash).digest('hex');
+async function chainLock() {
+  const r = await adm.gql(`{ records(per_page: 1, filter: { table: { value: "${T_LOCK}" } }, sort: [{ id: { order: ASC } }]) { results { id head_seq: property(name: "head_seq") head_hash: property(name: "head_hash") } } }`);
+  return r?.data?.records?.results?.[0] || null;
+}
+async function setChainHead(id, seq, hash) {
+  const r = await adm.gql(`mutation { record_update(id: ${id}, record: { table: "${T_LOCK}" properties: [{ name: "head_seq", value_int: ${Number(seq)} } { name: "head_hash", value: ${JSON.stringify(String(hash))} }] }) { id } }`);
+  if (r?.errors) throw new Error('chain head update failed: ' + JSON.stringify(r.errors));
+}
+
 async function tokensFor(userId) {
   const r = await adm.gql(`{ records(per_page: 50, filter: { table: { value: "modules/mcp/mcp_token" } properties: [{ name: "user_id", value: "${userId}" }] }) { results { id label: property(name: "label") status: property(name: "status") } } }`);
   return r?.data?.records?.results || [];
@@ -499,6 +542,86 @@ describe('coverage · multi-principal governance planes', () => {
     }
     page = await (await webGet('mcp-admin')).text();
     ok('chain valid again after exact restore', chainOk(page));
+  });
+
+  // Ticket #8 repro A + B: deleting entries, from the middle or the newest end. Restores
+  // the deleted rows (same values, new ids, original order) so the chain verifies again.
+  it('Ledger — deleted entries are detected and diagnosed as deletions, including the newest ones (§6)', async () => {
+    const chainOk = (h) => /chain verified/i.test(h) && !/CHAIN BROKEN/i.test(h);
+    const chainBroken = (h) => /CHAIN BROKEN/i.test(h);
+    await operatorLogin(op);
+    const full = async () => (await webGet('mcp-admin?tab=ledger&verify=full')).text();
+    ok('chain intact before the test', chainOk(await full()));
+    const lock = await chainLock();
+    const [newest, second, third] = await newestLedger(3);
+    ok('ledger has at least 3 entries', !!third);
+    ok('ledger/append recorded the end of chain', String(lock?.head_seq) === String(newest?.seq) && lock?.head_hash === newest?.entry_hash, JSON.stringify(lock));
+    if (!third || !lock) return;
+    const deleted = [];
+    try {
+      // A: an entry in the middle (here: the second newest) is deleted.
+      await adm.recordDelete(T_LEDGER, second.id); deleted.unshift(second);
+      let page = await full();
+      ok('A: deleting a middle entry is detected', chainBroken(page));
+      ok('A: reported as missing seqs', page.includes(`seq ${second.seq}–${second.seq} are missing`), page.match(/CHAIN BROKEN[^<]*/)?.[0]);
+      ok('A: console says deleted, not edited/backdated', /were <b>deleted<\/b>/.test(page) && !/edited \/ backdated/.test(page));
+
+      // B: the newest entries are deleted, so the remaining chain links up on its own.
+      await adm.recordDelete(T_LEDGER, newest.id); deleted.push(newest);
+      page = await full();
+      ok('B: deleting the newest entries is detected (full walk)', chainBroken(page) && /end of chain missing/.test(page), page.match(/CHAIN BROKEN[^<]*/)?.[0]);
+      ok('B: console says the newest entries were deleted', /newest entries were deleted/.test(page));
+      page = await (await webGet('mcp-admin')).text();
+      ok('B: detected by the per-load recent check too', chainBroken(page));
+
+      // B, continued: the next append links to the RECORDED end, so the gap stays visible.
+      const before = Number(third.id);
+      await callTool(mem.rawToken, 'test_public', {});
+      const appended = (await newestLedger(5)).filter(r => Number(r.id) > before && !deleted.some(d => d.id === r.id));
+      ok('B: the next call is appended', appended.length >= 1, JSON.stringify(appended.map(r => r.seq)));
+      const next = appended[appended.length - 1];
+      ok('B: it continues after the recorded end (seq and link)', String(next?.seq) === String(Number(newest.seq) + 1) && next?.prev_entry_hash === newest.entry_hash, JSON.stringify({ seq: next?.seq, prev: next?.prev_entry_hash }));
+      page = await full();
+      ok('B: after the next append the deletion is still reported', chainBroken(page) && /are missing/.test(page));
+      for (const r of appended) await adm.recordDelete(T_LEDGER, r.id);
+    } finally {
+      for (const r of deleted) await recreateLedgerRow(r);
+      await setChainHead(lock.id, lock.head_seq, lock.head_hash);
+    }
+    ok('chain valid again after the rows are restored', chainOk(await full()));
+  });
+
+  // Ticket #8 repro C: the newest entry rewritten with a correctly recomputed hash.
+  it('Ledger — a rewrite with a recomputed hash is detected via the recorded end of chain, and via a checkpoint when the end is forged too (§6)', async () => {
+    const chainOk = (h) => /chain verified/i.test(h) && !/CHAIN BROKEN/i.test(h);
+    const chainBroken = (h) => /CHAIN BROKEN/i.test(h);
+    await operatorLogin(op);
+    const [row] = await newestLedger(1);
+    const lock = await chainLock();
+    ok('precondition: the canonical serializer reproduces the stored hash outside the instance', ledgerHash(row) === row.entry_hash);
+    if (ledgerHash(row) !== row.entry_hash || !lock) return;
+    const original = { execution_outcome: row.execution_outcome, entry_hash: row.entry_hash };
+    const forged = { ...row, execution_outcome: row.execution_outcome === 'success' ? 'invalid' : 'success' };
+    forged.entry_hash = ledgerHash(forged);
+    try {
+      await recordUpdate(T_LEDGER, row.id, { execution_outcome: forged.execution_outcome, entry_hash: forged.entry_hash });
+      let page = await (await webGet('mcp-admin?tab=ledger')).text();
+      ok('C: rewrite with recomputed hash is detected', chainBroken(page) && /end of chain mismatch/.test(page), page.match(/CHAIN BROKEN[^<]*/)?.[0]);
+      ok('C: console says rewritten', /<b>rewritten<\/b>/.test(page));
+
+      // Known limit: an actor who also rewrites the recorded end of chain passes the
+      // on-instance checks. Only a checkpoint kept outside the instance detects it.
+      await setChainHead(lock.id, row.seq, forged.entry_hash);
+      page = await (await webGet('mcp-admin?tab=ledger&verify=full')).text();
+      ok('known limit: forging the recorded end too passes the on-instance check', chainOk(page));
+      page = await (await webGet(`mcp-admin?tab=ledger&checkpoint_seq=${row.seq}&checkpoint_hash=${original.entry_hash}`)).text();
+      ok('C: an external checkpoint detects it', chainBroken(page) && /checkpoint mismatch/.test(page), page.match(/CHAIN BROKEN[^<]*/)?.[0]);
+    } finally {
+      await recordUpdate(T_LEDGER, row.id, original);
+      await setChainHead(lock.id, lock.head_seq, lock.head_hash);
+    }
+    const page = await (await webGet(`mcp-admin?tab=ledger&checkpoint_seq=${row.seq}&checkpoint_hash=${original.entry_hash}`)).text();
+    ok('chain and checkpoint valid again after exact restore', chainOk(page) && /checkpoint seq \d+ matches/.test(page));
   });
 
   it('Validation matrix (§10, strict, no coercion)', async () => {
