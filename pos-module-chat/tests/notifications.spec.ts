@@ -147,4 +147,150 @@ test.describe('Live notifications', () => {
     await senderContext.close();
     await recipientContext.close();
   });
+
+  // no other test talks to Dummy32, Dummy33 or Dummy34
+  test('the inbox sidebar follows the messages and the reading without reloading the page', async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    const owner = { email: 'dummy34@example.com', name: 'Dummy34 User', query: 'dummy34' };
+    const opened = { email: 'dummy33@example.com', name: 'Dummy33 User', query: 'dummy33' };
+    const other = { email: 'dummy32@example.com', name: 'Dummy32 User' };
+    const texts = { opened: `opened ${run}`, reply: `reply ${run}`, other: `from Dummy32 ${run}`, again: `again ${run}` };
+
+    const { context: ownerContext, page: ownerPage } = await logIn(browser, owner.email);
+    const ownerInbox = new InboxPage(ownerPage);
+    const cards = ownerPage.locator('#pos-chat-conversations > li[data-conversation-id] .pos-chat-conversationCard');
+    const card = (name: string) => ownerInbox.chatList.getCardByAuthor(name);
+
+    await test.step('the owner opens a new chat and sends the first message - its card replaces the draft one', async () => {
+      await readEverything(ownerPage);
+
+      await ownerInbox.goto();
+      await ownerInbox.isChatOpenedFromSearch(opened.query, opened.name);
+      // the page is never reloaded from here on
+      await ownerPage.evaluate(() => (window as any).notReloaded = true);
+
+      await ownerInbox.chat.sendMessage(texts.opened);
+
+      await expect(ownerInbox.chatList.getCardLastMessage(opened.name)).toHaveText(texts.opened);
+      await expect(card(opened.name)).toHaveClass(/pos-chat-conversationCard-active/);
+      await expect(ownerPage.locator('.pos-chat-conversations-draft')).toHaveCount(0);
+      await expect(cards.first()).toContainText(opened.name);
+    });
+
+    await test.step('a reply in the open conversation is read right away - the unread badge doesn\'t flash', async () => {
+      await ownerPage.evaluate(() => {
+        (window as any).unreadCounts = [];
+        document.addEventListener('pos-chat:unread', event => (window as any).unreadCounts.push((event as CustomEvent).detail.unread_conversations));
+      });
+
+      const { context: openedContext, page: openedPage } = await logIn(browser, opened.email);
+      const openedInbox = new InboxPage(openedPage);
+      await openedInbox.goto();
+      await openedInbox.chatList.openCard(owner.name);
+      await openedInbox.chat.sendMessage(texts.reply);
+      await openedContext.close();
+
+      await ownerInbox.chat.messageBox.getMessageByText(texts.reply, 'received').waitFor();
+      // the notification is sent by a background job, allow for the queue
+      await expect.poll(async () => (await notifiedMessages(ownerPage)).map((message: any) => message.message), { timeout: 60_000 }).toContain(texts.reply);
+      // the number counted after the inbox marked it read, if it comes later
+      await ownerPage.waitForTimeout(2_000);
+
+      expect(await ownerPage.evaluate(() => (window as any).unreadCounts)).not.toContain(1);
+      await expect(unreadBadge(ownerPage)).toBeHidden();
+      await expect(card(opened.name)).not.toHaveClass(/pos-chat-conversationCard-unread/);
+    });
+
+    await test.step('a message in another conversation puts it on top, unread', async () => {
+      const { context: otherContext, page: otherPage } = await logIn(browser, other.email);
+      const otherInbox = new InboxPage(otherPage);
+      await otherInbox.goto();
+      await otherInbox.isChatOpenedFromSearch(owner.query, owner.name);
+      await otherInbox.chat.sendMessage(texts.other);
+      await otherContext.close();
+
+      // sent by a background job, allow for the queue
+      await expect(cards.first()).toContainText(other.name, { timeout: 60_000 });
+      await expect(ownerInbox.chatList.getCardLastMessage(other.name)).toHaveText(texts.other);
+      await expect(card(other.name)).toHaveClass(/pos-chat-conversationCard-unread/);
+      // the open one is still shown as open
+      await expect(card(opened.name)).toHaveClass(/pos-chat-conversationCard-active/);
+    });
+
+    await test.step('the owner\'s own message updates the open conversation\'s card, the unread one stays on top', async () => {
+      await ownerInbox.chat.sendMessage(texts.again);
+
+      await expect(ownerInbox.chatList.getCardLastMessage(opened.name)).toHaveText(texts.again);
+      await expect(cards.first()).toContainText(other.name);
+    });
+
+    await test.step('reading it in another tab marks it read, the newest conversation goes on top', async () => {
+      const otherTab = await ownerContext.newPage();
+      await otherTab.goto(await card(other.name).locator('xpath=ancestor::a').getAttribute('href') ?? '');
+      await new InboxPage(otherTab).chat.messageInputFieldEnabled.waitFor();
+
+      await expect(card(other.name)).not.toHaveClass(/pos-chat-conversationCard-unread/, { timeout: 30_000 });
+      await expect(cards.first()).toContainText(opened.name);
+      await otherTab.close();
+    });
+
+    expect(await ownerPage.evaluate(() => (window as any).notReloaded)).toBe(true);
+
+    await ownerContext.close();
+  });
+
+  // no other test talks to Dummy30 or Dummy31
+  test('with several tabs open, only one fires pos-chat:message - the one with the conversation open', async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    const sender = { email: 'dummy30@example.com' };
+    const recipient = { email: 'dummy31@example.com', name: 'Dummy31 User', query: 'dummy31' };
+    const texts = [`tabs one ${run}`, `tabs two ${run}`];
+
+    const { context: senderContext, page: senderPage } = await logIn(browser, sender.email);
+    const senderInbox = new InboxPage(senderPage);
+    await senderInbox.goto();
+    await senderInbox.isChatOpenedFromSearch(recipient.query, recipient.name);
+
+    const { context: recipientContext, page: firstTab } = await logIn(browser, recipient.email);
+    const secondTab = await recipientContext.newPage();
+    // both connected, the first count asked for once connected
+    const counters = waitForCounters(secondTab);
+    await secondTab.goto('/');
+    await counters;
+
+    const notified = async (text: string) => {
+      const tabs = await Promise.all([firstTab, secondTab].map(async tab => (await notifiedMessages(tab)).filter((message: any) => message.message === text)));
+      return tabs.map(messages => messages.length);
+    };
+
+    await test.step('a message with two tabs on other pages is notified in one of them', async () => {
+      await senderInbox.chat.sendMessage(texts[0]);
+
+      // sent by a background job, allow for the queue
+      await expect.poll(async () => (await notified(texts[0])).reduce((sum, count) => sum + count, 0), { timeout: 60_000 }).toBe(1);
+      // the other tab had the time to fire it too, if it was going to
+      await firstTab.waitForTimeout(2_000);
+      expect((await notified(texts[0])).reduce((sum, count) => sum + count, 0)).toBe(1);
+    });
+
+    await test.step('the tab with the conversation open gets the next one, marked active', async () => {
+      const conversationId = await senderInbox.currentConversationId();
+      await secondTab.goto(`/inbox?conversation_id=${conversationId}`);
+      await new InboxPage(secondTab).chat.messageInputFieldEnabled.waitFor();
+      await secondTab.bringToFront();
+
+      await senderInbox.chat.sendMessage(texts[1]);
+
+      await expect.poll(() => notified(texts[1]), { timeout: 60_000 }).toEqual([0, 1]);
+      await firstTab.waitForTimeout(2_000);
+      expect(await notified(texts[1])).toEqual([0, 1]);
+      const [message] = (await notifiedMessages(secondTab)).filter((message: any) => message.message === texts[1]);
+      expect(message.active).toBe(true);
+    });
+
+    await senderContext.close();
+    await recipientContext.close();
+  });
 });
