@@ -11,6 +11,7 @@
     document.addEventListener('pos-chat:message', event => {
       // event.detail: { message_id, conversation_id, sender_id, sender_name, message, created_at, url, active }
       // active - the inbox on this page has that conversation open and the tab is visible
+      // fired in one of the user's open tabs only, see 'one tab per message' below
     });
     document.addEventListener('pos-chat:unread', event => {
       // event.detail: { unread_conversations }
@@ -29,6 +30,13 @@
   each time it connects (and again after the connection was lost) it asks GET /api/chat/notifications.json
   for the counters, as Action Cable doesn't replay what was sent while it wasn't connected - the
   messages sent meanwhile don't fire 'pos-chat:message' then, only the counter is brought up to date
+
+  one tab per message: every open tab gets the message over its own WebSocket, but only one fires
+  'pos-chat:message', so a toast or a sound isn't repeated in each of them. The tabs agree over a
+  BroadcastChannel: each one that got the message claims it, and after a short wait the best claim
+  handles it - the tab with that conversation open and visible, then the one with focus, then a
+  visible one, then the one focused last. Without BroadcastChannel every tab fires it. The counters
+  are updated in every tab, and module.onMessage() callbacks run in every tab (the inbox sidebar uses it)
 
   pos-chat.js sets window.pos.modules.chat to the inbox constructor and keeps what is already on
   it, so the two files can load in any order
@@ -60,6 +68,12 @@ window.pos.modules.chat.notifications ??= (() => {
   module.settings.unreadUrl = '/api/chat/notifications.json';
   // elements showing the number of unread conversations, hidden when there are none (string)
   module.settings.unreadConversationsSelector = '[data-pos-chat-unread-conversations]';
+  // how long (ms) the number counted with a message in the conversation open on this page waits for
+  // the number counted once the inbox marked it read - shown if that doesn't come (int)
+  module.settings.activeUnreadDelay = 5000;
+  // how long (ms) a tab waits for the other tabs' claims to a message before the best one fires
+  // 'pos-chat:message' - they get it over their own connections, a moment apart (int)
+  module.settings.claimDelay = 200;
   // to enable debug mode (bool)
   module.settings.debug = false;
 
@@ -74,6 +88,20 @@ window.pos.modules.chat.notifications ??= (() => {
   module.unreadAt = null;
   // ids of the latest messages notified about (Set)
   module.recent = new Set();
+  // the number held back while the inbox marks the open conversation read, see module.holdUnreadConversations
+  // ({ count, at, timeout } or null)
+  module.heldUnread = null;
+  // callbacks run with each new message in every tab, unlike 'pos-chat:message' (Set of functions)
+  module.listeners = new Set();
+  // talking to the user's other tabs (BroadcastChannel, null when not supported)
+  module.tabs = null;
+  // unique id of this tab (string)
+  module.tabId = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  // when this tab last got focus, the tab focused last is preferred (ms since epoch)
+  module.focusedAt = document.hasFocus() ? Date.now() : 0;
+  // claims to the messages, from this tab and the others, keyed by message id
+  // (Map of id => { best: claim, handled: bool, cleanup: timeout id })
+  module.claims = new Map();
 
 
   const debug = (...args) => {
@@ -107,6 +135,15 @@ window.pos.modules.chat.notifications ??= (() => {
       debug('Not started, the consumer or window.pos.profile.id is missing');
       return module;
     }
+
+    // the user's other tabs - named after the profile, so tabs of someone else who signs in here don't mix in
+    if('BroadcastChannel' in window){
+      module.tabs = new BroadcastChannel(`pos-chat-notifications-${profileId}`);
+      module.tabs.addEventListener('message', event => module.receiveFromTab(event.data));
+    }
+    window.addEventListener('focus', () => {
+      module.focusedAt = Date.now();
+    });
 
     module.channel = module.consumer.subscriptions.create(
       {
@@ -167,6 +204,21 @@ window.pos.modules.chat.notifications ??= (() => {
   module.stop = () => {
     module.channel?.unsubscribe();
     module.channel = null;
+    module.tabs?.close();
+    module.tabs = null;
+  };
+
+
+
+  // purpose:		runs the callback with each new message, in every tab - unlike 'pos-chat:message', which
+  //				    only one tab fires
+  // arguments:	callback, gets the same detail as 'pos-chat:message' (function)
+  // returns:		a function that removes the callback (function)
+  // ------------------------------------------------------------------------
+  module.onMessage = (callback) => {
+    module.listeners.add(callback);
+
+    return () => module.listeners.delete(callback);
   };
 
 
@@ -188,14 +240,130 @@ window.pos.modules.chat.notifications ??= (() => {
       }
     }
 
-    // the counter first, so a 'pos-chat:message' listener already reads the new one
+    // the counter first, so a 'pos-chat:message' listener already reads the new one - except for a
+    // message in the conversation open on this page: the inbox marks it read right away, and the
+    // number would go up and back down a moment later
     if(Number.isInteger(data.unread_conversations)){
-      module.setUnreadConversations(data.unread_conversations, data.unread_at);
+      if(type === 'message_created' && module.isActive(data.conversation_id)){
+        module.holdUnreadConversations(data.unread_conversations, data.unread_at);
+      } else {
+        module.setUnreadConversations(data.unread_conversations, data.unread_at);
+      }
     }
 
     if(type === 'message_created'){
       module.notify(data);
     }
+  };
+
+
+
+  // purpose:		how good this tab is at handling the message, see module.claim
+  // arguments:	conversation id of the message (string)
+  // returns:		the claim (object)
+  // ------------------------------------------------------------------------
+  module.ownClaim = (conversationId) => {
+    let priority = 0;
+
+    if(module.isActive(conversationId)){
+      priority = 3;
+    } else if(document.visibilityState === 'visible' && document.hasFocus()){
+      priority = 2;
+    } else if(document.visibilityState === 'visible'){
+      priority = 1;
+    }
+
+    return { priority: priority, focusedAt: module.focusedAt, tab: module.tabId };
+  };
+
+
+  // purpose:		compares two claims
+  // returns:		if the first one is better (bool)
+  // ------------------------------------------------------------------------
+  const betterClaim = (a, b) => {
+    if(!b){
+      return true;
+    }
+    if(a.priority !== b.priority){
+      return a.priority > b.priority;
+    }
+    if(a.focusedAt !== b.focusedAt){
+      return a.focusedAt > b.focusedAt;
+    }
+    return a.tab > b.tab;
+  };
+
+
+  // purpose:		remembers a claim to the message, from this tab or another one
+  // arguments:	message id (string), the claim (object)
+  // returns:		what is known about the message (object)
+  // ------------------------------------------------------------------------
+  module.recordClaim = (messageId, claim) => {
+    let entry = module.claims.get(messageId);
+
+    if(!entry){
+      entry = { best: null, handled: false };
+      module.claims.set(messageId, entry);
+      // claims to messages this tab doesn't get (its connection was down) mustn't pile up
+      entry.cleanup = setTimeout(() => module.claims.delete(messageId), 60_000);
+    }
+
+    if(claim && betterClaim(claim, entry.best)){
+      entry.best = claim;
+    }
+
+    return entry;
+  };
+
+
+  // purpose:		handles what the other tabs say
+  // arguments:	{ type: 'claim', message_id, claim } or { type: 'handled', message_id } (object)
+  // ------------------------------------------------------------------------
+  module.receiveFromTab = (data) => {
+    if(!data || data.message_id == null){
+      return;
+    }
+
+    const messageId = String(data.message_id);
+
+    if(data.type === 'claim' && data.claim){
+      module.recordClaim(messageId, data.claim);
+    } else if(data.type === 'handled'){
+      module.recordClaim(messageId, null).handled = true;
+    }
+  };
+
+
+  // purpose:		decides if this tab handles the message - claims it, waits for the other tabs'
+  //				    claims and handles it if its own is the best one
+  // arguments:	message id (string), conversation id (string)
+  // returns:		resolves with true when this tab handles it (promise)
+  // ------------------------------------------------------------------------
+  module.claim = (messageId, conversationId) => {
+    if(!module.tabs || messageId == null){
+      return Promise.resolve(true);
+    }
+
+    const id = String(messageId);
+    const claim = module.ownClaim(conversationId);
+
+    module.recordClaim(id, claim);
+    module.tabs.postMessage({ type: 'claim', message_id: id, claim: claim });
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        const entry = module.recordClaim(id, null);
+        // another tab that got it earlier has handled it already
+        const handles = !entry.handled && entry.best?.tab === module.tabId;
+
+        if(handles){
+          entry.handled = true;
+          module.tabs?.postMessage({ type: 'handled', message_id: id });
+        }
+
+        resolve(handles);
+      }, module.settings.claimDelay);
+    });
   };
 
 
@@ -232,7 +400,6 @@ window.pos.modules.chat.notifications ??= (() => {
   // ------------------------------------------------------------------------
   module.notify = (data) => {
     const conversationId = data.conversation_id != null ? String(data.conversation_id) : null;
-    const inbox = window.pos.modules.active?.chat;
 
     const detail = {
       message_id: data.message_id,
@@ -242,12 +409,66 @@ window.pos.modules.chat.notifications ??= (() => {
       message: data.message,
       created_at: data.created_at,
       url: conversationId ? `/inbox?conversation_id=${encodeURIComponent(conversationId)}` : '/inbox',
-      active: Boolean(conversationId && inbox?.conversationId && String(inbox.conversationId) === conversationId && document.visibilityState === 'visible')
+      active: module.isActive(conversationId)
     };
 
     debug('New message', detail);
 
-    document.dispatchEvent(new CustomEvent('pos-chat:message', { detail: detail }));
+    module.listeners.forEach(listener => {
+      try {
+        listener(detail);
+      } catch(error) {
+        debug('A message listener failed', error);
+      }
+    });
+
+    // only in one of the user's tabs
+    module.claim(detail.message_id, conversationId).then(handles => {
+      if(handles){
+        document.dispatchEvent(new CustomEvent('pos-chat:message', { detail: detail }));
+      } else {
+        debug('Another tab handles the message', detail.message_id);
+      }
+    });
+  };
+
+
+
+  // purpose:		tells if the inbox on this page has the conversation open, with the tab visible -
+  //				    a message there is read as soon as it's shown
+  // arguments:	conversation id (string or int)
+  // returns:		bool
+  // ------------------------------------------------------------------------
+  module.isActive = (conversationId) => {
+    const inbox = window.pos.modules.active?.chat;
+
+    return Boolean(conversationId != null && inbox?.conversationId && String(inbox.conversationId) === String(conversationId) && document.visibilityState === 'visible');
+  };
+
+
+
+  // purpose:		holds back the number counted with a new message in the conversation open on this page -
+  //				    the number counted after the inbox marked it read replaces it; if that doesn't come
+  //				    (the inbox lost its connection), it's shown after a while
+  // arguments:	count - the number of unread conversations (int)
+  //				    at - when the server counted it (ISO date string, optional)
+  // ------------------------------------------------------------------------
+  module.holdUnreadConversations = (count, at = null) => {
+    clearTimeout(module.heldUnread?.timeout);
+
+    module.heldUnread = {
+      count: count,
+      at: at,
+      timeout: setTimeout(() => {
+        const held = module.heldUnread;
+        module.heldUnread = null;
+
+        debug('Showing the number of unread conversations held back, the conversation wasn\'t marked read', held.count);
+        module.setUnreadConversations(held.count, held.at);
+      }, module.settings.activeUnreadDelay)
+    };
+
+    debug('Holding back the number of unread conversations while the open conversation is marked read', count);
   };
 
 
@@ -262,6 +483,16 @@ window.pos.modules.chat.notifications ??= (() => {
     }
 
     const time = at ? Date.parse(at) : NaN;
+
+    // a number counted after the one held back replaces it
+    if(module.heldUnread){
+      const heldTime = module.heldUnread.at ? Date.parse(module.heldUnread.at) : NaN;
+
+      if(Number.isNaN(time) || Number.isNaN(heldTime) || time >= heldTime){
+        clearTimeout(module.heldUnread.timeout);
+        module.heldUnread = null;
+      }
+    }
 
     if(!Number.isNaN(time)){
       if(module.unreadAt !== null && time < module.unreadAt){
