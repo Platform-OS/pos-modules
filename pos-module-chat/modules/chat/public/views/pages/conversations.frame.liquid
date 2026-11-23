@@ -27,9 +27,10 @@ layout: ''
 
   # only highlights the card (the list is the current user's own conversations either way) -
   # pos-chat.js passes it when it reloads the list with a new message
+  assign conversation_id = context.params.conversation_id
   assign current = null
-  if context.params.conversation_id != blank
-    assign current = { "id": context.params.conversation_id }
+  if conversation_id != blank
+    assign current = { "id": conversation_id }
   endif
 
   render 'modules/chat/conversations', conversations: conversations, current: current, current_profile: current_profile
