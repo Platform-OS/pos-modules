@@ -6,7 +6,7 @@
  * for itself through `config.approval_partial`, so admins flip it in the app's own
  * screens rather than editing an instance constant.
  *
- * Two properties matter more than the feature itself and are asserted here:
+ * Three properties matter more than the feature itself and are asserted here:
  *
  *  - It is read PER REQUEST, not from the registry cache. The built registry is cached
  *    for up to five minutes, so a manifest that decided this for itself would keep
@@ -14,6 +14,10 @@
  *    below flips the switch and calls immediately, with no redeploy in between.
  *  - It fails SAFE. Only an explicit `false` turns the gate off; anything else — a
  *    missing partial, a partial that answers nothing, a malformed value — leaves it on.
+ *  - The partial is told WHICH TOOL is being called, so an app can answer for one tool
+ *    rather than for all of them: a desk may let an assistant add an internal note
+ *    straight away while a reply to a customer still waits for a person. Asserted on
+ *    both gate call sites — `tools/call` and the in-process `commands/execute/invoke`.
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { loadEnv, makeAdmin } from './fixtures.mjs';
@@ -28,6 +32,20 @@ const { setConstant, unsetConstant } = makeConstants(adm);
 const T_PENDING = 'modules/mcp/mcp_pending_approval';
 const T_NOTE = 'test_note';
 const mem = FIXT.users.member;
+const INVOKE_PAGE = (base.endsWith('/') ? base : base + '/') + 'test/mcp-invoke';
+
+/** The second gate call site: commands/execute/invoke, via the app's gated fixture page. */
+async function invokeTool(token, name, args) {
+  const res = await fetch(INVOKE_PAGE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ op: 'call', name, arguments: args }),
+  });
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch {}
+  return { status: res.status, json, text };
+}
 
 async function pendingCount(principalId) {
   const r = await adm.gql(`{ records(per_page: 20, filter: { table: { value: "${T_PENDING}" } properties: [{ name: "principal_id", value: "${principalId}" }, { name: "status", value: "pending" }] }) { total_entries } } `);
@@ -131,6 +149,54 @@ describe('approval gate switch', () => {
       const r = await callTool(mem.rawToken, 'test_approve', { label: 'partial-silent' });
       expect(r.json?.result?.structuredContent?.status).toBe('pending_approval');
       expect((await notesFor(mem.userId)).length).toBe(0);
+    } finally {
+      await unsetConstant('MCP_TEST_APPROVAL');
+    }
+  });
+
+  it('the partial answers for ONE tool: off for the tool being called, which then runs inline', async () => {
+    // What the tool name is for. Without it the partial cannot tell the tools apart, and
+    // a desk that wants internal notes to go straight through has to turn the gate off
+    // for its customer replies as well. The fixture answers `off` only for test_approve.
+    await reset();
+    await setConstant('MCP_TEST_APPROVAL', 'off:test_approve');
+    try {
+      const r = await callTool(mem.rawToken, 'test_approve', { label: 'per-tool-off' });
+      expect(r.json?.error).toBeFalsy();
+      expect(r.json?.result?.structuredContent?.status).not.toBe('pending_approval');
+      expect(await pendingCount(mem.principal)).toBe(0);
+      expect((await notesFor(mem.userId)).length).toBe(1);
+    } finally {
+      await unsetConstant('MCP_TEST_APPROVAL');
+    }
+  });
+
+  it('off for a DIFFERENT tool leaves this one gated', async () => {
+    // the answer is per tool, not "the partial said something, so stop enforcing"
+    await reset();
+    await setConstant('MCP_TEST_APPROVAL', 'off:test_write');
+    try {
+      const r = await callTool(mem.rawToken, 'test_approve', { label: 'per-tool-other' });
+      expect(r.json?.result?.structuredContent?.status).toBe('pending_approval');
+      expect(await pendingCount(mem.principal)).toBe(1);
+      expect((await notesFor(mem.userId)).length).toBe(0);
+    } finally {
+      await unsetConstant('MCP_TEST_APPROVAL');
+    }
+  });
+
+  it('the in-process path answers per tool too, not only tools/call', async () => {
+    // commands/execute/invoke is the second place the gate is consulted. A change that
+    // reaches only tools/call leaves the in-process path refusing a tool the app has
+    // deliberately let through — the two paths would disagree about the same tool.
+    await reset();
+    await setConstant('MCP_TEST_APPROVAL', 'off:test_approve');
+    try {
+      const r = await invokeTool(mem.rawToken, 'test_approve', { label: 'per-tool-invoke' });
+      expect(r.json?.result?.isError).toBe(false);
+      expect(r.json?.outcome).toBe('success');
+      expect(await pendingCount(mem.principal)).toBe(0);
+      expect((await notesFor(mem.userId)).length).toBe(1);
     } finally {
       await unsetConstant('MCP_TEST_APPROVAL');
     }

@@ -223,10 +223,11 @@
   # is the dedup).
   #
   # queries/approval/enforced resolves the switch: the app's approval partial
-  # first, then config.approval_enforced. Only an explicit false turns the gate
+  # first, then config.approval_enforced. The tool name goes with it, so an app
+  # can gate some tools and not others. Only an explicit false turns the gate
   # off; the tool then falls through to Step 8 and runs like any other mutating
   # tool. Read per request, so turning the gate back on takes effect at once.
-  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg
+  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: tool_name
   if tool.requires_approval and gate_enforced
     # Step 7a-guard — approval-queue flood control (§9.6, §12.4). Before recording a
     # new pending intent, bound how many NON-EXPIRED proposals this principal already

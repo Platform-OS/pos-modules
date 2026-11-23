@@ -7,8 +7,19 @@
   engine falls back to config.approval_enforced — so every other suite sees the
   normal behaviour and this file changes nothing for them.
 
+  MCP_TEST_APPROVAL:
+    off          the gate is off for every tool
+    on           the gate is on for every tool
+    off:<tool>   the gate is off for that one tool and on for the rest. The
+                 engine passes the tool being called, which is what makes a
+                 per-tool answer possible; without it nothing here can match.
+  Anything else returns nothing, which the engine must read as "no answer" and
+  not as "do not enforce".
+
   The real use of this seam is an app whose own admins flip the gate in their own
   screens (pos-module-support does this from a desk setting).
+
+  @param {string} [tool_name] - the tool being called, passed by queries/approval/enforced
 {% enddoc %}
 {% liquid
   assign mode = context.constants.MCP_TEST_APPROVAL | default: ''
@@ -18,6 +29,15 @@
   endif
   if mode == 'on'
     assign out = { "enforced": true }
+    return out
+  endif
+  assign parts = mode | split: ':'
+  if parts.first == 'off'
+    assign named = parts[1]
+    assign out = { "enforced": true }
+    if named == tool_name
+      assign out = { "enforced": false }
+    endif
     return out
   endif
   return null

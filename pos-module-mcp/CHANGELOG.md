@@ -25,7 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and an app can answer for itself so its admins flip it in their own screens instead of
   editing a constant. The partial wins over the config key; only an explicit `false` turns
   the gate off, and it is resolved per request rather than from the cached registry, so
-  turning it back on takes effect on the next call.
+  turning it back on takes effect on the next call. The partial is given `tool_name`, the
+  tool being called, so an app can gate some tools and not others — an internal note goes
+  straight through while a reply to a customer still waits for a person. Both gate call
+  sites pass it (`commands/rpc/tools_call`, `commands/execute/invoke`), and a partial that
+  does not declare the parameter ignores it and keeps answering for every tool.
 - **App fields on the OAuth approval page** (`oauth_consent_partial`,
   `oauth_approved_partial`; docs/oauth.md). An app can show checkbox fields on the
   approval page (for example "Which vaults may this app use?") and act on the ticked

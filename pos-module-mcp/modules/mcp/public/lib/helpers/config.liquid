@@ -110,7 +110,9 @@
   # queries/approval/enforced: app/lib/mcp/approval.liquid returning
   # { enforced: boolean }. An app whose admins turn the gate on and off in its
   # own screens keeps that switch in its own settings and answers here, instead
-  # of the engine reading an app's table or the app rewriting this constant.
+  # of the engine reading an app's table or the app rewriting this constant. It
+  # is given the tool being called (tool_name), so an app may gate some tools
+  # and not others; a partial that does not declare the parameter ignores it.
   # Absent, erroring, or any answer that is not an explicit boolean falls back
   # to approval_enforced above.
   assign c['approval_partial'] = 'mcp/approval'
