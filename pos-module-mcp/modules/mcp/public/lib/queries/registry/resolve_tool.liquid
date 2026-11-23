@@ -1,4 +1,4 @@
-{%- comment -%}
+{% doc %}
   Resolve a tool name to its validated manifest (spec §9.2 step 4). Only tools in
   the built registry (explicitly registered + meta-schema-valid) are resolvable —
   an unregistered or excluded tool is simply not found, so the surface can never
@@ -22,12 +22,12 @@
   credential is re-checked by identity/token_still_authorized, which applies
   both narrowings itself.
 
-  @param {string} name          - requested tool name
-  @param {array}  allowed_tools - optional per-token narrowing (nil/empty = all)
-  @param {string} user_id       - optional principal user id, for the per-agent switches
-  @param {string} client_id     - optional agent key (helpers/identity/agent_key)
+  @param {string} name            - requested tool name
+  @param {array}  [allowed_tools] - per-token narrowing (nil/empty = all)
+  @param {string} [user_id]       - principal user id, for the per-agent switches
+  @param {string} [client_id]     - agent key (helpers/identity/agent_key)
   @return {object|null} the manifest, or null if not resolvable
-{%- endcomment -%}
+{% enddoc %}
 {% liquid
   if allowed_tools != blank and allowed_tools != empty
     unless allowed_tools contains name
