@@ -92,11 +92,8 @@
         assign out = { "contents": contents }
         return out
       endif
-      assign owner_prefix = wanted | slice: 0, base.size
-      unless owner_prefix == base
-        return null
-      endunless
-      assign name = wanted | remove_first: base
+      assign uri_parts = wanted | split: '/'
+      assign name = uri_parts.last
       case name
         when 'hello', 'second'
           assign text = 'note ' | append: name | append: ' for ' | append: principal.id | append: ' via ' | append: agent.id
