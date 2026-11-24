@@ -3,13 +3,17 @@
     graphql g = 'modules/chat/messages/search', id: message_id
     assign message = g.messages.results.first
 
-    graphql g = 'modules/chat/messages/search', conversation_id: message.conversation_id
-    assign last_message = g.messages.results.first
+    # gone by now (deleted since it was sent) - without this the search below would get
+    # no conversation_id, so it would look through every conversation's messages
+    if message
+      graphql g = 'modules/chat/messages/search', conversation_id: message.conversation_id
+      assign last_message = g.messages.results.first
 
-    if last_message.id == message.id
-      assign event_object = {"message_id": message.id, "app_host": app_host}
-      
-      function _ = 'modules/core/commands/events/publish', type: 'message_notification_to_send', object: event_object, delay: null, max_attempts: null
+      if last_message.id == message.id
+        assign event_object = {"message_id": message.id, "app_host": app_host}
+
+        function _ = 'modules/core/commands/events/publish', type: 'message_notification_to_send', object: event_object, delay: null, max_attempts: null
+      endif
     endif
   %}
 {% endbackground %}

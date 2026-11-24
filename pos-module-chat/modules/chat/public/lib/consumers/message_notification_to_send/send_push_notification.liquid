@@ -40,7 +40,8 @@
       endfor
 
       if recipient_user_ids.size > 0
-        assign title = 'New message from ' | append: sender_name
+        # in the instance's default language - the job runs without a request, so not in the recipient's
+        assign title = 'modules/chat/push_title' | t: name: sender_name
         # one line, "Sent an image" for a message with attachments only - same as the sidebar
         function body = 'modules/chat/queries/messages/preview', message: message.message, media: message.media, length: 120
 
