@@ -129,7 +129,7 @@ For anything else, like a toast, listen to the events:
 document.addEventListener('pos-chat:message', event => {
   // the text as typed - escape it before putting it into HTML
   if(!event.detail.active){
-    showToast(`${event.detail.sender_name}: ${event.detail.message}`, event.detail.url);
+    showToast(`${event.detail.sender_name}: ${event.detail.preview}`, event.detail.url);
   }
 });
 
@@ -140,7 +140,7 @@ document.addEventListener('pos-chat:unread', event => {
 
 | Event | When | `event.detail` |
 |---|---|---|
-| `pos-chat:message` | A new message arrived in one of the user's conversations, sent by someone else. Fired once per message, even if the server delivers it twice, and in only one of the user's open tabs (see below) | `message_id`, `conversation_id`, `sender_id`, `sender_name`, `message` (the text as typed - escape it before putting it into HTML), `created_at`, `url` (the inbox opened on that conversation), `active` (`true` when the inbox on this page has that conversation open and the tab is visible - you may want to skip the toast then) |
+| `pos-chat:message` | A new message arrived in one of the user's conversations, sent by someone else. Fired once per message, even if the server delivers it twice, and in only one of the user's open tabs (see below) | `message_id`, `conversation_id`, `sender_id`, `sender_name`, `sender_avatar_url` (the sender's picture as the inbox shows it, from the profile's `avatar` - `null` when your profiles have none), `message` (the text as typed - escape it before putting it into HTML), `preview` (the text on one line, cut to 150 characters with "…", or "Sent an image" / "Sent an attachment" for a message with files only - made for a toast, escape it too), `attachment_count` (the number of files sent with it), `created_at`, `url` (the inbox opened on that conversation), `active` (`true` when the inbox on this page has that conversation open and the tab is visible - you may want to skip the toast then) |
 | `pos-chat:unread` | The number of unread conversations changed: when the page loads (read from the server right after it), when a new message arrives, and when the user reads a conversation (in any tab or on any device). A message in the conversation the inbox on this page has open (with the tab visible) doesn't change it, as it's read right away | `unread_conversations` |
 
 With the app open in several tabs, `pos-chat:message` is fired in only one of them, so a toast or a sound isn't repeated in each. The tabs agree on it among themselves (over a `BroadcastChannel`, which adds about 0.2 s): the tab with that conversation open in the inbox and visible handles it (`active` is `true` there, so you'd skip the toast), otherwise the tab with focus, otherwise a visible one, otherwise the one focused last. `pos-chat:unread` and the badges are updated in every tab. To run code in every tab, use `window.pos.modules.chat.notifications.onMessage(detail => ...)` - it gets the same `detail` and returns a function that removes the callback.
