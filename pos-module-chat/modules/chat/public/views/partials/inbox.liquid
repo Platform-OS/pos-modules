@@ -1,10 +1,9 @@
 <script>
-  /* namespace */
-  if(typeof window.pos !== 'object'){
-    window.pos = {};
-    window.pos.modules = {};
-    window.pos.translations = {};
-  }
+  /* namespace - each part on its own, a host may have its own window.pos without some of them */
+  window.pos ??= {};
+  window.pos.modules ??= {};
+  window.pos.modules.active ??= {};
+  window.pos.translations ??= {};
 
   if(typeof window.pos.csrfToken !== 'string'){
     window.pos.csrfToken = '{{ context.authenticity_token }}';

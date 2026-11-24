@@ -1,11 +1,21 @@
+{% doc %}
+  A link that opens the inbox with the given person - for a host's profile pages or people lists.
+
+  @param {string} to_uuid - the uuid of the person's profile
+  @param {string} [label] - the link's text, "Message" when neither it nor label_key is given
+  @param {string} [label_key] - a translation key for the link's text, instead of label
+  @param {boolean} [button] - to style it as a button
+  @param {string} [class] - more classes for the link
+{% enddoc %}
 {% liquid
   if label_key
     assign label = label_key | t
-  else
-    assign label = label
+  endif
+  if label == blank
+    assign label = 'modules/chat/message' | t
   endif
 %}
 
 <a href="/inbox/?to_uuid={{ to_uuid }}" class="{% if button %} button whitespace-nowrap {% endif %} chat-sendMessage {{ class }}">
-  {{ label | default: defaultLabel }}
+  {{ label }}
 </a>

@@ -1,18 +1,3 @@
-{% comment %}
-  Send email notification
-{% parse_json data %}
-    {
-      "email": "email"
-      "username": "",
-      "sender": {{ context["params"]["sender_name"] | to_json }},
-      "message": {{ context["params"]["message"] | to_json }}
-    }
-{% endparse_json %}
-  graphql notify = 'modules/chat/notify', data: data
-  log notify
-%}
-{% endcomment %}
-
 {% liquid
   function current_profile = 'modules/user/helpers/current_profile'
 
@@ -100,7 +85,7 @@
       # last_message_at, which orders the list
       function message = 'modules/chat/commands/messages/create', object: object, conversation: conversation, current_profile: current_profile
       if message.valid != true
-        log message, 'ERROR receive message'
+        log message, type: 'ERROR chat: message not stored'
         echo "false"
       else
         # Recipients are notified of the new message by the chat_message_created consumer
@@ -130,7 +115,8 @@
       endif
     endif
   else
-    log "Skippind. Message will be persisted on sender side", 'channel_actions/conversate skip_message'
+    # the room isn't a conversation of this user - nothing is stored or sent
+    log room_id, type: 'channel_actions/conversate not a participant, message dropped'
     echo "false"
   endif
 

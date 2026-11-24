@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.10.0
+
+* Removed: the unused `modules/chat/queries/conversations/find` and `modules/chat/queries/conversations/search` queries (and `graphql/conversations/search_by_message`), and the unused `pos-chat-csrfToken.js`. Use `queries/conversations/find_by_participant` and `queries/conversations/search_by_participant` instead.
+* Fix: the inbox no longer fails to start when the host app has its own `window.pos` without `window.pos.modules` (or `translations`) - each part is created when missing.
+* Fix: `theme/simple/message_button` shows "Message" when given neither `label` nor `label_key` (it showed nothing).
+* Fix: the uploader's 10 MB limit is set explicitly, the same as the upload property's `content_length` - it was read from an attribute nothing rendered and only matched because 10 MB is the uploader's default.
+* Change: a message sent to a conversation the user isn't part of is logged as `not a participant, message dropped` (the log said it would be stored on the sender's side, which it never was), and both logs in `conversate/receive` use `type:`. The leftover commented-out e-mail notification there is removed.
+* Docs: the push notification is debounced by about 10 seconds (`delay: 0.16` minutes), not 1 or 10 minutes as CLAUDE.md said; `schema/uploads.yml` explains that `metadata` holds JSON in a string property.
+
 ## v2.9.1
 
 * Fix: a message with attachments only, sent without a `message` (or with `null`), is stored. The `create` mutation required the text, so such a message was lost with a GraphQL error - the inbox always sends a text (empty for attachments only), so only other clients were affected.

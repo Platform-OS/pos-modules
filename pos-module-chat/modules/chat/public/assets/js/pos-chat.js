@@ -11,6 +11,11 @@
 
 
 
+// a host may have its own window.pos without some of these
+window.pos ??= {};
+window.pos.modules ??= {};
+window.pos.modules.active ??= {};
+
 // what's already on window.pos.modules.chat (like pos-chat-notifications.js, which can load
 // first) is kept on the constructor below
 const loadedChatExtensions = window.pos.modules.chat;
@@ -160,7 +165,7 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.upload.dragCounter = 0;
 
   // the message that will appear when the connection is lost
-  module.settings.lostConnection = pos.translations.connectionError;
+  module.settings.lostConnection = window.pos.translations?.chat?.connectionError;
 
   // the Action Cable consumer the channel is created on, from pos-chat-consumer.js (object)
   module.consumer = userSettings.consumer;
@@ -1067,7 +1072,7 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.messageInput.disabled = true;
     module.errorNotification = new window.pos.modules.toast(
       'error',
-      window.pos.translations.chat.connectionError
+      module.settings.lostConnection
     );
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Blocked the chat due to error');
@@ -1866,7 +1871,8 @@ window.pos.modules.chat = function(userSettings = {}){
         allowedFileTypes: element.dataset.allowedFileTypes,
         aspectRatio: element.dataset.aspectRatio,
         maxNumberOfFiles: element.dataset.maxNumberOfFiles,
-        maxFileSize: element.dataset.maxFileSize,
+        // the limit S3 enforces (content_length in schema/uploads.yml) - the uploader's partial has no attribute for it
+        maxFileSize: 10 * 1024 * 1024,
         showDashboard: element.dataset.showDashboard !== 'false'
       });
       pos.modules.active[module.settings.upload.uploaderId] = uploader;

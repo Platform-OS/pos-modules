@@ -1,3 +1,7 @@
+{% comment %}
+  Debounces the push notification: about 10 seconds after a message (delay is in minutes), it's only
+  sent if no newer message came in the meantime - that one's own check sends it instead.
+{% endcomment %}
 {% background delay: 0.16, message_id: event.message_id, max_attempts: 0, app_host: event.app_host %}
   {% liquid
     graphql g = 'modules/chat/messages/search', id: message_id

@@ -12,5 +12,7 @@ properties:
       # 10 MB, the limit the uploader and the inbox state (modules/chat/upload_drop.max_size)
       content_length:
         lte: 10240
+  # JSON ({ type, name, size, width, height }) - platformOS has no JSON property type, so it's stored as
+  # a string: written with value_json and read with property_json (see graphql/uploads)
   - name: metadata
     type: string
