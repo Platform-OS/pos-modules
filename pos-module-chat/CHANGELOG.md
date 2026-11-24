@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.9.0
+
+* Feature: the `message_created` live notification and the `pos-chat:message` event detail carry `sender_avatar_url` (the sender's picture as the inbox shows it, `null` when the host's profiles have no avatar), `preview` (the text on one line, cut to 150 characters, or "Sent an image" / "Sent an attachment" for a message with files only - ready for a toast) and `attachment_count`.
+* Change: the inbox sidebar and the push notification make their one-line summary of a message with the new `queries/messages/preview` (the same as the notification's `preview`). Line breaks in the sidebar's last-message preview and in the push notification's text are shown as spaces, and the push notification's text ends with "…" instead of "..." when cut.
+
 ## v2.8.3
 
 * Fix: in the inbox sidebar, a long last-message preview no longer runs into the date next to it. The date is always shown in full on one line ("23 minutes ago" wrapped on narrow screens), the preview takes the rest of the row and is cut with an ellipsis, and the two keep a gap between them (it used a CSS variable that doesn't exist, so there was none).
