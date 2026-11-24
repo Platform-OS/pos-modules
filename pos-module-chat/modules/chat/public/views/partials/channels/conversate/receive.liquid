@@ -101,12 +101,17 @@
         # Sent right away in this request (not
         # in a background job) to keep the live view as fast as the rebroadcast was.
         assign sender_name = current_profile.name | default: current_profile.first_name
+        # the sidebar card's text, the same as the server renders it - the inbox with this
+        # conversation open updates its card with it instead of reloading the list
+        assign first_attachment = attachments | first
+        function preview = 'modules/chat/queries/messages/preview', message: context.params.message, media: media_ids, length: null, media_type: first_attachment.type
         assign payload = {
           "message": context.params.message,
           "autor_id": current_profile.id,
           "sender_name": sender_name,
           "created_at": message.created_at,
-          "media": attachments
+          "media": attachments,
+          "preview": preview
         }
         graphql _broadcast = 'modules/chat/messages/broadcast', room_id: conversation.id, payload: payload
 
