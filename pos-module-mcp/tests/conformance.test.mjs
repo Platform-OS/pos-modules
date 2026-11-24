@@ -16,6 +16,7 @@
 import { describe, it, beforeAll, afterAll, afterEach, expect } from 'vitest';
 import { loadEnv, makeAdmin, makeMcp, makeModern, makeConstants } from './lib/harness.mjs';
 import { FIXT, applyReset } from './seed/seed.mjs';
+import { createHash } from 'node:crypto';
 import { awaitFreshRateWindow } from './fixtures.mjs';
 
 // ---- isolated conformance identity + fixtures (deterministic; TASK-5) ------
@@ -36,8 +37,21 @@ const { setConstant, unsetConstant } = makeConstants(adm);
 
 const ok = (name, cond, detail) => expect.soft(cond === true || cond === false ? cond : !!cond, detail ? `${name} — ${detail}` : name).toBe(true);
 
+// Violation counters are "abuse:<principal>:tok:<token_id>:<slice>" (helpers/limits/abuse_key).
+async function abuseRows(tokenId) {
+  const r = await gql(`{ records(per_page: 200, filter: { table: { value: "${TABLE_RATE}" } properties: [{ name: "key", starts_with: "abuse:${CONF_PRINCIPAL}:tok:${tokenId}:" }] }) { results { id count: property(name: "count") } } }`);
+  return r?.data?.records?.results || [];
+}
+async function violations(tokenId) {
+  return (await abuseRows(tokenId)).reduce((n, row) => n + Number(row.count || 0), 0);
+}
+async function clearViolations(tokenIds) {
+  for (const id of tokenIds) for (const row of await abuseRows(id)) await adm.recordDelete(TABLE_RATE, row.id);
+}
+
 async function pruneRate() {
-  // Rate keys are "principal:<id>:token:<token_id>:<window>" — match the principal prefix.
+  // Rate keys are "principal:<id>:token:<token_id>:<window>" (per token) and
+  // "principal:<id>:<window>" (per principal) — match the principal prefix.
   const r = await gql(`{ records(per_page: 200, filter: { table: { value: "${TABLE_RATE}" } properties: [{ name: "key", starts_with: "principal:${CONF_PRINCIPAL}" }] }) { results { id } } }`);
   for (const row of r?.data?.records?.results || []) await adm.recordDelete(TABLE_RATE, row.id);
 }
@@ -299,6 +313,64 @@ describe('conformance · protocol + governance pipeline', () => {
     ok('rate limit answers HTTP 200 with -32004', limited.status === 200 && limited.json?.error?.code === -32004, `status=${limited.status} code=${limited.json?.error?.code}`);
     ok('rate limit carries Retry-After (header and error.data)', !!limited.headers.get('retry-after') && Number.isInteger(limited.json?.error?.data?.retryAfter));
     await unsetConstant('MCP_CONFIG');
+  });
+
+  it('Rate limiting per principal across tokens (§12.4)', async () => {
+    // Extra tokens for the SAME conformance principal: minting more tokens must not raise
+    // the person's limit. Abuse auto-suspend is off so the refusals cannot revoke a token.
+    const extra = [];
+    try {
+      for (const k of ['a', 'b', 'c']) {
+        const raw = 'mcp_conf_pp_' + k + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        const id = await adm.recordCreate('modules/mcp/mcp_token', {
+          user_id: FIXT.users.conformance.userId, token_digest: createHash('sha256').update(raw).digest('hex'),
+          label: 'conf-per-principal-' + k, status: 'active',
+        });
+        extra.push({ raw, id });
+      }
+      const [a, b, c] = extra;
+      const call = async (token) => {
+        const r = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'search_events', arguments: { query: 'x' } } }, { token });
+        return { code: r.json?.error?.code ?? r.status, r };
+      };
+
+      await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 3, rate_limit_per_principal_per_min: 5, abuse_threshold: 0 } }));
+      await pruneRate();
+      await awaitFreshRateWindow();
+      const codesA = []; for (let i = 0; i < 3; i++) codesA.push((await call(a.raw)).code);
+      const codesB = []; for (let i = 0; i < 3; i++) codesB.push((await call(b.raw)).code);
+      const lastC = await call(c.raw);
+      ok('token A: its own 3 pass', codesA.every(x => x === 200), codesA.join(','));
+      ok('token B: 2 pass, then the per-principal limit (5) answers -32004', codesB[0] === 200 && codesB[1] === 200 && codesB[2] === -32004, codesB.join(','));
+      ok('a fresh token C of the same person is refused too', lastC.code === -32004, String(lastC.code));
+      ok('per-principal refusal carries Retry-After', !!lastC.r.headers.get('retry-after') && Number.isInteger(lastC.r.json?.error?.data?.retryAfter));
+
+      // A per-token refusal does not use up the shared budget. The principal counter is at
+      // 7 (the two refused calls above passed their token check and were counted); with
+      // the limit at 8 there is room for 1 more: token A (already at its own 3) is refused
+      // without being counted, so C still gets that 1.
+      await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 3, rate_limit_per_principal_per_min: 8, abuse_threshold: 0 } }));
+      const overA = await call(a.raw);
+      const okC = await call(c.raw);
+      ok('per-token refusal does not consume the per-principal budget', overA.code === -32004 && okC.code === 200, `A=${overA.code} C=${okC.code}`);
+
+      // Only the per-token refusal (A) counts as a violation. B and C were refused by the
+      // per-principal limit, which the person's other tokens filled: no violation for them,
+      // so they can never be auto-suspended for it.
+      const [vA, vB, vC] = await Promise.all([a, b, c].map(t => violations(t.id)));
+      ok('per-token refusal counts as a violation', vA === 1, String(vA));
+      ok('per-principal refusals count as no violation', vB === 0 && vC === 0, `B=${vB} C=${vC}`);
+
+      // 0 disables the per-principal limit: only the per-token limit applies.
+      await setConstant('MCP_CONFIG', JSON.stringify({ defaults: { rate_limit_per_min: 3, rate_limit_per_principal_per_min: 0, abuse_threshold: 0 } }));
+      const offC = await call(c.raw);
+      ok('rate_limit_per_principal_per_min 0 disables the per-principal limit', offC.code === 200, String(offC.code));
+    } finally {
+      await unsetConstant('MCP_CONFIG');
+      for (const t of extra) { try { await adm.recordDelete('modules/mcp/mcp_token', t.id); } catch {} }
+      await pruneRate();
+      await clearViolations(extra.map(t => t.id));
+    }
   });
 
   it('Attestation ledger (§6) — isolated principal', async () => {

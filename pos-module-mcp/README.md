@@ -97,6 +97,7 @@ every request — no redeploy needed.
 | `server_name` | `pos-module-mcp` | `serverInfo.name` + the `claude mcp add <name>` alias on `/mcp-tools` |
 | `tools_list_scope` | `open` | `open` advertises every tool to any caller (MCP-default open discovery); `principal` scopes `tools/list` to what the caller may actually call — restricted tools aren't leaked to unauthorized/anonymous callers (least-disclosure). Execution is authorized per-call either way. |
 | `defaults.rate_limit_per_min` | `60` | per-token fixed-window (per-minute) rate limit; each agent's token or OAuth grant has its own bucket |
+| `defaults.rate_limit_per_principal_per_min` | `180` | per-principal fixed-window (per-minute) rate limit over all of a person's tokens and OAuth grants, so minting more tokens does not raise it; `0` disables it |
 | `defaults.max_input_bytes` | `65536` | request body size cap |
 | `defaults.max_schema_depth` | `5` | argument-validation nesting cap |
 | `defaults.idempotency_window_seconds` | `86400` | how long an idempotency key can replay |
@@ -460,7 +461,7 @@ ledger with security-lens quick filters and a paginated JSON export.
   as the original principal, re-authorized.
 - **Least leakage** — denials return a stable generic message; specifics go to the
   ledger, not the wire.
-- **Bounded blast radius** — per-token rate limiting; auto-suspend of the one token that
+- **Bounded blast radius** — per-token and per-principal rate limiting; auto-suspend of the one token that
   keeps violating policy; size and depth caps.
 - **Console forms check the form token** — every POST page of `/mcp-tools` and
   `/mcp-admin` refuses a request without a valid `authenticity_token` (403, nothing

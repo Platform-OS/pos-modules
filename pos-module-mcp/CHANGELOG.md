@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-principal rate limit** (`defaults.rate_limit_per_principal_per_min`, 180; `0`
+  disables it). The rate limit on `tools/call` and provider `resources/read` became
+  per-token, so a person could raise their own limit by minting more tokens. Every call
+  is now also counted in one bucket per person (`principal:<id>`), across all of their
+  tokens and OAuth grants, checked after the per-token limit (`limits/check_call`). Over
+  it the call gets the same `-32004` (`resources/read`: `429 / -32002`) with
+  `Retry-After` and a ledger entry, but no violation: the person's other tokens can fill
+  that bucket, and they must not get the calling token auto-suspended. A per-token
+  refusal still counts as a violation for the calling token.
+
 - **App fields on the OAuth approval page** (`oauth_consent_partial`,
   `oauth_approved_partial`; docs/oauth.md). An app can show checkbox fields on the
   approval page (for example "Which vaults may this app use?") and act on the ticked

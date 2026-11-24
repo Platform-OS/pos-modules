@@ -717,7 +717,7 @@ navigations instead of flashing white (the console is a dark theme). {%- endcomm
     <div class="tbl-wrap">
       <table>
         <tbody>
-          <tr><td class="muted">rate limit / min</td><td>{{ cfg.defaults.rate_limit_per_min }}</td></tr>
+          <tr><td class="muted">rate limit / min</td><td>{{ cfg.defaults.rate_limit_per_min }} per token · {{ cfg.defaults.rate_limit_per_principal_per_min }} per principal</td></tr>
           <tr><td class="muted">abuse threshold / window</td><td>{{ cfg.defaults.abuse_threshold }} violations in {{ cfg.defaults.abuse_window_seconds }}s</td></tr>
           <tr><td class="muted">approval window</td><td>{{ cfg.defaults.approval_window_seconds }}s</td></tr>
           <tr><td class="muted">max pending approvals / principal</td><td>{{ cfg.defaults.approval_max_pending_per_principal }}</td></tr>

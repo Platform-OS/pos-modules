@@ -121,7 +121,7 @@ None of the open-method branches write to the hash-chained ledger — they take 
 A `resources/read` of an app resource returns app data, so it runs a short version of the `tools/call` gates for the signed-in caller (`rpc/dispatch` already resolved the bearer):
 
 1. **Auto-suspend** — `limits/enforce_abuse`; a suspended token gets `403 / -32001 "Access suspended"`.
-2. **Rate limit** — the same per-token window as `tools/call`; over it → `429 / -32002` with `Retry-After`, ledgered, counted as a violation.
+2. **Rate limit** — the same per-token and per-principal windows as `tools/call`; over it → `429 / -32002` with `Retry-After`, ledgered; a per-token refusal is counted as a violation, a per-principal one is not.
 3. **Scope** — the token needs `mcp:read`; otherwise `403 / -32001 "Insufficient scope"` with an `insufficient_scope` challenge, ledgered.
 4. **Provider read** — `resources/provider` with `operation: read`, `principal` and `agent`. The provider applies the app's access rules and returns nil for anything the caller may not read, so a forbidden resource and a missing one both answer `-32002 "Resource not found"` (`-32602` for a modern request), ledgered as `invalid`. A provider that raises, or whose contents are not `[{ uri, text | blob, mimeType? }]`, is logged and answered `-32603 "Internal error"`, ledgered as `error`. Success is ledgered as `success`.
 
@@ -143,7 +143,7 @@ flowchart TD
   AB -->|already suspended| ABx[200 · -32001 Access suspended]
   AB -->|ok| RL[Gate 2 · limits/check per-principal rate]
 
-  RL -->|over limit| RLx[LEDGER: error/-32004 + note_violation\nRetry-After · 200 -32004]
+  RL -->|over limit| RLx[LEDGER: error/-32004 + note_violation if per-token\nRetry-After · 200 -32004]
   RL -->|ok| H[hash args → input_sha256; build base ledger entry]
 
   H --> RT[Gate 3 · registry/resolve_tool + allowed_tools]
@@ -196,7 +196,7 @@ flowchart TD
 
 **Gate 1b — Abuse auto-suspend (`limits/enforce_abuse`).** Reads the calling token's O(1) violation count over the rolling abuse window (`abuse_window_seconds`, summed from counters a tenth of the window long, so it never resets at a clock boundary). Violations are counted **per token**: if this token's own count has reached the threshold, the command **revokes this token** (status → revoked) and writes a `security/suspend` ledger entry naming it (`subject_type: token`, `subject_id: <token id>`, `audit_json` with the count, threshold and window), and this call returns `-32001 "Access suspended"` (HTTP 200). Every subsequent call with that token then fails Gate 1 as `token_revoked`. The person's other tokens and OAuth grants are untouched: a narrowed token given to a less-trusted agent cannot get the person's main token revoked. This is a real containment control, not a warning — and it never scans the ledger on the hot path (an earlier version did and blew the per-request budget).
 
-**Gate 2 — Rate limit (`limits/check`, scope `principal:<id>:token:<token id>`).** Fixed per-minute window against `cfg.defaults.rate_limit_per_min`, per token, so one chatty agent never uses up the budget of the person's other agents. Over the limit: **write a ledger entry** (`execution_outcome: error`, `error_code: -32004`), call `note_violation` (feeding Gate 1b), and return `-32004 "Rate limit exceeded"` with HTTP 200, the `Retry-After` header and `error.data.retryAfter` (seconds). `-32004` is implementation-defined; `-32002` means "resource not found" in MCP. This is the first *authenticated* exit, so it *is* ledgered.
+**Gate 2 — Rate limit (`limits/check_call`).** Two fixed per-minute windows. Per token (scope `principal:<id>:token:<token id>`, `cfg.defaults.rate_limit_per_min`), so one chatty agent never uses up the budget of the person's other agents. Then per principal (scope `principal:<id>`, `cfg.defaults.rate_limit_per_principal_per_min`), counted over all of the person's tokens and OAuth grants, so minting more tokens does not raise how fast one person can act; it is bumped only when the per-token check passes. Over either limit: **write a ledger entry** (`execution_outcome: error`, `error_code: -32004`) and return `-32004 "Rate limit exceeded"` with HTTP 200, the `Retry-After` header and `error.data.retryAfter` (seconds). Only a per-token refusal calls `note_violation` (feeding Gate 1b): the person's other tokens can fill the per-principal bucket, and that must not get the calling token suspended. `-32004` is implementation-defined; `-32002` means "resource not found" in MCP. This is the first *authenticated* exit, so it *is* ledgered.
 
 **Argument hashing.** Past the limits, the arguments are serialized and `input_sha256 = sha256(args_json)` is computed. **Raw arguments are never stored** — only the digest + byte count go into the ledger (plus any handler-declared `audit_json`). A `request_id` (uuid) and the base ledger entry `le` are assembled here and filled in per outcome.
 

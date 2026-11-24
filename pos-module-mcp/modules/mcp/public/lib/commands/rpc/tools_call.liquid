@@ -60,16 +60,17 @@
     return out
   endif
 
-  # Step 2 (post-auth) — per-token rate limit (spec §12.4). Bounds blast radius per
-  # agent: each token (manual token or OAuth grant) has its own bucket, so one chatty
-  # agent cannot use up the budget of the person's other agents, and the rate-limit
-  # violation it earns counts against its own token only (limits/note_violation).
-  # Rejected calls are ledgered (accountable identity) and carry Retry-After (header
-  # and error.data.retryAfter, in seconds). The code is -32004, in the
+  # Step 2 (post-auth) — rate limits (spec §12.4, limits/check_call). Per token: each
+  # token (manual token or OAuth grant) has its own bucket, so one chatty agent cannot
+  # use up the budget of the person's other agents. Per principal: one bucket for all
+  # of the person's tokens, so minting more tokens does not raise their limit. Only a
+  # per-token refusal counts as a violation (limits/note_violation, the calling token
+  # only): the person's other tokens can fill the per-principal bucket. Rejected calls
+  # are ledgered (accountable identity) and carry Retry-After (header and
+  # error.data.retryAfter, in seconds). The code is -32004, in the
   # implementation-defined range: -32002 is "resource not found".
   function cfg = 'modules/mcp/helpers/config'
-  assign rl_scope = 'principal:' | append: auth.principal.id | append: ':token:' | append: auth.token_id
-  function rl = 'modules/mcp/commands/limits/check', scope: rl_scope, limit: cfg.defaults.rate_limit_per_min
+  function rl = 'modules/mcp/commands/limits/check_call', principal_id: auth.principal.id, token_id: auth.token_id
   unless rl.allowed
     assign rle = {
       "method": "tools/call",
@@ -85,7 +86,11 @@
     assign rle['request_id'] = '' | uuid
     assign rle['_start_ms'] = start_ms
     function _ = 'modules/mcp/commands/ledger/append', entry: rle
-    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id, token_id: auth.token_id
+    # Only the token's own limit counts as a violation: a per-principal refusal can be
+    # caused by the person's OTHER tokens, and must not get this one suspended.
+    if rl.scope == 'token'
+      function _ = 'modules/mcp/commands/limits/note_violation', principal_id: auth.principal.id, token_id: auth.token_id
+    endif
     assign hdrs_retry_after = rl.retry_after | append: ''
     assign hdrs = { "Retry-After": hdrs_retry_after }
     assign out['headers'] = hdrs
