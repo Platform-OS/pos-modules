@@ -6,7 +6,7 @@
   window.pos.translations ??= {};
 
   if(typeof window.pos.csrfToken !== 'string'){
-    window.pos.csrfToken = '{{ context.authenticity_token }}';
+    window.pos.csrfToken = {% print context.authenticity_token | json %};
   }
 
   /* profile namespace */
@@ -14,20 +14,21 @@
     window.pos.profile = { id: {% print current_profile.id | json %} };
   }
 
-  /* translations used in module */
+  /* translations used in module - printed as JSON strings, so quotes, backslashes and line breaks in
+     them can't break this script (and </ as <\/, so neither can a closing script tag) */
   window.pos.translations = {
     ...window.pos.translations,
     chat: {
-      connectionError: '{{ 'modules/chat/error_connection' | t }}',
-      startFailed: '{{ 'modules/chat/error_start_conversation' | t }}',
-      loadMessagesFailed: '{{ 'modules/chat/error_load_messages' | t }}',
-      searchFailed: '{{ 'modules/chat/error_search' | t }}',
+      connectionError: {% print 'modules/chat/error_connection' | t | json | replace: '</', '<\/' %},
+      startFailed: {% print 'modules/chat/error_start_conversation' | t | json | replace: '</', '<\/' %},
+      loadMessagesFailed: {% print 'modules/chat/error_load_messages' | t | json | replace: '</', '<\/' %},
+      searchFailed: {% print 'modules/chat/error_search' | t | json | replace: '</', '<\/' %},
       fileTooLarge: {
-        single: '{{ 'modules/chat/error_file_too_large.single' | t }}',
-        multiple: '{{ 'modules/chat/error_file_too_large.multiple' | t }}'
+        single: {% print 'modules/chat/error_file_too_large.single' | t | json | replace: '</', '<\/' %},
+        multiple: {% print 'modules/chat/error_file_too_large.multiple' | t | json | replace: '</', '<\/' %}
       },
-      tooManyFiles: '{{ 'modules/chat/error_too_many_files' | t }}',
-      uploadFailed: '{{ 'modules/chat/error_upload_failed' | t }}'
+      tooManyFiles: {% print 'modules/chat/error_too_many_files' | t | json | replace: '</', '<\/' %},
+      uploadFailed: {% print 'modules/chat/error_upload_failed' | t | json | replace: '</', '<\/' %}
     }
   }
 </script>
