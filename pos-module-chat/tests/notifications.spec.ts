@@ -170,6 +170,13 @@ test.describe('Live notifications', () => {
     const ownerInbox = new InboxPage(ownerPage);
     const cards = ownerPage.locator('#pos-chat-conversations > li[data-conversation-id] .pos-chat-conversationCard');
     const card = (name: string) => ownerInbox.chatList.getCardByAuthor(name);
+    // the list's reloads - a message in the open conversation updates its card without one
+    let listReloads = 0;
+    ownerPage.on('request', request => {
+      if(request.url().includes('/conversations.frame')){
+        listReloads++;
+      }
+    });
 
     await test.step('the owner opens a new chat and sends the first message - its card replaces the draft one', async () => {
       await readEverything(ownerPage);
@@ -187,7 +194,8 @@ test.describe('Live notifications', () => {
       await expect(cards.first()).toContainText(opened.name);
     });
 
-    await test.step('a reply in the open conversation is read right away - the unread badge doesn\'t flash', async () => {
+    await test.step('a reply in the open conversation is read right away - the unread badge doesn\'t flash, its card is updated without reloading the list', async () => {
+      listReloads = 0;
       await ownerPage.evaluate(() => {
         (window as any).unreadCounts = [];
         document.addEventListener('pos-chat:unread', event => (window as any).unreadCounts.push((event as CustomEvent).detail.unread_conversations));
@@ -209,9 +217,13 @@ test.describe('Live notifications', () => {
       expect(await ownerPage.evaluate(() => (window as any).unreadCounts)).not.toContain(1);
       await expect(unreadBadge(ownerPage)).toBeHidden();
       await expect(card(opened.name)).not.toHaveClass(/pos-chat-conversationCard-unread/);
+      await expect(ownerInbox.chatList.getCardLastMessage(opened.name)).toHaveText(texts.reply);
+      await expect(card(opened.name).locator('time')).toHaveText('now');
+      expect(listReloads).toBe(0);
     });
 
-    await test.step('a message in another conversation puts it on top, unread', async () => {
+    await test.step('a message in another conversation puts it on top, unread - the list is reloaded for it', async () => {
+      listReloads = 0;
       const { context: otherContext, page: otherPage } = await logIn(browser, other.email);
       const otherInbox = new InboxPage(otherPage);
       await otherInbox.goto();
@@ -225,13 +237,20 @@ test.describe('Live notifications', () => {
       await expect(card(other.name)).toHaveClass(/pos-chat-conversationCard-unread/);
       // the open one is still shown as open
       await expect(card(opened.name)).toHaveClass(/pos-chat-conversationCard-active/);
+      expect(listReloads).toBeGreaterThan(0);
     });
 
     await test.step('the owner\'s own message updates the open conversation\'s card, the unread one stays on top', async () => {
+      listReloads = 0;
       await ownerInbox.chat.sendMessage(texts.again);
 
       await expect(ownerInbox.chatList.getCardLastMessage(opened.name)).toHaveText(texts.again);
       await expect(cards.first()).toContainText(other.name);
+      // the first of the read ones
+      await expect(cards.nth(1)).toContainText(opened.name);
+      // a reload would have come within its 300 ms debounce
+      await ownerPage.waitForTimeout(1_000);
+      expect(listReloads).toBe(0);
     });
 
     await test.step('reading it in another tab marks it read, the newest conversation goes on top', async () => {

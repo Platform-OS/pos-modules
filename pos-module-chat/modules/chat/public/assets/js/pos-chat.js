@@ -317,7 +317,13 @@ window.pos.modules.chat = function(userSettings = {}){
     // number of unread conversations changes when one is read in another tab or on another device
     // (pos-chat-notifications.js, loaded and started by the inbox too) - its onMessage runs in
     // every tab, 'pos-chat:message' only in one of them
-    window.pos.modules.chat.notifications?.onMessage(() => {
+    window.pos.modules.chat.notifications?.onMessage(detail => {
+      // a message in the open conversation comes over its own channel too, which updates its card
+      // (see the channel's received) - the list is only reloaded for the other conversations
+      if(module.settings.connected && module.conversationId && String(detail.conversation_id) === String(module.conversationId)){
+        return;
+      }
+
       module.conversations.reload();
     });
     document.addEventListener('pos-chat:unread', event => {
@@ -689,9 +695,9 @@ window.pos.modules.chat = function(userSettings = {}){
             })
           );
 
-          // the user's own message moves the conversation to the top of the list (the others'
-          // messages come with a notification, see pos-chat:message)
-          if(data.status === 'sent'){
+          // a new message moves the conversation up the list and changes its card - done right here
+          // when it can be, the whole list is reloaded otherwise
+          if(!module.conversations.updateOpenCard(data)){
             module.conversations.reload();
           }
 
@@ -1137,6 +1143,64 @@ window.pos.modules.chat = function(userSettings = {}){
         module.conversations.reload();
       }
     });
+  };
+
+
+  // purpose:   shows a new message of the open conversation on its card, without reloading the list:
+  //            its text and time, and moved to the top of the read conversations - the list shows
+  //            the unread ones first, then the read ones, each newest first (the same as
+  //            queries/conversations/search_by_participant sorts them), and the open conversation is
+  //            read while the tab is visible
+  // arguments: the message as broadcast to the conversation (object)
+  // returns:   if it's done - when the list needs the server to tell where the card goes (the tab
+  //            is hidden, so the conversation is unread now; the card isn't loaded or is still a
+  //            draft; the read ones aren't loaded yet), nothing is changed and it has to be reloaded (bool)
+  // ------------------------------------------------------------------------
+  module.conversations.updateOpenCard = (data) => {
+    const container = module.settings.conversations.container;
+
+    if(!container || !module.conversationId || typeof data.preview !== 'string' || !data.created_at){
+      return false;
+    }
+    if(data.status !== 'sent' && document.visibilityState !== 'visible'){
+      return false;
+    }
+
+    const items = [...container.querySelectorAll(':scope > li[data-conversation-id]')];
+    const item = items.find(li => li.dataset.conversationId === String(module.conversationId));
+    const lastMessage = item?.querySelector('.pos-chat-conversationCard-lastMessage');
+    const time = lastMessage?.querySelector('time');
+
+    if(!lastMessage || !lastMessage.querySelector('small') || !time){
+      return false;
+    }
+
+    // the first read conversation is where it goes - none shown while there are more to load means
+    // the read ones come later, on a page that isn't loaded yet
+    const firstRead = items.find(li => li !== item && !li.querySelector('.pos-chat-conversationCard-unread'));
+    if(!firstRead && module.settings.conversations.morePages){
+      return false;
+    }
+
+    lastMessage.querySelector('small').textContent = data.preview;
+
+    // a new element, as pos-time.js formats the dates added to the page ("now"), not changed ones
+    const newTime = time.cloneNode(true);
+    newTime.setAttribute('datetime', new Date(data.created_at).toISOString());
+    time.replaceWith(newTime);
+
+    item.querySelector('.pos-chat-conversationCard')?.classList.remove('pos-chat-conversationCard-unread');
+
+    if(firstRead){
+      container.insertBefore(item, firstRead);
+    } else {
+      // all the others are unread - after the last of them (before 'load more', if there's one)
+      items.filter(li => li !== item).at(-1)?.after(item);
+    }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, "Updated the open conversation's card", data.preview);
+
+    return true;
   };
 
 

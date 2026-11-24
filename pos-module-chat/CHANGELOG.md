@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.11.0
+
+* Change: a new message in the conversation open in the inbox (from either side) no longer reloads the whole sidebar. Its card is updated in place - the text, the time, and its place at the top of the read conversations - and the list is only reloaded for messages in the other conversations. When the server has to say where the card goes (the tab is hidden, so the conversation is unread now; the card isn't loaded yet or is still a draft), the list is reloaded as before.
+* Feature: the messages broadcast to a conversation's `conversate` room carry `preview` - the card's one-line text (see `queries/messages/preview`).
+
 ## v2.10.2
 
 * Fix: the inbox's texts (`window.pos.translations.chat`) and the CSRF token are printed into the page's scripts as JSON strings. A translation with a line break stopped the inbox script from running, a backslash changed the text, and quotes or `<` / `>` / `&` came out as HTML entities (`&#39;`) where the text isn't shown as HTML. A `</script>` in a translation can't end the script either.
