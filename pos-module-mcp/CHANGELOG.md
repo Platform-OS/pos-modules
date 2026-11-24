@@ -5,7 +5,7 @@ All notable changes to **pos-module-mcp** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## ## [0.2.5] - 2026-11-24
+## [0.3.0] - 2026-11-24
 
 ### Added
 
@@ -516,6 +516,6 @@ Hardening from the pre-release security review:
   (`GET /mcp-admin/ledger-export.json`, honors active filters, capped with an explicit
   `capped` flag).
 
-[Unreleased]: https://example.com/compare/v0.2.0...HEAD
+[0.3.0]: https://example.com/compare/v0.2.0...v0.3.0
 [0.2.0]: https://example.com/compare/v0.1.0...v0.2.0
 [0.1.0]: https://example.com/releases/tag/v0.1.0
