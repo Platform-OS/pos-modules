@@ -42,14 +42,18 @@
       return;
     }
 
+    /* the notifications keep the sidebar up to date - started here too, for a layout without
+       modules/chat/notifications/init (only the first start does anything) */
     Promise.all([
       import('{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}'),
-      import('{{ 'modules/chat/js/pos-chat.js' | asset_url }}')
+      import('{{ 'modules/chat/js/pos-chat.js' | asset_url }}'),
+      import('{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}')
     ]).then(([consumer]) => {
       window.pos.modules.active.chat = new window.pos.modules.chat({
         inbox: inbox,
         consumer: consumer.default
       });
+      window.pos.modules.chat.notifications.start({ consumer: consumer.default });
     });
   });
 </script>

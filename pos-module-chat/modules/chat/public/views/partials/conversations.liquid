@@ -45,7 +45,7 @@
       assign unread = false
     endif
   %}
-  <li>
+  <li data-conversation-id="{{ conversation.id }}">
     {% render 'modules/chat/conversation', id: conversation.id, current: conversation['current'], name: name, image_src: image_src, last_message: last_message, last_message_at: conversation.last_message_at, timezone: current_profile.properties.timezone, unread: unread %}
   </li>
 {% endfor %}

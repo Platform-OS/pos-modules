@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.8.0
+
+* Feature: the inbox sidebar is kept up to date without reloading the page. A new message in any conversation (or one the user sends) moves it to the top with its new last message, a new conversation shows up, and a conversation read in another tab or on another device is no longer shown as unread. The inbox starts the live notifications itself for this, so it works without `modules/chat/notifications/init` in the layout too.
+* Fix: a message in the conversation open in the inbox no longer makes the number of unread conversations go up and back down a moment later (the badge flashed). The number counted with it is held back while the inbox marks the conversation read, and is shown after 5 seconds only if that doesn't happen.
+* Change: with the app open in several tabs, `pos-chat:message` is fired in only one of them (the one with the conversation open, otherwise the focused or visible one), so a toast or a sound isn't repeated in each tab. The tabs agree over a `BroadcastChannel`, which delays the event by about 0.2 s. `pos-chat:unread` and the badges are still updated in every tab. Code that has to run in every tab can use the new `window.pos.modules.chat.notifications.onMessage(callback)`.
+* Change: `conversations.frame` takes an optional `conversation_id`, shown as the open conversation, and each item of the list carries the conversation's id as `data-conversation-id`.
+
 ## v2.7.0
 
 * Feature: live notifications for any page of the host app, not only the inbox. `{% render 'modules/chat/notifications/init' %}` in the layout starts them for users who can use the chat: the page gets a `pos-chat:message` event on `document` for each new message (sender, text, conversation and its inbox url, and `active` when the inbox on that page has it open), a `pos-chat:unread` event when the number of unread conversations changes, and every element with the `data-pos-chat-unread-conversations` attribute shows that number (hidden at 0). The current number is also `window.pos.modules.chat.notifications.unread_conversations`. See the README, Live notifications. The example app shows it as a badge on the Inbox link.
