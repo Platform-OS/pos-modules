@@ -19,6 +19,7 @@ en:
     max_size: Max 10 MB
   sent_image: Sent an image
   sent_attachment: Sent an attachment
+  push_title: New message from %{name}
   # {files} is replaced in the browser with the names of the files that failed
   error_file_too_large:
     single: The file {files} you are trying to upload is too large, maximum is 10 MB

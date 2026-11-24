@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.9.1
+
+* Fix: a message with attachments only, sent without a `message` (or with `null`), is stored. The `create` mutation required the text, so such a message was lost with a GraphQL error - the inbox always sends a text (empty for attachments only), so only other clients were affected.
+* Fix: the push notification's title is translatable (`modules/chat/push_title`, "New message from %{name}"). It's in the instance's default language, as it's sent from a background job.
+* Fix: the debounced push notification check skips a message that no longer exists, instead of searching every conversation's messages for it.
+
 ## v2.9.0
 
 * Feature: the `message_created` live notification and the `pos-chat:message` event detail carry `sender_avatar_url` (the sender's picture as the inbox shows it, `null` when the host's profiles have no avatar), `preview` (the text on one line, cut to 150 characters, or "Sent an image" / "Sent an attachment" for a message with files only - ready for a toast) and `attachment_count`.
