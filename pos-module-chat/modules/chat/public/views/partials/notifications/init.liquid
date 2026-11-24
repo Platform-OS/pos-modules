@@ -20,10 +20,6 @@
     function can_chat = 'modules/user/helpers/can_do', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null
   endif
 
-  if can_chat
-    # shown at once, without waiting for the connection - the client asks again once connected
-    function unread_conversations = 'modules/chat/queries/conversations/number_of_unread_by_participant', participant_id: current_profile.id
-  endif
 %}
 {% if can_chat %}
 <script>
@@ -48,10 +44,9 @@
         import('{{ 'modules/chat/js/pos-chat-consumer.js' | asset_url }}'),
         import('{{ 'modules/chat/js/pos-chat-notifications.js' | asset_url }}')
       ]).then(([consumer]) => {
-        window.pos.modules.chat.notifications.start({
-          consumer: consumer.default,
-          unread_conversations: {{ unread_conversations | default: 0 | json }}
-        });
+        /* the number of unread conversations isn't counted here, so the page renders without
+           waiting for it - the client reads it from the API right after it starts */
+        window.pos.modules.chat.notifications.start({ consumer: consumer.default });
       });
     };
 

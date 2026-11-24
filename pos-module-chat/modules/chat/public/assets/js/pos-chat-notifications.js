@@ -6,7 +6,7 @@
   DOM events, so the host app never has to touch Action Cable itself
 
   usage:
-    window.pos.modules.chat.notifications.start({ consumer: actionCableConsumer, unread_conversations: 3 });
+    window.pos.modules.chat.notifications.start({ consumer: actionCableConsumer });
 
     document.addEventListener('pos-chat:message', event => {
       // event.detail: { message_id, conversation_id, sender_id, sender_name, message, created_at, url, active }
@@ -27,8 +27,9 @@
   a payload without type is a new message (what the server sent before the type was added),
   unread_conversations and unread_at are optional - the counter is only updated when the payload carries it
 
-  each time it connects (and again after the connection was lost) it asks GET /api/chat/notifications.json
-  for the counters, as Action Cable doesn't replay what was sent while it wasn't connected - the
+  the counters are read from GET /api/chat/notifications.json when it starts (the page doesn't count
+  them, so it isn't slowed down by it), and again each time it connects (and after the connection
+  was lost), as Action Cable doesn't replay what was sent while it wasn't connected - the
   messages sent meanwhile don't fire 'pos-chat:message' then, only the counter is brought up to date
 
   one tab per message: every open tab gets the message over its own WebSocket, but only one fires
@@ -112,7 +113,8 @@ window.pos.modules.chat.notifications ??= (() => {
 
   // purpose:		starts listening, only the first call does anything
   // arguments:	consumer - the Action Cable consumer (object)
-  //				    unread_conversations - the number of unread conversations when the page was rendered (int, optional)
+  //				    unread_conversations - the number of unread conversations when the page was rendered, if the page
+  //				                           counted it - otherwise it's read from the API right away (int, optional)
   //				    debug - to enable debug mode (bool, optional)
   // returns:		the module (object)
   // ------------------------------------------------------------------------
@@ -145,6 +147,9 @@ window.pos.modules.chat.notifications ??= (() => {
       module.focusedAt = Date.now();
     });
 
+    // right away, not waiting for the connection - the page is rendered without counting it
+    module.refresh();
+
     module.channel = module.consumer.subscriptions.create(
       {
         channel: 'notifications',
@@ -157,7 +162,7 @@ window.pos.modules.chat.notifications ??= (() => {
         connected: () => {
           debug(`Connected to the room notifications-${profileId}`);
 
-          // what changed before connecting - since the page was rendered, or while disconnected
+          // what changed before connecting - since the number read on start, or while disconnected
           module.refresh();
         },
 

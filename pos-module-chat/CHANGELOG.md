@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.8.2
+
+* Performance: `modules/chat/notifications/init` no longer counts the unread conversations while the page is rendered, so it adds no database query to every page of the host app. The notifications client reads the number from `GET /api/chat/notifications.json` as soon as it starts, after the page has loaded, and fills the `[data-pos-chat-unread-conversations]` badges then.
+
 ## v2.8.1
 
 * Fix: in the inbox sidebar, the highlight behind the open conversation no longer sticks out past the sidebar's border for a moment after the page loads. It took the card's new size with a transition when the card got narrower (the date in it is shortened after load), and now takes it at once - only its move between conversations on hover is animated.
