@@ -25,10 +25,15 @@
     if message
       function sender = 'modules/user/queries/profiles/find', id: message.autor_id, user_id: null, uuid: null, first_name: null, last_name: null
       assign sender_name = sender.name | default: sender.first_name
+      # the same picture the inbox shows - only there when the host's profiles have an avatar
+      assign sender_avatar_url = sender.avatar.photo.versions.sm
+      assign attachment_count = message.media.size | default: 0
+      # one line for a toast, "Sent an image" for a message with attachments only - same as the sidebar
+      function preview = 'modules/chat/queries/messages/preview', message: message.message, media: message.media, length: null
       # message_id + created_at make the payload self-describing: notifications are delivered
       # by background jobs (no ordering guarantee), so a client can order/dedupe a burst by
       # created_at instead of relying on arrival order.
-      assign notification_payload = { "message_id": message.id, "created_at": message.created_at, "conversation_id": message.conversation_id, "sender_id": message.autor_id, "sender_name": sender_name, "message": message.message }
+      assign notification_payload = { "type": "message_created", "message_id": message.id, "created_at": message.created_at, "conversation_id": message.conversation_id, "sender_id": message.autor_id, "sender_name": sender_name, "sender_avatar_url": sender_avatar_url, "message": message.message, "preview": preview, "attachment_count": attachment_count }
 
       for participant_id in message.conversation.participant_ids
         unless participant_id == message.autor_id
@@ -38,9 +43,14 @@
           function recipient = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
           function can_use_chat = 'modules/chat/queries/participants/can_use_chat', profile: recipient
           if can_use_chat
+            # the recipient's own number of unread conversations, for a badge - this one is
+            # already marked unread (messages/create does it before publishing the event)
+            function unread = 'modules/chat/queries/notifications/unread', participant_id: participant_id
+            assign recipient_payload = notification_payload | hash_merge: unread
+
             assign notification_room = 'notifications-' | append: participant_id
             # platformos-check-disable GraphqlInForLoop
-            graphql _notification = 'modules/chat/notifications/broadcast', room_id: notification_room, payload: notification_payload
+            graphql _notification = 'modules/chat/notifications/broadcast', room_id: notification_room, payload: recipient_payload
             # platformos-check-enable GraphqlInForLoop
           endif
         endunless

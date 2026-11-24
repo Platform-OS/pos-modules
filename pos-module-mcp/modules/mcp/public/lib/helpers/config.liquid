@@ -137,6 +137,11 @@
   assign d['max_output_schema_depth'] = 8
   # Per-token (per agent) requests per minute on tools/call and provider resources/read.
   assign d['rate_limit_per_min'] = 60
+  # Per-principal (per person) requests per minute, summed over ALL of the person's
+  # tokens and OAuth grants, checked after the per-token limit. A person can mint
+  # several tokens, so the per-token limit alone does not cap them; this does. Keep it
+  # above rate_limit_per_min so a few agents can run side by side. 0 disables it.
+  assign d['rate_limit_per_principal_per_min'] = 180
   # Idempotency replay window (§16.3): how long a client key can replay its result.
   assign d['idempotency_window_seconds'] = 86400
   # Approval window (§9.6): how long a pending approval can be acted on before it expires.

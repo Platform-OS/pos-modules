@@ -11,6 +11,12 @@
 
 
 
+// what's already on window.pos.modules.chat (like pos-chat-notifications.js, which can load
+// first) is kept on the constructor below
+const loadedChatExtensions = window.pos.modules.chat;
+
+
+
 // purpose:		handles sending and receiving messages as well as the inbox page
 // ************************************************************************
 window.pos.modules.chat = function(userSettings = {}){
@@ -79,6 +85,21 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.conversations.loading = false;
   // are there more pages of conversations (bool)
   module.settings.conversations.morePages = document.querySelector(module.settings.conversations.loadMoreButtonSelector) ? true : false;
+  // selector for the card of a conversation that isn't started yet, shown above the list (string)
+  module.settings.conversations.draftSelector = '.pos-chat-conversations-draft';
+  // what is shown instead of the list while there are no conversations (string)
+  module.settings.conversations.blankSelector = '.pos-chat-conversations-blank-mobile, .pos-chat-conversations-blank-desktop';
+  // how long (ms) to wait for more changes before reloading the list - a new message comes with a
+  // new number of unread conversations, and opening it marks it read right after (int)
+  module.settings.conversations.reloadDelay = 300;
+  // the reload waiting for more changes (timeout id)
+  module.settings.conversations.reloadTimeout = null;
+  // reloading the list right now, so it's never done twice at once (promise)
+  module.settings.conversations.reloading = null;
+  // something changed again while reloading, so it has to be reloaded once more (bool)
+  module.settings.conversations.reloadAgain = false;
+  // the number of unread conversations the list was last brought up to date with, null until known (int)
+  module.settings.conversations.unread = window.pos.modules.chat?.notifications?.unread_conversations ?? null;
 
   // stores all the search related stuff (object)
   module.settings.search = {};
@@ -284,6 +305,23 @@ window.pos.modules.chat = function(userSettings = {}){
             module.conversations.load();
           }
         }, 300);
+      }
+    });
+
+    // keep the list up to date: a new message in any conversation moves it to the top, and the
+    // number of unread conversations changes when one is read in another tab or on another device
+    // (pos-chat-notifications.js, loaded and started by the inbox too) - its onMessage runs in
+    // every tab, 'pos-chat:message' only in one of them
+    window.pos.modules.chat.notifications?.onMessage(() => {
+      module.conversations.reload();
+    });
+    document.addEventListener('pos-chat:unread', event => {
+      const previous = module.settings.conversations.unread;
+      module.settings.conversations.unread = event.detail.unread_conversations;
+
+      // the first number known is the one read when the page loaded
+      if(previous !== null){
+        module.conversations.reload();
       }
     });
 
@@ -645,6 +683,12 @@ window.pos.modules.chat = function(userSettings = {}){
               status: (module.settings.currentUserId == data.autor_id) ? 'sent' : 'received'
             })
           );
+
+          // the user's own message moves the conversation to the top of the list (the others'
+          // messages come with a notification, see pos-chat:message)
+          if(data.status === 'sent'){
+            module.conversations.reload();
+          }
 
           // We're actively rendering this message on screen right now - tell the
           // server so it doesn't count as unread and trigger a push notification.
@@ -1040,7 +1084,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.conversations.load = () => {
     // the 'load more' button carries the cursor of the next page
     const button = module.settings.conversations.container.querySelector(`${module.settings.conversations.loadMoreButtonSelector} button`);
-    if(!button || module.settings.conversations.loading){
+    // a reload replaces the button with a new one, with a new cursor
+    if(!button || module.settings.conversations.loading || module.settings.conversations.reloading){
       return;
     }
     module.settings.conversations.loading = true;
@@ -1081,7 +1126,101 @@ window.pos.modules.chat = function(userSettings = {}){
     .finally(() => {
       module.settings.conversations.loading = false;
       pos.modules.debug(module.settings.debug, module.settings.id, 'Finished loading previous conversations');
+
+      // a change that came in meanwhile waited for this page
+      if(module.settings.conversations.reloadAgain){
+        module.conversations.reload();
+      }
     });
+  };
+
+
+  // purpose:   brings the list up to date - shortly, so changes coming one after another are
+  //            loaded together. Loads it again from the top, as many conversations as are
+  //            shown (up to 50, then 'load more' brings back the rest), the way the server
+  //            renders it: sorted, with the unread ones marked and the last messages
+  // ------------------------------------------------------------------------
+  module.conversations.reload = () => {
+    clearTimeout(module.settings.conversations.reloadTimeout);
+    module.settings.conversations.reloadTimeout = setTimeout(module.conversations.reloadNow, module.settings.conversations.reloadDelay);
+  };
+
+
+  // purpose:   reloads the list right away, see module.conversations.reload
+  // returns:   resolves once done, a failed reload is only logged in debug mode (promise)
+  // ------------------------------------------------------------------------
+  module.conversations.reloadNow = () => {
+    const conversations = module.settings.conversations;
+
+    // one at a time, and not while a page is being added - it would be added to the new list
+    if(conversations.reloading || conversations.loading){
+      conversations.reloadAgain = true;
+      return conversations.reloading ?? Promise.resolve();
+    }
+    conversations.reloadAgain = false;
+
+    const container = conversations.container;
+    const shown = container.querySelectorAll(':scope > li[data-conversation-id]').length;
+    const params = new URLSearchParams({ per_page: Math.min(Math.max(shown, 30), 50) });
+    if(module.conversationId){
+      params.set('conversation_id', module.conversationId);
+    }
+
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Reloading the conversations', params.toString());
+
+    conversations.reloading = fetch(`/conversations.frame?${params}`)
+    .then(response => {
+      if(response.ok){
+        return response.text();
+      } else {
+        return Promise.reject(response);
+      }
+    })
+    .then(html => {
+      const list = document.createElement('template');
+      list.innerHTML = html;
+
+      // nothing listed means nothing to show, and the page shows that already
+      if(!list.content.querySelector('li[data-conversation-id]')){
+        return;
+      }
+
+      // the open conversation isn't started yet, or it is now and has its own card
+      let draft = container.querySelector(conversations.draftSelector);
+      if(draft && module.conversationId && list.content.querySelector(`li[data-conversation-id="${CSS.escape(module.conversationId)}"]`)){
+        draft = null;
+      }
+
+      // where the user was - in the list, and on which card, if they went there with the keyboard
+      const scrollTop = container.scrollTop;
+      const focused = container.contains(document.activeElement) ? document.activeElement.closest('li[data-conversation-id]')?.dataset.conversationId : null;
+
+      container.replaceChildren(...(draft ? [draft] : []), list.content);
+      // the list replaces the one of a user who had no conversations yet
+      conversations.container.closest('.pos-chat-sidebar')?.querySelectorAll(conversations.blankSelector).forEach(blank => blank.remove());
+
+      container.scrollTop = scrollTop;
+      if(focused){
+        container.querySelector(`li[data-conversation-id="${CSS.escape(focused)}"] a`)?.focus({ preventScroll: true });
+      }
+
+      conversations.morePages = Boolean(container.querySelector(conversations.loadMoreButtonSelector));
+
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Conversations reloaded');
+    })
+    .catch(error => {
+      // the list stays as it was, the next change brings it up to date
+      pos.modules.debug(module.settings.debug, module.settings.id, 'Reloading the conversations failed', error instanceof Response ? error.status : error);
+    })
+    .finally(() => {
+      conversations.reloading = null;
+
+      if(conversations.reloadAgain){
+        module.conversations.reloadNow();
+      }
+    });
+
+    return conversations.reloading;
   };
 
 
@@ -1787,3 +1926,6 @@ window.pos.modules.chat = function(userSettings = {}){
   module.init();
 
 };
+
+
+Object.assign(window.pos.modules.chat, loadedChatExtensions);

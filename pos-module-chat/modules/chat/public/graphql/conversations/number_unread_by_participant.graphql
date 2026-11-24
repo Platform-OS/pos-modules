@@ -8,6 +8,9 @@ query search(
       properties: [
         { name: "participant_ids", array_contains: $participant_id }
         { name: "participant_read_ids", not_array_contains: $participant_id }
+        # the same as the conversations list - one without a message yet (started by attaching
+        # a file that never got sent) isn't listed, so it must not count as unread either
+        { name: "last_message_at", exists: true }
       ]
     }
   ) {

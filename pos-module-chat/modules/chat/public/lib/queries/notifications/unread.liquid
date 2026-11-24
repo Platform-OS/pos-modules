@@ -1,0 +1,19 @@
+{% doc %}
+  The unread counters sent with the live notifications (see pos-chat-notifications.js).
+
+  unread_at is when they were counted, with milliseconds: notifications are sent from
+  background jobs and from the WebSocket requests, so they can arrive in any order, and
+  the client ignores a count older than the one it already shows. It's taken before
+  counting, so the count is never older than unread_at.
+
+  @param {string} participant_id - the profile id the counters are for
+{% enddoc %}
+{% liquid
+  assign unread_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%S.%L%:z'
+
+  function unread_conversations = 'modules/chat/queries/conversations/number_of_unread_by_participant', participant_id: participant_id
+
+  assign unread = { "unread_conversations": unread_conversations, "unread_at": unread_at }
+
+  return unread
+%}

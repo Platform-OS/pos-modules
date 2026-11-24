@@ -97,10 +97,61 @@ The table below outlines the [resourceful routes](https://documentation.platform
 |---|---|---|---|
 | GET  | /inbox | `modules/chat/public/views/pages/inbox.liquid` | Renders a chat. `?to_uuid=<profile uuid>` opens the chat with that profile - the conversation is created when its first message is sent, so linking to it is safe | 
 | POST | /api/chat/conversations | `modules/chat/public/views/pages/api/conversations/create.json.liquid` | Starts the conversation with `to_uuid`, used by the chat itself | 
+| GET | /api/chat/notifications.json | `modules/chat/public/views/pages/api/notifications/show.json.liquid` | The current user's number of unread conversations, see [Live notifications](#live-notifications) | 
 
 #### Who can be found and messaged
 
 The search in the inbox finds people by their name (not their email) and only lists people who can use the chat - those whose roles grant the `chat.inbox` permission. A conversation can only be started with someone who can use the chat. To add your own rules on who may contact whom, overwrite `modules/chat/public/lib/commands/conversations/find_or_create/check.liquid`: it gets the `participant_ids` of the conversation about to be started and the `current_profile`, and returns the object with `valid` and `errors` (see the default implementation).
+
+#### Live notifications
+
+Any page of your app (not only `/inbox`) can react to new messages as they arrive, for example to show a toast or a badge with the number of unread conversations. The module sends every new message to its recipients over a WebSocket, and `pos-chat-notifications.js` turns it into DOM events dispatched on `document`, so your code doesn't have to deal with the WebSocket itself.
+
+Render it once in your layout, for example in the `<head>`:
+
+```liquid
+{% render 'modules/chat/notifications/init' %}
+```
+
+It renders nothing for visitors who aren't signed in or can't use the chat (the `chat.inbox` permission). For everyone else it sets up the live notifications on the page. On the inbox page the chat uses the same connection, so the page opens only one WebSocket.
+
+The inbox page starts the live notifications itself, to keep its conversations list up to date: a new message moves its conversation to the top without reloading the page, and a conversation read in another tab or on another device stops being shown as unread. You don't need the `init` for that, only for the other pages.
+
+To show the number of unread conversations, add the `data-pos-chat-unread-conversations` attribute to any element. The module puts the number in it and hides the element when there are none:
+
+```html
+<a href="/inbox">Inbox <span class="my-badge" data-pos-chat-unread-conversations hidden></span></a>
+```
+
+For anything else, like a toast, listen to the events:
+
+```js
+document.addEventListener('pos-chat:message', event => {
+  // the text as typed - escape it before putting it into HTML
+  if(!event.detail.active){
+    showToast(`${event.detail.sender_name}: ${event.detail.preview}`, event.detail.url);
+  }
+});
+
+document.addEventListener('pos-chat:unread', event => {
+  console.log(event.detail.unread_conversations);
+});
+```
+
+| Event | When | `event.detail` |
+|---|---|---|
+| `pos-chat:message` | A new message arrived in one of the user's conversations, sent by someone else. Fired once per message, even if the server delivers it twice, and in only one of the user's open tabs (see below) | `message_id`, `conversation_id`, `sender_id`, `sender_name`, `sender_avatar_url` (the sender's picture as the inbox shows it, from the profile's `avatar` - `null` when your profiles have none), `message` (the text as typed - escape it before putting it into HTML), `preview` (the text on one line, cut to 150 characters with "…", or "Sent an image" / "Sent an attachment" for a message with files only - made for a toast, escape it too), `attachment_count` (the number of files sent with it), `created_at`, `url` (the inbox opened on that conversation), `active` (`true` when the inbox on this page has that conversation open and the tab is visible - you may want to skip the toast then) |
+| `pos-chat:unread` | The number of unread conversations changed: when the page loads (read from the server right after it), when a new message arrives, and when the user reads a conversation (in any tab or on any device). A message in the conversation the inbox on this page has open (with the tab visible) doesn't change it, as it's read right away | `unread_conversations` |
+
+With the app open in several tabs, `pos-chat:message` is fired in only one of them, so a toast or a sound isn't repeated in each. The tabs agree on it among themselves (over a `BroadcastChannel`, which adds about 0.2 s): the tab with that conversation open in the inbox and visible handles it (`active` is `true` there, so you'd skip the toast), otherwise the tab with focus, otherwise a visible one, otherwise the one focused last. `pos-chat:unread` and the badges are updated in every tab. To run code in every tab, use `window.pos.modules.chat.notifications.onMessage(detail => ...)` - it gets the same `detail` and returns a function that removes the callback.
+
+The current number is also available as `window.pos.modules.chat.notifications.unread_conversations` (`null` until it's known). `pos-chat:unread` may carry more counters in the future, so read the one you need by name.
+
+The page itself doesn't count the unread conversations, so it isn't slowed down by it: the client reads the number from `GET /api/chat/notifications.json` (`{ "unread_conversations": 3, "unread_at": "..." }`) as soon as it starts, after the page has loaded. Each time the connection opens, and again whenever it comes back after being lost (a laptop waking up, a network change), it reads it again, so the badge is right even if something changed while it wasn't connected. Messages sent meanwhile don't fire `pos-chat:message` afterwards. You can call the endpoint yourself too, for example from a native app.
+
+The [example application](#example-application) renders it in its layout and shows the number on the Inbox link in its header (`app/views/partials/header.liquid`).
+
+If your app sets `window.pos.profile` itself, it's kept - the module only adds the `id` when it's missing.
 
 #### CRUD commands 
 

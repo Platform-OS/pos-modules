@@ -1,0 +1,44 @@
+{%- comment -%}
+  Rate limits for one authenticated call (spec §12.4): the per-token limit, then the
+  per-principal limit.
+
+  The per-token bucket (`principal:<id>:token:<token id>`, defaults.rate_limit_per_min)
+  keeps one chatty agent from using up the budget of the person's other agents. The
+  per-principal bucket (`principal:<id>`, defaults.rate_limit_per_principal_per_min)
+  counts every call the person makes through any of their tokens or OAuth grants, so
+  minting more tokens does not raise how fast one person can act.
+
+  The per-principal bucket is bumped only when the per-token check passes, so calls a
+  token is already refused for do not use up the person's shared budget.
+
+  Callers count only a "token" refusal as a violation (limits/note_violation): the
+  person's other tokens can fill the per-principal bucket, and that must not get the
+  calling token auto-suspended.
+
+  @param {string} principal_id
+  @param {string} token_id
+  @return {object} { allowed, count, limit, retry_after, scope } — scope is "token" or
+                   "principal": the limit that answered
+{%- endcomment -%}
+{% liquid
+  function cfg = 'modules/mcp/helpers/config'
+  assign pid = principal_id | append: ''
+  assign tid = token_id | append: ''
+
+  assign token_scope = 'principal:' | append: pid | append: ':token:' | append: tid
+  function rl = 'modules/mcp/commands/limits/check', scope: token_scope, limit: cfg.defaults.rate_limit_per_min
+  assign rl['scope'] = 'token'
+  unless rl.allowed
+    return rl
+  endunless
+
+  assign principal_limit = cfg.defaults.rate_limit_per_principal_per_min | plus: 0
+  if principal_limit <= 0
+    return rl
+  endif
+
+  assign principal_scope = 'principal:' | append: pid
+  function prl = 'modules/mcp/commands/limits/check', scope: principal_scope, limit: principal_limit
+  assign prl['scope'] = 'principal'
+  return prl
+%}

@@ -20,7 +20,7 @@
  *    both gate call sites — `tools/call` and the in-process `commands/execute/invoke`.
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
-import { loadEnv, makeAdmin } from './fixtures.mjs';
+import { loadEnv, makeAdmin, fetchRetry } from './fixtures.mjs';
 import { makeMcp, makeConstants } from './lib/harness.mjs';
 import { FIXT, applyReset } from './seed/seed.mjs';
 
@@ -36,7 +36,7 @@ const INVOKE_PAGE = (base.endsWith('/') ? base : base + '/') + 'test/mcp-invoke'
 
 /** The second gate call site: commands/execute/invoke, via the app's gated fixture page. */
 async function invokeTool(token, name, args) {
-  const res = await fetch(INVOKE_PAGE, {
+  const res = await fetchRetry(INVOKE_PAGE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
     body: JSON.stringify({ op: 'call', name, arguments: args }),

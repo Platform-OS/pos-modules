@@ -99,6 +99,7 @@ every request — no redeploy needed.
 | `approval_enforced` | `true` | whether the human-in-the-loop gate is enforced. `false` lets a `requires_approval` tool execute inline like any other mutating tool; the manifest is unchanged, so `tools/list` still describes the tool as it is. **Only an explicit `false` turns it off.** Read per request at the gate, never from the cached registry, so turning it back on takes effect on the next call |
 | `approval_partial` | `mcp/approval` | app partial answering the same question as `{ enforced: boolean }`, consulted **before** `approval_enforced`. For an app whose own admins flip the gate in their own screens, so the engine never reads an app's table and the app never rewrites this constant. It receives `tool_name`, the tool being called, so an app can gate some tools and not others — a desk may let an assistant add an internal note straight away while a reply to a customer still waits for a person; a partial that does not declare the parameter ignores it and answers for every tool. Absent, erroring, or answering anything but a boolean falls through to `approval_enforced` |
 | `defaults.rate_limit_per_min` | `60` | per-token fixed-window (per-minute) rate limit; each agent's token or OAuth grant has its own bucket |
+| `defaults.rate_limit_per_principal_per_min` | `180` | per-principal fixed-window (per-minute) rate limit over all of a person's tokens and OAuth grants, so minting more tokens does not raise it; `0` disables it |
 | `defaults.max_input_bytes` | `65536` | request body size cap |
 | `defaults.max_schema_depth` | `5` | argument-validation nesting cap |
 | `defaults.idempotency_window_seconds` | `86400` | how long an idempotency key can replay |
@@ -503,7 +504,7 @@ ledger with security-lens quick filters and a paginated JSON export.
   as the original principal, re-authorized.
 - **Least leakage** — denials return a stable generic message; specifics go to the
   ledger, not the wire.
-- **Bounded blast radius** — per-token rate limiting; auto-suspend of the one token that
+- **Bounded blast radius** — per-token and per-principal rate limiting; auto-suspend of the one token that
   keeps violating policy; size and depth caps.
 - **Console forms check the form token** — every POST page of `/mcp-tools` and
   `/mcp-admin` refuses a request without a valid `authenticity_token` (403, nothing

@@ -1,0 +1,30 @@
+{% doc %}
+  A short, one-line summary of a message, for the inbox sidebar, the live notifications and
+  the push notifications: the text with its line breaks and runs of spaces made single spaces,
+  cut to `length` characters (with "…"). A message with attachments only has no text, so it's
+  summarized as "Sent an image" or "Sent an attachment" instead - only the first attachment's
+  type is checked (a single upload lookup).
+
+  The text is returned as typed - escape it when putting it into HTML.
+
+  @param {string} [message] - the message's text
+  @param {array} [media] - the message's media (ids of modules/chat/uploads records)
+  @param {number} [length] - the longest preview returned, 150 when not given
+{% enddoc %}
+{% liquid
+  assign length = length | default: 150
+
+  assign preview = message | default: '' | replace_regex: '\s+', ' ' | strip | truncate: length, '…'
+
+  if preview == blank and media.size > 0
+    assign first_media_id = media | first
+    function first_media = 'modules/chat/queries/uploads/find', id: first_media_id
+    if first_media.metadata.type contains 'image/'
+      assign preview = 'modules/chat/sent_image' | t
+    else
+      assign preview = 'modules/chat/sent_attachment' | t
+    endif
+  endif
+
+  return preview
+%}

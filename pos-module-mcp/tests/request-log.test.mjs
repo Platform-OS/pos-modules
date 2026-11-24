@@ -12,7 +12,7 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { randomBytes } from 'node:crypto';
-import { loadEnv, makeAdmin } from './fixtures.mjs';
+import { loadEnv, makeAdmin, fetchRetry } from './fixtures.mjs';
 import { makeConstants, MODERN_VERSION } from './lib/harness.mjs';
 
 const { base, admin } = loadEnv();
@@ -25,7 +25,7 @@ const KEYS = ['status', 'method', 'protocol_version', 'protocol_version_header',
 const ok = (label, cond, detail) => expect.soft(cond, `${label}${detail === undefined ? '' : ' — ' + detail}`).toBe(true);
 
 async function summary(body, headers) {
-  const res = await fetch(PAGE, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  const res = await fetchRetry(PAGE, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   const text = await res.text();
   let json = null;
   try { json = JSON.parse(text); } catch {}

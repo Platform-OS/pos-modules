@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.9.1
+
+* Fix: a message with attachments only, sent without a `message` (or with `null`), is stored. The `create` mutation required the text, so such a message was lost with a GraphQL error - the inbox always sends a text (empty for attachments only), so only other clients were affected.
+* Fix: the push notification's title is translatable (`modules/chat/push_title`, "New message from %{name}"). It's in the instance's default language, as it's sent from a background job.
+* Fix: the debounced push notification check skips a message that no longer exists, instead of searching every conversation's messages for it.
+
+## v2.9.0
+
+* Feature: the `message_created` live notification and the `pos-chat:message` event detail carry `sender_avatar_url` (the sender's picture as the inbox shows it, `null` when the host's profiles have no avatar), `preview` (the text on one line, cut to 150 characters, or "Sent an image" / "Sent an attachment" for a message with files only - ready for a toast) and `attachment_count`.
+* Change: the inbox sidebar and the push notification make their one-line summary of a message with the new `queries/messages/preview` (the same as the notification's `preview`). Line breaks in the sidebar's last-message preview and in the push notification's text are shown as spaces, and the push notification's text ends with "…" instead of "..." when cut.
+
+## v2.8.3
+
+* Fix: in the inbox sidebar, a long last-message preview no longer runs into the date next to it. The date is always shown in full on one line ("23 minutes ago" wrapped on narrow screens), the preview takes the rest of the row and is cut with an ellipsis, and the two keep a gap between them (it used a CSS variable that doesn't exist, so there was none).
+
+## v2.8.2
+
+* Performance: `modules/chat/notifications/init` no longer counts the unread conversations while the page is rendered, so it adds no database query to every page of the host app. The notifications client reads the number from `GET /api/chat/notifications.json` as soon as it starts, after the page has loaded, and fills the `[data-pos-chat-unread-conversations]` badges then.
+
+## v2.8.1
+
+* Fix: in the inbox sidebar, the highlight behind the open conversation no longer sticks out past the sidebar's border for a moment after the page loads. It took the card's new size with a transition when the card got narrower (the date in it is shortened after load), and now takes it at once - only its move between conversations on hover is animated.
+
+## v2.8.0
+
+* Feature: the inbox sidebar is kept up to date without reloading the page. A new message in any conversation (or one the user sends) moves it to the top with its new last message, a new conversation shows up, and a conversation read in another tab or on another device is no longer shown as unread. The inbox starts the live notifications itself for this, so it works without `modules/chat/notifications/init` in the layout too.
+* Fix: a message in the conversation open in the inbox no longer makes the number of unread conversations go up and back down a moment later (the badge flashed). The number counted with it is held back while the inbox marks the conversation read, and is shown after 5 seconds only if that doesn't happen.
+* Change: with the app open in several tabs, `pos-chat:message` is fired in only one of them (the one with the conversation open, otherwise the focused or visible one), so a toast or a sound isn't repeated in each tab. The tabs agree over a `BroadcastChannel`, which delays the event by about 0.2 s. `pos-chat:unread` and the badges are still updated in every tab. Code that has to run in every tab can use the new `window.pos.modules.chat.notifications.onMessage(callback)`.
+* Change: `conversations.frame` takes an optional `conversation_id`, shown as the open conversation, and each item of the list carries the conversation's id as `data-conversation-id`.
+
+## v2.7.0
+
+* Feature: live notifications for any page of the host app, not only the inbox. `{% render 'modules/chat/notifications/init' %}` in the layout starts them for users who can use the chat: the page gets a `pos-chat:message` event on `document` for each new message (sender, text, conversation and its inbox url, and `active` when the inbox on that page has it open), a `pos-chat:unread` event when the number of unread conversations changes, and every element with the `data-pos-chat-unread-conversations` attribute shows that number (hidden at 0). The current number is also `window.pos.modules.chat.notifications.unread_conversations`. See the README, Live notifications. The example app shows it as a badge on the Inbox link.
+* Feature: the notifications sent to the `notifications-<profile id>` room carry a `type` (`message_created`), the recipient's `unread_conversations` and `unread_at` (when it was counted, so a client can ignore an older count arriving late). Reading a conversation sends a `conversation_read` notification with the new number to the reader's own room, so the number goes down in their other tabs and devices too.
+* Feature: `GET /api/chat/notifications.json` returns the current user's `unread_conversations` and `unread_at`. The notifications client reads it every time it connects, as the WebSocket doesn't replay what was sent while it wasn't connected.
+* Change: an unread conversation in the inbox sidebar is shown with a ring around the avatar instead of a dot on the right.
+* Fix: a conversation without a message yet (started by attaching a file that was never sent) is no longer counted as unread by `queries/conversations/number_of_unread_by_participant` - it isn't listed, so it couldn't be opened and read either.
+* Change: `commands/messages/create` takes the optional `conversation` and `current_profile` and then marks the conversation unread for the others before publishing `chat_message_created`, so the event's consumers see it unread. The `conversate` channel passes them.
+* Upgrade: if your app overwrites `views/partials/channels/conversate/receive.liquid`, pass `conversation: conversation, current_profile: current_profile` to `modules/chat/commands/messages/create` and remove the `mark_unread` call after it - otherwise the number of unread conversations sent with a new message can be one too low until the next change.
+
 ## v2.6.0
 
 * Feature: a conversation opened with `to_uuid` that isn't started yet (it is created with its first message), or has no message yet, is shown on top of the sidebar's conversations list, highlighted as the open one, instead of not being in the list at all.

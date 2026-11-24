@@ -43,11 +43,40 @@ export function loadEnv() {
   return { base: url, admin: token };
 }
 
+/**
+ * One HTTP attempt can fail before any response exists: the platform closes an idle
+ * keep-alive socket while undici is reusing it, and the caller gets `TypeError: fetch
+ * failed` / ECONNRESET instead of a status. It has taken out a CI run mid-suite (the
+ * Tasks plane in coverage, on a `tasks/cancel` POST), and it says nothing about the code
+ * under test. The web logins in lib/harness.mjs already retried this way; this is the
+ * same rule in one place, for every request the suites make.
+ *
+ * Deliberately narrow: retried ONLY when fetch itself threw, never on an HTTP status, so
+ * a 401, 429 or 500 still reaches the assertion that is looking for it.
+ *
+ * A reset that arrived while the server was already working would be re-sent, and a
+ * mutating call could then apply twice. The suites assert exact counts, so that shows up
+ * as a loud failure rather than a false pass — the opposite trade from leaving a whole
+ * run red for a socket the server recycled.
+ */
+export async function fetchRetry(url, init, attempts = 3) {
+  let last;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (e) {
+      last = e;
+      if (attempt < attempts) await new Promise((r) => setTimeout(r, 250 * attempt));
+    }
+  }
+  throw last;
+}
+
 /** Admin GraphQL client (same shape conformance.mjs uses). */
 export function makeAdmin({ base, admin }) {
   const GQL = base + 'api/graph';
   async function gql(query, variables = {}) {
-    const res = await fetch(GQL, {
+    const res = await fetchRetry(GQL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Token ' + admin },
       body: JSON.stringify({ query, variables }),

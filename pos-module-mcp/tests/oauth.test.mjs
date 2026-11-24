@@ -23,7 +23,7 @@
  */
 import { describe, it, beforeAll, afterAll, afterEach, expect } from 'vitest';
 import { createHash, randomBytes } from 'node:crypto';
-import { loadEnv, makeAdmin, pruneRate } from './fixtures.mjs';
+import { loadEnv, makeAdmin, pruneRate, fetchRetry } from './fixtures.mjs';
 import { makeMcp, makeConstants, makeWeb } from './lib/harness.mjs';
 import { FIXT, applyReset } from './seed/seed.mjs';
 
@@ -79,17 +79,17 @@ const newState = () => 'st_' + randomBytes(8).toString('hex');
 
 // ---- machine endpoints (no cookies) ------------------------------------------
 async function postForm(path, fields) {
-  const res = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() });
+  const res = await fetchRetry(base + path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() });
   const text = await res.text(); let json = null; try { json = JSON.parse(text); } catch {}
   return { status: res.status, headers: res.headers, json, text };
 }
 async function postJson(path, body) {
-  const res = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await fetchRetry(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const text = await res.text(); let json = null; try { json = JSON.parse(text); } catch {}
   return { status: res.status, headers: res.headers, json, text };
 }
 async function getJson(path) {
-  const res = await fetch(base + path);
+  const res = await fetchRetry(base + path);
   const text = await res.text(); let json = null; try { json = JSON.parse(text); } catch {}
   return { status: res.status, headers: res.headers, json, text };
 }

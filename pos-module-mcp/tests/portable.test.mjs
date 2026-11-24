@@ -23,7 +23,7 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { createHash, randomBytes } from 'node:crypto';
-import { loadEnv, makeAdmin, makeMcp, makeModern, MODERN_VERSION } from './lib/harness.mjs';
+import { loadEnv, makeAdmin, makeMcp, makeModern, MODERN_VERSION, fetchRetry } from './lib/harness.mjs';
 
 const T_TOKEN = 'modules/mcp/mcp_token';
 const T_LEDGER = 'modules/mcp/mcp_ledger';
@@ -115,7 +115,7 @@ describe('portable conformance · any instance with the module', () => {
     const oversize = await legacy('ping', { x: 'a'.repeat(limit + 1024) }, undefined, 6);
     ok('request over max_input_bytes → 413 -32600', oversize.status === 413 && oversize.json?.error?.code === -32600, 'status=' + oversize.status);
     for (const method of ['GET', 'DELETE']) {
-      const r = await fetch(MCP, { method });
+      const r = await fetchRetry(MCP, { method });
       ok(`${method} /mcp → 405 Allow: POST`, r.status === 405 && /POST/.test(r.headers.get('allow') || ''), 'status=' + r.status);
     }
   });
@@ -140,7 +140,7 @@ describe('portable conformance · any instance with the module', () => {
     }
     const valid = await legacy('tools/list', {}, user.rawToken, 9);
     ok('valid token on tools/list → 200', valid.status === 200 && Array.isArray(valid.json?.result?.tools));
-    const metadata = await fetch(base + '.well-known/oauth-protected-resource').then(r => r.json()).catch(() => null);
+    const metadata = await fetchRetry(base + '.well-known/oauth-protected-resource').then(r => r.json()).catch(() => null);
     ok('protected resource metadata names this /mcp endpoint', metadata?.resource === MCP && Array.isArray(metadata?.bearer_methods_supported), JSON.stringify(metadata || {}).slice(0, 160));
   });
 

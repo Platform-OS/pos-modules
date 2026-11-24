@@ -9,7 +9,7 @@
  * Uses the seeded member fixture and its narrowed token (allowed_tools: [test_public]).
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
-import { loadEnv, makeAdmin } from './fixtures.mjs';
+import { loadEnv, makeAdmin, fetchRetry } from './fixtures.mjs';
 import { makeMcp, makeConstants } from './lib/harness.mjs';
 import { FIXT, applyReset } from './seed/seed.mjs';
 
@@ -26,7 +26,7 @@ const LABEL = 'invoke-suite';
 let mem, narrowTok;
 
 async function invoke(token, body) {
-  const res = await fetch(PAGE, {
+  const res = await fetchRetry(PAGE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
     body: JSON.stringify(body),
@@ -73,7 +73,7 @@ describe('in-process tool call · same answers as tools/call', () => {
   });
 
   it('the fixture page is gated and needs a token', async () => {
-    const r = await fetch(PAGE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"op":"list"}' });
+    const r = await fetchRetry(PAGE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"op":"list"}' });
     expect(r.status).toBe(401);
   });
 

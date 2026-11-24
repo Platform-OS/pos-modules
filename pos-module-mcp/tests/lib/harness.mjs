@@ -12,8 +12,8 @@
  *
  * Re-exports loadEnv + makeAdmin from fixtures.mjs so a suite has one import point.
  */
-import { loadEnv, makeAdmin } from '../fixtures.mjs';
-export { loadEnv, makeAdmin };
+import { loadEnv, makeAdmin, fetchRetry } from '../fixtures.mjs';
+export { loadEnv, makeAdmin, fetchRetry };
 
 /** MCP JSON-RPC client. `rpc(body, token?)` sends `body` verbatim (caller owns the id). */
 export function makeMcp(base) {
@@ -22,7 +22,7 @@ export function makeMcp(base) {
   async function rpc(body, token) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
-    const res = await fetch(MCP, { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) });
+    const res = await fetchRetry(MCP, { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) });
     const text = await res.text(); let json = null; try { json = JSON.parse(text); } catch {}
     return { status: res.status, headers: res.headers, json, text };
   }
@@ -75,7 +75,7 @@ export function makeModern(base) {
     if (opts.token) headers['Authorization'] = 'Bearer ' + opts.token;
     Object.assign(headers, opts.headers || {});
     for (const h of opts.omitHeaders || []) delete headers[h];
-    const res = await fetch(MCP, { method: 'POST', headers, body: JSON.stringify(body) });
+    const res = await fetchRetry(MCP, { method: 'POST', headers, body: JSON.stringify(body) });
     const text = await res.text(); let json = null; try { json = JSON.parse(text); } catch {}
     return { status: res.status, headers: res.headers, json, text };
   }
@@ -95,8 +95,8 @@ export function makeWeb(base) {
   let cookies = {};
   const applyCookie = (r) => { for (const c of r.headers.getSetCookie?.() || []) { const [p] = c.split(';'); const i = p.indexOf('='); cookies[p.slice(0, i).trim()] = p.slice(i + 1).trim(); } };
   const cookieHeader = () => Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
-  async function get(path) { const r = await fetch(base + path, { headers: { Cookie: cookieHeader() }, redirect: 'manual' }); applyCookie(r); return r; }
-  async function post(path, fields) { const r = await fetch(base + path, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: cookieHeader() }, body: new URLSearchParams(fields).toString() }); applyCookie(r); return r; }
+  async function get(path) { const r = await fetchRetry(base + path, { headers: { Cookie: cookieHeader() }, redirect: 'manual' }); applyCookie(r); return r; }
+  async function post(path, fields) { const r = await fetchRetry(base + path, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: cookieHeader() }, body: new URLSearchParams(fields).toString() }); applyCookie(r); return r; }
   const formTok = (html) => (html.match(/name="authenticity_token"\s+value="([^"]*)"/) || [])[1];
   const metaTag = (html, name) => (html.match(new RegExp(`name="${name}"[^>]*content="([^"]*)"`)) || [])[1];
   // Operator login — verifies /mcp-admin actually renders (200, not a 403 page and not the

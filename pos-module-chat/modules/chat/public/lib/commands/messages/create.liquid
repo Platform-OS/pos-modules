@@ -1,9 +1,23 @@
+{% doc %}
+  Creates a message and publishes chat_message_created.
+
+  @param {object} object - conversation_id, autor_id, message, media
+  @param {object} [conversation] - the conversation, to mark it unread for the others
+  @param {object} [current_profile] - the author, with conversation
+{% enddoc %}
 {% liquid
   function object = 'modules/chat/commands/messages/create/build', object: object
   function object = 'modules/chat/commands/messages/create/check', object: object
 
   if object.valid
     function object = 'modules/core/commands/execute', mutation_name: 'modules/chat/messages/create' object: object, selection: 'record_create'
+
+    # Before publishing the event, not after: its consumers run in background jobs that can
+    # start right away, and broadcast_new_message sends each recipient their number of
+    # unread conversations, which has to include this one.
+    if conversation and current_profile
+      function _res = 'modules/chat/commands/conversations/mark_unread', conversation: conversation, current_profile: current_profile, message: object
+    endif
 
     assign event_object = {"message_id": object.id, "app_host": context.location.host}
     function _ = 'modules/core/commands/events/publish', type: 'chat_message_created', object: event_object, delay: null, max_attempts: null

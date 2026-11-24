@@ -219,6 +219,47 @@
     color: var(--pos-color-interactive-hover);
   }
 
+  /* number of unread conversations on the Inbox link */
+  .app-chat-unread {
+    min-width: 1.6em;
+    margin-inline-start: .4em;
+    padding-inline: .4em;
+    align-self: center;
+    
+    opacity: 1;
+    border-radius: 1em;
+    background-color: var(--pos-color-standout-background);
+
+    font-family: var(--pos-font-default);
+    font-size: .7em;
+    line-height: 1.6;
+    text-align: center;
+    color: var(--pos-color-standout-text);
+
+    /* appearing (a transition takes the timing of the state it goes to): visible early,
+       so the scale growing past 1 and settling back can be seen */
+    transition-property: opacity, display, scale;
+    transition-duration: .3s, .2s, .2s;
+    transition-timing-function: ease-out, linear, cubic-bezier(.34, 1.56, .64, 1);
+    transition-behavior: allow-discrete;
+
+    @starting-style {
+      opacity: 0;
+      scale: .7;
+    }
+  }
+
+  .app-chat-unread[hidden] {
+    display: none;
+
+    opacity: 0;
+    scale: .7;
+
+    /* disappearing */
+    transition-duration: .2s;
+    transition-timing-function: ease-in-out;
+  }
+
   /* profile menu */
   #pos-chat-header-nav-primary-profile {
     margin-inline-end: calc(var(--pos-padding-page) / -2);

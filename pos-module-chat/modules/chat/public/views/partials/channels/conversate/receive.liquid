@@ -96,14 +96,13 @@
       endif
 
       assign object = { "conversation_id": conversation.id, "autor_id": current_profile.id, "message": context.params.message, "media": media_ids }
-      function message = 'modules/chat/commands/messages/create', object: object
+      # with the conversation, the command also marks it unread for the others and sets its
+      # last_message_at, which orders the list
+      function message = 'modules/chat/commands/messages/create', object: object, conversation: conversation, current_profile: current_profile
       if message.valid != true
         log message, 'ERROR receive message'
         echo "false"
       else
-        # marks it unread for the others and sets its last_message_at, which orders the list
-        function _res = 'modules/chat/commands/conversations/mark_unread', conversation: conversation, current_profile: current_profile, message: message
-
         # Recipients are notified of the new message by the chat_message_created consumer
         # (lib/consumers/chat_message_created/broadcast_new_message), which runs in a
         # retryable background job. messages/create publishes that event on persist.

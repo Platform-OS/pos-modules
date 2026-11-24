@@ -3,7 +3,8 @@
   the rolling abuse window (spec §12.4 abuse tracking; helpers/limits/abuse_window). O(1):
   a single counter (same mechanism as the rate limiter), NOT a ledger scan — the ledger
   remains the audit surface, this is just a cheap tripwire. Called at each violation exit
-  in the pipeline (deny, invalid args, unknown tool, rate-limit, rejected approval).
+  in the pipeline (deny, invalid args, unknown tool, per-token rate limit, rejected
+  approval); a per-principal rate-limit refusal is not one (limits/check_call).
 
   Counted per token, not per person: limits/enforce_abuse suspends only the token whose
   own count crosses the threshold, so a narrowed token handed to a less-trusted agent

@@ -1,4 +1,4 @@
-mutation create($conversation_id: String!, $message: String!, $autor_id: String!, $media: [String!]) {
+mutation create($conversation_id: String!, $message: String, $autor_id: String!, $media: [String!]) {
   record_create(
     record: {
     table: "modules/chat/message"

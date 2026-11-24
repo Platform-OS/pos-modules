@@ -6,6 +6,17 @@
       return object
     else
       function object = 'modules/core/commands/execute', mutation_name: 'modules/chat/conversations/mark_read' object: object, selection: 'record_update'
+
+      # Tells the reader's other pages (and tabs and devices) that the number of unread
+      # conversations went down - see pos-chat-notifications.js. Only when it was unread, so
+      # the mark-read ping sent with every live message doesn't broadcast each time.
+      if object.id
+        function unread = 'modules/chat/queries/notifications/unread', participant_id: participant_id
+        assign notification_payload = { "type": "conversation_read", "conversation_id": object.id }
+        assign notification_payload = notification_payload | hash_merge: unread
+        assign notification_room = 'notifications-' | append: participant_id
+        graphql _notification = 'modules/chat/notifications/broadcast', room_id: notification_room, payload: notification_payload
+      endif
     endif
   endif
 

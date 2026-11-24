@@ -49,13 +49,15 @@
   assign le['authz_decision'] = 'not_applicable'
   assign le['_start_ms'] = start_ms
 
-  assign rate_scope = 'principal:' | append: identity.principal.id | append: ':token:' | append: identity.token_id
-  function rate = 'modules/mcp/commands/limits/check', scope: rate_scope, limit: cfg.defaults.rate_limit_per_min
+  function rate = 'modules/mcp/commands/limits/check_call', principal_id: identity.principal.id, token_id: identity.token_id
   unless rate.allowed
     assign le['execution_outcome'] = 'error'
     assign le['error_code'] = -32002
     function _ = 'modules/mcp/commands/ledger/append', entry: le
-    function _ = 'modules/mcp/commands/limits/note_violation', principal_id: identity.principal.id, token_id: identity.token_id
+    # Only the token's own limit counts as a violation (see rpc/tools_call).
+    if rate.scope == 'token'
+      function _ = 'modules/mcp/commands/limits/note_violation', principal_id: identity.principal.id, token_id: identity.token_id
+    endif
     assign headers_retry_after = rate.retry_after | append: ''
     assign headers = { "Retry-After": headers_retry_after }
     assign err = {
