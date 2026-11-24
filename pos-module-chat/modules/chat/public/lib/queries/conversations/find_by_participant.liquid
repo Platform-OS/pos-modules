@@ -16,8 +16,9 @@
   if conversation
     assign participants = []
 
-    for participant_id in conversation.participant_ids
-      function profile = 'modules/user/queries/profiles/find', id: participant_id, user_id: null, uuid: null, first_name: null, last_name: null
+    # not participant_id - that's the parameter, the user the conversation is looked up for
+    for conversation_participant_id in conversation.participant_ids
+      function profile = 'modules/user/queries/profiles/find', id: conversation_participant_id, user_id: null, uuid: null, first_name: null, last_name: null
       assign participants << profile
     endfor
 
