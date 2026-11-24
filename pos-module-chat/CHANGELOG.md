@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.8.3
+
+* Fix: in the inbox sidebar, a long last-message preview no longer runs into the date next to it. The date is always shown in full on one line ("23 minutes ago" wrapped on narrow screens), the preview takes the rest of the row and is cut with an ellipsis, and the two keep a gap between them (it used a CSS variable that doesn't exist, so there was none).
+
 ## v2.8.2
 
 * Performance: `modules/chat/notifications/init` no longer counts the unread conversations while the page is rendered, so it adds no database query to every page of the host app. The notifications client reads the number from `GET /api/chat/notifications.json` as soon as it starts, after the page has loaded, and fills the `[data-pos-chat-unread-conversations]` badges then.

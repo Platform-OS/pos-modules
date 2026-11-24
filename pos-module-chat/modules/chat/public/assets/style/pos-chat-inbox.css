@@ -156,7 +156,8 @@
 .pos-chat-conversationCard {
   padding: var(--pos-padding-page);
   display: grid;
-  grid-template-columns: 48px auto;
+  /* minmax: the text column never gets wider than the card, so long texts are cut, not pushed out */
+  grid-template-columns: 48px minmax(0, 1fr);
   grid-template-rows: 1fr;
     grid-template-areas:
       'avatar name';
@@ -246,19 +247,30 @@
 
 .pos-chat-conversationCard-lastMessage {
   display: flex;
-  gap: var(--pos-gap-navigation);
+  gap: calc(var(--pos-gap-card-elements) / 2);
   justify-content: space-between;
 
   font-size: .9em;
   color: var(--pos-color-content-text-supplementary);
 }
 
+  /* the preview takes what the date leaves and is cut with an ellipsis - contain keeps a long
+     preview from widening the sidebar, it's as wide as the rest of the inbox makes it */
   .pos-chat-conversationCard-lastMessage small {
-    max-width: 150px;
+    min-width: 0;
+    flex: 1;
     overflow: hidden;
+    contain: inline-size;
 
     text-overflow: ellipsis;
     font-size: inherit;
+    white-space: nowrap;
+  }
+
+  /* the date always in full, on one line ("23 minutes ago") */
+  .pos-chat-conversationCard-lastMessage time {
+    flex-shrink: 0;
+
     white-space: nowrap;
   }
 
