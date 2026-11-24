@@ -29,7 +29,7 @@
       assign sender_avatar_url = sender.avatar.photo.versions.sm
       assign attachment_count = message.media.size | default: 0
       # one line for a toast, "Sent an image" for a message with attachments only - same as the sidebar
-      function preview = 'modules/chat/queries/messages/preview', message: message.message, media: message.media, length: null
+      function preview = 'modules/chat/queries/messages/preview', message: message.message, media: message.media, length: null, media_type: null
       # message_id + created_at make the payload self-describing: notifications are delivered
       # by background jobs (no ordering guarantee), so a client can order/dedupe a burst by
       # created_at instead of relying on arrival order.
