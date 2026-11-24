@@ -1,0 +1,85 @@
+{%- comment -%}
+  Set which tools one of a person's agents may use (TASK-57).
+
+  Takes the tools that should be ON, because that is what a panel's checkboxes
+  give, and stores the complement against the agent. Storing the complement is
+  what makes a tool added to the registry later available rather than silently
+  missing from every existing agent.
+
+  SCOPE: the agent must be one of this person's (queries/agents/for_user), so a
+  caller cannot reach another person's agent by passing its client_id. Every
+  tool name must be one the registry serves, so a typo cannot quietly switch
+  nothing off and leave the person believing it did.
+
+  The per-request memo in queries/agents/tool_enabled is cleared, so a request
+  that changes a switch sees its own change.
+
+  @param {string} actor_user_id - the person whose agent this is
+  @param {string} client_id     - the agent key (helpers/identity/agent_key)
+  @param {array}  enabled_tools - the tools the agent may use; empty switches every tool off
+  @return {object} { valid, disabled_tools } or { valid: false, error }
+{%- endcomment -%}
+{% liquid
+  assign uid = actor_user_id | append: ''
+  assign key = client_id | append: ''
+  assign failure = { "valid": false }
+
+  if uid == blank or key == blank
+    assign failure['error'] = 'not_found'
+    return failure
+  endif
+
+  function agents = 'modules/mcp/queries/agents/for_user', user_id: uid
+  assign owned = agents | map: 'client_id'
+  unless owned contains key
+    assign failure['error'] = 'not_found'
+    return failure
+  endunless
+
+  # The engine's own built-ins are not switchable: mcp_approval_status is how an
+  # agent learns what happened to something it proposed, and a panel that could
+  # switch it off would leave an agent unable to poll its own approvals.
+  function reg = 'modules/mcp/queries/registry/load'
+  assign served = []
+  for manifest in reg.tools
+    unless manifest.builtin == true
+      assign served = served | array_add: manifest.name
+    endunless
+  endfor
+  assign chosen = []
+  for name in enabled_tools
+    assign wanted = name | append: ''
+    unless served contains wanted
+      assign failure['error'] = 'unknown_tool'
+      assign failure['tool'] = wanted
+      return failure
+    endunless
+    unless chosen contains wanted
+      assign chosen = chosen | array_add: wanted
+    endunless
+  endfor
+
+  assign disabled = []
+  for name in served
+    unless chosen contains name
+      assign disabled = disabled | array_add: name
+    endunless
+  endfor
+
+  graphql existing = 'modules/mcp/agents/settings_for_user', user_id: uid, client_id: key
+  assign row = existing.records.results.first
+  if row == blank
+    graphql _ = 'modules/mcp/agents/setting_create', user_id: uid, client_id: key, disabled_tools: disabled
+  else
+    graphql _ = 'modules/mcp/agents/setting_update', id: row.id, disabled_tools: disabled
+  endif
+
+  # export keys on the VARIABLE NAME, so clearing the memo means exporting an
+  # empty hash under the same name tool_enabled reads: by_agent.
+  assign by_agent = {}
+  export by_agent, namespace: 'mcp_agent_settings'
+
+  assign result = { "valid": true }
+  assign result['disabled_tools'] = disabled
+  return result
+%}

@@ -39,6 +39,17 @@
     endunless
   endunless
 
+  # The person's per-agent switches, re-read now rather than carried over from
+  # when the call was made. This path also runs when an operator approves
+  # something an agent proposed, which can be days later: if the person has
+  # switched that tool off for that agent since, approving must not run it.
+  function agent_key = 'modules/mcp/helpers/identity/agent_key', token: token
+  function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: token.user_id, client_id: agent_key, tool_name: tool.name
+  unless switched_on
+    assign out['reason'] = 'tool_switched_off'
+    return out
+  endunless
+
   if token.kind == 'oauth'
     assign now_s = 'now' | to_time | strftime: '%s' | plus: 0
     assign rexp = token.refresh_expires_at | plus: 0

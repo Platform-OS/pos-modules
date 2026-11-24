@@ -536,6 +536,12 @@ describe('coverage · multi-principal governance planes', () => {
     await bad('string: pattern rejected', { code: 'AB' });
     await bad('string: ^…$ anchors the whole value, not a line (ECMA-262)', { code: 'ab\nc' });
     ok('additionalProperties:false → unknown key rejected', rej(await V({ ...valid, surprise: 1 })));
+    // Put the counter back. afterEach restores the default threshold of 20 while these
+    // ~25 violations are still inside the 300s abuse window, so a later plane reusing
+    // this principal (the Resources planes do) would be answered "Access suspended"
+    // instead of what it asserts. Every other plane clears the principal it uses; this
+    // one produced the violations, so it clears them.
+    await clearAbuse(validator.principal);
   });
 
   it('Handler identity — the agent carries the calling token (agent.token_id)', async () => {

@@ -125,6 +125,20 @@
   assign content = []
   assign item = { "type": "text" }
   assign item['text'] = structured | json
+  # A handler MAY render its own text block; the JSON of `result` is the default, not the only option.
+  #
+  # An MCP tool result carries two things: `content`, which every client displays, and the optional
+  # `structuredContent`, which capable clients parse. Deriving the first from the second means a tool can
+  # return data but cannot say anything about it — and for a tool whose result is meant to be acted on,
+  # the sentence is the part that says what to do next ("run structuredContent.batch, adapting field
+  # names", "these must be run individually, not as batch operations"). A client that shows the user a
+  # JSON blob, and an agent that must infer intent from a bare structure, are both worse off.
+  #
+  # Backward compatible by construction: a handler that returns no `text` keeps the JSON rendering, so
+  # every existing tool and fixture is unaffected. `| append: ''` coerces a captured string.
+  unless hres.text == blank
+    assign item['text'] = hres.text | append: ''
+  endunless
   assign content = content | array_add: item
 
   assign out['outcome'] = 'success'

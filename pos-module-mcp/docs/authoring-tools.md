@@ -354,13 +354,20 @@ The handler receives:
 It returns a hash:
 
 ```liquid
-{ "ok": true,  "result": { ... }, "subject": { "type": "record", "id": "…" } }   # success (subject optional)
+{ "ok": true,  "result": { ... }, "text": "…", "subject": { "type": "record", "id": "…" } }   # success (text + subject optional)
 { "ok": false, "error": { "code": 409, "message": "Order not cancellable", "retryable": false } }   # business failure
 ```
 
 - On `ok: true`, `result` becomes the MCP `structuredContent` and a text rendering. If
   the tool declares an `output_schema`, `result` must conform to it, or the call is
   refused as a tool error (see [Output-schema reference](#output-schema-reference)).
+- `text` is optional and replaces that rendering with your own string. Reach for it when the
+  result is meant to be **acted on** rather than read: the JSON of `result` tells an agent what
+  came back, not what to do with it ("run `structuredContent.batch` through the batch tool,
+  adapting field names"; "these must be run individually, not as batch operations"). It is also
+  what a client shows a human, where a JSON blob is rarely the useful answer. Omit it and the
+  default rendering is unchanged, so existing tools need no edit. Keep it factual and short — it
+  is model-read text and carries the same tool-poisoning risk as the description.
 - On `ok: false`, the engine returns an MCP **tool error** (`isError: true`) — the
   agent can reason about it. Business *state* checks (e.g. "already shipped") belong
   here; authorization does **not** (the policy already ran).

@@ -73,6 +73,15 @@
     assign empty_args = {}
     assign dm = delegation_mode | default: 'direct'
     for m in all
+      # the person's own per-agent switches (queries/agents/tool_enabled). Applied
+      # in this scope only: an 'open' list is sent with a `public` cache hint
+      # ("identical for everyone", see rpc/route), so narrowing it per caller would
+      # make that hint a lie and let one agent's list be cached and served to
+      # another. Execution is refused either way, in registry/resolve_tool.
+      function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: principal.user_id, client_id: agent.client_id, tool_name: m.name
+      unless switched_on
+        continue
+      endunless
       function az = 'modules/mcp/commands/authorize/evaluate', policy: m.authorization_policy, principal: principal, agent: agent, arguments: empty_args, tool: m, delegation_mode: dm
       if az.allow == true
         assign visible = visible | array_add: m

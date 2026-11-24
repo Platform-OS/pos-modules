@@ -14,7 +14,7 @@
  * Env:  MCP_URL, MCP_TOKEN (admin api token) — falls back to the repo .pos "ps".
  */
 import { describe, it, beforeAll, afterAll, afterEach, expect } from 'vitest';
-import { loadEnv, makeAdmin, makeMcp, makeModern, makeConstants } from './lib/harness.mjs';
+import { loadEnv, makeAdmin, makeMcp, makeModern, makeConstants, fetchRetry } from './lib/harness.mjs';
 import { FIXT, applyReset } from './seed/seed.mjs';
 import { createHash } from 'node:crypto';
 import { awaitFreshRateWindow } from './fixtures.mjs';
@@ -73,7 +73,7 @@ async function pagesDeleteByPrefix(prefix) {
 // Direct POST with arbitrary headers (the protocol-negotiation suite exercises the
 // MCP-Protocol-Version / Mcp-Method / Mcp-Name routing headers).
 async function rpcH(body, headers = {}) {
-  const res = await fetch(MCP, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  const res = await fetchRetry(MCP, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   const text = await res.text(); let json = null; try { json = JSON.parse(text); } catch {}
   return { status: res.status, json, text };
 }
@@ -129,7 +129,7 @@ describe('conformance · protocol + governance pipeline', () => {
     ok('no token on tools/list → 401 with the sign-in challenge (default)', noTokList.status === 401 && /Bearer resource_metadata=/.test(noTokList.headers.get('www-authenticate') || ''), `status=${noTokList.status}`);
     const goodList = await rpc({ jsonrpc: '2.0', id: 11, method: 'tools/list' }, { token: RAW_TOKEN });
     ok('valid token on tools/list → 200', goodList.status === 200 && Array.isArray(goodList.json?.result?.tools));
-    const wk = await fetch(base + '.well-known/oauth-protected-resource').then(r => r.json());
+    const wk = await fetchRetry(base + '.well-known/oauth-protected-resource').then(r => r.json());
     ok('well-known resource metadata', wk.resource === MCP && Array.isArray(wk.bearer_methods_supported));
   });
 
@@ -232,7 +232,7 @@ describe('conformance · protocol + governance pipeline', () => {
     const protSlug = 'docs/mcp-conformance-protected';
     const protUri = 'mcp+page:///' + protSlug;
     const protMarker = 'mcp-conformance-protected-fixture';
-    const web = await fetch(base.replace(/\/$/, '') + '/' + protSlug, { redirect: 'manual' });
+    const web = await fetchRetry(base.replace(/\/$/, '') + '/' + protSlug, { redirect: 'manual' });
     ok('protected fixture is refused by the website (policy deployed)', web.status === 403, 'status=' + web.status);
     ok('policy-protected page → not listed (anonymous)', !onRes.some(r => r.uri === protUri) && !JSON.stringify(onRes).includes('MCP conformance protected doc'));
     const prot = await rpc({ jsonrpc: '2.0', id: 7, method: 'resources/read', params: { uri: protUri } });
@@ -293,7 +293,7 @@ describe('conformance · protocol + governance pipeline', () => {
     // rejected by the platform (HTTP 415) before dispatch — the JSON-RPC -32700 parse
     // code is unreachable from the engine. This asserts the achievable guarantee: malformed
     // input is REJECTED with a 4xx and never accepted, never 5xx, never leaks internals.
-    const res = await fetch(MCP, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{ this is not : valid json' });
+    const res = await fetchRetry(MCP, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{ this is not : valid json' });
     const txt = await res.text();
     const leaked = /SQL|Liquid error|ActiveRecord|stack trace|undefined method/i.test(txt);
     ok('malformed JSON → 4xx rejection, no leak (platformOS 415 pre-dispatch; -32700 unreachable)', res.status >= 400 && res.status < 500 && !leaked, 'status=' + res.status);
@@ -550,7 +550,7 @@ describe('conformance · protocol eras (2025-06-18 legacy, 2026-07-28 modern)', 
 
   it('transport — GET and DELETE on /mcp answer 405 with Allow: POST', async () => {
     for (const m of ['GET', 'DELETE']) {
-      const r = await fetch(modern.MCP, { method: m });
+      const r = await fetchRetry(modern.MCP, { method: m });
       ok(`${m} /mcp → 405`, r.status === 405, 'status=' + r.status);
       ok(`${m} /mcp → Allow: POST`, r.headers.get('allow') === 'POST', String(r.headers.get('allow')));
     }

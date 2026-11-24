@@ -68,7 +68,7 @@
   }
 
   # Step 4 — resolve the tool (registered, valid manifest, allowed_tools narrowing).
-  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: agent.allowed_tools
+  function tool = 'modules/mcp/queries/registry/resolve_tool', name: tool_name, allowed_tools: agent.allowed_tools, user_id: principal.user_id, client_id: agent.client_id
   unless tool == blank
     function model_visible = 'modules/mcp/helpers/registry/model_visible', manifest: tool
     unless model_visible
@@ -123,7 +123,11 @@
   assign le['authz_decision'] = 'allow'
 
   # Step 7a — a requires_approval tool never runs inline, and has no in-process queue.
-  if tool.requires_approval
+  # With the gate turned off for this tool (queries/approval/enforced) there is
+  # nothing to wait for, so the tool runs here like any other mutating tool.
+  # Only an explicit false turns it off.
+  function gate_enforced = 'modules/mcp/queries/approval/enforced', cfg: cfg, tool_name: tool_name
+  if tool.requires_approval and gate_enforced
     assign le['authz_reason'] = 'approval_required_in_process'
     assign le['execution_outcome'] = 'denied'
     assign le['error_code'] = -32001

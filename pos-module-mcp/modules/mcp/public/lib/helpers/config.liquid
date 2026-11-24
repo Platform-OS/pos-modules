@@ -90,6 +90,32 @@
   # exchange data only: the engine renders and escapes the page. Absent = no fields.
   assign c['oauth_consent_partial'] = 'mcp/oauth/consent'
   assign c['oauth_approved_partial'] = 'mcp/oauth/approved'
+  # Human-in-the-loop gate, instance-wide (spec §9.6). ON by default: a tool
+  # declaring `requires_approval` never runs inline, it records an intent and
+  # waits for an operator. Set MCP_CONFIG {"approval_enforced": false} and those
+  # tools execute immediately instead, like any other mutating tool.
+  #
+  # The switch is read per request, here, and NOT folded into a manifest or the
+  # registry cache: the built registry is cached for up to 5 minutes, so a
+  # manifest that decided this for itself would keep executing ungated for
+  # minutes after an operator turned the gate back on. Evaluated at the gate
+  # (commands/rpc/tools_call, commands/execute/invoke) it takes effect at once.
+  #
+  # A tool's declared `requires_approval` is unchanged either way, so tools/list
+  # and the manifest stay the truth about what the tool is, and turning the
+  # switch back on needs no redeploy. Only `false` disables it; anything else,
+  # including an absent key, leaves the gate on.
+  assign c['approval_enforced'] = true
+  # App-provided answer to the same question, consulted first by
+  # queries/approval/enforced: app/lib/mcp/approval.liquid returning
+  # { enforced: boolean }. An app whose admins turn the gate on and off in its
+  # own screens keeps that switch in its own settings and answers here, instead
+  # of the engine reading an app's table or the app rewriting this constant. It
+  # is given the tool being called (tool_name), so an app may gate some tools
+  # and not others; a partial that does not declare the parameter ignores it.
+  # Absent, erroring, or any answer that is not an explicit boolean falls back
+  # to approval_enforced above.
+  assign c['approval_partial'] = 'mcp/approval'
   # tools/list visibility (spec §14.2). 'open' (default) advertises every registered
   # tool to any caller — MCP discovery is a public method. 'principal' scopes the
   # advertised list to the CALLER: a tool appears only if its authorization policy

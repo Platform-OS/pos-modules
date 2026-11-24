@@ -1,0 +1,53 @@
+{%- comment -%}
+  Is the human-in-the-loop gate enforced for this call? (spec §9.6)
+
+  Two sources, in order:
+
+  1. The app's approval partial (config.approval_partial, default
+     'mcp/approval'), when it exists. An app that lets its own admins turn the
+     gate on and off keeps that switch in its own settings and answers here, so
+     the engine never has to be told to read an app's table. The partial is
+     given the tool name, so an app can answer for one tool instead of for all
+     of them at once: a desk may let an assistant add an internal note straight
+     away while a reply to a customer still waits for a person. A partial that
+     does not declare the parameter simply ignores it and keeps answering for
+     every tool, so this is backward compatible.
+  2. config.approval_enforced, the instance-wide default, for an app that
+     provides no partial.
+
+  FAIL-SAFE. Only an explicit `false` from either source turns the gate off. A
+  missing partial, one that errors, and any other answer all leave it ON: the
+  wrong direction to fail here is to execute something nobody agreed to.
+
+  Read per request, never from the registry cache: the built registry is cached
+  for up to five minutes, so a manifest deciding this for itself would keep
+  executing ungated for minutes after an operator turned the gate back on.
+
+  @param {object} cfg - the resolved config (helpers/config)
+  @param {string} [tool_name] - the tool being called, for an app answering per tool
+  @return {boolean} true when a requires_approval tool must wait for a person
+{%- endcomment -%}
+{% liquid
+  assign partial = cfg.approval_partial | default: 'mcp/approval'
+  assign answer = null
+  try
+    function answer = partial, tool_name: tool_name
+  catch e
+    unless e.message contains "can't find partial"
+      log e.message, type: 'mcp.approval_partial_error'
+    endunless
+    assign answer = null
+  endtry
+
+  if answer.enforced == false
+    return false
+  endif
+  if answer.enforced == true
+    return true
+  endif
+
+  if cfg.approval_enforced == false
+    return false
+  endif
+  return true
+%}

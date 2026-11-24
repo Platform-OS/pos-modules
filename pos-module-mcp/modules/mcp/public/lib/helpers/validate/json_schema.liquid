@@ -6,8 +6,9 @@
   INPUT (default) — a tool call's ARGUMENTS against input_schema, the input-surface
   control. STRICT, no coercion (§10.2): a string "42" for an integer field is
   REJECTED, not coerced — agents emit well-formed JSON, and lenient coercion hides
-  model errors and widens the input surface. Unknown keys are rejected
-  (additionalProperties is FORCED false regardless of declaration, §7.2).
+  model errors and widens the input surface. Unknown keys are rejected unless that
+  object declares additionalProperties: true (§7.2), which is how a genuinely
+  free-form argument map is declared; closed is the default.
 
   OUTPUT (`output: true`) — a handler's result against output_schema, before it is
   served as structuredContent (MCP: a server MUST return structured results that
@@ -336,14 +337,20 @@
           endunless
         endfor
       endunless
-      # Unknown keys: an input schema FORCES additionalProperties false (§7.2); an
-      # output schema rejects them only where it declares additionalProperties: false.
+      # Unknown keys. An input schema is CLOSED BY DEFAULT (§7.2): an implementer must not be able
+      # to accept an argument it cannot validate merely by forgetting to say so. It opens only
+      # where the schema declares additionalProperties: true, which is a statement that this
+      # object IS a free-form map — a record's field values, one batch operation's arguments.
+      # Absent or false stays closed, so no schema written before this changes meaning. An output
+      # schema rejects unknown keys only where it declares additionalProperties: false.
       assign pkeys = []
       unless props == blank
         assign pkeys = props | hash_keys
       endunless
       assign closed = true
-      if output and schema.additionalProperties != false
+      if schema.additionalProperties == true
+        assign closed = false
+      elsif output and schema.additionalProperties != false
         assign closed = false
       endif
       if closed

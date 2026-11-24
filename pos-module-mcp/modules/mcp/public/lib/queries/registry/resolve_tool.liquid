@@ -1,20 +1,43 @@
-{%- comment -%}
+{% doc %}
   Resolve a tool name to its validated manifest (spec §9.2 step 4). Only tools in
   the built registry (explicitly registered + meta-schema-valid) are resolvable —
   an unregistered or excluded tool is simply not found, so the surface can never
   execute an unvalidated action.
 
-  Optional per-agent narrowing: `allowed_tools`, when non-empty, intersects the
-  served set (never widens, §6.2). A tool absent from a non-empty allowed_tools is
-  treated as not found for that agent.
+  Two narrowings, both of which can only take tools away (§6.2):
 
-  @param {string} name          - requested tool name
-  @param {array}  allowed_tools - optional per-token narrowing (nil/empty = all)
+  - `allowed_tools`, when non-empty, intersects the served set. Per TOKEN.
+  - the person's per-AGENT switches (queries/agents/tool_enabled), when
+    `user_id` and `client_id` are given. Per agent, so it survives the OAuth
+    refresh that replaces a token's digests.
+
+  They accumulate: a tool a token allows but the person switched off for that
+  agent is not resolvable. Neither can widen the other.
+
+  A narrowed-away tool is reported as NOT FOUND, exactly as an unregistered one
+  is, rather than announcing that it exists but is forbidden — least disclosure,
+  and the behaviour `allowed_tools` already had.
+
+  `approval/execute` passes no identity here on purpose: on that path the
+  credential is re-checked by identity/token_still_authorized, which applies
+  both narrowings itself.
+
+  @param {string} name            - requested tool name
+  @param {array}  [allowed_tools] - per-token narrowing (nil/empty = all)
+  @param {string} [user_id]       - principal user id, for the per-agent switches
+  @param {string} [client_id]     - agent key (helpers/identity/agent_key)
   @return {object|null} the manifest, or null if not resolvable
-{%- endcomment -%}
+{% enddoc %}
 {% liquid
   if allowed_tools != blank and allowed_tools != empty
     unless allowed_tools contains name
+      return null
+    endunless
+  endif
+
+  if user_id != blank and client_id != blank
+    function switched_on = 'modules/mcp/queries/agents/tool_enabled', user_id: user_id, client_id: client_id, tool_name: name
+    unless switched_on
       return null
     endunless
   endif

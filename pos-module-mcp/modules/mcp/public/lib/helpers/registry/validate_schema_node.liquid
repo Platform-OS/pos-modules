@@ -13,9 +13,10 @@
      result against the output schema (validate/json_schema, output mode) before it
      is served, so every keyword allowed here is enforced on results too.
    - Only supported keywords per node (union set below); any other key → error.
-   - additionalProperties, when present, must be boolean. In an input schema it is
-     FORCED to false at validation time regardless (§7.2); in an output schema it is
-     honoured as declared (false rejects undeclared result keys).
+   - additionalProperties, when present, must be boolean. An input schema is closed by
+     default and opens only where it declares `true` (§7.2) — that declaration is how a
+     free-form argument map is stated; in an output schema it is honoured as declared
+     (false rejects undeclared result keys).
    - pattern is length-capped and rejects classic catastrophic-backtracking
      nested-quantifier signatures (§16.4). It must compile; it is evaluated with
      ECMA-262 anchoring (validate/ecma_pattern), as clients evaluate it.
