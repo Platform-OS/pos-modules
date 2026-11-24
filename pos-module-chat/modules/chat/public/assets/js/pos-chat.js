@@ -319,7 +319,7 @@ window.pos.modules.chat = function(userSettings = {}){
       const previous = module.settings.conversations.unread;
       module.settings.conversations.unread = event.detail.unread_conversations;
 
-      // the first number known is what the page was rendered with
+      // the first number known is the one read when the page loaded
       if(previous !== null){
         module.conversations.reload();
       }
