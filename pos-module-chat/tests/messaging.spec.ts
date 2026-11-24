@@ -823,7 +823,8 @@ test.describe('Testing messaging', () => {
       await expect(input).toHaveValue(`${marker} first line\nsecond line`);
 
       await page.getByRole('button', { name: 'Send', exact: true }).click();
-      await inboxPage.chat.messageBox.getMessageByText('second line', 'sent').waitFor();
+      // by this run's marker - a 'second line' from an earlier run would match at once, before this one is stored
+      await inboxPage.chat.messageBox.getMessageByText(`${marker} first line`, 'sent').waitFor();
       expect(await storedWithMarker(conversationId)).toEqual([`${marker} first line\nsecond line`, desktopMessage]);
     });
 
