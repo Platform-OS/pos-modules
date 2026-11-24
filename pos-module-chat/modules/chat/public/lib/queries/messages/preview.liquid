@@ -10,6 +10,8 @@
   @param {string} [message] - the message's text
   @param {array} [media] - the message's media (ids of modules/chat/uploads records)
   @param {number} [length] - the longest preview returned, 150 when not given
+  @param {string} [media_type] - the first attachment's type, when the caller has it already (a page of
+    the conversations list looks them all up at once) - otherwise it's looked up here
 {% enddoc %}
 {% liquid
   assign length = length | default: 150
@@ -17,9 +19,12 @@
   assign preview = message | default: '' | replace_regex: '\s+', ' ' | strip | truncate: length, '…'
 
   if preview == blank and media.size > 0
-    assign first_media_id = media | first
-    function first_media = 'modules/chat/queries/uploads/find', id: first_media_id
-    if first_media.metadata.type contains 'image/'
+    if media_type == blank
+      assign first_media_id = media | first
+      function first_media = 'modules/chat/queries/uploads/find', id: first_media_id
+      assign media_type = first_media.metadata.type
+    endif
+    if media_type contains 'image/'
       assign preview = 'modules/chat/sent_image' | t
     else
       assign preview = 'modules/chat/sent_attachment' | t

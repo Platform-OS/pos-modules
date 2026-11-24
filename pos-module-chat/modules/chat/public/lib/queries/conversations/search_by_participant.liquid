@@ -20,8 +20,7 @@
     return null
   endif
 
-  # the limit comes from the request (per_page) - capped, as every conversation on the
-  # page looks up each of its participants' profiles
+  # the limit comes from the request (per_page) - capped, as it's how many cards are rendered
   assign limit = limit | to_positive_integer: 20 | at_most: 50
   if before == blank
     assign before = null
@@ -66,17 +65,56 @@
     endif
   endunless
 
+  # The participants' profiles and the attachment types for the previews are looked up for the
+  # whole page at once - one query each, not one per conversation (the current user alone is a
+  # participant of every one of them).
+  assign profile_ids = []
+  assign media_ids = []
   for conversation in conversations
     # last_message comes back as a 1-item list (related_record's own sort isn't honored by
     # the engine - related_records + limit: 1 is), flattened for the templates
     assign conversation.last_message = conversation.last_message | first
 
+    assign profile_ids = profile_ids | concat: conversation.participant_ids
+    # a message with attachments only is previewed by its first attachment's type
+    if conversation.last_message.message == blank and conversation.last_message.media.size > 0
+      assign media_ids << conversation.last_message.media.first
+    endif
+  endfor
+
+  assign profiles = []
+  assign profile_ids = profile_ids | uniq
+  # the same profiles, with the same slugs, as modules/user/queries/profiles/find returns - from the
+  # user module's GraphQL, which a host overwrites to add fields (like an avatar)
+  if profile_ids.size > 0
+    graphql found = 'modules/user/profiles/search', ids: profile_ids, limit: profile_ids.size
+    for profile in found.records.results
+      function slug = 'modules/user/helpers/profiles/slugs/build', current_profile: profile, profile: null
+      assign profile.slug = slug
+      assign profiles << profile
+    endfor
+  endif
+
+  assign uploads = []
+  assign media_ids = media_ids | uniq
+  if media_ids.size > 0
+    graphql u = 'modules/chat/uploads/types_by_ids', ids: media_ids, limit: media_ids.size
+    assign uploads = u.uploads.results
+  endif
+
+  for conversation in conversations
     assign participants = []
     for pid in conversation.participant_ids
-      function profile = 'modules/user/queries/profiles/find', id: pid, user_id: null, uuid: null, first_name: null, last_name: null
+      assign profile = profiles | array_select: id: pid | first
       assign participants << profile
     endfor
     assign conversation.participants = participants
+
+    if conversation.last_message.message == blank and conversation.last_message.media.size > 0
+      assign upload = uploads | array_select: id: conversation.last_message.media.first | first
+      # an attachment that's gone is "Sent an attachment", as it was when looked up one by one
+      assign conversation.last_message.media_type = upload.metadata.type | default: 'application/octet-stream'
+    endif
   endfor
 
   assign result = { "results": conversations, "has_next_page": has_next_page }

@@ -1,0 +1,16 @@
+# only what a preview needs ("Sent an image" or "Sent an attachment") - for a page of the conversations
+# list at once, so not limited to one conversation like search_by_ids
+query types_by_ids($ids: [ID!]!, $limit: Int!) {
+  uploads: records(
+    per_page: $limit,
+    filter: {
+      table: { exact: "modules/chat/uploads" }
+      id: { value_in: $ids }
+    }
+  ) {
+    results {
+      id
+      metadata: property_json(name: "metadata")
+    }
+  }
+}

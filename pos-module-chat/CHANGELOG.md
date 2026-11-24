@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.10.1
+
+* Performance: the conversations list (the inbox sidebar, its live reloads and `GET /api/chat/conversations`) looks up the participants' profiles for the whole page in one query (the user module's `modules/user/profiles/search` GraphQL, with the same slugs as `profiles/find`), instead of one `profiles/find` per participant of each conversation (up to 100 for a page of 50). The attachment types for "Sent an image" previews are looked up the same way. A host that overrode the `queries/profiles/find` or `queries/profiles/search` Liquid query no longer changes the profiles in the list - an override of the `modules/user/profiles/search` GraphQL (like one adding an avatar) still does.
+
 ## v2.10.0
 
 * Removed: the unused `modules/chat/queries/conversations/find` and `modules/chat/queries/conversations/search` queries (and `graphql/conversations/search_by_message`), and the unused `pos-chat-csrfToken.js`. Use `queries/conversations/find_by_participant` and `queries/conversations/search_by_participant` instead.

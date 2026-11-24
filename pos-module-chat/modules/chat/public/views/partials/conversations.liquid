@@ -24,7 +24,7 @@
     assign name = from_profile.first_name | append: ' ' | append: from_profile.last_name | strip | default: from_profile.name
     assign image_src = from_profile.avatar.photo.versions.sm
     # one line, "Sent an image" for a message with attachments only
-    function last_message = 'modules/chat/queries/messages/preview', message: conversation.last_message.message, media: conversation.last_message.media, length: null
+    function last_message = 'modules/chat/queries/messages/preview', message: conversation.last_message.message, media: conversation.last_message.media, length: null, media_type: conversation.last_message.media_type
 
     # the open conversation is marked read over the WebSocket once the page has loaded
     # (see pos-chat.js), so it isn't read yet while the page is rendered
