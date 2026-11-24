@@ -209,8 +209,9 @@
       background-color: color-mix(in srgb, var(--pos-color-highlight-background) 50%, transparent 50%);
 
       content: '';
-  
-      transition: all .2s ease-in-out;
+
+      /* only the position: the size follows the card at once, as it changes width with the sidebar (like when the date in it is shortened after load) */
+      transition: inset-block-start .2s ease-in-out;
     }
 
     .pos-chat-sidebar:not(:has(.pos-chat-conversationCard:hover)) .pos-chat-conversationCard-active {

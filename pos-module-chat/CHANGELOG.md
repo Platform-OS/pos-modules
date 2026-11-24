@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.8.1
+
+* Fix: in the inbox sidebar, the highlight behind the open conversation no longer sticks out past the sidebar's border for a moment after the page loads. It took the card's new size with a transition when the card got narrower (the date in it is shortened after load), and now takes it at once - only its move between conversations on hover is animated.
+
 ## v2.8.0
 
 * Feature: the inbox sidebar is kept up to date without reloading the page. A new message in any conversation (or one the user sends) moves it to the top with its new last message, a new conversation shows up, and a conversation read in another tab or on another device is no longer shown as unread. The inbox starts the live notifications itself for this, so it works without `modules/chat/notifications/init` in the layout too.
