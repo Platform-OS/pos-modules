@@ -84,10 +84,15 @@
 
   assign profiles = []
   assign profile_ids = profile_ids | uniq
+  # the same profiles, with the same slugs, as modules/user/queries/profiles/find returns - from the
+  # user module's GraphQL, which a host overwrites to add fields (like an avatar)
   if profile_ids.size > 0
-    # the same profiles (and slugs) modules/user/queries/profiles/find returns
-    function found = 'modules/user/queries/profiles/search', ids: profile_ids, limit: profile_ids.size, page: 1, id: null, uuid: null, first_name: null, last_name: null, user_id: null, not_ids: null, query: null, emails: null, sort: null
-    assign profiles = found.results
+    graphql found = 'modules/user/profiles/search', ids: profile_ids, limit: profile_ids.size
+    for profile in found.records.results
+      function slug = 'modules/user/helpers/profiles/slugs/build', current_profile: profile, profile: null
+      assign profile.slug = slug
+      assign profiles << profile
+    endfor
   endif
 
   assign uploads = []
