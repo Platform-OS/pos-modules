@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.10.2
+
+* Fix: the inbox's texts (`window.pos.translations.chat`) and the CSRF token are printed into the page's scripts as JSON strings. A translation with a line break stopped the inbox script from running, a backslash changed the text, and quotes or `<` / `>` / `&` came out as HTML entities (`&#39;`) where the text isn't shown as HTML. A `</script>` in a translation can't end the script either.
+
 ## v2.10.1
 
 * Performance: the conversations list (the inbox sidebar, its live reloads and `GET /api/chat/conversations`) looks up the participants' profiles for the whole page in one query (the user module's `modules/user/profiles/search` GraphQL, with the same slugs as `profiles/find`), instead of one `profiles/find` per participant of each conversation (up to 100 for a page of 50). The attachment types for "Sent an image" previews are looked up the same way. A host that overrode the `queries/profiles/find` or `queries/profiles/search` Liquid query no longer changes the profiles in the list - an override of the `modules/user/profiles/search` GraphQL (like one adding an avatar) still does.
