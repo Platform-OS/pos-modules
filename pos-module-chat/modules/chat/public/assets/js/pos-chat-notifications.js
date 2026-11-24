@@ -9,7 +9,7 @@
     window.pos.modules.chat.notifications.start({ consumer: actionCableConsumer });
 
     document.addEventListener('pos-chat:message', event => {
-      // event.detail: { message_id, conversation_id, sender_id, sender_name, message, created_at, url, active }
+      // event.detail: { message_id, conversation_id, sender_id, sender_name, sender_avatar_url, message, preview, attachment_count, created_at, url, active }
       // active - the inbox on this page has that conversation open and the tab is visible
       // fired in one of the user's open tabs only, see 'one tab per message' below
     });
@@ -22,7 +22,7 @@
     <span data-pos-chat-unread-conversations></span>   // shows the number, hidden when it's 0
 
   what the server pushes to the room (data):
-    { type: 'message_created', message_id, conversation_id, sender_id, sender_name, message, created_at, unread_conversations, unread_at }
+    { type: 'message_created', message_id, conversation_id, sender_id, sender_name, sender_avatar_url, message, preview, attachment_count, created_at, unread_conversations, unread_at }
     { type: 'conversation_read', conversation_id, unread_conversations, unread_at }
   a payload without type is a new message (what the server sent before the type was added),
   unread_conversations and unread_at are optional - the counter is only updated when the payload carries it
@@ -411,7 +411,13 @@ window.pos.modules.chat.notifications ??= (() => {
       conversation_id: conversationId,
       sender_id: data.sender_id,
       sender_name: data.sender_name,
+      // null when the host's profiles have no avatar
+      sender_avatar_url: data.sender_avatar_url ?? null,
       message: data.message,
+      // one line, cut to 150 characters, "Sent an image" for a message with attachments only - from a
+      // server older than this file there is none, so it's made from the text
+      preview: data.preview ?? (typeof data.message === 'string' ? data.message.replace(/\s+/g, ' ').trim() : ''),
+      attachment_count: Number.isInteger(data.attachment_count) ? data.attachment_count : 0,
       created_at: data.created_at,
       url: conversationId ? `/inbox?conversation_id=${encodeURIComponent(conversationId)}` : '/inbox',
       active: module.isActive(conversationId)

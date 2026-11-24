@@ -25,10 +25,15 @@
     if message
       function sender = 'modules/user/queries/profiles/find', id: message.autor_id, user_id: null, uuid: null, first_name: null, last_name: null
       assign sender_name = sender.name | default: sender.first_name
+      # the same picture the inbox shows - only there when the host's profiles have an avatar
+      assign sender_avatar_url = sender.avatar.photo.versions.sm
+      assign attachment_count = message.media.size | default: 0
+      # one line for a toast, "Sent an image" for a message with attachments only - same as the sidebar
+      function preview = 'modules/chat/queries/messages/preview', message: message.message, media: message.media, length: null
       # message_id + created_at make the payload self-describing: notifications are delivered
       # by background jobs (no ordering guarantee), so a client can order/dedupe a burst by
       # created_at instead of relying on arrival order.
-      assign notification_payload = { "type": "message_created", "message_id": message.id, "created_at": message.created_at, "conversation_id": message.conversation_id, "sender_id": message.autor_id, "sender_name": sender_name, "message": message.message }
+      assign notification_payload = { "type": "message_created", "message_id": message.id, "created_at": message.created_at, "conversation_id": message.conversation_id, "sender_id": message.autor_id, "sender_name": sender_name, "sender_avatar_url": sender_avatar_url, "message": message.message, "preview": preview, "attachment_count": attachment_count }
 
       for participant_id in message.conversation.participant_ids
         unless participant_id == message.autor_id

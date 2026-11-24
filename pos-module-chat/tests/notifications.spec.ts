@@ -101,7 +101,8 @@ test.describe('Live notifications', () => {
       await expect.poll(() => notifiedMessages(recipientPage), { timeout: 60_000 }).toHaveLength(1);
 
       const [notified] = await notifiedMessages(recipientPage);
-      expect(notified).toMatchObject({ message: messages[0], sender_name: sender.name, active: false });
+      // the seeded profiles have no avatar, so there's no picture to send
+      expect(notified).toMatchObject({ message: messages[0], preview: messages[0], attachment_count: 0, sender_avatar_url: null, sender_name: sender.name, active: false });
       expect(notified.url).toBe(`/inbox?conversation_id=${notified.conversation_id}`);
       // the text as typed, it's the page's job to escape it
       await expect(recipientPage.locator('b', { hasText: 'not bold' })).toHaveCount(0);
@@ -113,6 +114,14 @@ test.describe('Live notifications', () => {
       await expect.poll(() => notifiedMessages(recipientPage), { timeout: 60_000 }).toHaveLength(2);
       expect((await notifiedMessages(recipientPage))[1].message).toBe(messages[1]);
       await expect(badge).toHaveText('1');
+    });
+
+    await test.step('a message with an image only is notified with a preview saying so', async () => {
+      await senderInbox.chat.attachFiles(['cat1.jpg']);
+      await senderInbox.chat.sendAttachments();
+
+      await expect.poll(() => notifiedMessages(recipientPage), { timeout: 60_000 }).toHaveLength(3);
+      expect((await notifiedMessages(recipientPage))[2]).toMatchObject({ preview: 'Sent an image', attachment_count: 1 });
     });
 
     await test.step(`${recipient.name} reads it in another tab - the badge on the first one goes away`, async () => {
