@@ -67,6 +67,8 @@ window.pos.modules.chat.notifications ??= (() => {
   module.settings.recentLimit = 100;
   // where the current counters are read from after connecting (string)
   module.settings.unreadUrl = '/api/chat/notifications.json';
+  // how long (ms) reading the counters may take before it's given up (int)
+  module.settings.requestTimeout = 30000;
   // elements showing the number of unread conversations, hidden when there are none (string)
   module.settings.unreadConversationsSelector = '[data-pos-chat-unread-conversations]';
   // how long (ms) the number counted with a message in the conversation open on this page waits for
@@ -92,6 +94,8 @@ window.pos.modules.chat.notifications ??= (() => {
   // the number held back while the inbox marks the open conversation read, see module.holdUnreadConversations
   // ({ count, at, timeout } or null)
   module.heldUnread = null;
+  // aborts reading the counters still running - a newer read replaces it (AbortController or null)
+  module.refreshing = null;
   // callbacks run with each new message in every tab, unlike 'pos-chat:message' (Set of functions)
   module.listeners = new Set();
   // talking to the user's other tabs (BroadcastChannel, null when not supported)
@@ -185,8 +189,13 @@ window.pos.modules.chat.notifications ??= (() => {
   // returns:		resolves once they are applied, a failed request is only logged in debug mode (promise)
   // ------------------------------------------------------------------------
   module.refresh = async () => {
+    // the one still running (the one on start, when it connects right after) would only bring an older number
+    module.refreshing?.abort();
+    const controller = module.refreshing = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new DOMException('The request timed out', 'TimeoutError')), module.settings.requestTimeout);
+
     try {
-      const response = await fetch(module.settings.unreadUrl, { headers: { 'Accept': 'application/json' } });
+      const response = await fetch(module.settings.unreadUrl, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
 
       if(!response.ok){
         throw new Error(`HTTP ${response.status}`);
@@ -198,7 +207,12 @@ window.pos.modules.chat.notifications ??= (() => {
         module.setUnreadConversations(data.unread_conversations, data.unread_at);
       }
     } catch(error) {
-      debug('Could not read the number of unread conversations', error);
+      debug(controller.signal.reason?.name === 'AbortError' ? 'Replaced by a newer read of the number of unread conversations' : 'Could not read the number of unread conversations', error);
+    } finally {
+      clearTimeout(timeout);
+      if(module.refreshing === controller){
+        module.refreshing = null;
+      }
     }
   };
 
@@ -207,6 +221,8 @@ window.pos.modules.chat.notifications ??= (() => {
   // purpose:		stops listening
   // ------------------------------------------------------------------------
   module.stop = () => {
+    module.refreshing?.abort();
+    module.refreshing = null;
     module.channel?.unsubscribe();
     module.channel = null;
     module.tabs?.close();
