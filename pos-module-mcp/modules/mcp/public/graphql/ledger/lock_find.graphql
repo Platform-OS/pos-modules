@@ -1,4 +1,7 @@
 query lock_find($table: String!) {
+  # The singleton mutex row (lowest id), with the recorded end of chain
+  # (head_seq / head_hash, written by ledger/append; blank before the first append
+  # that recorded it).
   records(
     per_page: 1
     filter: { table: { value: $table } }
@@ -6,6 +9,8 @@ query lock_find($table: String!) {
   ) {
     results {
       id
+      head_seq: property(name: "head_seq")
+      head_hash: property(name: "head_hash")
     }
   }
 }

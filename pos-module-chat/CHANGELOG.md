@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v2.11.1
+
+* Fix: the inbox's requests to the server give up after 30 seconds (`requestTimeout` in the inbox's settings). Each kind runs one at a time, so a request that never got an answer (a dropped connection, a stalled proxy) kept older messages from loading, the sidebar from updating, or the Send button disabled until the page was reloaded. Older messages that time out show the usual error toast and can be tried again by scrolling up. A first message that times out stays in the input, the same as when starting the conversation fails.
+* Change: a people search still running is aborted when a newer one starts or the search is cleared, and the live notifications abort a read of the unread count when a newer one starts (on start the count is read once, and again when the socket connects). The newer one's results are the only ones used, as before, but the browser and the server no longer finish the older request.
+
 ## v2.11.0
 
 * Change: a new message in the conversation open in the inbox (from either side) no longer reloads the whole sidebar. Its card is updated in place - the text, the time, and its place at the top of the read conversations - and the list is only reloaded for messages in the other conversations. When the server has to say where the card goes (the tab is hidden, so the conversation is unread now; the card isn't loaded yet or is still a draft), the list is reloaded as before.

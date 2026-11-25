@@ -1,25 +1,49 @@
-{%- comment -%}
+{% doc %}
   Verify the ledger hash chain end to end (spec §6.1, §19.1, §20). Walks every
   entry in creation order (id ASC) and, using the SAME canonical serializer as
-  append, re-derives each entry_hash and checks two invariants:
+  append, re-derives each entry_hash and checks:
     1. linkage — entry.prev_entry_hash equals the previous entry's entry_hash
-       (first entry links to 64 zeros);
-    2. integrity — digest(canonical(payload) || prev_entry_hash) == entry_hash.
-  Either failing means an entry was edited, reordered, backdated, or the chain
-  forked. Returns the first break. A tamper anywhere invalidates every entry
-  after it, so reporting the earliest break is sufficient.
+       (first entry links to 64 zeros); a linkage break with a jump in seq means
+       the entries in between were deleted (kind 'gap');
+    2. integrity — digest(canonical(payload) || prev_entry_hash) == entry_hash;
+    3. end of chain — the last entry is the one ledger/append recorded as the end
+       (queries/ledger/check_head), so deleting the newest entries or rewriting the
+       newest entry is reported;
+    4. checkpoint (optional) — the entry at checkpoint_seq still has checkpoint_hash.
+  Returns the first break. A tamper anywhere invalidates every entry after it, so
+  reporting the earliest break is sufficient.
 
-  @return {object} { ok:boolean, count:int, broken_at:(seq|null), reason:(string|null) }
-{%- endcomment -%}
+  WHAT THIS DOES NOT CATCH. The hash has no key and the recorded end of chain lives on
+  the instance, so an actor who can write both mcp_ledger and mcp_chain_lock can rewrite
+  or delete entries, recompute every later hash and the recorded end, and pass checks
+  1–3. Only check 4, against an end of chain copied OUT of the instance earlier, detects
+  that, for entries up to the copied seq (docs/security-model.md §4.5).
+
+  @param {number} [checkpoint_seq]   - optional: seq of an externally kept end of chain
+  @param {string}  [checkpoint_hash] - optional: its entry_hash
+  @return {object} { ok, count, broken_at, reason, kind, head, checkpoint }
+    kind: null | 'gap' | 'linkage' | 'integrity' | 'version' | 'truncated' | 'head' | 'checkpoint'
+    head: check_head result (recorded end of chain)
+    checkpoint: null, or { seq, hash, ok } (ok: that entry was found with that hash)
+{% enddoc %}
 {% liquid
   assign table = 'modules/mcp/mcp_ledger'
   assign zero = '0000000000000000000000000000000000000000000000000000000000000000'
   assign per_page = 100
   assign prev = zero
+  assign prev_seq = 0
   assign count = 0
   assign ok = true
   assign broken_at = null
   assign reason = null
+  assign kind = null
+
+  assign cp_seq = null
+  unless checkpoint_seq == blank or checkpoint_hash == blank
+    assign cp_seq = checkpoint_seq | plus: 0
+  endunless
+  assign cp_seen = false
+  assign cp_matched = false
 
   # Bounded outer paging loop (max 10k pages = 1M entries); breaks when a short
   # page or an empty page is reached.
@@ -36,16 +60,26 @@
     endif
 
     for rec in rows
+      assign rec_seq = rec.seq | plus: 0
       if rec.prev_entry_hash != prev
         assign ok = false
         assign broken_at = rec.seq
-        assign reason = 'linkage break: prev_entry_hash does not match preceding entry'
+        assign expected_seq = prev_seq | plus: 1
+        if rec_seq > expected_seq
+          assign last_missing = rec_seq | minus: 1
+          assign kind = 'gap'
+          assign reason = 'linkage break: seq ' | append: expected_seq | append: '–' | append: last_missing | append: ' are missing (deleted); this entry links to an entry that is no longer in the ledger'
+        else
+          assign kind = 'linkage'
+          assign reason = 'linkage break: prev_entry_hash does not match preceding entry'
+        endif
         break
       endif
       function canonical = 'modules/mcp/helpers/ledger/canonical', entry: rec
       if canonical == blank
         assign ok = false
         assign broken_at = rec.seq
+        assign kind = 'version'
         assign reason = 'unknown canonical_version: this module version cannot verify the entry'
         break
       endif
@@ -53,10 +87,23 @@
       if expected != rec.entry_hash
         assign ok = false
         assign broken_at = rec.seq
+        assign kind = 'integrity'
         assign reason = 'integrity break: recomputed entry_hash does not match stored value'
         break
       endif
+      if cp_seq != null and rec_seq == cp_seq
+        assign cp_seen = true
+        if rec.entry_hash != checkpoint_hash
+          assign ok = false
+          assign broken_at = rec.seq
+          assign kind = 'checkpoint'
+          assign reason = 'checkpoint mismatch: the entry at seq ' | append: cp_seq | append: ' no longer has the entry_hash recorded in the checkpoint (it, or an entry before it, was rewritten)'
+          break
+        endif
+        assign cp_matched = true
+      endif
       assign prev = rec.entry_hash
+      assign prev_seq = rec_seq
       assign count = count | plus: 1
     endfor
 
@@ -68,11 +115,42 @@
     endif
   endfor
 
+  # End of chain: only meaningful once the walk itself succeeded.
+  assign last_hash = null
+  if count > 0
+    assign last_hash = prev
+  endif
+  function head = 'modules/mcp/queries/ledger/check_head', last_seq: prev_seq, last_hash: last_hash
+  if ok and head.ok == false
+    assign ok = false
+    assign broken_at = head.broken_at
+    assign kind = head.kind
+    assign reason = head.reason
+  endif
+
+  assign checkpoint = null
+  if cp_seq != null
+    if ok and cp_seen == false
+      assign ok = false
+      assign broken_at = cp_seq
+      assign kind = 'checkpoint'
+      assign reason = 'checkpoint mismatch: the entry at seq ' | append: cp_seq | append: ' is not in the ledger (deleted)'
+    endif
+    assign checkpoint = {
+      "seq": cp_seq,
+      "hash": checkpoint_hash,
+      "ok": cp_matched
+    }
+  endif
+
   assign out = {
     "ok": ok,
     "count": count,
     "broken_at": broken_at,
-    "reason": reason
+    "reason": reason,
+    "kind": kind,
+    "head": head,
+    "checkpoint": checkpoint
   }
   return out
 %}

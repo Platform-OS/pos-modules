@@ -1,0 +1,14 @@
+mutation lock_advance($id: ID!, $head_seq: Int!, $head_hash: String!) {
+  # Record the new end of chain on the mutex row. Runs inside the append transaction
+  # (which already holds this row's lock), so the recorded end commits or rolls back
+  # together with the entry it describes. Only these two properties change.
+  record: record_update(id: $id, record: {
+    table: "modules/mcp/mcp_chain_lock"
+    properties: [
+      { name: "head_seq", value_int: $head_seq }
+      { name: "head_hash", value: $head_hash }
+    ]
+  }) {
+    id
+  }
+}

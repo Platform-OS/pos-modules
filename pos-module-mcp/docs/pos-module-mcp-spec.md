@@ -233,7 +233,7 @@ fields:
   entry_hash:           { type: string }
 ```
 
-**Chaining.** `entry_hash = sha256(canonical_json(entry_payload) || prev_entry_hash)`, where `entry_payload` excludes both hash fields. `prev_entry_hash` of the first entry is 64 zeros. Any backdating or edit breaks the chain and is detectable by `ledger/verify_chain`.
+**Chaining.** `entry_hash = sha256(canonical_json(entry_payload) || prev_entry_hash)`, where `entry_payload` excludes both hash fields. `prev_entry_hash` of the first entry is 64 zeros. Any backdating, edit or deletion made to the ledger table alone breaks the chain and is detectable by `ledger/verify_chain` (`ledger/append` also records the end of the chain, so deleting the newest entries is caught). The hash is unkeyed: someone who can write every table can recompute it and the recorded end, and is detected only against an end-of-chain checkpoint kept outside the instance (security-model.md §4.5).
 
 `⚠ VERIFY` a SHA-256 digest filter is available in Liquid on the current engine. If only weaker digests exist, escalate — this is load-bearing and a fallback of HMAC-with-instance-secret changes the threat model (detects tampering by outsiders, not by an actor with the secret).
 

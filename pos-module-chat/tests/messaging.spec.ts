@@ -670,6 +670,45 @@ test.describe('Testing messaging', () => {
     await context?.close();
   });
 
+  test(`a search still running is aborted when a newer one starts`, async ({ browser }) => {
+    let context: BrowserContext | null = null;
+    let page: Page;
+
+    const user = users.test6;
+    const searched = users.test1;
+    const firstQuery = `nobody${Date.now()}`;
+    const secondQuery = searched.lastName.slice(0, 4).toLowerCase();
+
+    ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
+    const inboxPage = new InboxPage(page);
+
+    // the first search gets no answer until the test ends
+    let release = () => {};
+    const released = new Promise<void>(resolve => release = resolve);
+    await page.route(url => url.pathname === '/search.frame' && url.searchParams.get('q') === firstQuery, async route => {
+      await released;
+      await route.continue().catch(() => {});
+    });
+
+    await inboxPage.goto();
+
+    const firstAborted = page.waitForEvent('requestfailed', request => new URL(request.url()).searchParams.get('q') === firstQuery);
+    const firstSent = page.waitForRequest(request => new URL(request.url()).searchParams.get('q') === firstQuery);
+    await inboxPage.search.searchFor(firstQuery);
+    await firstSent;
+
+    await inboxPage.search.searchFor(secondQuery);
+
+    await test.step('the first request is aborted, the second one shows its results without an error', async () => {
+      expect((await firstAborted).failure()?.errorText).toMatch(/abort/i);
+      expect(await inboxPage.search.isResultVisible(searched.fullName)).toBe(true);
+      await expect(page.locator('.pos-chat-search-error')).toHaveCount(0);
+    });
+
+    release();
+    await context?.close();
+  });
+
   test(`clearing the search brings back the conversations list`, async ({ browser }) => {
     let context: BrowserContext | null = null;
     let page: Page;
