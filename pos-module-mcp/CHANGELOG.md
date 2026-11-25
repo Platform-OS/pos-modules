@@ -184,6 +184,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authorization endpoint read only the preferred method and refused it with "Only public
   clients … are supported". A document is now a public client when either field allows
   `none`; a document that does not allow `none` is still refused.
+- **Deleting the newest ledger entries is detected, and the docs no longer overclaim
+  tamper-evidence.** Nothing recorded where the chain ended, so deleting the newest
+  entries left a shorter chain that verified, and the next call continued from it with no
+  gap. `ledger/append` now records the end of chain (`head_seq`, `head_hash` on
+  `mcp_chain_lock`) in the same transaction as the entry and links the next entry to it;
+  `verify_chain` and `verify_chain_recent` report a ledger that ends before or differs
+  from it (new `queries/ledger/check_head`). This also catches the newest entry rewritten
+  with a recomputed hash. The hash is still unkeyed and the recorded end is on the
+  instance, so someone who can write both tables (instance admins, deploy rights, the
+  admin API, other app code) can still rewrite the ledger undetected on the instance;
+  `docs/security-model.md` §4.4–4.5 and §6, the README and the architecture docs now say
+  so. Against them, keep the end of chain shown on the console's Ledger tab (and as
+  `chain_head` in the ledger export) outside the instance and check it later with
+  **Check checkpoint** (`verify_chain` `checkpoint_seq` / `checkpoint_hash`).
+- **The operator console explains chain breaks correctly.** Every break that was not a
+  fork was reported as "edited / backdated", including a deleted entry. Verification now
+  returns a `kind` (`gap`, `linkage`, `integrity`, `truncated`, `head`, `checkpoint`,
+  `version`), and the console says which: entries deleted (with the missing seqs), the
+  preceding entry rewritten, an edited entry, the newest entries deleted, and so on.
 - **Abuse auto-suspend revokes only the token that misbehaved.** Violations (unknown or
   disallowed tools, invalid arguments, policy denials, rate-limit hits, duplicate or
   excess approval requests) were counted per person, and at the threshold the token that

@@ -23,6 +23,16 @@
   somehow absent we still append (attestation must never be dropped), and verify_chain
   remains the backstop detector.
 
+  END OF CHAIN: the mutex row also records the chain's end (head_seq + head_hash, the
+  newest entry's seq and entry_hash). We read it under the lock, link the new entry to
+  it, and advance it in the same transaction. Linking to the RECORDED end, not to
+  whatever row is currently last, means that if the newest entries were deleted or the
+  newest entry rewritten out of band, the next entry still links to the original end and
+  verify_chain keeps reporting the gap. With no recorded end (first append after an
+  upgrade, or the row was recreated) we fall back to the last row. The recorded end is
+  not a secret: it catches changes to the ledger table alone, not an actor who rewrites
+  mcp_chain_lock as well (docs/security-model.md §4.5).
+
   @param {object} entry - payload fields (method, tool_name, ..., input_sha256,
                           input_bytes, authz_*, execution_outcome, error_code,
                           duration_ms, subject_*, idempotency_key, request_id,
@@ -50,18 +60,27 @@
 
   # ---- serialized critical section: read tail → build → write, under the mutex ----
   transaction timeout: 10
+  assign head = null
   if lock_row
     graphql lock_held = 'modules/mcp/ledger/lock_bump', id: lock_row.id, token: lock_token
+    # Re-read the row now that we hold its lock: the recorded end of chain is current.
+    graphql head_res = 'modules/mcp/ledger/lock_find', table: lock_table
+    assign head = head_res.records.results.first
   endif
 
-  graphql last_res = 'modules/mcp/ledger/last', table: table
-  assign last = last_res.records.results.first
-  if last
-    assign prev_hash = last.entry_hash | default: zero
-    assign next_seq = last.seq | plus: 1
+  if head and head.head_hash != blank and head.head_seq != blank
+    assign prev_hash = head.head_hash
+    assign next_seq = head.head_seq | plus: 1
   else
-    assign prev_hash = zero
-    assign next_seq = 1
+    graphql last_res = 'modules/mcp/ledger/last', table: table
+    assign last = last_res.records.results.first
+    if last
+      assign prev_hash = last.entry_hash | default: zero
+      assign next_seq = last.seq | plus: 1
+    else
+      assign prev_hash = zero
+      assign next_seq = 1
+    endif
   endif
 
   assign occurred_at = 'now' | to_time | strftime: '%Y-%m-%dT%H:%M:%SZ'
@@ -108,6 +127,9 @@
   endunless
 
   graphql created = 'modules/mcp/ledger/create', table: table, canonical_version: w.canonical_version, seq: next_seq, occurred_at: occurred_at, method: w.method, tool_name: w.tool_name, tool_version: w.tool_version, client_id: w.client_id, agent_id: w.agent_id, principal_id: w.principal_id, delegation_mode: w.delegation_mode, input_sha256: w.input_sha256, input_bytes: v_input_bytes, authz_policy: w.authz_policy, authz_decision: w.authz_decision, authz_reason: w.authz_reason, execution_outcome: w.execution_outcome, error_code: v_error_code, duration_ms: v_duration_ms, subject_type: w.subject_type, subject_id: w.subject_id, idempotency_key: w.idempotency_key, request_id: w.request_id, audit_json: w.audit_json, prev_entry_hash: prev_hash, entry_hash: entry_hash
+  if lock_row
+    graphql lock_advanced = 'modules/mcp/ledger/lock_advance', id: lock_row.id, head_seq: next_seq, head_hash: entry_hash
+  endif
   endtransaction
 
   assign out = {

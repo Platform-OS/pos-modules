@@ -1,0 +1,60 @@
+{%- comment -%}
+  Compare the end of the ledger as found by a verifier with the end of chain that
+  ledger/append recorded on the mcp_chain_lock row (head_seq + head_hash). Shared by
+  ledger/verify_chain and ledger/verify_chain_recent, called after their walk succeeded.
+
+  Catches what the walk cannot see on its own: the newest entries deleted (the shorter
+  chain still links up), or the newest entry rewritten with a recomputed hash. It does
+  NOT catch an actor who rewrites mcp_chain_lock as well; only a copy of the end of chain
+  kept outside the instance does (verify_chain's checkpoint_seq / checkpoint_hash).
+
+  No recorded end (no append since this check was introduced, or the lock row was
+  deleted) is not a break: `recorded` is false and the console says so.
+
+  @param {integer} last_seq  - seq of the last ledger row (0 when the ledger is empty)
+  @param {string}  last_hash - entry_hash of the last ledger row (blank when empty)
+  @return {object} { ok, recorded, head_seq, head_hash, broken_at, kind, reason }
+{%- endcomment -%}
+{% liquid
+  assign last_seq = last_seq | default: 0 | plus: 0
+  graphql lock_res = 'modules/mcp/ledger/lock_find', table: 'modules/mcp/mcp_chain_lock'
+  assign lock_row = lock_res.records.results.first
+
+  assign out = {
+    "ok": true,
+    "recorded": false,
+    "head_seq": null,
+    "head_hash": null,
+    "broken_at": null,
+    "kind": null,
+    "reason": null
+  }
+  if lock_row == blank or lock_row.head_hash == blank or lock_row.head_seq == blank
+    return out
+  endif
+
+  assign head_seq = lock_row.head_seq | plus: 0
+  assign out['recorded'] = true
+  assign out['head_seq'] = head_seq
+  assign out['head_hash'] = lock_row.head_hash
+
+  if last_seq < head_seq
+    assign first_missing = last_seq | plus: 1
+    assign out['ok'] = false
+    assign out['broken_at'] = first_missing
+    assign out['kind'] = 'truncated'
+    assign out['reason'] = 'end of chain missing: the ledger ends at seq ' | append: last_seq | append: ' but ledger/append recorded seq ' | append: head_seq | append: ' as its end, so seq ' | append: first_missing | append: '–' | append: head_seq | append: ' were deleted'
+  elsif last_seq > head_seq
+    assign first_extra = head_seq | plus: 1
+    assign out['ok'] = false
+    assign out['broken_at'] = first_extra
+    assign out['kind'] = 'head'
+    assign out['reason'] = 'end of chain mismatch: entries after seq ' | append: head_seq | append: ' (the recorded end of chain) were not written by ledger/append'
+  elsif last_hash != lock_row.head_hash
+    assign out['ok'] = false
+    assign out['broken_at'] = last_seq
+    assign out['kind'] = 'head'
+    assign out['reason'] = 'end of chain mismatch: the newest entry no longer has the entry_hash it was appended with (rewritten, hash recomputed)'
+  endif
+  return out
+%}

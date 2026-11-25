@@ -1,6 +1,6 @@
 # Security Model
 
-**Scope.** The trust boundary of pos-module-mcp — how the module decides *who* is calling (identity), *whether* they may act (authorization), and how it produces a *tamper-evident record* of what happened (ledger). This document is the normative companion to the spec: it grounds each guarantee in the shipped engine (`modules/mcp/public/lib/commands/`) and states — honestly — where a guarantee ends.
+**Scope.** The trust boundary of pos-module-mcp — how the module decides *who* is calling (identity), *whether* they may act (authorization), and how it produces a *hash-chained record* of what happened (ledger). This document is the normative companion to the spec: it grounds each guarantee in the shipped engine (`modules/mcp/public/lib/commands/`) and states — honestly — where a guarantee ends.
 
 - Per-command reference: [`engine-commands-architecture.md`](./engine-commands-architecture.md)
 - End-to-end request lifecycle + all exit paths: [`request-flow.md`](./request-flow.md)
@@ -22,7 +22,7 @@ The module's job is to make each of those either **impossible** or **detectable 
 
 **What is inside the boundary:** the `/mcp` endpoint, identity resolution, schema validation, per-tool authorization, rate/abuse limits, the human-approval gate, transaction-wrapped execution, and the attestation ledger.
 
-**What is *not* claimed** (honest boundaries, expanded in §6): the module does not defend against the **instance owner / direct database access** — an actor with the platform admin API or DB can alter any table. Against that actor the ledger provides **tamper-evidence** (detection), not prevention. It also cannot undo **external** side effects a tool caused (an email sent, a third-party charge) — only platformOS-transactional state rolls back.
+**What is *not* claimed** (honest boundaries, expanded in §6): the module does not defend against the **instance owner / direct database access** — an actor with the platform admin API, deploy rights or the DB can alter any table. On its own the ledger does **not** detect a deliberate rewrite by that actor: the hash has no key and the chain's recorded end lives on the instance, so they can recompute both (§4.5). Detection against them needs a copy of the end of chain kept **outside** the instance (a checkpoint). It also cannot undo **external** side effects a tool caused (an email sent, a third-party charge) — only platformOS-transactional state rolls back.
 
 ---
 
@@ -100,9 +100,9 @@ Every decision (`allow`/`deny`/`not_applicable`) and its `reason` are recorded o
 
 ---
 
-## 4. Ledger plane — tamper-evident attestation (spec §6; task-1.7)
+## 4. Ledger plane — hash-chained attestation (spec §6; task-1.7)
 
-> *A record of what actually happened that cannot be quietly rewritten.*
+> *A record of what actually happened that MCP users and agents cannot rewrite, and that shows changes made to its table alone. Rewrites by someone who can write every table are shown only against a checkpoint kept outside the instance (§4.5).*
 
 ### 4.1 What is recorded, and when
 
@@ -146,22 +146,32 @@ entry_hash = sha256( canonical(payload) || prev_entry_hash )
 
 ### 4.4 Verification (`ledger/verify_chain`, `verify_chain_recent`)
 
-`verify_chain` walks every entry in creation order (id ASC) and checks two invariants, returning the **first** break:
+`verify_chain` walks every entry in creation order (id ASC) and checks, returning the **first** break:
 
-1. **linkage** — `entry.prev_entry_hash` equals the previous entry's `entry_hash`;
-2. **integrity** — `sha256(canonical(payload) || prev_entry_hash) == entry_hash`.
+1. **linkage** — `entry.prev_entry_hash` equals the previous entry's `entry_hash`. When the `seq` also jumps, the entries in between were deleted, and the console says so;
+2. **integrity** — `sha256(canonical(payload) || prev_entry_hash) == entry_hash`;
+3. **end of chain** — the last entry is the one `ledger/append` recorded as the end. `append` writes the newest entry's `seq` and `entry_hash` (`head_seq`, `head_hash`) to the `mcp_chain_lock` row in the same transaction as the entry, and links the next entry to that recorded end, not to whatever row is last. Without this check, deleting the newest entries left a shorter chain that still linked up, and the next append continued from it without a gap;
+4. **checkpoint** (optional, full walk only) — the entry at `checkpoint_seq` still has `checkpoint_hash` (see §4.5).
 
-Any edit, reorder, backdate, or fork breaks one of these; a tamper anywhere invalidates every later entry, so the earliest break is sufficient. `verify_chain_recent` is the bounded tail check (default 200) the operator console runs per load so dashboard cost doesn't grow with the ledger — same invariants, verifying from genesis if the window contains it, else anchoring on the oldest fetched row (a concurrency fork is always a recent append).
+A change made **to the ledger table alone** (an edit, a reorder, a deleted entry anywhere including the newest ones, an entry rewritten with its hash recomputed, a fork) breaks one of 1–3. A tamper anywhere invalidates every later entry, so the earliest break is sufficient. `verify_chain_recent` is the bounded tail check (default 200) the operator console runs per load so dashboard cost doesn't grow with the ledger — checks 1–3, verifying from genesis if the window contains it, else anchoring on the oldest fetched row (a concurrency fork, a deleted newest entry and a rewritten newest entry are all at the end, inside the window). An older edit needs the full walk (`?verify=full`).
+
+What the checks do **not** catch is in §4.5.
 
 ### 4.5 Immutability — the honest model
 
-Immutability is enforced **two ways**, and it is important to be precise about each:
+What holds depends on who makes the change, and it is important to be precise about each case:
 
-1. **Append-only by construction.** The module has **no code path that updates or deletes a ledger entry** — the `ledger/` GraphQL ops are create + reads only. (The single `record_update` in `ledger/` targets the separate `mcp_chain_lock` mutex row, never an entry.) Through the MCP surface and the app's own GraphQL, entries can only be appended. Combined with platformOS's default table posture, no *in-app* identity can mutate the ledger.
+1. **Append-only by construction.** The module has **no code path that updates or deletes a ledger entry** — the `ledger/` GraphQL ops are create + reads only. (The `record_update`s in `ledger/` target the separate `mcp_chain_lock` row — the mutex token and the recorded end of chain — never an entry.) Through the MCP surface, entries can only be appended: no MCP user or agent has a path that changes or deletes one.
 
-2. **Tamper-evidence for out-of-band changes.** An actor who **bypasses the app** — the platform admin API, a direct DB write, a backup edit — *can* physically alter a row. The hash chain exists precisely for this case: `verify_chain` **detects** it (the adversarial test edits a canonical field via the admin API and asserts the chain reports BROKEN, then restores the exact value and asserts it validates again). 
+   "Append-only" is a property of **this module's code**, not of the platform. platformOS has no per-table permissions for Liquid, so any other app code or module on the instance, and anyone with deploy rights or the admin API, can write `mcp_ledger` and `mcp_chain_lock`.
 
-So the operative guarantee is: **append-only to every in-app identity, and tamper-evident against everyone else.** The ledger is *tamper-evident*, not *tamper-proof against the instance owner* — and that is the correct, honest claim for a single-instance audit log without external anchoring. (Anchoring the tip hash to an external notary would close that gap; it is out of scope for v1.)
+2. **Detection of changes to the ledger table alone.** An actor who changes `mcp_ledger` out of band — the admin API, a direct DB write, a backup edit, another module's code — and leaves `mcp_chain_lock` alone is detected by the checks in §4.4: an edited field, a deleted entry (also the newest ones), an entry rewritten with a recomputed hash. The coverage suite asserts each case and that the chain verifies again after an exact restore.
+
+3. **No detection, on the instance, of a deliberate rewrite of both tables.** The hash has **no key**: `entry_hash` is a plain SHA-256 over a serialization the module publishes (`helpers/ledger/canonical`), so anyone who can write the tables can rewrite an entry and recompute its hash and every later one. The recorded end of chain is a row on the same instance, so they can rewrite it too. After that, checks 1–3 pass. A key would not change this: platformOS has nowhere to keep a secret that the instance owner, deploy rights or other app code cannot read (constants are readable by all Liquid on the instance), so a keyed hash would add no protection against the people able to make the change.
+
+   **What closes the gap is a checkpoint kept outside the instance.** The console's Ledger tab shows the recorded end of chain (`seq` + `entry_hash`), and the ledger export includes it as `chain_head`. Copy it somewhere the instance's admins cannot change (an archive, a ticket, a notary). Later, **Check checkpoint** (`/mcp-admin?tab=ledger&checkpoint_seq=…&checkpoint_hash=…`) walks the full chain and fails if the entry at that seq is gone or has a different hash, which is the case after any rewrite or deletion of it or of an earlier entry. Entries written **after** the newest checkpoint are not covered by it.
+
+So the operative guarantee is: **append-only to MCP users, agents and the module's own code paths; changes to the ledger table alone are detected; a deliberate rewrite by someone who can write every table (instance admins, anyone with deploy rights or the admin API) is detected only for entries up to a checkpoint kept outside the instance.** For an audit log, those people are the main adversary: do not treat `verify_chain` passing on its own as evidence against them.
 
 ### 4.6 Atomicity with mutations (§4.3, exercised in task-2)
 
@@ -169,9 +179,9 @@ For a **mutating** tool, `ledger/append` runs **inside the same `{% transaction 
 
 ### 4.7 Concurrency safety
 
-Appends serialize on a singleton `mcp_chain_lock` row: inside the append transaction the writer `record_update`s the lock with a fresh unique token *before* reading the chain tail, which takes a Postgres row-write-lock held until commit — so two concurrent appends cannot both read the same tail and fork the chain. platformOS Liquid has no advisory lock / unique-index / CAS primitive; the mutex row is the available serialization mechanism. Verified fork-free under concurrent load.
+Appends serialize on a singleton `mcp_chain_lock` row: inside the append transaction the writer `record_update`s the lock with a fresh unique token *before* reading the recorded end of chain (§4.4), which takes a Postgres row-write-lock held until commit — so two concurrent appends cannot both read the same tail and fork the chain. platformOS Liquid has no advisory lock / unique-index / CAS primitive; the mutex row is the available serialization mechanism. Verified fork-free under concurrent load.
 
-**Ledger invariants:** every post-auth outcome attested · arguments hashed never stored · canonical hashing deterministic across DB round-trip · chain detects any edit/reorder/backdate/fork · append atomic with its mutation.
+**Ledger invariants:** every post-auth outcome attested · arguments hashed never stored · canonical hashing deterministic across DB round-trip · chain detects an edit/reorder/backdate/fork/deletion made to the ledger table alone · a rewrite of both tables is detected only against an external checkpoint · append atomic with its mutation.
 
 ---
 
@@ -211,7 +221,7 @@ Not protocol errors (HTTP 200, `result.isError: true`): **argument-schema violat
 
 What this security model deliberately does **not** claim:
 
-- **The instance owner is trusted.** Anyone with the platform admin API or direct DB access can alter any table. Against that actor the ledger is **tamper-evident** (detected by `verify_chain`), not prevented. External anchoring of the tip hash would be required to defend the audit log against the instance owner; it is out of scope for v1.
+- **The instance owner is trusted.** Anyone with the platform admin API, deploy rights or direct DB access, and any other code on the instance, can alter any table, including `mcp_ledger` and `mcp_chain_lock`. `verify_chain` does **not** detect a deliberate rewrite by that actor (the hash is unkeyed and the recorded end of chain is on the instance, §4.5); it detects it only for entries up to an end-of-chain checkpoint the operator copied outside the instance. Automatic external anchoring (pushing the end of chain to a notary) is out of scope for v1.
 - **External side effects are not transactional.** platformOS rolls back *its* state on failure; it cannot recall an email a tool already sent or a third-party charge it already made. Tool authors must design idempotent, retry-safe handlers for externally-visible effects.
 - **`-32700` is unreachable** (see §5) — a platform pre-dispatch behavior, not an engine gap.
 - **MCP Apps visibility is not an access control.** An app-only tool (manifest `ui.visibility: ["app"]`) is kept out of the in-app agent's list and the in-process `invoke`, and offered over MCP only to clients that declared the MCP Apps extension (`helpers/protocol/apps_client`). But a host forwards a card's call as an ordinary `tools/call`, indistinguishable from the model's, and a client can declare the extension without showing cards. Its authorization policy, approval gate, scopes, rate limits and ledger are what protect it; decisions only a person may make need their own check (see [mcp-apps.md](./mcp-apps.md#what-visibility-does-not-protect)).
