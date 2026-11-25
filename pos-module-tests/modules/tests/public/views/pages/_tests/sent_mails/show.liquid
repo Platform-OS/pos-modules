@@ -3,6 +3,12 @@ slug: _tests/sent_mails/:id
 layout: modules/tests/test
 ---
 {% liquid
+  # sent emails hold password-reset links: superadmins only (helpers/can_read_sent_mails)
+  function allowed = 'modules/tests/helpers/can_read_sent_mails'
+  unless allowed
+    response_status 404
+    break
+  endunless
   if context.environment == 'staging' or context.environment == 'development'
     function mail = 'modules/tests/queries/sent_mails/find', id: context.params.id
 
