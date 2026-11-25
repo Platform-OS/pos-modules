@@ -56,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `initialize` (new `mcp_token.ui_apps`, `helpers/protocol/apps_client`). For any other
   client it is not listed and is an unknown tool. It is left out of
   `queries/registry/for_agent`, and `commands/execute/invoke` answers it as an unknown
-  tool. Visibility is enforced by the host and is not a security boundary. A malformed `ui` (another key, a URI outside `ui://`, an empty or unknown visibility) excludes the tool. Provider `resources/read` content items keep their
+  tool. Visibility is enforced by the host and is not a security boundary. A malformed `ui` (another key, a URI outside `ui://`, an empty or unknown 
+  visibility) excludes the tool. Provider `resources/read` content items keep their
   `_meta` when it is an object, so a card's `_meta.ui.csp` reaches the host. Tools without
   `ui` are served exactly as before.
 
