@@ -114,6 +114,8 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.search.results = document.querySelector('.pos-chat-search-results');
   // clearing the search results button (dom node)
   module.settings.search.clear = document.querySelector('.pos-chat-search-clear');
+  // aborts the search still running - a newer one, or clearing it, replaces its results (AbortController or null)
+  module.settings.search.controller = null;
 
   // stores all the upload related stuff (object)
   module.settings.upload = {};
@@ -191,6 +193,34 @@ window.pos.modules.chat = function(userSettings = {}){
 
   // to enable debug mode (bool)
   module.settings.debug = (userSettings?.debug) ? userSettings.debug : false;
+  // how long (ms) a request to the server may take, its response read included, before it's given up (int)
+  module.settings.requestTimeout = userSettings.requestTimeout || 30000;
+
+
+
+  // purpose:		fetch() that gives up after module.settings.requestTimeout - each kind of request
+  //				    runs one at a time (older messages, the sidebar, starting a conversation, saving
+  //				    an upload the Send waits for), so one that never answers (a dropped connection,
+  //				    a stalled proxy) would otherwise block it until the page is reloaded
+  // arguments:	the url (string), fetch options (object, optional) - their signal aborts it sooner
+  // returns:		fetch's promise - rejects with a TimeoutError DOMException when it takes too long
+  //				    (reading the body too), with the signal's reason when that aborts it
+  // ------------------------------------------------------------------------
+  module.request = (url, options = {}) => {
+    const controller = new AbortController();
+    const signal = options.signal;
+
+    // not cleared when the response comes, as reading its body can stall too - aborting a
+    // request that has finished does nothing
+    setTimeout(() => controller.abort(new DOMException('The request timed out', 'TimeoutError')), module.settings.requestTimeout);
+
+    if(signal?.aborted){
+      controller.abort(signal.reason);
+    }
+    signal?.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
+
+    return fetch(url, { ...options, signal: controller.signal });
+  };
 
 
 
@@ -791,7 +821,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     if(!module.settings.starting){
       module.settings.starting = (async () => {
-        const response = await fetch(module.settings.createConversationUrl, {
+        const response = await module.request(module.settings.createConversationUrl, {
           method: 'POST',
           credentials: 'same-origin',
           headers: {
@@ -994,7 +1024,7 @@ window.pos.modules.chat = function(userSettings = {}){
     module.settings.loadingIndicator.classList.add('active');
 
     // get the data
-    module.settings.loadingPage = fetch(`/api/chat/messages.json?conversation_id=${module.conversationId}&before=${oldestId}&per_page=${perPage}`)
+    module.settings.loadingPage = module.request(`/api/chat/messages.json?conversation_id=${module.conversationId}&before=${oldestId}&per_page=${perPage}`)
     .then(response => {
       // parse it to JSON if valid
       if(response.ok){
@@ -1107,7 +1137,7 @@ window.pos.modules.chat = function(userSettings = {}){
     const params = new URLSearchParams({ read: button.dataset.read, before: button.dataset.before });
 
     // get the data
-    fetch(`/conversations.frame?${params}`)
+    module.request(`/conversations.frame?${params}`)
     .then(response => {
       if(response.ok){
         return response.text();
@@ -1237,7 +1267,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     pos.modules.debug(module.settings.debug, module.settings.id, 'Reloading the conversations', params.toString());
 
-    conversations.reloading = fetch(`/conversations.frame?${params}`)
+    conversations.reloading = module.request(`/conversations.frame?${params}`)
     .then(response => {
       if(response.ok){
         return response.text();
@@ -1307,8 +1337,12 @@ window.pos.modules.chat = function(userSettings = {}){
     // the input changed (or was cleared) while the request was in flight, a newer search owns the results
     const isStale = () => module.settings.search.input.value.trim() !== query;
 
+    // the one still running is no longer wanted - no need for the server to finish it
+    module.settings.search.controller?.abort();
+    const controller = module.settings.search.controller = new AbortController();
+
     // get the data
-    return fetch(`/search.frame?q=${encodeURIComponent(query)}`)
+    return module.request(`/search.frame?q=${encodeURIComponent(query)}`, { signal: controller.signal })
     .then(response => {
       if(response.ok){
         pos.modules.debug(module.settings.debug, module.settings.id, 'Query run successfull', response);
@@ -1332,7 +1366,14 @@ window.pos.modules.chat = function(userSettings = {}){
       pos.modules.debug(module.settings.debug, module.settings.id, 'Applied serach results HTML to the page', data);
     })
     .catch(error => {
-      // a network error, or a response that wasn't ok
+      // replaced by a newer search or cleared - not a failure (a timeout is)
+      if(controller.signal.aborted){
+        pos.modules.debug(module.settings.debug, module.settings.id, 'Search aborted', query);
+
+        return;
+      }
+
+      // a network error, a response that wasn't ok, or no answer in time
       pos.modules.debug(module.settings.debug, module.settings.id, 'Search failed', query, error instanceof Response ? error.status : error);
 
       if(isStale()){
@@ -1345,6 +1386,11 @@ window.pos.modules.chat = function(userSettings = {}){
       item.setAttribute('role', 'alert');
       item.textContent = window.pos.translations.chat.searchFailed;
       module.settings.search.results.replaceChildren(item);
+    })
+    .finally(() => {
+      if(module.settings.search.controller === controller){
+        module.settings.search.controller = null;
+      }
     });
   };
 
@@ -1352,6 +1398,7 @@ window.pos.modules.chat = function(userSettings = {}){
   // purpose:		clears search results
   // ------------------------------------------------------------------------
   module.search.clear = () => {
+    module.settings.search.controller?.abort();
     module.settings.search.input.value = '';
     module.settings.search.results.innerHTML = '';
   };
@@ -1468,7 +1515,7 @@ window.pos.modules.chat = function(userSettings = {}){
       // an attachment belongs to a conversation, so the first one starts a new conversation
       const conversationId = await module.startConversation();
 
-      response = await fetch(module.settings.upload.createUrl, {
+      response = await module.request(module.settings.upload.createUrl, {
         method: 'POST',
         credentials: 'same-origin',
         headers: {
