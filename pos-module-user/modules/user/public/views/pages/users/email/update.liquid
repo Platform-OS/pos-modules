@@ -24,6 +24,12 @@ method: put
     function _ = 'modules/user/commands/profiles/update', object: current_profile, profile: current_profile
     assign event_payload = {"actor_id": object.id, "object": object, "actor": object, "target": null, "object_id": null, "target_id": null}
     function _event = 'modules/core/commands/events/publish', type: 'email_updated', object: event_payload, delay: null, max_attempts: null
+    # the new address is unverified (user/email_update cleared it): when the
+    # instance verifies addresses, send the link to the new one
+    function verification_on = 'modules/user/helpers/email_verification_enabled'
+    if verification_on and object.email_changed
+      function _verification = 'modules/user/commands/email_verifications/create', email: context.params.user.email, host: context.location.host, hcaptcha_params: null, verify_hcaptcha: false
+    endif
 
      assign notice = 'modules/user/users.email.change_success' | t
     # platformos-check-disable DeprecatedTag

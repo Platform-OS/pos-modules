@@ -1,0 +1,13 @@
+mutation clear_email_verified($id: ID!) {
+  record: record_update(
+    id: $id
+    record: {
+      table: "modules/user/profile"
+      properties: [
+        { name: "email_verified_at", value: null }
+      ]
+    }
+  ) {
+    id
+  }
+}
