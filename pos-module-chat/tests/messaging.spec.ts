@@ -222,16 +222,30 @@ test.describe('Testing messaging', () => {
     ({ context, page } = await switchContext(context, browser, `tests/.auth/${user.email}.json`));
     const inboxPage = new InboxPage(page);
     await inboxPage.goto();
-    const profileId = await page.evaluate(() => String((window as any).pos.profile.id));
 
-    await test.step('the API pages through them by cursor, unread ones first, each group newest first', async () => {
+    // a page of the sidebar as the inbox loads it - the cards, and the cursor of the next page from the 'load more' button
+    const listPage = (query: string) => page.evaluate(async (query) => {
+      const doc = new DOMParser().parseFromString(await (await fetch(`/conversations.frame?${query}`)).text(), 'text/html');
+      const more = doc.querySelector<HTMLElement>('.pos-chat-conversations-more button');
+      return {
+        cards: [...doc.querySelectorAll<HTMLElement>('li[data-conversation-id]')].map(li => ({
+          id: li.dataset.conversationId!,
+          unread: !!li.querySelector('.pos-chat-conversationCard-unread'),
+          at: li.querySelector('.pos-chat-conversationCard-lastMessage time')!.getAttribute('datetime')!
+        })),
+        next: more ? new URLSearchParams({ read: more.dataset.read!, before: more.dataset.before! }).toString() : null,
+        html: doc.body.innerHTML
+      };
+    }, query);
+
+    await test.step('the list pages through them by cursor, unread ones first, each group newest first', async () => {
       const listed: { id: string, unread: boolean, at: string }[] = [];
       let cursor = '';
       for (let i = 0; i < 20; i++) {
-        const json = await (await page.request.get(`/api/chat/conversations?per_page=7${cursor}`)).json();
-        listed.push(...json.results.map((c: any) => ({ id: c.id, unread: !c.participant_read_ids.includes(profileId), at: c.last_message_at })));
-        if (!json.has_next_page) break;
-        cursor = `&read=${json.next_read}&before=${encodeURIComponent(json.next_before)}`;
+        const { cards, next } = await listPage(`per_page=7&${cursor}`);
+        listed.push(...cards);
+        if (!next) break;
+        cursor = next;
       }
 
       expect(listed.length).toBeGreaterThanOrEqual(40);
@@ -244,17 +258,17 @@ test.describe('Testing messaging', () => {
       }
     });
 
-    await test.step(`the API shows the participants' names, never their emails or account details`, async () => {
-      const json = await (await page.request.get('/api/chat/conversations?per_page=50')).json();
-      const participants = json.results.flatMap((c: any) => c.participants);
-      expect(participants.length).toBeGreaterThan(0);
-      for (const participant of participants) {
-        expect(Object.keys(participant).sort()).toEqual(['first_name', 'id', 'last_name', 'name', 'uuid']);
-      }
-      // the seeded messages mention emails in their text - what was typed is shown as typed,
-      // so only the rest of the response is checked
-      for (const c of json.results) delete c.last_message?.message;
-      expect(JSON.stringify(json), 'no email address anywhere else in the response').not.toMatch(/@example\.com/);
+    await test.step(`the list shows the participants' names, never their emails`, async () => {
+      const { html } = await listPage('per_page=50');
+      const { names, rest } = await page.evaluate((html) => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        // the seeded messages mention emails in their text - what was typed is shown as typed,
+        // so only the rest of the list is checked
+        doc.querySelectorAll('.pos-chat-conversationCard-lastMessage small').forEach(text => text.remove());
+        return { names: doc.querySelectorAll('.pos-chat-conversationCard-name').length, rest: doc.body.innerHTML };
+      }, html);
+      expect(names).toBeGreaterThan(0);
+      expect(rest, 'no email address anywhere else in the list').not.toMatch(/@example\.com/);
     });
 
     await test.step('the inbox shows 30, scrolling down and the "Load more" button load the rest - each once', async () => {
@@ -364,7 +378,7 @@ test.describe('Testing messaging', () => {
     });
 
     await test.step(`scrolling to the top loads the older ones, each shown once`, async () => {
-      const response = page.waitForResponse(response => response.url().includes('/api/chat/messages.json'));
+      const response = page.waitForResponse(response => response.url().includes('/messages.frame'));
       await page.locator('#chat-messagesList-container').evaluate(container => container.scrollTop = 0);
       await response;
 
@@ -545,13 +559,12 @@ test.describe('Testing messaging', () => {
     const renderedOrder = await page.evaluate(() => {
       const chat = (window as any).pos.modules.active.chat;
       const base = Date.parse('2020-01-01T00:00:00Z');
-      const make = (text: string, offsetSeconds: number) => ({
-        message: text,
-        autor_id: 'someone-else',
-        sender_name: 'Peer',
-        created_at: new Date(base + offsetSeconds * 1000).toISOString(),
-        status: 'received',
-      });
+      // as the server renders them (message.liquid)
+      const make = (text: string, offsetSeconds: number) => chat.settings.messageFromHtml(
+        `<li class="pos-chat-message" data-autor-id="someone-else">` +
+        `<time datetime="${new Date(base + offsetSeconds * 1000).toISOString()}"></time>` +
+        `<div class="pos-chat-message-content pos-chat-message-text">${text}</div></li>`
+      );
 
       // arrival order: third, first, second
       chat.showMessage(make('ordering-third', 3));
@@ -784,8 +797,12 @@ test.describe('Testing messaging', () => {
       expect(await inboxPage.chat.sendMessage(validMessage)).toBe(true);
 
       const stored = await page.evaluate(async (conversationId) => {
-        const response = await fetch(`/api/chat/messages.json?conversation_id=${conversationId}&page=1&per_page=20`);
-        return (await response.json()).results.map((message: any) => String(message.message));
+        const response = await fetch(`/messages.frame?conversation_id=${conversationId}&per_page=20`);
+        const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+        return [...doc.querySelectorAll('li[data-id] .pos-chat-message-text')].reverse().map((text) => {
+          text.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+          return (text.textContent || '').trim();
+        });
       }, conversationId);
 
       const fromThisTest = stored.filter((text: string) => text.includes(marker));
@@ -816,8 +833,15 @@ test.describe('Testing messaging', () => {
 
     // newest first
     const storedWithMarker = (conversationId: string) => page.evaluate(async ({ conversationId, marker }) => {
-      const response = await fetch(`/api/chat/messages.json?conversation_id=${conversationId}&per_page=20`);
-      return (await response.json()).results.map((message: any) => String(message.message)).filter((text: string) => text.includes(marker));
+      const stored = await (async () => {
+        const response = await fetch(`/messages.frame?conversation_id=${conversationId}&per_page=20`);
+        const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+        return [...doc.querySelectorAll('li[data-id] .pos-chat-message-text')].reverse().map((text) => {
+          text.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+          return (text.textContent || '').trim();
+        });
+      })();
+      return stored.filter((text: string) => text.includes(marker));
     }, { conversationId, marker });
 
     const desktopMessage = `${marker} picked word, then more`;
@@ -891,7 +915,7 @@ test.describe('Testing messaging', () => {
     await page.reload();
     await inboxPage.chat.messageInputFieldEnabled.waitFor();
 
-    const historyUrl = '**/api/chat/messages.json*';
+    const historyUrl = '**/messages.frame*';
     const loadPage = () => page.evaluate(() => (window as any).pos.modules.active.chat.loadPage());
     const errorToasts = page.locator('#pos-toasts .pos-toast-error:not(.pos-toast-unloading)').filter({ hasText: 'We could not load older messages' });
 
@@ -911,7 +935,7 @@ test.describe('Testing messaging', () => {
     await test.step('the next try asks once, however many times it is started, and hides the error', async () => {
       await page.unrouteAll();
       let requests = 0;
-      page.on('request', request => { if (request.url().includes('/api/chat/messages.json')) requests++; });
+      page.on('request', request => { if (request.url().includes('/messages.frame')) requests++; });
 
       const sameLoad = await page.evaluate(() => {
         const chat = (window as any).pos.modules.active.chat;

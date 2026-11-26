@@ -47,13 +47,13 @@ const unreadCount = async (page: Page): Promise<number> => {
 
 // opens each conversation the user hasn't read - the inbox marks it read once it connects
 const readEverything = async (page: Page) => {
-  const profileId = String(await page.evaluate(() => (window as any).pos.profile.id));
-  const unreadIds = async (): Promise<string[]> => {
-    const conversations = await page.evaluate(() => fetch('/api/chat/conversations.json?per_page=50').then(response => response.json()));
-    return conversations.results
-      .filter((conversation: any) => !conversation.participant_read_ids.map(String).includes(profileId))
-      .map((conversation: any) => String(conversation.id));
-  };
+  // the cards the sidebar shows as unread
+  const unreadIds = (): Promise<string[]> => page.evaluate(async () => {
+    const doc = new DOMParser().parseFromString(await (await fetch('/conversations.frame?per_page=50')).text(), 'text/html');
+    return [...doc.querySelectorAll<HTMLElement>('li[data-conversation-id]')]
+      .filter(li => li.querySelector('.pos-chat-conversationCard-unread'))
+      .map(li => li.dataset.conversationId!);
+  });
 
   for (const id of await unreadIds()) {
     await page.goto(`/inbox?conversation_id=${id}`);
