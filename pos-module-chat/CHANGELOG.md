@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. Dates are d
 
 ## Unreleased
 
+## v3.0.0
+
+* Breaking: messages are rendered only on the server, by `modules/chat/message`, so a message looks the same however it reaches the page. The inbox no longer builds messages in the browser from data:
+  * Older messages (scrolling to the top of a conversation) are loaded as HTML from `GET /messages.frame` (`conversation_id`, `before`, `per_page`), rendered the same way as the inbox renders the conversation (the new `modules/chat/messages` partial, also used by the inbox).
+  * A new message is broadcast to the conversation's `conversate` room as `{ html, preview }` - the message rendered by `modules/chat/message` and the sidebar card's text. The raw `message`, `autor_id`, `sender_name`, `created_at` and `media` fields are gone; the `<li>` carries `data-id` and `data-autor-id`, and its `<time datetime>` the time. The same HTML goes to both participants, so the inbox adds `pos-chat-message-authored` itself. For data about new messages, use the `notifications-<profile_id>` channel and the `pos-chat:message` event, which are unchanged.
+  * The `pos-chat-template-message-sent` / `pos-chat-template-message-received` templates, the `as_template` parameter of `modules/chat/message`, and `buildMessageElement` / `formatFileSize` in `pos-chat.js` are removed. An overwrite of `modules/chat/message` now changes live and older messages too.
+* Removed: `GET /api/chat/messages.json` and `GET /api/chat/conversations` (and the `modules/chat/json/*` partials) - the inbox doesn't use them any more. `POST /api/chat/conversations` stays.
+* Fix: messages shown live carry their `data-id`, like the ones the inbox renders.
+
 ## v2.11.1
 
 * Fix: the inbox's requests to the server give up after 30 seconds (`requestTimeout` in the inbox's settings). Each kind runs one at a time, so a request that never got an answer (a dropped connection, a stalled proxy) kept older messages from loading, the sidebar from updating, or the Send button disabled until the page was reloaded. Older messages that time out show the usual error toast and can be tried again by scrolling up. A first message that times out stays in the input, the same as when starting the conversation fails.

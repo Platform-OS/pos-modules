@@ -58,17 +58,6 @@
   });
 </script>
 
-<!-- message templates -->
-{% assign dummy_message = { "message": "", "created_at": null } %}
-<template id="pos-chat-template-message-received">
-  {% render 'modules/chat/message', message: dummy_message, authored: false, as_template: true %}
-</template>
-<template id="pos-chat-template-message-sent">
-  {% render 'modules/chat/message', message: dummy_message, authored: true, as_template: true %}
-</template>
-<!-- end message templates -->
-
-
 {% liquid
   # the other person in the open conversation, for the header, the page title and the
   # sidebar card of a conversation that isn't started yet
@@ -155,32 +144,7 @@
         <ul class="pos-chat-messages" id="chat-messagesList">
           {% liquid
             assign list = current_conversation.messages | reverse
-            # 7 minutes, in seconds - a message only repeats the timestamp once the gap
-            # since the previous message grows past this
-            assign time_group_threshold = 420
-            assign previous_created_at = null
-
-            for message in list
-              if message.autor_id == current_profile.id
-                assign authored = true
-              else
-                assign authored = false
-              endif
-
-              assign show_time = true
-              if previous_created_at
-                assign current_epoch = message.created_at | to_time | date: '%s' | plus: 0
-                assign previous_epoch = previous_created_at | to_time | date: '%s' | plus: 0
-                assign gap_seconds = current_epoch | minus: previous_epoch
-
-                if gap_seconds < time_group_threshold
-                  assign show_time = false
-                endif
-              endif
-              assign previous_created_at = message.created_at
-
-              render 'modules/chat/message', message: message, authored: authored, show_time: show_time, timezone: current_profile.properties.timezone
-            endfor
+            render 'modules/chat/messages', messages: list, current_profile: current_profile
           %}
         </ul>
       </div>

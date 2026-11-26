@@ -1,0 +1,36 @@
+{% doc %}
+  Renders a run of messages, oldest first - the inbox's open conversation and the older
+  messages loaded by scrolling up (messages.frame). The timestamp is only shown when it's
+  been more than 7 minutes since the message before it; the first message of the run always
+  shows it, pos-chat.js rechecks it against the message shown before it.
+
+  @param {array} messages - the messages, oldest first, as returned by modules/chat/queries/messages/search_by_participant (with media)
+  @param {object} current_profile - the current profile, its messages are shown as authored
+{% enddoc %}
+{% liquid
+  # 7 minutes, in seconds - keep in step with timeGroupThreshold in pos-chat.js
+  assign time_group_threshold = 420
+  assign previous_created_at = null
+
+  for message in messages
+    if message.autor_id == current_profile.id
+      assign authored = true
+    else
+      assign authored = false
+    endif
+
+    assign show_time = true
+    if previous_created_at
+      assign current_epoch = message.created_at | to_time | date: '%s' | plus: 0
+      assign previous_epoch = previous_created_at | to_time | date: '%s' | plus: 0
+      assign gap_seconds = current_epoch | minus: previous_epoch
+
+      if gap_seconds < time_group_threshold
+        assign show_time = false
+      endif
+    endif
+    assign previous_created_at = message.created_at
+
+    render 'modules/chat/message', message: message, authored: authored, show_time: show_time, timezone: current_profile.properties.timezone
+  endfor
+%}

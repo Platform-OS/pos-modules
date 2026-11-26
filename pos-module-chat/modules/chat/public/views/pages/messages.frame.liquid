@@ -1,0 +1,36 @@
+---
+layout: ''
+---
+
+{% doc %}
+  The messages of a conversation older than the ones shown, rendered as in the inbox - loaded
+  by pos-chat.js when the user scrolls to the top. Paged by the id of the oldest message
+  shown, not by page number, as the messages that arrive meanwhile would shift the pages.
+  The list says whether there are older ones still (data-has-next-page).
+
+  @param {string} conversation_id - the ID of the conversation
+  @param {string} [before] - id of the oldest message already shown, only older messages are returned (the newest ones without it)
+  @param {number} [per_page] - items per page (default: 30, at most 50)
+{% enddoc %}
+
+{% liquid
+  function current_profile = 'modules/user/helpers/current_profile'
+
+  # platformos-check-disable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+  include 'modules/user/helpers/can_do_or_unauthorized', requester: current_profile, do: 'chat.inbox', entity: null, access_callback: null, redirect_anonymous_to_login: null, forbidden_partial: null
+  # platformos-check-enable ConvertIncludeToRender, UnreachableCode, DeprecatedTag, MetadataParamsCheck
+
+  assign conversation_id = context.params.conversation_id
+  assign before = context.params.before
+  assign per_page = context.params.per_page | to_positive_integer: 30
+
+  # only the conversations the current user takes part in - another one finds nothing
+  function messages = 'modules/chat/queries/messages/search_by_participant', conversation_id: conversation_id, page: 1, before_id: before, limit: per_page, participant_id: current_profile.id
+
+  # newest first from the query
+  assign list = messages.results | reverse
+  assign has_next_page = messages.has_next_page | default: false
+%}
+<ul data-has-next-page="{{ has_next_page }}">
+  {% render 'modules/chat/messages', messages: list, current_profile: current_profile %}
+</ul>

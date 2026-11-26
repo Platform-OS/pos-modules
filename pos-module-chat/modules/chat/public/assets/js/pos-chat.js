@@ -51,21 +51,15 @@ window.pos.modules.chat = function(userSettings = {}){
   module.settings.atBottom = true;
   // how close to the bottom, in pixels, still counts as being at the bottom (int)
   module.settings.atBottomThreshold = 80;
-  // html template for the single message
-  module.settings.messageTemplate = {
-    // whole html template for sent message (dom node)
-    sent: document.querySelector('#pos-chat-template-message-sent'),
-    // whole html template for received message (dom node)
-    received: document.querySelector('#pos-chat-template-message-received'),
-    // selector for date field in the template (string)
-    dateSelector: 'time',
-    // selector for the message text container (string)
-    messageSelector: '.pos-chat-message-text',
-    // selector for the image container (string)
-    imageSelector: '.pos-chat-message-image',
-    // selector for the file container (string)
-    fileSelector: '.pos-chat-message-file'
-  };
+  // the messages are rendered by the server only (message.liquid) - the inbox, the older ones
+  // (messagesUrl) and the live ones (broadcast as HTML by channels/conversate/receive)
+  // selector for the time element of a message (string)
+  module.settings.messageDateSelector = 'time';
+  // class of the messages written by the current user - a live message comes without it, as
+  // both participants get the same HTML, and it's added by its data-autor-id (string)
+  module.settings.authoredClass = 'pos-chat-message-authored';
+  // url the older messages are loaded from, rendered as in the inbox (string)
+  module.settings.messagesUrl = '/messages.frame';
   // the id of the currently logged user (string)
   module.settings.currentUserId = window.pos.profile.id;
   // the loading indicator when loading messages (dom node)
@@ -565,7 +559,7 @@ window.pos.modules.chat = function(userSettings = {}){
   // returns:		the message's created_at as a Date, or null if unavailable
   // ------------------------------------------------------------------------
   module.settings.dateOf = (li) => {
-    const time = li ? li.querySelector(module.settings.messageTemplate.dateSelector) : null;
+    const time = li ? li.querySelector(module.settings.messageDateSelector) : null;
     return (time && time.dateTime) ? new Date(time.dateTime) : null;
   };
 
@@ -583,84 +577,18 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		formats a byte size the same way message.liquid does server-side
-  //				    (KB below 1MB, MB at/above), for the file attachment size label
-  // arguments:	the size in bytes (number)
-  // returns:		the formatted size, e.g. '12.3 KB' / '1.4 MB' (string)
+  // purpose:		turns a message rendered by the server (message.liquid) into an element, marked
+  //				    as authored when the current user wrote it - live messages come without it
+  // arguments:	the message's HTML (string)
+  // returns:		the message's <li>, detached from any list (dom node), or null without one
   // ------------------------------------------------------------------------
-  module.settings.formatFileSize = (size) => {
-    if(size >= 1048576){
-      return `${(size / 1048576).toFixed(1)} MB`;
-    }
+  module.settings.messageFromHtml = (html) => {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const li = template.content.querySelector('li');
 
-    return `${(size / 1024).toFixed(1)} KB`;
-  };
-
-
-  // purpose:		builds a fully-populated message <li> (text + attachments) from message
-  //				    data, shared by showMessage() (live receive) and loadPage() (pagination)
-  //				    so both stay in sync instead of duplicating/diverging this logic
-  // arguments:	the message data - message, media, status ('sent'/'received') (object)
-  // returns:		the message's <li> element, detached from any list (dom node)
-  // ------------------------------------------------------------------------
-  module.settings.buildMessageElement = (messageData) => {
-    const fragment = messageData.status === 'received' ? module.settings.messageTemplate.received.content.cloneNode(true) : module.settings.messageTemplate.sent.content.cloneNode(true);
-    const li = fragment.querySelector('li');
-
-    // the template always carries one image and one file placeholder (baked in via
-    // as_template) - keep them as clone sources for real attachments below, then strip
-    // them from the base <li> so a message without that kind of attachment doesn't show
-    // a leftover blank placeholder
-    const imageTemplate = li.querySelector(module.settings.messageTemplate.imageSelector);
-    const fileTemplate = li.querySelector(module.settings.messageTemplate.fileSelector);
-    imageTemplate?.remove();
-    fileTemplate?.remove();
-
-    // like the media placeholders, the template always carries the text div too (baked in
-    // via as_template) - message.liquid only renders it server-side when there's actually
-    // a message, so mirror that here rather than leaving an empty bubble for a media-only message
-    let textEl = li.querySelector(module.settings.messageTemplate.messageSelector);
-    if(messageData.message && messageData.message.trim().length){
-      textEl.innerHTML = encodeHtml(messageData.message).replace(/(\r\n|\r|\n)/g, '<br>');
-    } else {
-      textEl.remove();
-      textEl = null;
-    }
-
-    if(messageData.media && messageData.media.length){
-      messageData.media.forEach(item => {
-        let mediaElement;
-
-        if(item.type && item.type.startsWith('image/')){
-          mediaElement = imageTemplate.cloneNode(true);
-          const img = mediaElement.querySelector('img');
-          img.src = item.url;
-          // the image is sized by these (see the CSS), as in message.liquid - without them
-          // it takes its own size once loaded
-          if(item.width > 0 && item.height > 0){
-            img.width = item.width;
-            img.height = item.height;
-            mediaElement.style.setProperty('--pos-chat-image-ratio', `${item.width} / ${item.height}`);
-          } else {
-            img.removeAttribute('width');
-            img.removeAttribute('height');
-          }
-        } else {
-          mediaElement = fileTemplate.cloneNode(true);
-          mediaElement.querySelector('a').href = item.url;
-          mediaElement.querySelector('.pos-chat-message-file-name').textContent = item.name;
-          mediaElement.querySelector('small').textContent = `(${module.settings.formatFileSize(item.size)})`;
-        }
-
-        // attachments render before the text bubble, same order as message.liquid, and
-        // are inserted into the <li> itself (not appended to the fragment root) - falls
-        // back to appending at the end when there's no text bubble to insert before
-        if(textEl){
-          li.insertBefore(mediaElement, textEl);
-        } else {
-          li.appendChild(mediaElement);
-        }
-      });
+    if(li){
+      li.classList.toggle(module.settings.authoredClass, li.dataset.autorId === String(module.settings.currentUserId));
     }
 
     return li;
@@ -718,30 +646,33 @@ window.pos.modules.chat = function(userSettings = {}){
         authenticity_token: window.pos.csrfToken
       },
       {
+        // a message of either participant, rendered by the server: { html, preview }
         received: function(data){
-          module.showMessage(
-            Object.assign(data, {
-              status: (module.settings.currentUserId == data.autor_id) ? 'sent' : 'received'
-            })
-          );
+          const li = (typeof data?.html === 'string') ? module.settings.messageFromHtml(data.html) : null;
+          const createdAt = module.settings.dateOf(li);
+
+          if(!li || !createdAt){
+            pos.modules.debug(module.settings.debug, module.settings.id, 'Not a message, ignored', data);
+            return;
+          }
+
+          const authored = li.classList.contains(module.settings.authoredClass);
+
+          module.showMessage(li);
 
           // a new message moves the conversation up the list and changes its card - done right here
           // when it can be, the whole list is reloaded otherwise
-          if(!module.conversations.updateOpenCard(data)){
+          if(!module.conversations.updateOpenCard({ preview: data.preview, created_at: createdAt, authored: authored })){
             module.conversations.reload();
           }
 
           // We're actively rendering this message on screen right now - tell the
           // server so it doesn't count as unread and trigger a push notification.
-          if(data.status === 'received'){
+          if(!authored){
             module.settings.unseen = true;
             module.markRead();
-          }
 
-          if(module.settings.debug){
-            if(data.status === 'received'){
-              pos.modules.debug(module.settings.debug, module.settings.id, 'Message received', data);
-            }
+            pos.modules.debug(module.settings.debug, module.settings.id, 'Message received', li.dataset.id);
           }
         },
 
@@ -925,8 +856,7 @@ window.pos.modules.chat = function(userSettings = {}){
   // ------------------------------------------------------------------------
   module.sendMessage = (message, media = null) => {
     let messageData = {
-      // stored as typed - escaping happens at render time (encodeHtml in buildMessageElement,
-      // and the same plain text + <br> in the server-rendered message.liquid partial), not here
+      // stored as typed - escaping happens when the server renders it (message.liquid), not here
       message: message,
       created_at: new Date()
     };
@@ -945,18 +875,14 @@ window.pos.modules.chat = function(userSettings = {}){
   };
 
 
-  // purpose:		appends a message to the chat box
-  // arguments:	all the message data that needs to be shown
-  //				    according to the template in messageTemplate (object)
+  // purpose:		adds a live message to the chat box
+  // arguments:	the message's <li>, rendered by the server (dom node, see messageFromHtml)
   // ------------------------------------------------------------------------
-  module.showMessage = (messageData) => {
-    // build the message's <li> (text + attachments)
-    const li = module.settings.buildMessageElement(messageData);
-
+  module.showMessage = (li) => {
     // Insert in chronological order (by created_at) rather than by arrival order, so a
     // burst of messages renders correctly even if channel delivery arrives out of order.
     // Falls back to appending at the end (the common case: the newest message).
-    const messageDate = new Date(messageData.created_at);
+    const messageDate = module.settings.dateOf(li);
     let insertBeforeLi = null;
     for(const existingLi of module.settings.messagesList.querySelectorAll(':scope > li')){
       const liDate = module.settings.dateOf(existingLi);
@@ -970,7 +896,7 @@ window.pos.modules.chat = function(userSettings = {}){
     // that precedes this one chronologically (not necessarily the previous sibling in the DOM,
     // though in the common append-at-the-end case it is the same thing)
     const previousLi = insertBeforeLi ? insertBeforeLi.previousElementSibling : module.settings.messagesList.lastElementChild;
-    const timeEl = li.querySelector(module.settings.messageTemplate.dateSelector);
+    const timeEl = li.querySelector(module.settings.messageDateSelector);
     module.settings.setMessageTime(timeEl, messageDate, module.settings.shouldShowTime(messageDate, module.settings.dateOf(previousLi)));
 
     if(insertBeforeLi){
@@ -979,7 +905,7 @@ window.pos.modules.chat = function(userSettings = {}){
       // this message now sits between the old previous message and insertBeforeLi, so
       // insertBeforeLi's own timestamp visibility (based on the gap to its predecessor) may
       // need to be rechecked - the gap to its new, closer predecessor can only have shrunk
-      const nextTimeEl = insertBeforeLi.querySelector(module.settings.messageTemplate.dateSelector);
+      const nextTimeEl = insertBeforeLi.querySelector(module.settings.messageDateSelector);
       const nextDate = module.settings.dateOf(insertBeforeLi);
       if(nextDate){
         module.settings.setMessageTime(nextTimeEl, nextDate, module.settings.shouldShowTime(nextDate, messageDate));
@@ -991,7 +917,7 @@ window.pos.modules.chat = function(userSettings = {}){
 
     scrollBottom('smooth');
 
-    pos.modules.debug(module.settings.debug, module.settings.id, 'Message shown on page', messageData);
+    pos.modules.debug(module.settings.debug, module.settings.id, 'Message shown on page', li.dataset.id);
   };
 
 
@@ -1023,44 +949,36 @@ window.pos.modules.chat = function(userSettings = {}){
     // show the loading indicator at start
     module.settings.loadingIndicator.classList.add('active');
 
-    // get the data
-    module.settings.loadingPage = module.request(`/api/chat/messages.json?conversation_id=${module.conversationId}&before=${oldestId}&per_page=${perPage}`)
+    // get the messages, rendered as in the inbox
+    const params = new URLSearchParams({ conversation_id: module.conversationId, before: oldestId, per_page: perPage });
+    module.settings.loadingPage = module.request(`${module.settings.messagesUrl}?${params}`)
     .then(response => {
-      // parse it to JSON if valid
       if(response.ok){
-        return response.json();
+        return response.text();
       } else {
         return Promise.reject(response);
       }
     })
     .then((data) => {
-      // construct HTML elements for messages
-      let html = document.createDocumentFragment();
-      // tracks the chronologically previous message within this (older) batch, oldest first -
-      // the very first message of a batch has no known predecessor yet, so it always shows its time
-      let previousDate = null;
+      const template = document.createElement('template');
+      template.innerHTML = data;
+      const list = template.content.querySelector('ul[data-has-next-page]');
+      if(!list){
+        return Promise.reject(new Error('The response has no list of messages'));
+      }
 
-      Object.entries(data.results).reverse().forEach(([key, messageData]) => {
-        messageData = Object.assign(messageData, { status: (module.settings.currentUserId == messageData.autor_id) ? 'sent' : 'received'});
-
-        // build the message's <li> (text + attachments) - shared with showMessage()
-        const li = module.settings.buildMessageElement(messageData);
-        // the next batch is loaded from the oldest one's id
-        li.dataset.id = messageData.id;
-        const messageDate = new Date(messageData.created_at);
-        module.settings.setMessageTime(li.querySelector(module.settings.messageTemplate.dateSelector), messageDate, module.settings.shouldShowTime(messageDate, previousDate));
-
-        html.append(li);
-
-        previousDate = messageDate;
-      });
+      // oldest first - the server shows the time of the first one, and of each one that comes
+      // more than 7 minutes after the one before it
+      const html = document.createDocumentFragment();
+      html.append(...list.querySelectorAll(':scope > li'));
 
       // the message that used to be the oldest one visible now follows the newest message of
       // this freshly-loaded (older) batch instead of having no predecessor - recheck its timestamp
+      const previousDate = module.settings.dateOf(html.lastElementChild);
       const oldFirstLi = module.settings.messagesList.firstElementChild;
       const oldFirstDate = module.settings.dateOf(oldFirstLi);
       if(oldFirstDate && previousDate){
-        module.settings.setMessageTime(oldFirstLi.querySelector(module.settings.messageTemplate.dateSelector), oldFirstDate, module.settings.shouldShowTime(oldFirstDate, previousDate));
+        module.settings.setMessageTime(oldFirstLi.querySelector(module.settings.messageDateSelector), oldFirstDate, module.settings.shouldShowTime(oldFirstDate, previousDate));
       }
 
       // put the messages on top
@@ -1072,7 +990,7 @@ window.pos.modules.chat = function(userSettings = {}){
       }
 
       // disable loading next pages if there is nothing left
-      if(!data.has_next_page){
+      if(list.dataset.hasNextPage !== 'true'){
         module.settings.morePages = false;
       }
 
@@ -1181,7 +1099,7 @@ window.pos.modules.chat = function(userSettings = {}){
   //            the unread ones first, then the read ones, each newest first (the same as
   //            queries/conversations/search_by_participant sorts them), and the open conversation is
   //            read while the tab is visible
-  // arguments: the message as broadcast to the conversation (object)
+  // arguments: the new message - preview (the card's text, as broadcast), created_at (Date), authored (bool) (object)
   // returns:   if it's done - when the list needs the server to tell where the card goes (the tab
   //            is hidden, so the conversation is unread now; the card isn't loaded or is still a
   //            draft; the read ones aren't loaded yet), nothing is changed and it has to be reloaded (bool)
@@ -1192,7 +1110,7 @@ window.pos.modules.chat = function(userSettings = {}){
     if(!container || !module.conversationId || typeof data.preview !== 'string' || !data.created_at){
       return false;
     }
-    if(data.status !== 'sent' && document.visibilityState !== 'visible'){
+    if(!data.authored && document.visibilityState !== 'visible'){
       return false;
     }
 
