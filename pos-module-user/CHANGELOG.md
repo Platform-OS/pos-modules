@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+## Unreleased
+* Security fix: Log out (`DELETE /sessions`) followed any `redirect_to` from the request, so a crafted form could send a user to another site after signing out (`https://…`, `//…`, `/\…`), and a value with a backslash answered 500. It now follows only a path on this site (new helper `modules/user/helpers/local_path`) and goes to `/` otherwise; a `redirect_to` returned by a `hook_user_logout` hook is still followed as before
+
 ## v5.3.1
 * Fix: verification links were valid for 60 days instead of the configured 24 hours - `temporary_token` reads its arguments in hours and prefers the deprecated `valid_for`, so the TTL was being multiplied by 60
 * Fix: `user/find.graphql` declared `$valid_for: Int = 1`, which overrode the `$expires_in` next to it for every caller; password reset links kept their one hour lifetime, now stated explicitly

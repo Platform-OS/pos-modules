@@ -13,3 +13,11 @@
 # app/ is first-party code and stays linted, including app/modules/* overrides.
 ignore:
   - "modules/!(user)/**"
+
+# user_session_destroy is deprecated ("Use session tag"), but the session tag has
+# no documented sign-out: clearing the Warden key works only by relying on an
+# undocumented internal and leaves the session id and CSRF token in place.
+# Keep the mutation until platformOS documents the replacement.
+DeprecatedGraphQLField:
+  ignore:
+    - "modules/user/public/graphql/session/destroy.graphql"
